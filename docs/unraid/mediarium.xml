@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!--
+  Unraid Community Applications template for Mediarium.
+  STATUS: the XML is well formed (checked with a parser) but has not been loaded
+  into a real Unraid server, and it has NOT been submitted to Community
+  Applications. Not yet possible: it needs a public repo, a published image and a
+  hosted icon (see docs/unraid.md and docs/INSTALL.md).
+
+  Use it by hand until then: Docker tab -> Add Container -> (Advanced View) ->
+  paste this file's contents via the Template field, or follow the manual steps
+  in docs/unraid.md.
+
+  LAYOUT CHANGE from the first version of this template: it used four separate
+  path mappings (/config, /downloads, /movies, /tv). Separate mappings are
+  separate mount points inside the container, and a hardlink cannot cross a mount
+  point even when both come from the same share, so imports fell back to copying
+  (double disk use). This version maps ONE parent folder as /data and points the
+  app's default folders inside it with DOWNLOADS_DIR / MOVIES_DIR / TV_DIR.
+  Put downloads, movies and tv as sub-folders of that one share.
+-->
+<Container version="2">
+  <Name>mediarium</Name>
+  <Repository>ghcr.io/rdborg/mediarium:latest</Repository>
+  <Registry>https://github.com/rdborg/mediarium</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/rdborg/mediarium/issues</Support>
+  <Project>https://github.com/rdborg/mediarium</Project>
+  <Overview>Self-hosted, all-in-one media manager for movies and TV: search your Usenet and torrent indexers, grab, download (built-in Usenet and BitTorrent clients), unpack and organize into your library, fetch subtitles, all from one web interface instead of five separate containers. Optional built-in WireGuard VPN for torrent traffic needs no NET_ADMIN or /dev/net/tun. Mediarium does not provide or host any content; you are responsible for what you download. See docs/LEGAL.md.</Overview>
+  <Category>MediaApp:Video Downloaders:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <!-- TemplateURL: once the repo is public, point it at the raw URL of this file,
+       for example https://raw.githubusercontent.com/rdborg/mediarium/main/docs/unraid/mediarium.xml
+       (branch name and path are assumptions until then). -->
+  <TemplateURL/>
+  <!-- Icon: branding/mediarium-icon-512.png exists but needs a hosted URL, which
+       needs the repo to be public. Community Applications rejects a missing or
+       broken icon. -->
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <DonateText/>
+  <DonateLink/>
+
+  <Config Name="WebUI Port" Target="8080" Default="8080" Mode="tcp" Description="Port the web interface is served on." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/mediarium" Mode="rw" Description="Mediarium's database (app.db) and encryption key (secret.key). Back both up together." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/mediarium</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/data" Mode="rw" Description="ONE parent share that contains the folders downloads, movies and tv. Keeping them under a single mapping is what lets imports hardlink instead of copy." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
+
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID for file ownership. 99 is Unraid's default 'nobody' user." Type="Variable" Display="always" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID for file ownership. 100 is Unraid's default 'users' group." Type="Variable" Display="always" Required="true" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="Etc/UTC" Mode="" Description="Timezone, for example America/New_York or Europe/Malta." Type="Variable" Display="always" Required="true" Mask="false">Etc/UTC</Config>
+
+  <Config Name="Downloads folder" Target="DOWNLOADS_DIR" Default="/data/downloads" Mode="" Description="Where downloads are stored. Must be inside /data." Type="Variable" Display="advanced" Required="false" Mask="false">/data/downloads</Config>
+  <Config Name="Movies folder" Target="MOVIES_DIR" Default="/data/movies" Mode="" Description="Movie library. Must be inside /data." Type="Variable" Display="advanced" Required="false" Mask="false">/data/movies</Config>
+  <Config Name="TV folder" Target="TV_DIR" Default="/data/tv" Mode="" Description="TV library. Must be inside /data." Type="Variable" Display="advanced" Required="false" Mask="false">/data/tv</Config>
+</Container>

@@ -1,0 +1,40 @@
+# Mediarium stack for Portainer (Stacks > Add stack > Web editor: paste this).
+# Also works unchanged with plain `docker compose up -d`.
+# STATUS: UNTESTED in Portainer. The compose syntax is the same as the repo's
+# docker-compose.yml, minus the `build:` block, with ONE data mount.
+#
+# Why one /data mount instead of separate /downloads, /movies and /tv mounts:
+# a hardlink cannot cross mount points, even when both mounts come from the same
+# disk. With one parent mounted once, /data/downloads and /data/movies are the
+# same mount and imports hardlink (instant, no extra space). See
+# docs/INSTALL.md, "Folder layout".
+#
+# In Portainer, set the values below in the "Environment variables" section of
+# the stack editor (or leave the defaults).
+#   DATA_DIR   host folder that will contain downloads/ movies/ tv/
+#   CONFIG_DIR_HOST  host folder for Mediarium's own state (app.db, secret.key)
+#   PUID/PGID  numeric owner of those folders on the host (`id youruser` over SSH)
+#   TZ         e.g. Europe/Malta
+#
+# NOTE: the image ghcr.io/rdborg/mediarium is not published yet (private repo).
+# Until it is, build it yourself (see docs/INSTALL.md) and put your own image
+# name here.
+
+services:
+  mediarium:
+    image: ghcr.io/rdborg/mediarium:latest
+    container_name: mediarium
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-8080}:8080"
+    environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      TZ: "${TZ:-Etc/UTC}"
+      # Point the app's default folders inside the single /data mount.
+      DOWNLOADS_DIR: /data/downloads
+      MOVIES_DIR: /data/movies
+      TV_DIR: /data/tv
+    volumes:
+      - "${CONFIG_DIR_HOST:-/srv/mediarium/config}:/config"
+      - "${DATA_DIR:-/srv/mediarium/data}:/data"

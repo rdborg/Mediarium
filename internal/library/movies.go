@@ -1,0 +1,210 @@
+// Package library owns the movies table — the Phase 1 library (PRD.md
+// §7; TV follows the same shape in Phase 2 per the `media_type` column in
+// the schema).
+package library
+
+import (
+	"database/sql"
+	"fmt"
+)
+
+type Status string
+
+const (
+	StatusMissing     Status = "missing"
+	StatusDownloading Status = "downloading"
+	StatusDownloaded  Status = "downloaded"
+)
+
+type Movie struct {
+	ID          int64
+	TMDBID      int
+	Title       string
+	Year        int
+	Overview    string
+	PosterPath  string
+	Status      Status
+	Quality     string
+	FilePath    string
+	Monitored   bool
+	ReleaseDate string // "YYYY-MM-DD" from TMDB, empty if unknown — powers the calendar (PRD §7 Phase 3)
+	ProfileID   int64  // quality profile; 0 = the default profile
+	SourcePref  string // "" = follow Settings; else usenet, torrent or both
+}
+
+type Repo struct {
+	db *sql.DB
+}
+
+func NewRepo(db *sql.DB) *Repo { return &Repo{db: db} }
+
+// Add inserts a movie into the library as "missing" (PRD §5.2 step 6 —
+// added via search/Discover, not yet downloaded).
+func (r *Repo) Add(m Movie) (Movie, error) {
+	if m.Status == "" {
+		m.Status = StatusMissing
+	}
+	res, err := r.db.Exec(
+		`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, monitored, release_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		m.TMDBID, m.Title, m.Year, m.Overview, m.PosterPath, string(m.Status), m.Monitored, m.ReleaseDate,
+	)
+	if err != nil {
+		return Movie{}, fmt.Errorf("insert movie: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return Movie{}, fmt.Errorf("get inserted movie id: %w", err)
+	}
+	m.ID = id
+	return m, nil
+}
+
+func (r *Repo) Get(id int64) (Movie, error) {
+	return r.scanOne(r.db.QueryRow(
+		`SELECT id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref FROM movies WHERE id = ?`, id))
+}
+
+// GetByTMDBID looks up a movie by its TMDB id — used by the movie detail
+// page to check whether a Discover title has already been added, without
+// needing its own library id (which doesn't exist until it's added).
+func (r *Repo) GetByTMDBID(tmdbID int) (Movie, bool, error) {
+	m, err := r.scanOne(r.db.QueryRow(
+		`SELECT id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref FROM movies WHERE tmdb_id = ?`, tmdbID))
+	if err == sql.ErrNoRows {
+		return Movie{}, false, nil
+	}
+	if err != nil {
+		return Movie{}, false, err
+	}
+	return m, true, nil
+}
+
+func (r *Repo) List() ([]Movie, error) {
+	rows, err := r.db.Query(
+		`SELECT id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref FROM movies ORDER BY added_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list movies: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Movie
+	for rows.Next() {
+		m, err := r.scanRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// SetMonitored turns automatic searching for a movie on or off.
+func (r *Repo) SetMonitored(id int64, monitored bool) error {
+	_, err := r.db.Exec(`UPDATE movies SET monitored = ? WHERE id = ?`, monitored, id)
+	if err != nil {
+		return fmt.Errorf("set movie %d monitored: %w", id, err)
+	}
+	return nil
+}
+
+// SetSourcePref sets which downloaders a movie may use ("" = the default).
+func (r *Repo) SetSourcePref(id int64, pref string) error {
+	_, err := r.db.Exec(`UPDATE movies SET source_pref = ? WHERE id = ?`, pref, id)
+	if err != nil {
+		return fmt.Errorf("set movie %d source preference: %w", id, err)
+	}
+	return nil
+}
+
+// SetProfile assigns a quality profile to a movie (0 = use the default).
+func (r *Repo) SetProfile(id, profileID int64) error {
+	_, err := r.db.Exec(`UPDATE movies SET profile_id = NULLIF(?, 0) WHERE id = ?`, profileID, id)
+	if err != nil {
+		return fmt.Errorf("set movie %d profile: %w", id, err)
+	}
+	return nil
+}
+
+// RecentItem is a movie or series, for "recently added" lists.
+type RecentItem struct {
+	Kind       string // "movie" or "series"
+	ID         int64
+	TMDBID     int
+	Title      string
+	Year       int
+	PosterPath string
+	AddedAt    string
+}
+
+// RecentlyAdded returns the newest movies and series together, newest first.
+func (r *Repo) RecentlyAdded(limit int) ([]RecentItem, error) {
+	rows, err := r.db.Query(
+		`SELECT kind, id, tmdb_id, title, year, poster, added_at FROM (
+			SELECT 'movie' AS kind, id, tmdb_id, title, COALESCE(year, 0) AS year, COALESCE(poster_path, '') AS poster, added_at FROM movies
+			UNION ALL
+			SELECT 'series', id, tmdb_id, title, COALESCE(year, 0), COALESCE(poster_path, ''), added_at FROM series
+		) ORDER BY added_at DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recently added: %w", err)
+	}
+	defer rows.Close()
+	var out []RecentItem
+	for rows.Next() {
+		var it RecentItem
+		if err := rows.Scan(&it.Kind, &it.ID, &it.TMDBID, &it.Title, &it.Year, &it.PosterPath, &it.AddedAt); err != nil {
+			return nil, fmt.Errorf("scan recently added: %w", err)
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+// Delete removes a movie and, via foreign keys, its queue items (activity
+// entries are kept, detached).
+func (r *Repo) Delete(id int64) error {
+	if _, err := r.db.Exec(`DELETE FROM movies WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete movie %d: %w", id, err)
+	}
+	return nil
+}
+
+// SetStatus updates a movie's lifecycle status (missing -> downloading ->
+// downloaded), and optionally its resolved quality/file path once known.
+func (r *Repo) SetStatus(id int64, status Status, quality, filePath string) error {
+	_, err := r.db.Exec(
+		`UPDATE movies SET status = ?, quality = COALESCE(NULLIF(?, ''), quality), file_path = COALESCE(NULLIF(?, ''), file_path), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+		string(status), quality, filePath, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update movie %d status: %w", id, err)
+	}
+	return nil
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func (r *Repo) scanOne(row *sql.Row) (Movie, error) {
+	return r.scanRow(row)
+}
+
+func (r *Repo) scanRow(scanner rowScanner) (Movie, error) {
+	var (
+		m        Movie
+		status   string
+		quality  sql.NullString
+		filePath sql.NullString
+	)
+	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref)
+	if err == sql.ErrNoRows {
+		return Movie{}, err
+	}
+	if err != nil {
+		return Movie{}, fmt.Errorf("scan movie: %w", err)
+	}
+	m.Status = Status(status)
+	m.Quality = quality.String
+	m.FilePath = filePath.String
+	return m, nil
+}

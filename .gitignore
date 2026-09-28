@@ -1,0 +1,33 @@
+# Build output
+/bin/
+/dist/
+*.exe
+
+# Local dev data (matches the /config volume mount)
+/config/
+*.db
+*.db-journal
+
+# Env
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+/vendor/
+*.test
+*.out
+
+# Local media and data folders (mounted into the container while developing)
+/downloads/
+/movies/
+/tv/
+
+# Agent and editor tooling stays out of the repo
+/.claude/

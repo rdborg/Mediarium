@@ -1,0 +1,10 @@
+# GitHub Sponsors button config (PRD §10 — "GitHub Sponsors ... no special
+# perks required to start" and "Open Collective / Ko-fi ... for one-time
+# donations"). Every line is commented out because none of these accounts
+# exist yet — uncomment and fill in your real handle for each service you
+# actually set up, then GitHub shows a "Sponsor" button on the repo. Only
+# takes effect once the repo is public (PRD §9).
+#
+# github: [YOUR_GITHUB_SPONSORS_USERNAME]
+# open_collective: [YOUR_OPEN_COLLECTIVE_SLUG]
+# ko_fi: [YOUR_KOFI_USERNAME]

@@ -1,0 +1,242 @@
+# Release pipeline: runs when a tag like v0.1.0 is pushed.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# What it produces:
+#   1. Native binaries (linux/amd64, linux/arm64, windows/amd64, darwin/amd64,
+#      darwin/arm64), each packed with LICENSE + README-INSTALL.txt, plus a
+#      sha256sums.txt, attached to a GitHub Release.
+#   2. A multi-arch (linux/amd64 + linux/arm64) Docker image pushed to
+#      ghcr.io/<owner>/<repo>, built from the repo's Dockerfile.
+#
+# Notes:
+#   * There was no other workflow in .github/workflows/ when this was written,
+#     so nothing here duplicates a CI job. If you add a CI workflow later, keep
+#     it on push/pull_request so the two never both run on a tag.
+#   * The frontend (web/dist) is embedded into the Go binary by web/embed.go
+#     (//go:embed dist), so it MUST be built before `go build`. The `frontend`
+#     job builds it once and the `binaries` matrix downloads it. The Docker
+#     build does its own frontend stage inside the Dockerfile.
+#   * -X variable names (main.version, main.defaultTMDBAPIKey,
+#     main.defaultOpenSubtitlesAPIKey, main.defaultTraktClientID) are copied
+#     from the Dockerfile and cmd/app/main.go. Keep all three in sync.
+#   * Optional repository secrets TMDB_API_KEY, OPENSUBTITLES_API_KEY and
+#     TRAKT_CLIENT_ID bake app-wide identifiers into official builds (see the
+#     Dockerfile). If a secret is not set the value is empty and the app asks
+#     each user for their own key, exactly like a build from source.
+#   * NOT TESTED: this workflow has not been run on GitHub yet. The Go
+#     cross-compile commands it uses were verified locally (see docs/INSTALL.md).
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # same major as the Dockerfile's node:22-alpine
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install and build
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload web/dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  binaries:
+    name: Binary ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: frontend
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Replaces the tracked placeholder web/dist/index.html with the real UI
+      # before go:embed picks it up.
+      - name: Download built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Build and package
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ github.ref_name }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          name="mediarium_${VERSION}_${GOOS}_${GOARCH}"
+          out="dist/${name}"
+          mkdir -p "${out}"
+
+          exe="mediarium"
+          if [ "${GOOS}" = "windows" ]; then exe="mediarium.exe"; fi
+
+          go build -trimpath \
+            -ldflags "-s -w -X main.version=${VERSION} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID}" \
+            -o "${out}/${exe}" ./cmd/app
+
+          cp LICENSE "${out}/LICENSE"
+          cp packaging/README-INSTALL.txt "${out}/README-INSTALL.txt"
+          mkdir -p "${out}/docs"
+          cp docs/INSTALL.md "${out}/docs/INSTALL.md"
+
+          # Per-platform helper files (all UNTESTED, see docs/INSTALL.md).
+          case "${GOOS}" in
+            linux)
+              cp packaging/systemd/mediarium.service "${out}/mediarium.service"
+              cp packaging/systemd/mediarium.env.example "${out}/mediarium.env.example"
+              ;;
+            windows)
+              cp packaging/windows/run-mediarium.ps1 "${out}/run-mediarium.ps1"
+              ;;
+            darwin)
+              cp packaging/macos/install.sh "${out}/install.sh"
+              cp packaging/macos/io.github.ryanborg.mediarium.plist "${out}/io.github.ryanborg.mediarium.plist"
+              ;;
+          esac
+
+          cd dist
+          if [ "${GOOS}" = "windows" ]; then
+            zip -r "${name}.zip" "${name}"
+          else
+            tar -czf "${name}.tar.gz" "${name}"
+          fi
+          rm -rf "${name}"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: GitHub Release
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload assets
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          merge-multiple: true
+          path: release
+
+      - name: Checksums
+        working-directory: release
+        run: |
+          set -euo pipefail
+          sha256sum *.zip *.tar.gz > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # A tag with a hyphen (v0.2.0-rc1) is published as a pre-release.
+          flags=""
+          case "${TAG}" in *-*) flags="--prerelease" ;; esac
+          gh release create "${TAG}" release/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Mediarium ${TAG}" \
+            --generate-notes \
+            ${flags}
+
+  docker:
+    name: Docker image (ghcr.io)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runtime stage runs `apk add` for the TARGET architecture, which
+      # needs QEMU for the arm64 image even though Go itself cross-compiles.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tags produced for v1.2.3: v1.2.3, v1.2, and (only for non-pre-release
+      # tags) latest. The repository name is lower-cased by the action, which
+      # ghcr.io requires.
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
+            OPENSUBTITLES_API_KEY=${{ secrets.OPENSUBTITLES_API_KEY }}
+            TRAKT_CLIENT_ID=${{ secrets.TRAKT_CLIENT_ID }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

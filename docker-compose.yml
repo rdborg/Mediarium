@@ -1,0 +1,35 @@
+# Copy-paste-ready. Adjust the volume paths on the left of each ":" to
+# match your NAS's actual folder layout, then run: docker compose up -d
+#
+# See docs/ for Synology / Unraid / generic Linux specific notes,
+# especially about keeping /downloads and /movies on the SAME underlying
+# filesystem so hardlinking works (avoids double storage use).
+
+services:
+  app:
+    # No published image yet (repo is private — PRD §9), so this builds
+    # locally from the Dockerfile in this directory. `image:` still names
+    # what the local build gets tagged, and is what you'd switch to a
+    # `ghcr.io/...` reference once one's published, dropping `build:`.
+    build:
+      context: .
+      # Optional app-wide keys for an official build (see the Dockerfile);
+      # leave them out and the app asks users for their own.
+      args:
+        TMDB_API_KEY: ${TMDB_API_KEY:-}
+        OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}
+        TRAKT_CLIENT_ID: ${TRAKT_CLIENT_ID:-}
+    image: ghcr.io/rdborg/mediarium:latest
+    container_name: mediarium
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - ./config:/config
+      - ./downloads:/downloads
+      - ./movies:/movies
+      - ./tv:/tv

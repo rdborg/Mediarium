@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+  Unraid Community Applications repository profile: describes the repository to
+  CA separately from mediarium.xml's per-app template. Not submitted (see
+  docs/unraid.md for what is still missing: public repo, a tagged release, a
+  hosted icon). Whether CA still uses this file, and what its current
+  submission process is, was NOT verified; check Unraid's current CA
+  documentation before submitting.
+-->
+<CommunityApplications>
+  <Profile>Mediarium: a self-hosted, all-in-one media manager for movies and TV (Radarr, Sonarr, Prowlarr, SABnzbd and Bazarr style features in one process). Open source, AGPL-3.0. Report a problem via the issues link below.</Profile>
+  <!-- Icon: needs a hosted URL once the repo is public, for example the raw URL of
+       branding/mediarium-icon-512.png. CA rejects a missing or broken icon. -->
+  <Icon></Icon>
+  <WebPage>https://github.com/rdborg/mediarium</WebPage>
+  <Support>https://github.com/rdborg/mediarium/issues</Support>
+  <DonateText></DonateText>
+  <DonateLink></DonateLink>
+</CommunityApplications>

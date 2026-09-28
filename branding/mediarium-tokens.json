@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "teal": "#34D1BF",
+    "tealDeep": "#0B7A6F",
+    "glint": "#B8F3EA",
+    "glintLight": "#7FE3D6",
+    "tile": "#161A21",
+    "tileEdge": "#2A303B"
+  },
+  "fonts": {
+    "display": "Sora (500/600/700)",
+    "body": "IBM Plex Sans (400/500/600)",
+    "mono": "IBM Plex Mono (400/500)"
+  },
+  "dark": {
+    "bg": "#0F1115",
+    "surface": "#161A21",
+    "surface2": "#1C2029",
+    "border": "#262C37",
+    "text": "#E8EAED",
+    "textMuted": "#8B93A1",
+    "accent": "#34D1BF",
+    "accentHover": "#5EDDCF",
+    "accentPressed": "#22B3A2",
+    "onAccent": "#06201D",
+    "accent2": "#A898FF",
+    "onAccent2": "#150F33",
+    "success": "#4ADE80",
+    "warning": "#F5B544",
+    "danger": "#F87171",
+    "info": "#60A5FA"
+  },
+  "light": {
+    "bg": "#F5F6F8",
+    "surface": "#FFFFFF",
+    "surface2": "#EEF0F3",
+    "border": "#D9DDE3",
+    "text": "#1B1F26",
+    "textMuted": "#5B6270",
+    "accent": "#0B7A6F",
+    "accentHover": "#096B61",
+    "accentPressed": "#075A52",
+    "onAccent": "#FFFFFF",
+    "accent2": "#6A4FD8",
+    "onAccent2": "#FFFFFF",
+    "success": "#15803D",
+    "warning": "#B45309",
+    "danger": "#C62828",
+    "info": "#1D4ED8"
+  }
+}

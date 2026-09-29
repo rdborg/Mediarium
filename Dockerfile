@@ -7,7 +7,7 @@
 # platform-specific, so under `docker buildx build --platform
 # linux/amd64,linux/arm64` this always runs natively on the builder instead
 # of under arm64 QEMU emulation — same reasoning as the Go stage below.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:26-alpine AS frontend
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci

@@ -63,7 +63,7 @@ RUN set -e; \
     go build -trimpath -ldflags="-s -w -X main.version=${v} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID}" -o /out/app ./cmd/app
 
 # ---- Runtime stage ----
-FROM alpine:3.20
+FROM alpine:3.24
 # Only the image label uses this; the binary's own version was settled in the
 # build stage. Release builds pass it explicitly, so the label is exact there.
 ARG VERSION=

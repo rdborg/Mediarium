@@ -23,9 +23,9 @@ RUN npm run build
 # buildx is currently producing, rather than running the Go toolchain
 # itself under QEMU emulation — the standard pattern for multi-platform
 # builds of compiled languages (see docker/buildx's own docs), and
-# meaningfully faster for a multi-arch build (linux/amd64 + linux/arm64,
-# PRD §3) than emulating the whole build.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+# meaningfully faster for a multi-arch build (linux/amd64 + linux/arm64)
+# than emulating the whole build.
+FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine AS build
 WORKDIR /src
 
 # Cache dependency downloads separately from source changes
@@ -40,11 +40,12 @@ COPY --from=frontend /src/web/dist ./web/dist
 # Static binary, no CGO, targets set by buildx for linux/amd64 + linux/arm64
 ARG TARGETOS
 ARG TARGETARCH
-# Release builds pass --build-arg VERSION=v0.1.0 (matching the git tag);
-# local/dev builds get "dev" (PRD §8 — "version-pinned Docker tags,
-# changelog per release, no forced auto-update"). Surfaced via GET
+# The version number comes from the VERSION file at the repository root
+# (copied in above with the rest of the source), the single source of truth
+# for releases: see docs/RELEASING.md. An explicit --build-arg VERSION=1.2.3
+# overrides it; left empty or "dev", the file is used. Surfaced via GET
 # /api/version and the About page.
-ARG VERSION=dev
+ARG VERSION=
 # App-wide API identifiers baked into an official build so users need not
 # sign up for these services themselves. Leave them unset for a build from
 # source: the app then asks each user for their own. They end up inside the
@@ -54,17 +55,23 @@ ARG VERSION=dev
 ARG TMDB_API_KEY=
 ARG OPENSUBTITLES_API_KEY=
 ARG TRAKT_CLIENT_ID=
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w -X main.version=${VERSION} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID}" -o /out/app ./cmd/app
+RUN set -e; \
+    v="${VERSION}"; \
+    if [ -z "$v" ] || [ "$v" = "dev" ]; then v="$(tr -d ' \r\n' < VERSION)"; fi; \
+    echo "Building Mediarium version $v"; \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -ldflags="-s -w -X main.version=${v} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID}" -o /out/app ./cmd/app
 
 # ---- Runtime stage ----
 FROM alpine:3.20
-ARG VERSION=dev
+# Only the image label uses this; the binary's own version was settled in the
+# build stage. Release builds pass it explicitly, so the label is exact there.
+ARG VERSION=
 LABEL org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.source="https://github.com/rdborg/mediarium" \
       org.opencontainers.image.licenses="AGPL-3.0"
 # par2cmdline (PAR2 verify/repair) and p7zip are the tools internal/organizer
-# shells out to (PRD §4.4/§4.8). p7zip is only used for .7z archives: RAR and
+# shells out to. p7zip is only used for .7z archives: RAR and
 # ZIP are unpacked natively in Go (Alpine's 7z has no RAR codec, so it could
 # not be relied on for RAR anyway).
 RUN apk add --no-cache ca-certificates tzdata su-exec par2cmdline p7zip
@@ -73,14 +80,14 @@ RUN apk add --no-cache ca-certificates tzdata su-exec par2cmdline p7zip
 ENV PUID=1000 \
     PGID=1000 \
     TZ=Etc/UTC \
-    APP_PORT=8080
+    APP_PORT=8264
 
 COPY --from=build /out/app /app/app
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 VOLUME ["/config", "/downloads", "/movies", "/tv"]
-EXPOSE 8080
+EXPOSE 8264 58264/tcp 58264/udp
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["/app/app"]

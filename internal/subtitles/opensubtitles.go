@@ -1,5 +1,5 @@
-// Package subtitles searches for and downloads subtitles (PRD.md §4.4 —
-// "Original, using existing subtitle-provider APIs (OpenSubtitles,
+// Package subtitles searches for and downloads subtitles
+// ("Original, using existing subtitle-provider APIs (OpenSubtitles,
 // etc.)"). Implements the OpenSubtitles REST API v1
 // (https://opensubtitles.stoplight.io/docs/opensubtitles-api).
 package subtitles
@@ -7,10 +7,12 @@ package subtitles
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,12 +62,12 @@ type Client struct {
 }
 
 func New(apiKey string) *Client {
-	return &Client{apiKey: apiKey, baseURL: defaultBaseURL, httpClient: &http.Client{Timeout: 15 * time.Second}}
+	return &Client{apiKey: apiKey, baseURL: defaultBaseURL, httpClient: &http.Client{Timeout: 15 * time.Second, Transport: newPacedTransport(nil, apiRequestInterval)}}
 }
 
 // NewWithBaseURL is used by tests to point at a local fixture server
-// instead of the real OpenSubtitles API (CLAUDE.md: local fixtures, not
-// live network calls, for tests) — same pattern as internal/metadata.
+// instead of the real OpenSubtitles API (tests use local fixtures, not
+// live network calls) — same pattern as internal/metadata.
 func NewWithBaseURL(apiKey, baseURL string) *Client {
 	c := New(apiKey)
 	c.baseURL = baseURL
@@ -73,6 +75,16 @@ func NewWithBaseURL(apiKey, baseURL string) *Client {
 }
 
 func (c *Client) HasAPIKey() bool { return c.apiKey != "" }
+
+// WrapTransport wraps the HTTP transport this client uses, e.g. to count
+// requests. Call it before the client is shared between goroutines.
+func (c *Client) WrapTransport(wrap func(http.RoundTripper) http.RoundTripper) {
+	rt := c.httpClient.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	c.httpClient.Transport = wrap(rt)
+}
 
 // SetCredentials sets (or, with empty strings, clears) the optional
 // OpenSubtitles.com account used for downloads.
@@ -309,17 +321,107 @@ func (c *Client) search(ctx context.Context, q url.Values) ([]Result, error) {
 	return out, nil
 }
 
-type downloadRequestResponse struct {
-	Link string `json:"link"`
+// DownloadInfo is what OpenSubtitles said about a download request: the link
+// and, when it reports them, the quota figures.
+type DownloadInfo struct {
+	Link         string
+	Requests     int // downloads used in the current window
+	HasRequests  bool
+	Remaining    int // downloads left in the current window
+	HasRemaining bool
+	ResetAt      time.Time // zero when not reported
+	Message      string
 }
 
-// RequestDownload exchanges a file ID for a time-limited download link —
+type downloadRequestResponse struct {
+	Link         string `json:"link"`
+	Requests     *int   `json:"requests"`
+	Remaining    *int   `json:"remaining"`
+	Message      string `json:"message"`
+	ResetTime    string `json:"reset_time"`     // "23 hours and 59 minutes"
+	ResetTimeUTC string `json:"reset_time_utc"` // RFC 3339
+}
+
+// QuotaError is the error returned when OpenSubtitles refuses a download
+// because the daily limit is used up. It matches ErrQuota with errors.Is and
+// carries whatever the response said about the limit.
+type QuotaError struct {
+	Info DownloadInfo
+}
+
+func (e *QuotaError) Error() string        { return ErrQuota.Error() }
+func (e *QuotaError) Is(target error) bool { return target == ErrQuota }
+
+var (
+	hoursRe   = regexp.MustCompile(`(?i)(\d+)\s*(?:hours?|hrs?|h)(?:[^a-z]|$)`)
+	minutesRe = regexp.MustCompile(`(?i)(\d+)\s*(?:minutes?|mins?|m)(?:[^a-z]|$)`)
+)
+
+// parseResetDuration reads OpenSubtitles' human "reset_time" text
+// ("23 hours and 59 minutes", "12 minutes").
+func parseResetDuration(s string) (time.Duration, bool) {
+	var d time.Duration
+	found := false
+	if m := hoursRe.FindStringSubmatch(s); m != nil {
+		n, _ := strconv.Atoi(m[1])
+		d += time.Duration(n) * time.Hour
+		found = true
+	}
+	if m := minutesRe.FindStringSubmatch(s); m != nil {
+		n, _ := strconv.Atoi(m[1])
+		d += time.Duration(n) * time.Minute
+		found = true
+	}
+	return d, found
+}
+
+// parseDownloadBody extracts the link and quota figures from a download
+// response body; observed is when the response arrived, the base for a
+// relative reset time.
+func parseDownloadBody(body []byte, observed time.Time) (DownloadInfo, error) {
+	var parsed downloadRequestResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return DownloadInfo{}, err
+	}
+	info := DownloadInfo{Link: parsed.Link, Message: parsed.Message}
+	if parsed.Requests != nil {
+		info.Requests, info.HasRequests = *parsed.Requests, true
+	}
+	if parsed.Remaining != nil {
+		info.Remaining, info.HasRemaining = *parsed.Remaining, true
+	}
+	if t, err := time.Parse(time.RFC3339, parsed.ResetTimeUTC); err == nil {
+		info.ResetAt = t.UTC()
+	} else if t, err := time.Parse(time.RFC3339, parsed.ResetTime); err == nil {
+		info.ResetAt = t.UTC()
+	} else if d, ok := parseResetDuration(parsed.ResetTime); ok {
+		info.ResetAt = observed.Add(d).UTC()
+	}
+	return info, nil
+}
+
+// RequestDownload exchanges a file ID for a time-limited download link. See
+// RequestDownloadInfo for the version that also reports the quota.
+func (c *Client) RequestDownload(ctx context.Context, fileID int) (string, error) {
+	info, err := c.RequestDownloadInfo(ctx, fileID)
+	if err != nil {
+		var qe *QuotaError
+		if errors.As(err, &qe) {
+			return "", ErrQuota
+		}
+		return "", err
+	}
+	return info.Link, nil
+}
+
+// RequestDownloadInfo exchanges a file ID for a time-limited download link —
 // OpenSubtitles' download endpoint is a two-step process (this, then a
 // plain GET of the returned link) so it can enforce daily download quotas
-// per API key.
-func (c *Client) RequestDownload(ctx context.Context, fileID int) (string, error) {
+// per API key. The result carries the quota figures OpenSubtitles reports;
+// when the limit is used up the error is a *QuotaError (matching ErrQuota).
+func (c *Client) RequestDownloadInfo(ctx context.Context, fileID int) (DownloadInfo, error) {
 	if c.apiKey == "" {
-		return "", ErrNoAPIKey
+		return DownloadInfo{}, ErrNoAPIKey
 	}
 	body := fmt.Sprintf(`{"file_id":%s}`, strconv.Itoa(fileID))
 
@@ -327,18 +429,18 @@ func (c *Client) RequestDownload(ctx context.Context, fileID int) (string, error
 	for attempt := 0; ; attempt++ {
 		token, err := c.bearer(ctx)
 		if err != nil {
-			return "", err
+			return DownloadInfo{}, err
 		}
 		req, err := c.newRequest(ctx, http.MethodPost, "/download", strings.NewReader(body))
 		if err != nil {
-			return "", fmt.Errorf("build download request: %w", err)
+			return DownloadInfo{}, fmt.Errorf("build download request: %w", err)
 		}
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
-			return "", fmt.Errorf("request download link: %w", err)
+			return DownloadInfo{}, fmt.Errorf("request download link: %w", err)
 		}
 		// A stale token: log in again once and retry.
 		if resp.StatusCode == http.StatusUnauthorized && token != "" && attempt == 0 {
@@ -351,21 +453,28 @@ func (c *Client) RequestDownload(ctx context.Context, fileID int) (string, error
 		break
 	}
 	defer resp.Body.Close()
+	observed := time.Now()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode == http.StatusNotAcceptable || resp.StatusCode == http.StatusTooManyRequests {
-		return "", ErrQuota
+		info, _ := parseDownloadBody(raw, observed) // best effort: an empty body is fine
+		if resp.StatusCode == http.StatusNotAcceptable && !info.HasRemaining {
+			// 406 is OpenSubtitles' "daily limit reached".
+			info.Remaining, info.HasRemaining = 0, true
+		}
+		return DownloadInfo{}, &QuotaError{Info: info}
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("request download link: unexpected status %d", resp.StatusCode)
+		return DownloadInfo{}, fmt.Errorf("request download link: unexpected status %d", resp.StatusCode)
 	}
 
-	var parsed downloadRequestResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return "", fmt.Errorf("decode download response: %w", err)
+	info, err := parseDownloadBody(raw, observed)
+	if err != nil {
+		return DownloadInfo{}, fmt.Errorf("decode download response: %w", err)
 	}
-	if parsed.Link == "" {
-		return "", fmt.Errorf("download response had no link")
+	if info.Link == "" {
+		return DownloadInfo{}, fmt.Errorf("download response had no link")
 	}
-	return parsed.Link, nil
+	return info, nil
 }
 
 // DownloadFile fetches the actual .srt bytes from a link returned by

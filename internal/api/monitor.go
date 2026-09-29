@@ -87,7 +87,7 @@ func (s *Server) monitorChecks(ctx context.Context) ([]monitor.Check, error) {
 			Kind: monitor.KindIndexer, ID: inst.ID, Name: inst.Name,
 			Run: func(ctx context.Context) error {
 				return runProbe(ctx, func() connTestResult {
-					return testIndexer(ctx, inst.Name, inst.BaseURL, inst.APIKey)
+					return s.testIndexerInstance(ctx, inst)
 				})
 			},
 		})

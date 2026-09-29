@@ -23,7 +23,7 @@
   docs/INSTALL.md, "Windows (native)").
 
 .PARAMETER Port
-  Web UI port. Default 8080.
+  Web UI port. Default 8264.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\run-mediarium.ps1
@@ -32,7 +32,7 @@
 [CmdletBinding()]
 param(
     [string]$DataRoot = (Join-Path $env:USERPROFILE 'Mediarium'),
-    [int]$Port = 8080
+    [int]$Port = 8264
 )
 
 $ErrorActionPreference = 'Stop'

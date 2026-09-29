@@ -30,7 +30,7 @@
   <Project>https://github.com/rdborg/mediarium</Project>
   <Overview>Self-hosted, all-in-one media manager for movies and TV: search your Usenet and torrent indexers, grab, download (built-in Usenet and BitTorrent clients), unpack and organize into your library, fetch subtitles, all from one web interface instead of five separate containers. Optional built-in WireGuard VPN for torrent traffic needs no NET_ADMIN or /dev/net/tun. Mediarium does not provide or host any content; you are responsible for what you download. See docs/LEGAL.md.</Overview>
   <Category>MediaApp:Video Downloaders:</Category>
-  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <WebUI>http://[IP]:[PORT:8264]/</WebUI>
   <!-- TemplateURL: once the repo is public, point it at the raw URL of this file,
        for example https://raw.githubusercontent.com/rdborg/mediarium/main/docs/unraid/mediarium.xml
        (branch name and path are assumptions until then). -->
@@ -44,7 +44,9 @@
   <DonateText/>
   <DonateLink/>
 
-  <Config Name="WebUI Port" Target="8080" Default="8080" Mode="tcp" Description="Port the web interface is served on." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="WebUI Port" Target="8264" Default="8264" Mode="tcp" Description="Port the web interface is served on." Type="Port" Display="always" Required="true" Mask="false">8264</Config>
+  <Config Name="Torrent port (TCP)" Target="58264" Default="58264" Mode="tcp" Description="Optional. Lets other torrent peers connect to you: more peers and proper seeding. Keep it the same as Settings &gt; Downloads &amp; VPN &gt; Listen port." Type="Port" Display="always" Required="false" Mask="false">58264</Config>
+  <Config Name="Torrent port (UDP)" Target="58264" Default="58264" Mode="udp" Description="Optional. The same torrent port over UDP (uTP and DHT)." Type="Port" Display="always" Required="false" Mask="false">58264</Config>
 
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/mediarium" Mode="rw" Description="Mediarium's database (app.db) and encryption key (secret.key). Back both up together." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/mediarium</Config>
   <Config Name="Data" Target="/data" Default="/mnt/user/data" Mode="rw" Description="ONE parent share that contains the folders downloads, movies and tv. Keeping them under a single mapping is what lets imports hardlink instead of copy." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>

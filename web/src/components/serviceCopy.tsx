@@ -58,9 +58,9 @@ export const TRAKT_COPY: ServiceCopy = {
   ),
   without: 'you can not import Trakt lists on the Discover page. Nothing else depends on it.',
   steps: [
-    <>Sign in or sign up at {link('https://trakt.tv', 'trakt.tv')} (it is free; signing in with a linked account such as GitHub is just one way to make one).</>,
-    <>Go to {link('https://trakt.tv/oauth/applications/new', 'Your API Apps > New Application')}.</>,
-    <>Name it "Mediarium" and set <strong>Redirect URI</strong> to <code>urn:ietf:wg:oauth:2.0:oob</code>. Leave the rest empty and save.</>,
+    <>Sign in or sign up at {link('https://trakt.tv', 'trakt.tv')} (it is free).</>,
+    <>Open the {link('https://trakt.tv/oauth/applications', 'Trakt developer page')} and choose <strong>My Apps</strong>. If it asks, press <strong>Connect GitHub</strong> once (Trakt only reads your public GitHub name).</>,
+    <>Press <strong>Create app</strong>, name it "Mediarium" and, if asked, set <strong>Redirect URI</strong> to <code>urn:ietf:wg:oauth:2.0:oob</code>. Leave the rest empty and save.</>,
     <>Copy the <strong>Client ID</strong> (not the secret) and paste it below.</>,
   ],
   fieldLabel: 'Trakt client ID',

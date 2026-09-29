@@ -1,5 +1,5 @@
-// Package trakt resolves a public Trakt list URL into TMDB movie IDs (PRD
-// §7 Phase 3 — "curated/public list import (e.g. IMDb/Trakt lists)"). Only
+// Package trakt resolves a public Trakt list URL into TMDB movie IDs
+// (curated/public list import, e.g. IMDb/Trakt lists). Only
 // Trakt is implemented: IMDb has no public API for lists (its CSV export
 // requires being logged in as the list owner, even for "public" lists,
 // which isn't something this app can do without asking for IMDb
@@ -47,8 +47,8 @@ func New(clientID string) *Client {
 }
 
 // NewWithBaseURL is used by tests to point the client at a local fixture
-// server instead of the real Trakt API (CLAUDE.md: local fixtures, not
-// live network calls, for tests).
+// server instead of the real Trakt API (tests use local fixtures, not
+// live network calls).
 func NewWithBaseURL(clientID, base string) *Client {
 	c := New(clientID)
 	c.baseURL = base
@@ -56,6 +56,16 @@ func NewWithBaseURL(clientID, base string) *Client {
 }
 
 func (c *Client) SetClientID(id string) { c.clientID = id }
+
+// WrapTransport wraps the HTTP transport this client uses, e.g. to count
+// requests. Call it before the client is shared between goroutines.
+func (c *Client) WrapTransport(wrap func(http.RoundTripper) http.RoundTripper) {
+	rt := c.httpClient.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	c.httpClient.Transport = wrap(rt)
+}
 
 // WithClientID returns a separate client using another client ID against
 // the same server, to test an ID before saving it.

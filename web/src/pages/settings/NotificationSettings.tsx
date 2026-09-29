@@ -4,6 +4,8 @@ import Icon from '../../components/Icon'
 import ServiceIcon from '../../components/ServiceIcon'
 import { useToast } from '../../components/Toast'
 import { timeAgo } from '../../format'
+import { useLive } from '../../useLive'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 const EVENTS: { key: string; label: string; hint: string }[] = [
   { key: 'added', label: 'Download started', hint: 'A release was found and sent to the downloader' },
@@ -170,6 +172,7 @@ function Watch() {
     api.monitorStatus().then(setRows).catch(() => setRows([]))
   }, [])
   useEffect(load, [load])
+  useLive(load, 30000)
 
   async function run() {
     setBusy(true)
@@ -215,6 +218,7 @@ function Watch() {
 }
 
 export default function NotificationSettings() {
+  const confirm = useConfirm()
   const toast = useToast()
   const [types, setTypes] = useState<NotifyType[]>([])
   const [saved, setSaved] = useState<NotificationTarget[]>([])
@@ -283,7 +287,7 @@ export default function NotificationSettings() {
   }
 
   async function removeSaved(t: NotificationTarget) {
-    if (!window.confirm(`Remove "${t.name}"?`)) return
+    if (!(await confirm({ title: `Remove "${t.name}"?`, body: <p>It stops receiving notifications.</p>, confirmLabel: 'Remove', danger: true }))) return
     await api.deleteNotificationTarget(t.id)
     toast.success(`${t.name} removed.`)
     reload()

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Switch from '../../components/Switch'
 import { useAutosaveSetting } from '../../useAutosave'
 import { api, type VPNConfig } from '../../api'
+import { useLive } from '../../useLive'
 
 // Named providers are a convenience wrapper, not a separate integration —
 // every one of these still reduces to "paste a generic WireGuard config"
@@ -74,6 +75,7 @@ function VPNSection() {
     api.vpnStatus().then(setStatus).catch(() => {})
   }
   useEffect(reload, [])
+  useLive(reload, 10000)
 
   const provider = VPN_PROVIDERS.find((p) => p.id === providerId) ?? VPN_PROVIDERS[0]
 
@@ -232,7 +234,7 @@ function VPNSection() {
         </div>
       </section>
 
-      <section className="card wide">
+      <section className="card">
         <h2>Your VPN connections</h2>
         {list.length === 0 ? (
           <p style={{ color: 'var(--text-dim)' }}>None yet. Add one on the right to connect a tunnel for torrent traffic.</p>

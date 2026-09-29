@@ -1,12 +1,19 @@
+import { sortProfiles } from './qualityBlurb'
 import { useEffect, useState } from 'react'
-import { api, type QualityProfile, type SourcePref } from '../api'
+import { api, isAdmin, type QualityProfile, type SourcePref } from '../api'
+import { useAuth } from '../AuthContext'
 import { useToast } from './Toast'
 
 const SOURCE_NAME: Record<string, string> = { both: 'Usenet and torrents', usenet: 'Usenet only', torrent: 'Torrents only' }
 
 // Per-item download choices for a movie or a show: which quality profile it
 // follows and which downloaders it may use. "Default" follows Settings.
-export default function ProfilePicker({ kind, itemId }: { kind: 'movie' | 'series'; itemId: number }) {
+export default function ProfilePicker(props: { kind: 'movie' | 'series'; itemId: number }) {
+  const { user } = useAuth()
+  return isAdmin(user) ? <Picker {...props} /> : null
+}
+
+function Picker({ kind, itemId }: { kind: 'movie' | 'series'; itemId: number }) {
   const [profiles, setProfiles] = useState<QualityProfile[]>([])
   const [defaultId, setDefaultId] = useState(0)
   const [defaultSources, setDefaultSources] = useState<SourcePref>('both')
@@ -16,7 +23,7 @@ export default function ProfilePicker({ kind, itemId }: { kind: 'movie' | 'serie
 
   useEffect(() => {
     api.listProfiles().then((r) => {
-      setProfiles(r.profiles)
+      setProfiles(sortProfiles(r.profiles))
       setDefaultId(r.defaultId)
     }).catch(() => undefined)
     api.getSettings().then((s) => setDefaultSources(s.defaultSources ?? 'both')).catch(() => undefined)

@@ -72,7 +72,7 @@ Source: "..\..\docs\INSTALL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Name: "{group}\Mediarium (start)"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; \
   Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\run-mediarium.ps1"""; \
   WorkingDir: "{app}"; Comment: "Starts Mediarium and keeps this window open (close it to stop)"
-Name: "{group}\Mediarium web interface"; Filename: "http://localhost:8080"
+Name: "{group}\Mediarium web interface"; Filename: "http://localhost:8264"
 Name: "{group}\Install notes"; Filename: "{app}\README-INSTALL.txt"
 Name: "{group}\Uninstall Mediarium"; Filename: "{uninstallexe}"
 
@@ -97,7 +97,7 @@ Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /F /TN ""Mediarium"""; Flag
 ;
 ;   nssm install Mediarium "C:\Program Files\Mediarium\mediarium.exe"
 ;   nssm set Mediarium AppDirectory "C:\Program Files\Mediarium"
-;   nssm set Mediarium AppEnvironmentExtra CONFIG_DIR=D:\Media\config DOWNLOADS_DIR=D:\Media\downloads MOVIES_DIR=D:\Media\movies TV_DIR=D:\Media\tv APP_PORT=8080
+;   nssm set Mediarium AppEnvironmentExtra CONFIG_DIR=D:\Media\config DOWNLOADS_DIR=D:\Media\downloads MOVIES_DIR=D:\Media\movies TV_DIR=D:\Media\tv APP_PORT=8264
 ;   nssm set Mediarium Start SERVICE_AUTO_START
 ;   nssm start Mediarium
 ;

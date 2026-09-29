@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/nwaples/rardecode/v2"
@@ -59,8 +60,8 @@ const (
 	spaceReserveBytes uint64 = 100 << 20
 )
 
-// Extractor unpacks archives found in a completed download (PRD §4.4 —
-// post-processor unpack step).
+// Extractor unpacks archives found in a completed download
+// (post-processor unpack step).
 //
 // RAR (single, .partNN.rar and .rar + .r00/.r01 volume sets) and ZIP are
 // unpacked natively in pure Go (rardecode, archive/zip): the Alpine 7z build
@@ -117,6 +118,8 @@ func (e *Extractor) freeSpace(dir string) (uint64, bool) {
 var (
 	rarVolumeRe = regexp.MustCompile(`(?i)\.part0*(\d+)\.rar$`)
 	rarOldStyle = regexp.MustCompile(`(?i)\.r\d{2,3}$`)
+	// rarSetRe splits "name.part07.rar" into the set name and the digits.
+	rarSetRe = regexp.MustCompile(`(?i)^(.+)\.part(\d+)\.rar$`)
 )
 
 // FindPrimaryArchives scans dir for the "first volume" of each archive set
@@ -175,6 +178,10 @@ func (e *Extractor) Extract(archivePath, destDir string) error {
 // extractRAR unpacks a RAR set natively. OpenReader on the first volume
 // follows the remaining volumes (.part2.rar / .r00 ...) automatically.
 func (e *Extractor) extractRAR(archivePath, destDir string) error {
+	archivePath, err := normalizeRARVolumeNames(archivePath)
+	if err != nil {
+		return fmt.Errorf("extract %s: %w", filepath.Base(archivePath), err)
+	}
 	name := filepath.Base(archivePath)
 	rc, err := rardecode.OpenReader(archivePath)
 	if err != nil {
@@ -229,6 +236,94 @@ func (e *Extractor) extractRAR(archivePath, destDir string) error {
 			}
 		}
 	}
+}
+
+// normalizeRARVolumeNames fixes .partNN.rar sets whose numbers are padded
+// inconsistently, which some posters do: "part01" … "part09", then "part010",
+// "part011". The RAR reader finds the next volume by counting up from the
+// current name ("part09" → "part10"), so such a set stops at part09. Every
+// volume of the set is renamed to one width, the width of its highest number
+// ("part010" → "part10"). Consistent sets are left alone. Only files next to
+// the first volume, in the download's own working folder, are renamed. It
+// returns the (possibly renamed) path of the first volume.
+func normalizeRARVolumeNames(first string) (string, error) {
+	dir, base := filepath.Split(first)
+	m := rarSetRe.FindStringSubmatch(base)
+	if m == nil {
+		return first, nil // not a .partNN.rar set
+	}
+	prefix := m[1]
+	entries, err := os.ReadDir(filepath.Clean(dir))
+	if err != nil {
+		return first, fmt.Errorf("read dir %s: %w", dir, err)
+	}
+	type volume struct {
+		name   string
+		num    int
+		digits string
+	}
+	var vols []volume
+	maxNum := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		vm := rarSetRe.FindStringSubmatch(e.Name())
+		if vm == nil || !strings.EqualFold(vm[1], prefix) {
+			continue
+		}
+		n, err := strconv.Atoi(vm[2])
+		if err != nil {
+			continue
+		}
+		vols = append(vols, volume{name: e.Name(), num: n, digits: vm[2]})
+		maxNum = max(maxNum, n)
+	}
+	width := len(strconv.Itoa(maxNum))
+	// A set is fine when counting up from its first volume produces every
+	// name: each number has the first volume's padding, or just grows past it
+	// ("part9" → "part10", "part09" → "part10").
+	minNum, firstWidth := -1, 0
+	for _, v := range vols {
+		if minNum < 0 || v.num < minNum {
+			minNum, firstWidth = v.num, len(v.digits)
+		}
+	}
+	consistent := true
+	for _, v := range vols {
+		if len(v.digits) != max(firstWidth, len(strconv.Itoa(v.num))) {
+			consistent = false
+			break
+		}
+	}
+	if consistent {
+		return first, nil
+	}
+	seen := map[int]bool{}
+	for _, v := range vols {
+		if seen[v.num] {
+			return first, fmt.Errorf("two volumes numbered %d in the same set", v.num)
+		}
+		seen[v.num] = true
+	}
+	renamed := first
+	for _, v := range vols {
+		target := fmt.Sprintf("%s.part%0*d.rar", prefix, width, v.num)
+		if target == v.name {
+			continue
+		}
+		from, to := filepath.Join(dir, v.name), filepath.Join(dir, target)
+		if _, err := os.Lstat(to); err == nil {
+			return first, fmt.Errorf("rename %s: %s already exists", v.name, target)
+		}
+		if err := os.Rename(from, to); err != nil {
+			return first, fmt.Errorf("rename %s to %s: %w", v.name, target, err)
+		}
+		if v.name == base {
+			renamed = to
+		}
+	}
+	return renamed, nil
 }
 
 func classifyRARError(err error) error {

@@ -55,9 +55,8 @@ type movieDetailPayload struct {
 }
 
 // handleTMDBMovieDetail is the movie detail page's primary data source
-// (PRD §6 Library/Discover views should lead somewhere — previously
-// Discover posters had nowhere to go but "Add to library"). Works purely
-// off a TMDB id so it's reachable for titles whether or not they're in
+// (previously Discover posters had nowhere to go but "Add to library").
+// Works purely off a TMDB id so it's reachable for titles whether or not they're in
 // the library yet, checking library membership as a secondary lookup.
 func (s *Server) handleTMDBMovieDetail(w http.ResponseWriter, r *http.Request) {
 	tmdbID, err := strconv.Atoi(r.PathValue("tmdbId"))

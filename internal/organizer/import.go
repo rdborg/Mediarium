@@ -12,7 +12,7 @@ import (
 )
 
 // ConflictPolicy governs what happens when the destination path already
-// has a file (PRD §4.8 — "never delete/overwrite ... without an explicit
+// has a file ("never delete/overwrite ... without an explicit
 // user-configured conflict policy").
 type ConflictPolicy int
 
@@ -26,7 +26,7 @@ const (
 	// entirely the caller's; Import just enforces "never overwrite without
 	// an explicit yes."
 	ConflictOverwriteIfBetter
-	// ConflictAsk defers to a manual-import review queue (PRD §4.8) —
+	// ConflictAsk defers to a manual-import review queue —
 	// that queue is UI/API-layer state this package doesn't own, so this
 	// package treats ConflictAsk the same as ConflictSkip: it never
 	// silently overwrites, and the caller is responsible for surfacing
@@ -123,8 +123,8 @@ type ImportResult struct {
 	Skipped      bool
 }
 
-// Import places src at destPath, hardlinking when possible (PRD §4.8 —
-// "hardlink-first move strategy") and falling back to a copy when the two
+// Import places src at destPath, hardlinking when possible
+// ("hardlink-first move strategy") and falling back to a copy when the two
 // paths aren't on the same filesystem (hardlinks can't cross devices).
 //
 // isBetter is only consulted when policy is ConflictOverwriteIfBetter and

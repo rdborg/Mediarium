@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { api, type Movie, type Series, type SubtitleWanted, type WantedItem } from '../api'
+import { Link, useSearchParams } from 'react-router-dom'
+import { api, isAdmin, type Movie, type Series, type SubtitleQuota, type SubtitleWanted, type WantedItem } from '../api'
+import { useAuth } from '../AuthContext'
 import Icon from '../components/Icon'
 import { PosterFallback } from '../components/PosterCard'
+import QuotaNote from '../components/QuotaNote'
 import { describeState } from '../components/state'
 import { useToast } from '../components/Toast'
 import { languageName } from '../languages'
+import { useLive } from '../useLive'
 
 type Kind = 'missing' | 'cutoff' | 'subtitles'
 
@@ -15,7 +18,13 @@ type Kind = 'missing' | 'cutoff' | 'subtitles'
 // downloaded titles missing a language you asked for.
 export default function Wanted() {
   const toast = useToast()
-  const [kind, setKind] = useState<Kind>('missing')
+  // Marking subtitles as not needed is for administrators.
+  const admin = isAdmin(useAuth().user)
+  const [params] = useSearchParams()
+  const [kind, setKind] = useState<Kind>(params.get('tab') === 'subtitles' ? 'subtitles' : 'missing')
+  const [quota, setQuota] = useState<SubtitleQuota | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [showDismissed, setShowDismissed] = useState(false)
   const [items, setItems] = useState<WantedItem[] | null>(null)
   const [subs, setSubs] = useState<SubtitleWanted[] | null>(null)
   const [movies, setMovies] = useState<Movie[]>([])
@@ -43,23 +52,60 @@ export default function Wanted() {
     setError('')
     if (kind === 'subtitles') {
       setSubs(null)
-      api.subtitlesWanted().then(setSubs).catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      api.subtitlesWanted(showDismissed).then(setSubs).catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      api.subtitleQuota().then(setQuota).catch(() => undefined)
       return
     }
     setItems(null)
     api.getWanted(kind).then(setItems).catch((e) => setError(e instanceof Error ? e.message : String(e)))
-  }, [kind])
+  }, [kind, showDismissed])
   useEffect(load, [load])
+  // Quiet refresh: update the lists in place without flashing the loading state.
+  useLive(() => {
+    if (kind === 'subtitles') {
+      api.subtitlesWanted(showDismissed).then(setSubs).catch(() => undefined)
+      api.subtitleQuota().then(setQuota).catch(() => undefined)
+    } else {
+      api.getWanted(kind).then(setItems).catch(() => undefined)
+    }
+  }, 10000)
 
-  async function sweep() {
+  const subKey = (i: { kind: string; id: number }) => `${i.kind}-${i.id}`
+  const togglePick = (k: string) =>
+    setPicked((cur) => {
+      const n = new Set(cur)
+      if (n.has(k)) n.delete(k)
+      else n.add(k)
+      return n
+    })
+
+  async function getSubtitles(all: boolean) {
     setSweeping(true)
     try {
-      toast.success((await api.subtitleSweep()).message)
+      const items = (subs ?? []).filter((i) => picked.has(subKey(i)) && !i.dismissed).map((i) => ({ kind: i.kind, id: i.id }))
+      const r = await api.subtitlesGet(all ? { all: true } : { items })
+      setQuota(r.quota)
+      if (r.stopped) toast.info(r.message)
+      else toast.success(r.message)
+      setPicked(new Set())
       load()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {
       setSweeping(false)
+    }
+  }
+
+  async function dismiss(undo: boolean) {
+    const items = (subs ?? []).filter((i) => picked.has(subKey(i))).map((i) => ({ kind: i.kind, id: i.id }))
+    if (items.length === 0) return
+    try {
+      await (undo ? api.undismissSubtitles(items) : api.dismissSubtitles(items))
+      toast.success(undo ? 'Back on the list.' : 'Marked as not needed.')
+      setPicked(new Set())
+      load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -108,12 +154,29 @@ export default function Wanted() {
           <div className="skeleton" style={{ height: 120 }} />
         ) : (
           <>
+            <QuotaNote quota={quota} />
+            <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>
+              Downloaded titles that have no subtitle in your languages. Many downloads already include subtitles, and Mediarium files those automatically. For the rest, pick the ones you want (or fetch them all) and they are downloaded within today&apos;s allowance.
+            </p>
             <div className="toolbar">
-              <p style={{ color: 'var(--text-dim)', margin: 0 }}>Downloaded titles missing a subtitle in one of your chosen languages.</p>
-              <span className="spacer" />
-              <button className="primary btn-with-icon" onClick={sweep} disabled={sweeping}>
-                <Icon name="search" size={16} /> {sweeping ? 'Searching…' : 'Search for all now'}
+              <button className="btn-sm" onClick={() => setPicked(new Set(subs.filter((i) => !i.dismissed).map(subKey)))}>
+                Select all
               </button>
+              <button className="primary btn-with-icon" onClick={() => void getSubtitles(false)} disabled={sweeping || picked.size === 0}>
+                <Icon name="download" size={16} /> {sweeping ? 'Working…' : `Get subtitles for ${picked.size || 'selected'}`}
+              </button>
+              <button className="btn-with-icon" onClick={() => void getSubtitles(true)} disabled={sweeping || subs.filter((i) => !i.dismissed).length === 0}>
+                Get all
+              </button>
+              <span className="spacer" />
+              {admin && (
+                <button className="btn-sm" onClick={() => void dismiss(showDismissed && subs.some((i) => picked.has(subKey(i)) && i.dismissed))} disabled={picked.size === 0}>
+                  {showDismissed && subs.some((i) => picked.has(subKey(i)) && i.dismissed) ? 'Put back on the list' : 'Not needed'}
+                </button>
+              )}
+              <label className="check-row" style={{ margin: 0 }}>
+                <input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} /> Show ones marked not needed
+              </label>
             </div>
             {subs.length === 0 ? (
               <div className="empty-state">
@@ -123,7 +186,10 @@ export default function Wanted() {
             ) : (
               <div className="wlist">
                 {subs.map((s) => (
-                  <div key={`${s.kind}-${s.id}`} className={`wrow kind-${s.kind === 'movie' ? 'movie' : 'tv'}`}>
+                  <div key={subKey(s)} className={`wrow kind-${s.kind === 'movie' ? 'movie' : 'tv'}${s.dismissed ? ' dismissed' : ''}`}>
+                    <label className="pick-box" title="Select">
+                      <input type="checkbox" checked={picked.has(subKey(s))} onChange={() => togglePick(subKey(s))} />
+                    </label>
                     <div className="qthumb">{posterOf(s) ? <img src={posterOf(s)} alt="" loading="lazy" /> : <PosterFallback />}</div>
                     <div className="wmain">
                       <Link to={link(s)}>
@@ -132,6 +198,7 @@ export default function Wanted() {
                       {s.subtitle && <small>{s.subtitle}</small>}
                     </div>
                     <div className="wmeta">
+                      {s.dismissed && <span className="badge">not needed</span>}
                       {s.missing.map((m) => (
                         <span key={m} className="badge missing">
                           {languageName(m)}

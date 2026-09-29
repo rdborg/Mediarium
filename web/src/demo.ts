@@ -188,14 +188,14 @@ const calendar: CalendarEntry[] = [
 ]
 
 const wantedMissing: WantedItem[] = [
-  { kind: 'movie', id: 8, movieId: 8, tmdbId: 9008, title: 'Arrival', date: day(-400), profileName: 'HD - 1080p' },
-  { kind: 'movie', id: 9, movieId: 9, tmdbId: 9009, title: 'The Batman', date: day(-30), profileName: 'Ultra-HD' },
-  { kind: 'episode', id: 41, seriesId: 104, title: 'Andor', subtitle: 'S02E04 · Harvest', date: day(-6), profileName: 'HD - 1080p' },
-  { kind: 'episode', id: 42, seriesId: 104, title: 'Andor', subtitle: 'S02E03 · Welcome', date: day(-13), profileName: 'HD - 1080p' },
+  { kind: 'movie', id: 8, movieId: 8, tmdbId: 9008, title: 'Arrival', date: day(-400), profileName: '1080p' },
+  { kind: 'movie', id: 9, movieId: 9, tmdbId: 9009, title: 'The Batman', date: day(-30), profileName: '4K & over' },
+  { kind: 'episode', id: 41, seriesId: 104, title: 'Andor', subtitle: 'S02E04 · Harvest', date: day(-6), profileName: '1080p' },
+  { kind: 'episode', id: 42, seriesId: 104, title: 'Andor', subtitle: 'S02E03 · Welcome', date: day(-13), profileName: '1080p' },
 ]
 const wantedCutoff: WantedItem[] = [
-  { kind: 'movie', id: 4, movieId: 4, tmdbId: 9004, title: 'Blade Runner 2049', quality: '1080p WEB-DL', cutoff: '1080p Bluray', profileName: 'HD - 1080p' },
-  { kind: 'movie', id: 5, movieId: 5, tmdbId: 9005, title: 'Mad Max: Fury Road', quality: '720p', cutoff: '1080p Bluray', profileName: 'HD - 1080p' },
+  { kind: 'movie', id: 4, movieId: 4, tmdbId: 9004, title: 'Blade Runner 2049', quality: '1080p WEB-DL', cutoff: '1080p Bluray', profileName: '1080p' },
+  { kind: 'movie', id: 5, movieId: 5, tmdbId: 9005, title: 'Mad Max: Fury Road', quality: '720p', cutoff: '1080p Bluray', profileName: '1080p' },
 ]
 
 function dashboard(real: DashboardData | null): DashboardData {
@@ -360,6 +360,16 @@ export function installDemo() {
         return json(activity)
       case p === '/api/blocklist':
         return json([{ id: 1, releaseTitle: 'Arrival.2016.720p.HDTV-JUNK', protocol: 'usenet', reason: 'Bad release: archive is corrupt', createdAt: ago(2100) }])
+      case p === '/api/subtitles/wanted':
+        return json([
+          { kind: 'movie', id: 2, tmdbId: 9002, title: 'Oppenheimer', missing: ['en'] },
+          { kind: 'movie', id: 3, tmdbId: 9003, title: 'The Grand Budapest Hotel', missing: ['en', 'fr'] },
+          { kind: 'movie', id: 4, tmdbId: 9004, title: 'Blade Runner 2049', missing: ['en'] },
+          { kind: 'episode', id: 201, seriesId: 101, title: 'Severance', subtitle: 'S02E03 · Who Is Alive?', missing: ['en'] },
+          { kind: 'episode', id: 202, seriesId: 101, title: 'Severance', subtitle: 'S02E04 · Hollow', missing: ['en'] },
+        ])
+      case p === '/api/subtitles/quota':
+        return json({ hasKey: true, hasAccount: false, limit: 5, used: 3, remaining: 2, windowHours: 24, resetsAt: new Date(Date.now() + 6 * 3600e3).toISOString(), source: 'estimated', missingItems: 5, missingFiles: 6, daysToFinish: 2, exceeded: false, message: 'You have 6 subtitles to get but 2 downloads left today. At 5 a day that takes 2 days. A free OpenSubtitles account raises it to about 20 a day.' })
       case p === '/api/calendar':
         return json(calendar)
       case p === '/api/wanted':

@@ -2,9 +2,9 @@ package quality
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -91,7 +91,74 @@ func Validate(p Profile) (Profile, error) {
 		kept = append(kept, pr)
 	}
 	p.Preferred = kept
+	p.Fallback = cleanFallback(p.ID, p.Fallback)
 	return p, nil
+}
+
+// maxFallbacks bounds a profile's fallback list.
+const maxFallbacks = 20
+
+// cleanFallback drops ids that cannot be a fallback (zero or negative, the
+// profile itself, repeats) and keeps the order. Ids of profiles that do not
+// exist are dropped by the repo, which can look them up.
+func cleanFallback(self int64, ids []int64) []int64 {
+	out := []int64{}
+	seen := map[int64]bool{}
+	for _, id := range ids {
+		if id <= 0 || id == self || seen[id] || len(out) >= maxFallbacks {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out
+}
+
+func encodeFallback(ids []int64) string {
+	if len(ids) == 0 {
+		return "[]"
+	}
+	b, _ := json.Marshal(ids)
+	return string(b)
+}
+
+func decodeFallback(s string) []int64 {
+	var ids []int64
+	if err := json.Unmarshal([]byte(s), &ids); err != nil {
+		return []int64{}
+	}
+	return cleanFallback(0, ids)
+}
+
+// existingFallback keeps only the ids of profiles that exist (a fallback may
+// not point at a profile that is gone).
+func (r *Repo) existingFallback(ids []int64) ([]int64, error) {
+	if len(ids) == 0 {
+		return []int64{}, nil
+	}
+	rows, err := r.db.Query(`SELECT id FROM quality_profiles`)
+	if err != nil {
+		return nil, fmt.Errorf("list quality profile ids: %w", err)
+	}
+	defer rows.Close()
+	exists := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan quality profile id: %w", err)
+		}
+		exists[id] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list quality profile ids: %w", err)
+	}
+	out := []int64{}
+	for _, id := range ids {
+		if exists[id] {
+			out = append(out, id)
+		}
+	}
+	return out, nil
 }
 
 // cleanTerms trims, de-duplicates (case-insensitively) and bounds a list of
@@ -166,15 +233,16 @@ func decodeTiers(s string) []Tier {
 	return out
 }
 
-const selectProfile = `SELECT id, name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred FROM quality_profiles`
+const selectProfile = `SELECT id, name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred, fallback FROM quality_profiles`
 
 func scanProfile(scan func(dest ...any) error) (Profile, error) {
 	var (
 		p                               Profile
 		allowed, cutoff                 string
 		mustContain, mustNot, preferred string
+		fallback                        string
 	)
-	if err := scan(&p.ID, &p.Name, &allowed, &cutoff, &p.UpgradeAllowed, &mustContain, &mustNot, &preferred); err != nil {
+	if err := scan(&p.ID, &p.Name, &allowed, &cutoff, &p.UpgradeAllowed, &mustContain, &mustNot, &preferred, &fallback); err != nil {
 		return Profile{}, err
 	}
 	p.Allowed = decodeTiers(allowed)
@@ -182,6 +250,7 @@ func scanProfile(scan func(dest ...any) error) (Profile, error) {
 	p.MustContain = decodeLines(mustContain)
 	p.MustNotContain = decodeLines(mustNot)
 	p.Preferred = decodePreferred(preferred)
+	p.Fallback = cleanFallback(p.ID, decodeFallback(fallback))
 	return p, nil
 }
 
@@ -214,14 +283,18 @@ func (r *Repo) Get(id int64) (Profile, error) {
 }
 
 func (r *Repo) Create(p Profile) (Profile, error) {
+	p.ID = 0
 	p, err := Validate(p)
 	if err != nil {
 		return Profile{}, err
 	}
+	if p.Fallback, err = r.existingFallback(p.Fallback); err != nil {
+		return Profile{}, err
+	}
 	res, err := r.db.Exec(
-		`INSERT INTO quality_profiles (name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO quality_profiles (name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred, fallback) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.Name, encodeTiers(p.Allowed), string(p.Cutoff), p.UpgradeAllowed,
-		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred),
+		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), encodeFallback(p.Fallback),
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
@@ -238,10 +311,13 @@ func (r *Repo) Update(p Profile) (Profile, error) {
 	if err != nil {
 		return Profile{}, err
 	}
+	if p.Fallback, err = r.existingFallback(p.Fallback); err != nil {
+		return Profile{}, err
+	}
 	res, err := r.db.Exec(
-		`UPDATE quality_profiles SET name = ?, allowed_tiers = ?, cutoff = ?, upgrade_allowed = ?, must_contain = ?, must_not_contain = ?, preferred = ? WHERE id = ?`,
+		`UPDATE quality_profiles SET name = ?, allowed_tiers = ?, cutoff = ?, upgrade_allowed = ?, must_contain = ?, must_not_contain = ?, preferred = ?, fallback = ? WHERE id = ?`,
 		p.Name, encodeTiers(p.Allowed), string(p.Cutoff), p.UpgradeAllowed,
-		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), p.ID,
+		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), encodeFallback(p.Fallback), p.ID,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
@@ -298,47 +374,116 @@ func (r *Repo) Delete(id, defaultID int64) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return sql.ErrNoRows
 	}
+	return r.dropFallback(id)
+}
+
+// dropFallback removes a deleted profile from every other profile's
+// fallback list.
+func (r *Repo) dropFallback(id int64) error {
+	list, err := r.List()
+	if err != nil {
+		return err
+	}
+	for _, p := range list {
+		kept := []int64{}
+		for _, f := range p.Fallback {
+			if f != id {
+				kept = append(kept, f)
+			}
+		}
+		if len(kept) == len(p.Fallback) {
+			continue
+		}
+		if _, err := r.db.Exec(`UPDATE quality_profiles SET fallback = ? WHERE id = ?`, encodeFallback(kept), p.ID); err != nil {
+			return fmt.Errorf("remove profile %d from the fallback of %q: %w", id, p.Name, err)
+		}
+	}
 	return nil
 }
 
-// SeedPresets inserts the built-in presets when the table is empty (first
-// start) and returns all profiles. Presets are ordinary rows afterwards:
-// users can edit or delete them like any other profile.
-func (r *Repo) SeedPresets() ([]Profile, error) {
+// PresetsVersion is the revision of the built-in preset set. The caller stores
+// the version it last seeded (a settings key) and passes it back to
+// SeedPresets, so each revision is applied exactly once:
+//
+//	1: "Up to 1080p", "Ultra-HD (up to 2160p)", "Any"
+//	2: "Any", "720p", "1080p", "4K & over" (1080p and 4K with a fallback)
+//	3: the same four, each resolution preset strict to its own resolution
+//	4: adds "Cinema recordings" (CAM/TeleSync only)
+const PresetsVersion = 4
+
+// SeedPresets brings the built-in presets up to PresetsVersion and returns
+// all profiles. seeded is the version applied last time (0 if never).
+//
+//   - Up to date: nothing changes.
+//   - Empty table (first start): the current presets are created.
+//   - Older install: each old built-in preset that is still exactly as it was
+//     shipped is redefined in place as its new equivalent ("Up to 1080p"
+//     becomes "1080p", "Ultra-HD (up to 2160p)" becomes "4K & over", "Any"
+//     keeps its name with the new definition; revision 2's "1080p" and
+//     "4K & over" lose their lower-resolution fallback). Keeping the row keeps its id,
+//     so items assigned to it, and the default profile setting, follow it.
+//     A preset the user edited is left alone. Then every current preset
+//     newer than the seeded version that is still missing by name is created
+//     (a preset the install already had is not recreated).
+//
+// Presets are ordinary rows afterwards: users can edit or delete them like any
+// other profile, and a deleted preset is not brought back on a later start.
+func (r *Repo) SeedPresets(seeded int) ([]Profile, error) {
 	existing, err := r.List()
 	if err != nil {
 		return nil, err
 	}
-	if len(existing) > 0 {
+	if seeded >= PresetsVersion {
 		return existing, nil
 	}
+
 	presets := Presets()
-	keys := make([]string, 0, len(presets))
-	for k := range presets {
-		keys = append(keys, k)
+	byName := map[string]Profile{}
+	for _, p := range existing {
+		byName[p.Name] = p
 	}
-	sort.Slice(keys, func(i, j int) bool { return presetOrder(keys[i]) < presetOrder(keys[j]) })
-	for _, k := range keys {
-		if _, err := r.Create(presets[k]); err != nil {
+	for _, lp := range legacyPresets() {
+		cur, ok := byName[lp.Old.Name]
+		if !ok || !sameDefinition(cur, lp.Old) {
+			continue // gone, or customised by the user: theirs now
+		}
+		next := presets[lp.NewTo]
+		if other, taken := byName[next.Name]; taken && other.ID != cur.ID {
+			continue // the user already has a profile with the new name
+		}
+		next.ID = cur.ID
+		updated, err := r.Update(next)
+		if err != nil {
+			return nil, fmt.Errorf("upgrade preset %q: %w", lp.Old.Name, err)
+		}
+		delete(byName, cur.Name)
+		byName[updated.Name] = updated
+	}
+	for _, k := range PresetKeys() {
+		p := presets[k]
+		if _, ok := byName[p.Name]; ok || presetSince(k) <= seeded {
+			continue
+		}
+		created, err := r.Create(p)
+		if err != nil {
 			return nil, fmt.Errorf("seed preset %s: %w", k, err)
 		}
+		byName[created.Name] = created
 	}
 	return r.List()
 }
 
-func presetOrder(key string) int {
-	switch key {
-	case "any-1080p":
-		return 0
-	case "ultra-hd":
-		return 1
-	}
-	return 2
-}
-
-// PresetName returns the display name of a legacy preset key ("any-1080p"),
-// used to carry the old single global setting over to a stored profile.
+// PresetName returns the display name of the preset a key stands for: a
+// current key ("1080p") or one from the old single global setting
+// ("any-1080p", "ultra-hd"), which map to their current equivalent.
 func PresetName(key string) (string, bool) {
-	p, ok := Presets()[key]
-	return p.Name, ok
+	if p, ok := Presets()[key]; ok {
+		return p.Name, true
+	}
+	for _, lp := range legacyPresets() {
+		if lp.Key == key {
+			return Presets()[lp.NewTo].Name, true
+		}
+	}
+	return "", false
 }

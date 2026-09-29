@@ -1,4 +1,4 @@
--- Phase 3: notification targets (PRD.md §4.4/§7 — "Discord/Telegram/
+-- Phase 3: notification targets ("Discord/Telegram/
 -- webhook/email on events... generic, not Discord-only").
 
 CREATE TABLE notification_targets (

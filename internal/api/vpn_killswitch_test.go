@@ -18,7 +18,7 @@ import (
 	"github.com/ryanborg/mediarium/internal/store"
 )
 
-// TestVPNKillSwitchBlocksTorrentGrabWhenDisconnected proves PRD §4.7's kill
+// TestVPNKillSwitchBlocksTorrentGrabWhenDisconnected proves the VPN kill
 // switch actually blocks a real grab through the HTTP API, end to end: with
 // "require VPN for torrents" on and no VPN connected, a torrent grab must
 // fail closed (queue item ends up "failed", never silently proceeds over a

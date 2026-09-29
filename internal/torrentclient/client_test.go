@@ -21,7 +21,7 @@ import (
 // TestDownloadBetweenTwoLocalPeers builds a torrent from a local fixture
 // file, seeds it from one in-process torrent.Client, and downloads it with
 // a second — real BitTorrent protocol traffic over localhost, no internet
-// access, tracker, or DHT involved (CLAUDE.md: local fixtures, not live
+// access, tracker, or DHT involved (tests use local fixtures, not live
 // network calls). This proves internal/torrentclient actually moves bytes
 // over the wire, not just that it links against the library.
 func TestDownloadBetweenTwoLocalPeers(t *testing.T) {
@@ -133,7 +133,7 @@ func (d *countingDialer) DialContext(ctx context.Context, network, addr string) 
 
 // deadDialer simulates a tunnel that's down: every dial fails, and nothing
 // else should ever succeed in its place — proving there's no direct-dial
-// fallback path once tunnel mode is on (PRD §4.7's kill switch).
+// fallback path once tunnel mode is on.
 type deadDialer struct{}
 
 func (deadDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -235,8 +235,8 @@ func TestTunnelModeRoutesThroughGivenDialer(t *testing.T) {
 	// for the same precaution and why it's needed on Windows specifically.
 	// This is a known pre-existing flake in this package on Windows dev
 	// machines (anacrolix/torrent doesn't release its mmap'd file handle
-	// synchronously on Close) — see PROGRESS.md. The real deployment target
-	// is Linux (PRD §3), which doesn't have Windows' mandatory-file-locking
+	// synchronously on Close). The real deployment target
+	// is Linux, which doesn't have Windows' mandatory-file-locking
 	// semantics, so this is a dev-box nuisance rather than a real bug.
 	leecher.Close()
 	seederClient.Close()
@@ -244,7 +244,8 @@ func TestTunnelModeRoutesThroughGivenDialer(t *testing.T) {
 }
 
 // TestTunnelModeHasNoFallbackWhenDialerFails proves the kill-switch half of
-// PRD §4.7: with a dialer that always fails (simulating a dropped tunnel),
+// the VPN protection: with a dialer that always fails (simulating a
+// dropped tunnel),
 // a peer connection to a real, otherwise-reachable seeder on localhost still
 // never succeeds — there's no direct-connection path being tried instead.
 func TestTunnelModeHasNoFallbackWhenDialerFails(t *testing.T) {

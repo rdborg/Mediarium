@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -12,15 +13,15 @@ import (
 	"github.com/ryanborg/mediarium/internal/auth"
 )
 
-// handleVersion reports the running build's version (PRD §8 — "version-
-// pinned Docker tags, changelog per release"). Public/unauthenticated
+// handleVersion reports the running build's version (version-pinned
+// Docker tags, changelog per release). Public/unauthenticated
 // since it's shown on the About page before login and isn't sensitive.
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"version": s.version})
 }
 
 // handleOnboardingStatus tells the frontend whether to show the first-run
-// wizard (PRD §5.2) or the normal app shell.
+// wizard or the normal app shell.
 func (s *Server) handleOnboardingStatus(w http.ResponseWriter, r *http.Request) {
 	needed, err := s.Auth.FirstRunNeeded()
 	if err != nil {
@@ -40,10 +41,11 @@ type createAdminRequest struct {
 }
 
 // userPayload is the shape every endpoint that describes the logged-in user
-// returns (login, onboarding, /me, profile update).
+// returns (login, onboarding, /me, profile update). role is "admin" or
+// "member"; isAdmin is kept for older clients.
 func userPayload(u *auth.User) map[string]any {
 	return map[string]any{
-		"id": u.ID, "username": u.Username, "isAdmin": u.IsAdmin,
+		"id": u.ID, "username": u.Username, "isAdmin": u.IsAdmin, "role": u.Role(),
 		"name": u.DisplayName(), "firstName": u.FirstName, "lastName": u.LastName, "email": u.Email,
 	}
 }
@@ -77,7 +79,7 @@ func validEmail(email string) bool {
 	return dot > 0 && dot < len(domain)-1
 }
 
-// handleCreateAdmin is onboarding wizard step 1 (PRD §5.2). Refuses once an
+// handleCreateAdmin is onboarding wizard step 1. Refuses once an
 // admin already exists — it's not a general "create user" endpoint.
 func (s *Server) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 	needed, err := s.Auth.FirstRunNeeded()
@@ -144,12 +146,15 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.LoginLimiter.RecordSuccess(ip)
+	if err := s.Auth.RecordLogin(user.ID); err != nil {
+		log.Printf("api: login: %v", err) // bookkeeping only; the sign-in itself succeeded
+	}
 	s.startSession(w, user.ID)
 	writeJSON(w, http.StatusOK, userPayload(user))
 }
 
-// clientIP prefers X-Forwarded-For (PRD deployments sit behind a reverse
-// proxy per PRD §5.1) and falls back to the direct connection's address.
+// clientIP prefers X-Forwarded-For (deployments typically sit behind a
+// reverse proxy) and falls back to the direct connection's address.
 func clientIP(r *http.Request) string {
 	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
 		if i := strings.IndexByte(fwd, ','); i != -1 {
@@ -299,8 +304,8 @@ type createAPIKeyRequest struct {
 	Name string `json:"name"`
 }
 
-// handleCreateAPIKey is the only place the raw key is ever returned — PRD
-// §11's "credentials never logged/exposed beyond what's needed" means
+// handleCreateAPIKey is the only place the raw key is ever returned —
+// "credentials never logged/exposed beyond what's needed" means
 // there's no way to view it again later, same as e.g. GitHub's own
 // personal-access-token flow.
 func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {

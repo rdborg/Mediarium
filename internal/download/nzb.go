@@ -1,5 +1,5 @@
-// Package download implements the NNTP (Usenet) download client (PRD.md
-// §4.4 — "NNTP written/adapted in-house"). Phase 2 will add a torrent
+// Package download implements the NNTP (Usenet) download client (NNTP
+// written/adapted in-house). Phase 2 will add a torrent
 // client alongside this via anacrolix/torrent; nothing here assumes it's
 // the only download protocol.
 package download

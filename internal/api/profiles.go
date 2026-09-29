@@ -11,13 +11,30 @@ import (
 	"github.com/ryanborg/mediarium/internal/settings"
 )
 
-// initProfiles seeds the built-in profiles on first start and makes sure a
-// default profile is set, carrying over the old single global preset choice
+// initProfiles seeds the built-in profiles on first start (or brings an older
+// install's untouched presets up to date, once) and makes sure a default
+// profile is set, carrying over the old single global preset choice
 // (library.quality_profile) if the user had one.
 func (s *Server) initProfiles() error {
-	profiles, err := s.QualityRepo.SeedPresets()
+	seeded := 0
+	if v, _ := s.Settings.Get(settings.KeyPresetsVersion); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", settings.KeyPresetsVersion, err)
+		}
+		seeded = n
+	}
+	profiles, err := s.QualityRepo.SeedPresets(seeded)
 	if err != nil {
-		return err
+		return fmt.Errorf("seed quality presets: %w", err)
+	}
+	if seeded < quality.PresetsVersion {
+		if err := s.Settings.Set(settings.KeyPresetsVersion, strconv.Itoa(quality.PresetsVersion), false); err != nil {
+			return err
+		}
+	}
+	if len(profiles) == 0 {
+		return nil // every profile deleted by hand; items fall back to the built-in default
 	}
 	if id := s.defaultProfileID(); id != 0 {
 		for _, p := range profiles {
@@ -27,7 +44,7 @@ func (s *Server) initProfiles() error {
 		}
 	}
 
-	wantName := "Up to 1080p"
+	wantName := quality.Presets()[quality.DefaultPreset].Name
 	if legacy, _ := s.Settings.Get(settings.KeyQualityProfile); legacy != "" {
 		if name, ok := quality.PresetName(legacy); ok {
 			wantName = name
@@ -62,7 +79,7 @@ func (s *Server) loadProfiles() (profileSet, error) {
 	if err != nil {
 		return profileSet{}, err
 	}
-	ps := profileSet{byID: map[int64]quality.Profile{}, def: quality.Presets()["any-1080p"]}
+	ps := profileSet{byID: map[int64]quality.Profile{}, def: quality.Presets()[quality.DefaultPreset]}
 	for _, p := range list {
 		ps.byID[p.ID] = p
 	}
@@ -75,11 +92,20 @@ func (s *Server) loadProfiles() (profileSet, error) {
 }
 
 // resolve returns the profile for an item; 0 or an unknown id means default.
+// Its fallback profiles are filled in (FallbackProfiles), in order.
 func (ps profileSet) resolve(id int64) quality.Profile {
-	if p, ok := ps.byID[id]; ok {
-		return p
+	p, ok := ps.byID[id]
+	if !ok {
+		p = ps.def
 	}
-	return ps.def
+	p.FallbackProfiles = nil
+	for _, fid := range p.Fallback {
+		if f, ok := ps.byID[fid]; ok && fid != p.ID {
+			f.FallbackProfiles = nil // a fallback's own fallbacks are not followed
+			p.FallbackProfiles = append(p.FallbackProfiles, f)
+		}
+	}
+	return p
 }
 
 type profilePayload struct {
@@ -91,7 +117,10 @@ type profilePayload struct {
 	MustContain    []string           `json:"mustContain"`
 	MustNotContain []string           `json:"mustNotContain"`
 	Preferred      []preferredPayload `json:"preferred"`
-	InUse          int                `json:"inUse"`
+	// Fallback is the ordered list of profile ids an automatic search tries
+	// when nothing is acceptable to this profile ([] = none).
+	Fallback []int64 `json:"fallback"`
+	InUse    int     `json:"inUse"`
 }
 
 type preferredPayload struct {
@@ -121,8 +150,12 @@ func toProfilePayload(p quality.Profile, inUse int) profilePayload {
 	if mustNot == nil {
 		mustNot = []string{}
 	}
+	fallback := p.Fallback
+	if fallback == nil {
+		fallback = []int64{}
+	}
 	return profilePayload{ID: p.ID, Name: p.Name, Allowed: allowed, Cutoff: string(p.Cutoff), UpgradeAllowed: p.UpgradeAllowed,
-		MustContain: must, MustNotContain: mustNot, Preferred: prefs, InUse: inUse}
+		MustContain: must, MustNotContain: mustNot, Preferred: prefs, Fallback: fallback, InUse: inUse}
 }
 
 type profileRequest struct {
@@ -133,6 +166,10 @@ type profileRequest struct {
 	MustContain    []string           `json:"mustContain"`
 	MustNotContain []string           `json:"mustNotContain"`
 	Preferred      []preferredPayload `json:"preferred"`
+	// Fallback replaces the profile's fallback list; left out (null), an
+	// update keeps the saved one. Ids that do not exist, or the profile's
+	// own id, are ignored.
+	Fallback []int64 `json:"fallback"`
 }
 
 func (req profileRequest) toProfile(id int64) quality.Profile {
@@ -146,7 +183,7 @@ func (req profileRequest) toProfile(id int64) quality.Profile {
 	}
 	return quality.Profile{
 		ID: id, Name: req.Name, Allowed: allowed, Cutoff: quality.Tier(req.Cutoff), UpgradeAllowed: req.UpgradeAllowed,
-		MustContain: req.MustContain, MustNotContain: req.MustNotContain, Preferred: prefs,
+		MustContain: req.MustContain, MustNotContain: req.MustNotContain, Preferred: prefs, Fallback: req.Fallback,
 	}
 }
 
@@ -196,7 +233,16 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	updated, err := s.QualityRepo.Update(req.toProfile(id))
+	p := req.toProfile(id)
+	if req.Fallback == nil {
+		saved, err := s.QualityRepo.Get(id)
+		if err != nil {
+			writeProfileError(w, err)
+			return
+		}
+		p.Fallback = saved.Fallback
+	}
+	updated, err := s.QualityRepo.Update(p)
 	if err != nil {
 		writeProfileError(w, err)
 		return

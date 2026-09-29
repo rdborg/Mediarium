@@ -16,7 +16,7 @@ import (
 
 // Newznab/Torznab standard categories: 2000 = movies, 5000 = TV. The
 // unified search bar queries both so one box finds either kind of release
-// (PRD §7 Phase 3 — "true single search bar across movies + TV").
+// ("true single search bar across movies + TV").
 var (
 	tvCategory      = []int{5000}
 	mediaCategories = []int{2000, 5000}
@@ -96,9 +96,10 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 		if !matchesShow(res.Title, series) || !coversTarget(parser.Parse(res.Title), season, episode) {
 			continue
 		}
-		payload := toSearchResultPayload(res)
+		payload := s.toSearchResultPayload(res)
 		payload.Blocklisted = blocked[blocklist.Key(res.Title)]
 		payload.Rejections = rejectionsFor(res.Title, profile, false, "")
+		payload.AcceptedBy = acceptedBy(profile, res.Title)
 		out = append(out, payload)
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -149,12 +150,13 @@ func (s *Server) grabFromSearchTV(w http.ResponseWriter, r *http.Request, req gr
 		return
 	}
 	if !ok {
-		series, err = s.addSeriesFromTMDB(r.Context(), match.TMDBID)
+		userID, byline := requester(r)
+		series, err = s.addSeriesFromTMDB(r.Context(), match.TMDBID, userID)
 		if err != nil {
 			writeError(w, http.StatusBadGateway, "add series from TMDB: "+err.Error())
 			return
 		}
-		_ = s.QueueRepo.LogActivity(0, "added", series.Title+" (series) added to library")
+		_ = s.QueueRepo.LogSeriesActivity(series.ID, "added", series.Title+" (series) added to library"+byline)
 	}
 
 	queueID, err := s.grabTVRelease(series, 0, 0, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol())

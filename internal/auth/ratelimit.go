@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// LoginLimiter blunts brute-force login attempts (PRD.md §5.1 — "a
+// LoginLimiter blunts brute-force login attempts ("a
 // handful of attempts per IP/window") with a simple in-memory sliding
 // window. Deliberately not persisted to the DB: a restart resetting
 // attempt counts is an acceptable tradeoff for avoiding a write on every

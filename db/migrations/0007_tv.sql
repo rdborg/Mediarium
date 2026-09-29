@@ -1,6 +1,6 @@
--- TV support (PRD.md §7 Phase 2/3): series + per-episode tracking, same
+-- TV support: series + per-episode tracking, same
 -- status lifecycle as movies (missing -> downloading -> downloaded).
--- Metadata comes from TMDB (PRD §4.4 — "TMDB (movies/TV)"), so series are
+-- Metadata comes from TMDB ("TMDB (movies/TV)"), so series are
 -- keyed by tmdb_id, not tvdb_id.
 
 CREATE TABLE series (

@@ -1,6 +1,6 @@
 // Package web embeds the built frontend (dist/, produced by `npm run
 // build` — see README.md) so the compiled Go binary serves the whole UI
-// itself with no external file dependency (PRD.md §4.1/§4.2 — single
+// itself with no external file dependency (single
 // binary, single process).
 package web
 

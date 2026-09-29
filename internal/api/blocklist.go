@@ -65,24 +65,33 @@ func (s *Server) blockedKeys() map[string]bool {
 	return keys
 }
 
-// onBadRelease blocklists a failed release and, when automation is on,
-// immediately tries the next-best one for the same movie or series. Call it
-// only after the failed item has been put back to "missing".
-func (s *Server) onBadRelease(releaseTitle string, protocol indexers.Protocol, movieID, seriesID int64, cause error) {
+// blocklistBadRelease blocklists a release that failed through its own
+// fault and reports whether it was recorded. A pipeline calls it before it
+// hands the title back to "missing", so no automation run can see the title
+// as wanted while the bad release is not blocklisted yet (and grab it
+// again), and then calls retryAfterBadRelease.
+func (s *Server) blocklistBadRelease(releaseTitle string, protocol indexers.Protocol, movieID, seriesID int64, cause error) bool {
 	if err := s.Blocklist.Add(blocklist.Entry{
 		ReleaseTitle: releaseTitle, Protocol: string(protocol), Reason: cause.Error(), MovieID: movieID, SeriesID: seriesID,
 	}); err != nil {
 		log.Printf("api: %v", err)
-		return
+		return false
 	}
-	_ = s.QueueRepo.LogActivity(movieID, "blocklisted", "Blocklisted \""+releaseTitle+"\": "+cause.Error())
-	go func() {
+	_ = s.QueueRepo.LogItemActivity(movieID, seriesID, "blocklisted", "Blocklisted \""+releaseTitle+"\": "+cause.Error())
+	return true
+}
+
+// retryAfterBadRelease, when automation is on, tries the next-best release
+// for the same movie or series in the background. Call it only after the
+// failed item has been put back to "missing".
+func (s *Server) retryAfterBadRelease(movieID, seriesID int64) {
+	s.background(func() {
 		if movieID != 0 {
 			s.retryMovie(movieID)
 		} else if seriesID != 0 {
 			s.retrySeries(seriesID)
 		}
-	}()
+	})
 }
 
 func (s *Server) retryBudgetLeft(movieID, seriesID int64) bool {
@@ -93,6 +102,7 @@ func (s *Server) retryBudgetLeft(movieID, seriesID int64) bool {
 	}
 	if n > maxAutoRetries {
 		log.Printf("api: giving up on automatic retries (movie %d / series %d): %d releases blocklisted in the last day", movieID, seriesID, n)
+		s.retryEvent(movieID, seriesID, retryPausedMessage(n))
 		return false
 	}
 	return true
@@ -114,7 +124,9 @@ func (s *Server) retryMovie(movieID int64) {
 	if err != nil {
 		return
 	}
-	s.huntMovie(context.Background(), m, instances, profiles, s.blockedKeys(), false)
+	if !s.huntMovie(context.Background(), m, instances, profiles, s.blockedKeys(), false) {
+		s.retryEvent(movieID, 0, noOtherRelease)
+	}
 }
 
 func (s *Server) retrySeries(seriesID int64) {
@@ -133,7 +145,9 @@ func (s *Server) retrySeries(seriesID int64) {
 	if err != nil {
 		return
 	}
-	s.autoGrabTV(s.targetedTVSearcher(context.Background(), instances, maxTVSearchesPerHunt), "retry", profiles, tvScope{seriesID: seriesID})
+	if s.autoGrabTV(s.targetedTVSearcher(context.Background(), instances, maxTVSearchesPerHunt), "retry", profiles, tvScope{seriesID: seriesID}) == 0 {
+		s.retryEvent(0, seriesID, noOtherRelease)
+	}
 }
 
 type blocklistPayload struct {

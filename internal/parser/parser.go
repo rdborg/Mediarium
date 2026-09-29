@@ -1,11 +1,11 @@
-// Package parser extracts structured metadata from release filenames
-// (PRD.md §4.4 "Release parser" — PTN-style logic as a base). It works by
-// repeatedly matching and stripping known tokens (season/episode, quality,
+// Package parser extracts structured metadata from release filenames,
+// using PTN-style logic as a base. It works by repeatedly matching and
+// stripping known tokens (season/episode, quality,
 // codec, group, edition, proper/repack) from the raw name; whatever is left
 // before the first stripped token is the title candidate.
 //
 // This does not import github.com/ryanborg/mediarium/internal/download (or
-// any other module) — CLAUDE.md's package-boundary rule keeps the parser
+// any other module) — the project's package-boundary rule keeps the parser
 // usable standalone.
 package parser
 
@@ -70,7 +70,12 @@ var (
 		{regexp.MustCompile(`(?i)\b(BluRay|BDRip|BRRip)\b`), func(r *Release, m []string) { r.Source = normalizeSource(m[1]) }},
 		{regexp.MustCompile(`(?i)\b(HDTV|PDTV|SDTV)\b`), func(r *Release, m []string) { r.Source = normalizeSource(m[1]) }},
 		{regexp.MustCompile(`(?i)\b(DVDRip|DVDR|DVD)\b`), func(r *Release, m []string) { r.Source = normalizeSource(m[1]) }},
-		{regexp.MustCompile(`(?i)\b(CAM|TS|TC|SCR|R5)\b`), func(r *Release, m []string) { r.Source = strings.ToUpper(m[1]) }},
+		// Pre-release copies (recorded in a cinema, or screener discs). They
+		// often also carry "1080p", so this must win over the resolution: the
+		// picture is still a camera or telesync recording.
+		{regexp.MustCompile(`(?i)\b(CAM|CAMRip|HD-?CAM|HQ-?CAM|TS|HD-?TS|TELESYNC|PDVD|PreDVD|TC|HD-?TC|TELECINE|SCR|SCREENER|DVDSCR|DVD-?SCR|BDSCR|WEBSCR|R5)\b`), func(r *Release, m []string) {
+			r.Source = normalizePreRelease(m[1])
+		}},
 		// Remux is its own token (not an alternative in the BluRay regex
 		// above) because a filename can contain both words separately
 		// ("...BluRay.REMUX...") — Remux is the more specific quality tier
@@ -232,6 +237,33 @@ func cleanTitle(s string) string {
 func normalizeSpace(s string) string {
 	s = strings.ReplaceAll(s, ".", " ")
 	return strings.TrimSpace(s)
+}
+
+// normalizePreRelease names the kind of pre-release copy: CAM, TELESYNC,
+// TELECINE, SCREENER or R5.
+func normalizePreRelease(s string) string {
+	u := strings.ReplaceAll(strings.ToUpper(s), "-", "")
+	switch u {
+	case "CAM", "CAMRIP", "HDCAM", "HQCAM":
+		return "CAM"
+	case "TS", "HDTS", "TELESYNC", "PDVD", "PREDVD":
+		return "TELESYNC"
+	case "TC", "HDTC", "TELECINE":
+		return "TELECINE"
+	case "R5":
+		return "R5"
+	}
+	return "SCREENER"
+}
+
+// IsPreRelease reports whether a source is a cinema recording or screener
+// rather than a proper release.
+func IsPreRelease(source string) bool {
+	switch source {
+	case "CAM", "TELESYNC", "TELECINE", "SCREENER", "R5":
+		return true
+	}
+	return false
 }
 
 func normalizeSource(s string) string {

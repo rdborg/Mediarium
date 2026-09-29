@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
-import { api, displayName, type APIKey } from '../api'
+import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { api, displayName, isAdmin, type Account, type AccountChanges, type APIKey, type Role } from '../api'
 import { useAuth } from '../AuthContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 import PasswordStrength from '../components/PasswordStrength'
 import { useToast } from '../components/Toast'
 import Icon from '../components/Icon'
+
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 function ProfileForm() {
   const { user, setUser } = useAuth()
@@ -17,10 +21,10 @@ function ProfileForm() {
     setBusy(true)
     try {
       const updated = await api.updateAccount({ username: username.trim(), name: name.trim(), email: email.trim() })
-      setUser(updated)
+      setUser({ ...user, ...updated })
       toast.success('Profile saved.')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e))
+      toast.error(errorText(e))
     } finally {
       setBusy(false)
     }
@@ -76,7 +80,7 @@ function PasswordForm() {
       setConfirmPassword('')
       toast.success('Password changed.')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e))
+      toast.error(errorText(e))
     }
   }
 
@@ -129,7 +133,7 @@ function APIKeys() {
       setName('')
       reload()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e))
+      toast.error(errorText(e))
     }
   }
 
@@ -193,18 +197,370 @@ function APIKeys() {
   )
 }
 
+// ---- Accounts (administrators only) ---------------------------------------
+
+const accountName = (a: Account) => a.name.trim() || a.username
+
+// When someone last signed in, in plain words.
+function lastSignIn(iso: string | null): string {
+  const then = iso ? new Date(iso).getTime() : NaN
+  if (Number.isNaN(then)) return 'Never signed in'
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60000))
+  if (minutes < 2) return 'Signed in just now'
+  if (minutes < 60) return `Signed in ${minutes} minutes ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `Signed in ${hours} ${hours === 1 ? 'hour' : 'hours'} ago`
+  const days = Math.round(hours / 24)
+  if (days === 1) return 'Signed in yesterday'
+  if (days < 14) return `Signed in ${days} days ago`
+  if (days < 60) return `Signed in ${Math.round(days / 7)} weeks ago`
+  return `Last signed in on ${new Date(then).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`
+}
+
+const ROLES: { id: Role; title: string; blurb: string }[] = [
+  { id: 'member', title: 'Basic user', blurb: 'Can find, add and download movies and shows. Cannot change settings.' },
+  { id: 'admin', title: 'Admin', blurb: 'Full control, including settings and accounts.' },
+]
+
+function RoleChoice({ value, onChange, disabled }: { value: Role; onChange: (r: Role) => void; disabled?: boolean }) {
+  return (
+    <div className="choice-grid role-choice" role="radiogroup" aria-label="Role">
+      {ROLES.map((r) => (
+        <button key={r.id} type="button" role="radio" aria-checked={value === r.id} className={`choice-card${value === r.id ? ' active' : ''}`} disabled={disabled} onClick={() => onChange(r.id)}>
+          <span className="choice-dot" aria-hidden="true" />
+          <strong>{r.title}</strong>
+          <small>{r.blurb}</small>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// A password box with a button to show what was typed, handy when you are
+// choosing a password to hand to someone else.
+function PasswordInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <span className="pw-field">
+      <input type={shown ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} autoComplete="new-password" placeholder={placeholder} />
+      <button type="button" className="icon-btn" onClick={() => setShown((s) => !s)} aria-label={shown ? 'Hide password' : 'Show password'} title={shown ? 'Hide password' : 'Show password'} aria-pressed={shown}>
+        <Icon name="eye" size={16} />
+      </button>
+    </span>
+  )
+}
+
+function AccountCard({ a, self, onEdit, onRemove }: { a: Account; self: boolean; onEdit: () => void; onRemove: () => void }) {
+  const name = accountName(a)
+  return (
+    <div className={`account-card role-${a.role}`}>
+      <div className="account-top">
+        <span className="account-avatar" aria-hidden="true">
+          {name.charAt(0).toUpperCase() || '?'}
+        </span>
+        <div className="account-who">
+          <strong title={name}>{name}</strong>
+          <small title={`@${a.username}`}>@{a.username}</small>
+        </div>
+        <span className="account-badges">
+          {self && <span className="badge you-badge">You</span>}
+          <span className={`badge role-badge ${a.role}`}>{a.role === 'admin' ? 'Admin' : 'Basic user'}</span>
+        </span>
+      </div>
+      <ul className="account-meta">
+        <li title={a.email || undefined}>
+          <Icon name="mail" size={14} /> <span>{a.email || 'No email address'}</span>
+        </li>
+        <li title={a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString() : undefined}>
+          <Icon name="clock" size={14} /> <span>{lastSignIn(a.lastLoginAt)}</span>
+        </li>
+      </ul>
+      <div className="account-actions">
+        <button className="btn-sm btn-with-icon" onClick={onEdit}>
+          <Icon name="sliders" size={14} /> Edit
+        </button>
+        <button className="btn-sm btn-with-icon danger-ghost" onClick={onRemove} disabled={self} title={self ? 'You cannot remove your own account.' : undefined}>
+          <Icon name="trash" size={14} /> Remove
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function EditAccountDialog({ a, self, onClose, onSaved }: { a: Account; self: boolean; onClose: () => void; onSaved: (a: Account) => void }) {
+  const [name, setName] = useState(a.name)
+  const [email, setEmail] = useState(a.email)
+  const [role, setRole] = useState<Role>(a.role)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const who = accountName(a)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function save() {
+    const changes: AccountChanges = {}
+    if (name.trim() !== a.name) changes.name = name.trim()
+    if (email.trim() !== a.email) changes.email = email.trim()
+    if (role !== a.role) changes.role = role
+    if (password) {
+      if (password.length < 8) {
+        setError('The new password must be at least 8 characters.')
+        return
+      }
+      changes.password = password
+    }
+    if (Object.keys(changes).length === 0) {
+      onClose()
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      onSaved(await api.updateAccountById(a.id, changes))
+    } catch (e) {
+      setError(errorText(e))
+      setBusy(false)
+    }
+  }
+
+  return createPortal(
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal account-dialog" role="dialog" aria-modal="true" aria-label={`Edit ${who}`}>
+        <div className="modal-head">
+          <span className="account-avatar" aria-hidden="true">
+            {who.charAt(0).toUpperCase() || '?'}
+          </span>
+          <div>
+            <h2 style={{ margin: 0 }}>Edit {who}</h2>
+            <small style={{ color: 'var(--text-dim)' }}>Signs in as @{a.username}</small>
+          </div>
+        </div>
+        <div className="modal-body account-form">
+          <div className="form-cols">
+            <label>
+              Name
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={a.username} />
+            </label>
+            <label>
+              <span>
+                Email <small style={{ color: 'var(--text-dim)' }}>(optional)</small>
+              </span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </label>
+          </div>
+          <div>
+            <span className="field-title">Role</span>
+            <RoleChoice value={role} onChange={setRole} disabled={self} />
+            {self && <p className="field-note">You cannot remove your own administrator role. Ask another administrator, or make someone else an administrator first.</p>}
+          </div>
+          {self ? (
+            <p className="field-note">To change your own password, use Change password on this page.</p>
+          ) : (
+            <label className="account-pw">
+              <span>
+                New password <small style={{ color: 'var(--text-dim)' }}>(leave empty to keep the current one)</small>
+              </span>
+              <PasswordInput value={password} onChange={setPassword} />
+              <PasswordStrength password={password} />
+              {password && <span className="field-note">Saving a new password signs {who} out everywhere. They sign in again with the new one.</span>}
+            </label>
+          )}
+          {error && <p className="error-text">{error}</p>}
+        </div>
+        <div className="modal-foot">
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" onClick={() => void save()} disabled={busy}>
+            {busy ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function AddAccountForm({ onAdded }: { onAdded: (a: Account) => void }) {
+  const toast = useToast()
+  const [username, setUsername] = useState('')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<Role>('member')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function add() {
+    if (username.trim().length < 3) {
+      setError('The username must be at least 3 characters.')
+      return
+    }
+    if (password.length < 8) {
+      setError('The password must be at least 8 characters.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const created = await api.createAccount({ username: username.trim(), password, name: name.trim() || undefined, email: email.trim() || undefined, role })
+      onAdded(created)
+      toast.success(`Account added for ${accountName(created)}. Tell them their username and password.`)
+      setUsername('')
+      setName('')
+      setEmail('')
+      setPassword('')
+      setRole('member')
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <fieldset className="group usenet">
+      <legend>
+        <Icon name="plus" size={14} /> Add an account
+      </legend>
+      <div className="account-form">
+        <div className="triple-cols">
+          <label>
+            <span>
+              Username <small style={{ color: 'var(--text-dim)' }}>(what they sign in with)</small>
+            </span>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" placeholder="for example: sam" />
+          </label>
+          <label>
+            <span>
+              Name <small style={{ color: 'var(--text-dim)' }}>(optional)</small>
+            </span>
+            <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" placeholder="for example: Sam" />
+          </label>
+          <label>
+            <span>
+              Email <small style={{ color: 'var(--text-dim)' }}>(optional)</small>
+            </span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
+          </label>
+        </div>
+        <div className="account-add-row">
+          <label className="account-pw">
+            <span>
+              Password <small style={{ color: 'var(--text-dim)' }}>(at least 8 characters)</small>
+            </span>
+            <PasswordInput value={password} onChange={setPassword} />
+            <PasswordStrength password={password} />
+            <span className="field-note">They can change it from their profile once signed in.</span>
+          </label>
+          <div>
+            <span className="field-title">What can they do?</span>
+            <RoleChoice value={role} onChange={setRole} />
+          </div>
+        </div>
+        {error && <p className="error-text">{error}</p>}
+        <div>
+          <button className="primary btn-with-icon" onClick={() => void add()} disabled={busy || !username.trim() || !password}>
+            <Icon name="plus" size={16} /> {busy ? 'Adding…' : 'Add account'}
+          </button>
+        </div>
+      </div>
+    </fieldset>
+  )
+}
+
+function Accounts() {
+  const { user, setUser } = useAuth()
+  const toast = useToast()
+  const [accounts, setAccounts] = useState<Account[] | null>(null)
+  const [error, setError] = useState('')
+  const [editing, setEditing] = useState<Account | null>(null)
+  const [removing, setRemoving] = useState<Account | null>(null)
+
+  const load = useCallback(() => {
+    api
+      .listAccounts()
+      .then((list) => {
+        setAccounts(list)
+        setError('')
+      })
+      .catch((e) => setError(errorText(e)))
+  }, [])
+  useEffect(load, [load])
+
+  function saved(a: Account) {
+    setEditing(null)
+    setAccounts((list) => (list ?? []).map((x) => (x.id === a.id ? a : x)))
+    if (user && a.id === user.id) setUser({ ...user, name: a.name, email: a.email, role: a.role, isAdmin: a.isAdmin })
+    toast.success(`Saved the changes to ${accountName(a)}.`)
+  }
+
+  async function remove(a: Account) {
+    setRemoving(null)
+    try {
+      await api.deleteAccount(a.id)
+      setAccounts((list) => (list ?? []).filter((x) => x.id !== a.id))
+      toast.success(`Removed the account for ${accountName(a)}.`)
+    } catch (e) {
+      toast.error(errorText(e))
+    }
+  }
+
+  const admins = accounts?.filter((a) => a.role === 'admin').length ?? 0
+
+  return (
+    <>
+      <fieldset className="group folders">
+        <legend>
+          <Icon name="user" size={14} /> Accounts
+          {accounts && <span className="legend-count">{accounts.length}</span>}
+        </legend>
+        <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>
+          Everyone who can sign in to Mediarium. Basic users can find, add and download movies and shows; admins can also change settings and manage accounts.
+          {accounts && ` ${admins} ${admins === 1 ? 'admin' : 'admins'}, ${accounts.length - admins} ${accounts.length - admins === 1 ? 'basic user' : 'basic users'}.`}
+        </p>
+        {error && <p className="error-text">{error}</p>}
+        <div className="account-grid">
+          {accounts === null && !error && Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton" style={{ height: 150, borderRadius: 14 }} />)}
+          {accounts?.map((a) => (
+            <AccountCard key={a.id} a={a} self={a.id === user?.id} onEdit={() => setEditing(a)} onRemove={() => setRemoving(a)} />
+          ))}
+        </div>
+      </fieldset>
+      <AddAccountForm onAdded={(a) => setAccounts((list) => [...(list ?? []), a])} />
+      {editing && <EditAccountDialog a={editing} self={editing.id === user?.id} onClose={() => setEditing(null)} onSaved={saved} />}
+      {removing && (
+        <ConfirmDialog title={`Remove ${accountName(removing)}?`} confirmLabel="Remove account" onConfirm={() => void remove(removing)} onCancel={() => setRemoving(null)}>
+          <p style={{ marginTop: 0 }}>
+            {accountName(removing)} is signed out straight away and can no longer sign in. Any API keys they made stop working.
+          </p>
+          <p style={{ marginBottom: 0 }}>Movies and shows they added stay in your library. This cannot be undone, but you can add a new account for them later.</p>
+        </ConfirmDialog>
+      )}
+    </>
+  )
+}
+
 export default function Profile() {
   const { user } = useAuth()
+  const admin = isAdmin(user)
   return (
     <div>
       <div className="page-header">
-        <h1>Profile</h1>
-        <span style={{ color: 'var(--text-dim)' }}>Signed in as {displayName(user)}</span>
+        <h1>{admin ? 'Profile & Accounts' : 'Your profile'}</h1>
+        <span style={{ color: 'var(--text-dim)' }}>
+          Signed in as {displayName(user)}
+          {user && ` · ${admin ? 'Admin' : 'Basic user'}`}
+        </span>
       </div>
-      <div className="group-cols">
+      <div className="half-cols profile-cols">
         <ProfileForm />
         <PasswordForm />
       </div>
+      {admin && <Accounts />}
       <APIKeys />
     </div>
   )

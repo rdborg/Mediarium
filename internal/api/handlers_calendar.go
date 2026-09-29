@@ -25,7 +25,7 @@ const (
 	calendarEpisodeLookahead = 120 * 24 * time.Hour
 )
 
-// handleCalendar is the unified calendar (PRD §7 Phase 3 — releases and
+// handleCalendar is the unified calendar (releases and
 // episode airs in one list). Monitored movies with a known release date are
 // always included; episodes only within a window around today, so a long-
 // running show's whole back catalogue doesn't drown out what's coming up.

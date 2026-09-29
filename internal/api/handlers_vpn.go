@@ -32,7 +32,7 @@ func (s *Server) handleListVPNConfigs(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]vpnConfigPayload, len(list))
 	for i, c := range list {
-		// Private/preshared keys intentionally omitted from the response (PRD §11).
+		// Private/preshared keys intentionally omitted from the response.
 		out[i] = vpnConfigPayload{
 			ID: c.ID, Label: c.Label, Provider: c.Provider, PeerPublicKey: c.Config.PeerPublicKey,
 			Endpoint: c.Config.Endpoint, AllowedIPs: c.Config.AllowedIPs, LocalAddresses: c.Config.LocalAddresses,
@@ -43,7 +43,7 @@ func (s *Server) handleListVPNConfigs(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCreateVPNConfig accepts a generic WireGuard config — the "paste
-// your own config" fallback PRD §4.7 requires always works, and is
+// your own config" fallback always works, and is
 // exactly the same path a named-provider picker in the UI would use.
 func (s *Server) handleCreateVPNConfig(w http.ResponseWriter, r *http.Request) {
 	var req vpnConfigPayload
@@ -86,8 +86,8 @@ func (s *Server) handleDeleteVPNConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, nil)
 }
 
-// handleActivateVPNConfig brings the tunnel up for this config (PRD §4.7 —
-// "multiple provider configs stored, one active at a time"). Connecting a
+// handleActivateVPNConfig brings the tunnel up for this config
+// ("multiple provider configs stored, one active at a time"). Connecting a
 // real WireGuard tunnel involves a network handshake to whatever endpoint
 // the config points at, so this can legitimately fail (bad key, endpoint
 // unreachable) — that's surfaced as a 502, not swallowed.
@@ -140,15 +140,15 @@ type vpnStatusPayload struct {
 	ConnectedAt time.Time `json:"connectedAt,omitempty"`
 }
 
-// handleVPNStatus surfaces connection state for the UI (PRD §4.7 —
-// "status visibility... shown clearly in the UI, not just in logs").
+// handleVPNStatus surfaces connection state for the UI, so VPN status is
+// shown clearly in the UI, not just in logs.
 func (s *Server) handleVPNStatus(w http.ResponseWriter, r *http.Request) {
 	status := s.VPNManager.Status()
 	writeJSON(w, http.StatusOK, vpnStatusPayload{Connected: status.Connected, Label: status.Label, ConnectedAt: status.ConnectedAt})
 }
 
 // handleVPNEgressIP makes a real outbound request through the active
-// tunnel (PRD §4.7 — "status visibility"), so the user can independently
+// tunnel ("status visibility"), so the user can independently
 // confirm traffic is actually egressing via the VPN provider rather than
 // leaking. Only fired when this endpoint is actually hit, not polled in
 // the background, since it means a live network round trip each time.

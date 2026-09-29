@@ -20,7 +20,7 @@ import (
 
 // newTwoQualityIndexerServer returns a fake Newznab indexer that always
 // offers two releases for the same fixture movie: a WEBDL-1080p one and a
-// Bluray-1080p one — enough for internal/quality's any-1080p preset to
+// Bluray-1080p one — enough for internal/quality's 1080p preset to
 // treat the Bluray release as a genuine upgrade over the WEBDL one, and
 // nothing downstream of "which one got grabbed" (NZB fetch/NNTP download)
 // needs to be real for these tests, which only check the hunt loop's
@@ -84,6 +84,8 @@ func newHuntTestServer(t *testing.T) (*api.Server, *httptest.Server, *http.Clien
 	if err != nil {
 		t.Fatalf("new api server: %v", err)
 	}
+	// Runs before the database closes (cleanups run last-registered first).
+	t.Cleanup(func() { waitBackground(t, server) })
 
 	httpSrv := httptest.NewServer(server.Routes())
 	t.Cleanup(httpSrv.Close)
@@ -91,6 +93,23 @@ func newHuntTestServer(t *testing.T) (*api.Server, *httptest.Server, *http.Clien
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 	return server, httpSrv, client
+}
+
+// waitBackground waits for every download pipeline and automatic retry the
+// server started to finish, failing the test if they are still running
+// after 30 seconds.
+func waitBackground(t *testing.T, server *api.Server) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		server.TestWaitBackground()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Error("background downloads were still running 30 seconds after the test")
+	}
 }
 
 // TestHuntGrabsUpgradeForDownloadedMovie proves the automation hunt loop
@@ -110,7 +129,7 @@ func TestHuntGrabsUpgradeForDownloadedMovie(t *testing.T) {
 	}, http.StatusCreated)
 
 	// Seeded as already downloaded at WEBDL-1080p — below the default
-	// any-1080p profile's Bluray-1080p cutoff, so it's a genuine upgrade
+	// 1080p preset's Bluray-1080p cutoff, so it's a genuine upgrade
 	// candidate.
 	movie, err := server.MovieRepo.Add(library.Movie{TMDBID: 605, Title: "The Fixture Movie", Year: 1999, Monitored: true})
 	if err != nil {
@@ -162,7 +181,7 @@ func TestHuntSkipsMovieAlreadyAtCutoff(t *testing.T) {
 		"name": "Fixture Indexer", "definitionId": "fixture", "baseUrl": indexerSrv.URL, "apiKey": "fixture-key",
 	}, http.StatusCreated)
 
-	// Already at Bluray-1080p — any-1080p's own cutoff — so even though the
+	// Already at Bluray-1080p — the 1080p preset's own cutoff — so even though the
 	// indexer offers a Bluray release too, it must not be re-grabbed.
 	movie, err := server.MovieRepo.Add(library.Movie{TMDBID: 606, Title: "The Fixture Movie", Year: 1999, Monitored: true})
 	if err != nil {
@@ -174,9 +193,9 @@ func TestHuntSkipsMovieAlreadyAtCutoff(t *testing.T) {
 
 	server.TestHunt(context.Background())
 
-	// Give any (incorrect) background grab a moment to show up before
-	// asserting its absence.
-	time.Sleep(300 * time.Millisecond)
+	// The hunt queues its grabs before it returns; wait for any pipeline and
+	// retry it started so nothing can still turn up after the check.
+	waitBackground(t, server)
 	queueList := getJSON[[]map[string]any](t, client, httpSrv.URL+"/api/queue")
 	if len(queueList) != 0 {
 		t.Fatalf("expected no grab for a movie already at cutoff, got %+v", queueList)
@@ -233,7 +252,7 @@ func TestRSSSyncGrabsUpgrade(t *testing.T) {
 // closes the DB out from under it.
 func waitForQueueTerminal(t *testing.T, client *http.Client, baseURL string) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
 		queueList := getJSON[[]map[string]any](t, client, baseURL+"/api/queue")
 		if len(queueList) == 1 {

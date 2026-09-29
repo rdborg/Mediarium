@@ -1,5 +1,5 @@
 // Package store owns the SQLite connection and schema migrations
-// (PRD.md §4.3 — one file covering config, library, indexer state, queue).
+// (one file covering config, library, indexer state, queue).
 package store
 
 import (

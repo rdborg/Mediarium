@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
@@ -108,11 +109,26 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 }
 
 // pickTVResult returns the best release for a season pack (episode == 0) or
-// a single episode of series. With current == nil it takes the
-// highest-ranked profile-accepted release; otherwise only genuine upgrades
-// over current. Season packs are never offered for a single episode — that
-// would download a whole season to fill one gap.
+// a single episode of series. With current == nil (nothing on disk) it tries
+// the profile and then, only when nothing is acceptable to it, each of its
+// fallback profiles in order; upgrades (current set) use the profile alone.
 func pickTVResult(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *quality.Tier) *indexers.Result {
+	if current != nil {
+		return pickTVResultFor(results, series, season, episode, profile, current)
+	}
+	for _, p := range profile.Chain() {
+		if best := pickTVResultFor(results, series, season, episode, p, nil); best != nil {
+			return best
+		}
+	}
+	return nil
+}
+
+// pickTVResultFor is pickTVResult for one profile. With current == nil it
+// takes the highest-ranked profile-accepted release; otherwise only genuine
+// upgrades over current. Season packs are never offered for a single
+// episode — that would download a whole season to fill one gap.
+func pickTVResultFor(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *quality.Tier) *indexers.Result {
 	var best *indexers.Result
 	bestRank, bestScore := -1, 0
 	for i := range results {
@@ -159,8 +175,10 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 	}
 
 	grab := func(series library.Series, season int, best *indexers.Result) (bool, []int) {
-		if _, err := s.grabTVRelease(series, season, 0, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol); err != nil {
-			log.Printf("automation: %s: tv grab %q for %q: %v", logPrefix, best.Title, series.Title, err)
+		if _, err := s.grabTV(series, season, 0, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, true); err != nil {
+			if !errors.Is(err, errAlreadyGrabbed) {
+				log.Printf("automation: %s: tv grab %q for %q: %v", logPrefix, best.Title, series.Title, err)
+			}
 			return false, nil
 		}
 		grabs++
@@ -171,6 +189,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 		if w.wholeSeason {
 			if best := pickTVResult(searcher(w.series, w.season, 0), w.series, w.season, 0, w.profile, nil); best != nil {
 				if ok, _ := grab(w.series, w.season, best); ok {
+					s.noteFallbackGrab(0, w.series.ID, w.series.Title, w.profile, best.Title)
 					continue
 				}
 			}
@@ -185,6 +204,9 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 				continue
 			}
 			_, grabbed := grab(w.series, w.season, best)
+			if len(grabbed) > 0 {
+				s.noteFallbackGrab(0, w.series.ID, w.series.Title, w.profile, best.Title)
+			}
 			for _, n := range grabbed {
 				covered[n] = true
 			}
@@ -211,6 +233,7 @@ func (s *Server) targetedTVSearcher(ctx context.Context, instances []indexers.In
 		}
 		budget--
 		outcomes := indexers.SearchAll(ctx, instances, tvSearchQuery(series.Title, season, episode), tvCategory)
+		s.noteTVSearch(series, season, episode, outcomes)
 		return indexers.MergeResults(outcomes)
 	}
 }

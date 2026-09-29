@@ -82,7 +82,7 @@ func TestImportListEndToEnd(t *testing.T) {
 	traktSrv := newFakeTraktServer(t)
 	tmdbSrv := newFakeTMDBServer(t)
 	// Point both live clients at the fixture servers instead of the real
-	// APIs (CLAUDE.md: local fixtures, not live network calls, in tests).
+	// APIs (tests use local fixtures, not live network calls).
 	server.TestSetTraktBaseURL("fixture-trakt-client-id", traktSrv.URL)
 	server.TestSetTMDBBaseURL("fixture-tmdb-key", tmdbSrv.URL)
 

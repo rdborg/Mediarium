@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import FallbackEditor from './FallbackEditor'
+import Icon from './Icon'
+import { useToast } from './Toast'
+import { profileBlurb, sortProfiles } from './qualityBlurb'
 import { api, type PreferredTerm, type QualityProfile } from '../api'
+import { useConfirm } from './ConfirmProvider'
 
 interface Draft {
   id?: number
@@ -11,6 +16,7 @@ interface Draft {
   mustContain: string
   mustNotContain: string
   preferred: string
+  fallback: number[]
 }
 
 const linesOf = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -33,6 +39,7 @@ const draftFrom = (p: QualityProfile): Draft => ({
   mustContain: p.mustContain.join('\n'),
   mustNotContain: p.mustNotContain.join('\n'),
   preferred: p.preferred.map((x) => `${x.term} = ${x.score}`).join('\n'),
+  fallback: p.fallback ?? [],
 })
 
 const blankDraft = (tiers: string[]): Draft => ({
@@ -43,6 +50,7 @@ const blankDraft = (tiers: string[]): Draft => ({
   mustContain: '',
   mustNotContain: '',
   preferred: '',
+  fallback: [],
 })
 
 const tierLabel = (t: string) => (t === 'Unknown' ? 'Unknown (untagged releases)' : t)
@@ -51,6 +59,7 @@ const tierLabel = (t: string) => (t === 'Unknown' ? 'Unknown (untagged releases)
 // acceptable, the cutoff at which upgrading stops, and whether upgrades
 // happen at all. The default profile applies to anything without its own.
 export default function QualityProfilesSection() {
+  const confirm = useConfirm()
   const [profiles, setProfiles] = useState<QualityProfile[]>([])
   const [tiers, setTiers] = useState<string[]>([])
   const [defaultId, setDefaultId] = useState(0)
@@ -61,7 +70,7 @@ export default function QualityProfilesSection() {
     api
       .listProfiles()
       .then((r) => {
-        setProfiles(r.profiles)
+        setProfiles(sortProfiles(r.profiles))
         setTiers(r.tiers)
         setDefaultId(r.defaultId)
       })
@@ -81,6 +90,7 @@ export default function QualityProfilesSection() {
         mustContain: linesOf(draft.mustContain),
         mustNotContain: linesOf(draft.mustNotContain),
         preferred: parsePreferred(draft.preferred),
+        fallback: draft.fallback,
       }
       if (draft.id) await api.updateProfile(draft.id, body)
       else await api.createProfile(body)
@@ -92,7 +102,7 @@ export default function QualityProfilesSection() {
   }
 
   async function remove(p: QualityProfile) {
-    if (!window.confirm(`Delete the "${p.name}" profile?`)) return
+    if (!(await confirm({ title: `Delete the "${p.name}" profile?`, body: <p>Movies and shows using it switch to the default profile.</p>, confirmLabel: 'Delete profile', danger: true }))) return
     setError('')
     try {
       await api.deleteProfile(p.id)
@@ -122,6 +132,7 @@ export default function QualityProfilesSection() {
   }
 
   const orderedAllowed = draft ? tiers.filter((t) => draft.allowed.includes(t)) : []
+  const defaultProfile = profiles.find((p) => p.id === defaultId)
 
   return (
     <section className="card wide">
@@ -132,13 +143,17 @@ export default function QualityProfilesSection() {
       </p>
       {error && <p className="error-text">{error}</p>}
 
-      <table style={{ marginBottom: 16 }}>
+      {defaultProfile && (
+        <DefaultFallback key={defaultProfile.id} profile={defaultProfile} profiles={profiles} onSaved={load} />
+      )}
+
+      <table className="profiles-table" style={{ marginBottom: 16 }}>
         <thead>
           <tr>
             <th>Name</th>
             <th>Qualities</th>
-            <th>Cutoff</th>
-            <th>Upgrades</th>
+            <th style={{ whiteSpace: 'nowrap' }}>Stops upgrading at</th>
+            <th style={{ whiteSpace: 'nowrap' }}>Upgrades</th>
             <th></th>
           </tr>
         </thead>
@@ -148,6 +163,12 @@ export default function QualityProfilesSection() {
               <td>
                 {p.name} {p.id === defaultId && <span className="badge downloaded">default</span>}
                 {p.inUse > 0 && <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>used by {p.inUse}</div>}
+                <div style={{ color: 'var(--text-dim)', fontSize: '0.8rem', maxWidth: 320 }}>{profileBlurb(p)}</div>
+                {(p.fallback ?? []).length > 0 && (
+                  <div className="fallback-summary">
+                    If nothing is found: {(p.fallback ?? []).map((id) => profiles.find((x) => x.id === id)?.name).filter(Boolean).join(' → ')}
+                  </div>
+                )}
               </td>
               <td style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
                 {p.allowed.map(tierLabel).join(', ')}
@@ -159,7 +180,7 @@ export default function QualityProfilesSection() {
                   </div>
                 )}
               </td>
-              <td>{tierLabel(p.cutoff)}</td>
+              <td style={{ whiteSpace: 'nowrap' }}>{tierLabel(p.cutoff)}</td>
               <td>{p.upgradeAllowed ? 'on' : 'off'}</td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <button onClick={() => setDraft(draftFrom(p))}>Edit</button>{' '}
@@ -203,6 +224,10 @@ export default function QualityProfilesSection() {
             <input type="checkbox" checked={draft.upgradeAllowed} onChange={(e) => setDraft({ ...draft, upgradeAllowed: e.target.checked })} />
             Keep looking for better releases after the first download
           </label>
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 12 }}>
+            <legend>If nothing is found at this quality, also try</legend>
+            <FallbackEditor profiles={profiles} selfId={draft.id} value={draft.fallback} onChange={(fallback) => setDraft({ ...draft, fallback })} />
+          </fieldset>
           <details open={!!(draft.mustContain || draft.mustNotContain || draft.preferred)}>
             <summary style={{ cursor: 'pointer' }}>Release restrictions &amp; preferred terms (optional)</summary>
             <div className="grid-form" style={{ marginTop: 8 }}>
@@ -234,5 +259,54 @@ export default function QualityProfilesSection() {
         <button onClick={() => setDraft(blankDraft(tiers))}>New profile…</button>
       )}
     </section>
+  )
+}
+
+// The default profile's fallback order, editable right at the top of the
+// page because it is what most titles use.
+function DefaultFallback({ profile, profiles, onSaved }: { profile: QualityProfile; profiles: QualityProfile[]; onSaved: () => void }) {
+  const toast = useToast()
+  const [value, setValue] = useState<number[]>(profile.fallback ?? [])
+  const [saving, setSaving] = useState(false)
+  const changed = JSON.stringify(value) !== JSON.stringify(profile.fallback ?? [])
+
+  async function save() {
+    setSaving(true)
+    try {
+      await api.updateProfile(profile.id, {
+        name: profile.name,
+        allowed: profile.allowed,
+        cutoff: profile.cutoff,
+        upgradeAllowed: profile.upgradeAllowed,
+        mustContain: profile.mustContain,
+        mustNotContain: profile.mustNotContain,
+        preferred: profile.preferred,
+        fallback: value,
+      })
+      toast.success(value.length ? `If ${profile.name} finds nothing, Mediarium now tries ${value.length} other ${value.length === 1 ? 'quality' : 'qualities'} in order.` : `No fallback: Mediarium waits for ${profile.name}.`)
+      onSaved()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <fieldset className="group quality-fallback">
+      <legend>
+        <Icon name="sliders" size={14} /> When {profile.name} (your default) finds nothing
+      </legend>
+      <p>
+        Tick the other qualities Mediarium may use instead, and drag them into the order to try. A title downloaded this way keeps
+        {' '}<strong>{profile.name}</strong> as its goal and is upgraded automatically once a {profile.name} release appears.
+      </p>
+      <FallbackEditor profiles={profiles} selfId={profile.id} value={value} onChange={setValue} />
+      <div style={{ marginTop: 12 }}>
+        <button className="primary" onClick={() => void save()} disabled={!changed || saving}>
+          {saving ? 'Saving…' : 'Save order'}
+        </button>
+      </div>
+    </fieldset>
   )
 }

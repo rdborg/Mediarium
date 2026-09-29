@@ -11,7 +11,7 @@ A single-binary, self-hosted, all-in-one media manager: search, grab, download, 
 
 One process. One database. One web UI. One search bar.
 
-> **Status:** pre-release, private repo. The movie and TV pipelines work end to end (TV: series/episode tracking from TMDB, season-pack and single-episode grabs, per-season import, episode automation, calendar) — unified search across Usenet (Newznab) and torrent (Torznab) indexers, grab, download (built-in NNTP client and BitTorrent engine), PAR2/unpack, and naming/hardlink import — alongside a VPN kill switch, quality profiles with upgrade hunting, automation, notifications, subtitles, and a Discover page. **Not built yet:** multi-user roles, and a manual-match UI for releases that fail automatic matching. See `PRD.md` for the full spec and `PROGRESS.md` for the detailed build log.
+> **Status:** pre-release. Movies and TV work end to end: Discover and one search across Usenet and torrent indexers, grab, the built-in Usenet and torrent downloaders, repair and unpack, and import with your naming. Around that: quality profiles with fallbacks and upgrades, automation, a built-in VPN for torrents, subtitles, notifications, Plex/Jellyfin/Emby library refresh, family accounts, backups and clean-up. See [docs/FEATURES.md](docs/FEATURES.md) for everything it does and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 ## Why
 
@@ -21,6 +21,21 @@ One process. One database. One web UI. One search bar.
 - Deploys cleanly on Synology, Unraid, QNAP, or any Linux/Docker host
 
 Documentation lives in [`docs/`](./docs): install guides, the feature audit and the reference pages.
+
+## Screenshots
+
+Screenshots use the built-in sample data.
+
+| | |
+|---|---|
+| ![Dashboard](docs/images/dashboard.png) | ![Discover](docs/images/discover.png) |
+| **Dashboard**: what is downloading, wanted and needs attention | **Discover**: trending, popular and coming soon, filters and paging |
+| ![Library](docs/images/library.png) | ![Activity](docs/images/activity.png) |
+| **Library**: live download progress on every title | **Activity**: the queue, history and blocklist |
+| ![Quality](docs/images/settings-quality.png) | ![Media servers](docs/images/settings-media-servers.png) |
+| **Quality**: profiles and the fallback order | **Media servers**: Plex, Jellyfin and Emby |
+
+<p align="center"><img src="docs/images/phone-dashboard.png" alt="Mediarium on a phone" width="260" /></p>
 
 ## Quickstart
 
@@ -36,7 +51,8 @@ Or as a single `docker run`:
 ```bash
 docker run -d \
   --name mediarium \
-  -p 8080:8080 \
+  -p 8264:8264 \
+  -p 58264:58264/tcp -p 58264:58264/udp \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -v ./config:/config \
   -v ./downloads:/downloads \
@@ -46,7 +62,7 @@ docker run -d \
   ghcr.io/rdborg/mediarium:latest
 ```
 
-Then open `http://<your-host>:8080` and follow the first-run setup wizard.
+Then open `http://<your-host>:8264` and follow the first-run setup wizard.
 
 Full install guide for every platform (Docker, Synology, Unraid, QNAP, TrueNAS, Portainer, CasaOS, Windows, macOS, Linux binary): **[`docs/INSTALL.md`](./docs/INSTALL.md)**. What the app can and cannot do today compared with Radarr, Sonarr, Prowlarr, SABnzbd, qBittorrent and Bazarr: **[`docs/FEATURES.md`](./docs/FEATURES.md)**. Responsible-use notice: **[`docs/LEGAL.md`](./docs/LEGAL.md)**.
 
@@ -91,7 +107,7 @@ Container-level settings only — everything else (indexers, Usenet servers, nam
 | `PUID` | `1000` | User ID files are written as — match your host user so NAS permissions come out correct |
 | `PGID` | `1000` | Group ID, same reasoning as `PUID` |
 | `TZ` | `Etc/UTC` | Timezone for logs and scheduling |
-| `APP_PORT` | `8080` | Port the web UI/API is served on inside the container |
+| `APP_PORT` | `8264` | Port the web UI/API is served on inside the container |
 | `CONFIG_DIR` | `/config` | Where `app.db` and `secret.key` live — back this up (see below) |
 | `DOWNLOADS_DIR` | `/downloads` | Parent of `incomplete/` and `complete/` |
 | `MOVIES_DIR` | `/movies` | Organized movie library root |
@@ -117,7 +133,7 @@ Everything that isn't a media file lives in one SQLite database, `app.db`, plus 
 
 ## Development
 
-Requires Go 1.26+ (see `go.mod`'s `go` directive for the exact minimum).
+Requires Go 1.26.8+ (see `go.mod`'s `go` directive for the exact minimum).
 
 ```bash
 go build ./cmd/app
@@ -134,8 +150,7 @@ The Dockerfile targets `linux/amd64` + `linux/arm64` and cross-compiles the Go b
 docker buildx create --use --name mediarium-builder   # one-time, if you don't already have a buildx builder
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --build-arg VERSION=v0.1.0 \
-  -t ghcr.io/rdborg/mediarium:v0.1.0 \
+  -t ghcr.io/rdborg/mediarium:1.0.0 \
   --push .
 ```
 
@@ -143,7 +158,7 @@ Drop `--push` (and the registry tag) to build locally without publishing — bui
 
 ## Versioning & updates
 
-Update policy: version-pinned Docker tags, a changelog per release, no forced auto-update. A from-source or `docker compose build` image is always tagged `dev` (see `GET /api/version` or the About page in the app). Official releases build with `--build-arg VERSION=vX.Y.Z` matching a git tag, publish an image tag of the same version (never just `:latest`), and get an entry in [`CHANGELOG.md`](./CHANGELOG.md). No release exists yet — see `CHANGELOG.md`'s `[Unreleased]` section.
+Update policy: version-pinned Docker tags, a changelog per release, no forced auto-update. Versions follow [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH), and the [`VERSION`](./VERSION) file at the repository root is the single source of the number: a Docker build reads it (pass `--build-arg VERSION=...` to override), while a plain `go build` reports `dev`. The running version shows in `GET /api/version` and on the About page. Each release is tagged `vX.Y.Z` to match `VERSION`, publishes images tagged `X.Y.Z`, `X.Y` and `latest`, and gets a section in [`CHANGELOG.md`](./CHANGELOG.md). Pin `X.Y.Z` (or `X.Y` for bug fixes only) if you do not want to follow `latest`. How a release is cut: [`docs/RELEASING.md`](./docs/RELEASING.md).
 
 ## License
 

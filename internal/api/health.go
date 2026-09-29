@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ryanborg/mediarium/internal/fsinfo"
 	"github.com/ryanborg/mediarium/internal/indexers"
 	"github.com/ryanborg/mediarium/internal/organizer"
+	"github.com/ryanborg/mediarium/internal/subtitles"
 )
 
 type healthAction struct {
@@ -68,6 +70,14 @@ func (s *Server) collectHealth() []healthItem {
 			"Add an indexer", "/settings/indexers")
 	}
 
+	for _, inst := range instances {
+		if inst.Enabled && inst.IsCardigann() && inst.LastTestError != "" {
+			add(fmt.Sprintf("indexer-test-failed-%d", inst.ID), "info", inst.Name+" failed its last test",
+				"The last test said: "+strings.TrimRight(inst.LastTestError, ". ")+". Searches may get nothing from this site until it is fixed; test it again once it is.",
+				"Check indexers", "/settings/indexers")
+		}
+	}
+
 	servers, _ := s.ClientRepo.List()
 	if usenetIndexers > 0 && len(servers) == 0 {
 		add("no-usenet-server", "warn", "No Usenet provider added",
@@ -104,10 +114,51 @@ func (s *Server) collectHealth() []healthItem {
 		add("subtitles-off", "info", "Subtitle downloads are off",
 			"There is no OpenSubtitles key, so no subtitles will be downloaded. Everything else works.",
 			"Enable subtitles", "/settings/subtitles")
-	} else if s.autoSubtitlesEnabled() && !s.Subtitles().HasCredentials() {
-		add("subtitles-anonymous", "info", "No OpenSubtitles account",
-			"Subtitles will download, but without a (free) OpenSubtitles.com account you are limited to about 5 downloads per day, so a large library will fill in slowly.",
-			"Add your account", "/settings/subtitles")
+	} else if s.autoSubtitlesEnabled() {
+		// Only worth mentioning when Mediarium fetches on its own: then the
+		// small daily limit decides how fast a large library fills in.
+		if !s.Subtitles().HasCredentials() {
+			add("subtitles-anonymous", "info", "No OpenSubtitles account",
+				"Subtitles will download, but without a (free) OpenSubtitles.com account you are limited to about 5 downloads per day (about 20 with an account), so a large library will fill in slowly.",
+				"Add your account", "/settings/subtitles")
+		}
+	} else if titles, files, err := s.subtitleBacklog(); err == nil && titles > 0 {
+		// Automatic downloading is off, so nothing is fetched until asked.
+		st := s.subtitleQuota()
+		title := fmt.Sprintf("%d downloaded titles have no subtitles yet", titles)
+		if titles == 1 {
+			title = "1 downloaded title has no subtitles yet"
+		}
+		impact := "Mediarium only gets subtitles when you ask. You can get them now: "
+		if st.Remaining > 0 {
+			impact += fmt.Sprintf("OpenSubtitles allows about %s today", plural(st.Remaining, "download"))
+		} else {
+			impact += "today's OpenSubtitles download limit is used up, so they will have to wait for it to reset"
+		}
+		if files > st.Remaining && st.Limit > 0 {
+			impact += fmt.Sprintf(", and %s are wanted, so the rest will take about %s", plural(files, "subtitle"), plural(daysToFinish(files, st.Limit), "day"))
+		}
+		impact += "."
+		add("subtitles-offer", "info", title, impact, "Get subtitles", "/wanted?tab=subtitles")
+	}
+
+	// The shared keys that ship with the app have limits. When one is hit, say
+	// so, and point at the free personal key that removes the limit.
+	if s.usingSharedKey(serviceTrakt) && s.Usage.Stats(serviceTrakt).LimitHits >= 1 {
+		add("trakt-limit", "warn", "The shared Trakt key is at its limit",
+			"Trakt has refused requests because the key that comes with Mediarium is shared by everyone and is busy. Importing Trakt lists on the Discover page will fail until it frees up. A free personal Trakt key has its own limit, so it stops happening.",
+			"Use my own key", "/settings/metadata")
+	}
+	if s.Subtitles().HasAPIKey() && s.usingSharedKey(serviceOpenSubtitles) {
+		if s.Usage.Stats(serviceOpenSubtitles).LimitHits >= 1 {
+			add("opensubtitles-limit", "warn", "The shared OpenSubtitles key is at its limit",
+				"OpenSubtitles has refused requests because the key that comes with Mediarium is shared by everyone and is busy. Subtitle downloads will fail until it frees up. A free personal OpenSubtitles key removes the limit.",
+				"Use my own key", "/settings/subtitles")
+		} else if st := s.subtitleQuota(); st.Source == subtitles.QuotaReported && st.Limit > 0 && st.Used*100 > 80*st.Limit {
+			add("opensubtitles-busy", "info", "The shared OpenSubtitles key is nearly used up for today",
+				fmt.Sprintf("%d of %d subtitle downloads allowed today are used. When it runs out, subtitle downloads wait until tomorrow. A free personal OpenSubtitles key gives you your own allowance.", st.Used, st.Limit),
+				"Use my own key", "/settings/subtitles")
+		}
 	}
 
 	if !s.Trakt().HasClientID() {
@@ -166,6 +217,8 @@ func (s *Server) collectHealth() []healthItem {
 			"See what failed", "/queue")
 	}
 
+	items = append(items, s.mediaServerHealth()...)
+
 	sort.SliceStable(items, func(i, j int) bool { return healthRank[items[i].Level] < healthRank[items[j].Level] })
 	return items
 }
@@ -180,8 +233,13 @@ func (s *Server) recentFailures(within time.Duration) int {
 	return list
 }
 
+// handleHealth lists setup problems for administrators. Members cannot fix
+// any of them (they are all in Settings), so they get an empty list.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	items := s.collectHealth()
+	var items []healthItem
+	if isAdminRequest(r) {
+		items = s.collectHealth()
+	}
 	if items == nil {
 		items = []healthItem{}
 	}

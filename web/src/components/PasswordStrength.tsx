@@ -1,5 +1,5 @@
-// Simple heuristic strength meter (PRD §5.2 asks for one on the onboarding
-// admin-account step). Not trying to be zxcvbn — length plus character
+// Simple heuristic strength meter for the onboarding admin-account step.
+// Not trying to be zxcvbn — length plus character
 // variety is enough to steer people away from "password1" without pulling
 // in a scoring library for a single form field.
 function score(password: string): number {

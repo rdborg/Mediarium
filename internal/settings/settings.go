@@ -1,5 +1,5 @@
 // Package settings stores app-wide configuration that belongs in the UI,
-// not in environment variables (CLAUDE.md "Config" convention): library
+// not in environment variables: library
 // paths, naming preset/tokens, TMDB API key, etc.
 package settings
 
@@ -22,47 +22,48 @@ const (
 	KeyTMDBAPIKey        = "metadata.tmdb_api_key"       // encrypted
 	KeyOnboardingDone    = "onboarding.done"             // "1" once the first-run wizard completes
 
-	// Phase 2 (PRD §7) — torrent engine settings. There's no remote
+	// Phase 2 — torrent engine settings. There's no remote
 	// "download client" to configure for torrents (the engine is embedded
-	// via anacrolix/torrent, PRD §4.4), so these live here rather than in
+	// via anacrolix/torrent), so these live here rather than in
 	// the download_clients table.
 	KeyTorrentEnabled        = "torrent.enabled"           // "0" turns torrents off entirely; anything else (including unset) leaves them on
-	KeyTorrentListenPort     = "torrent.listen_port"       // "0" = let the OS pick
+	KeyTorrentListenPort     = "torrent.listen_port"       // TCP+UDP port for incoming peers; unset or "0" = 58264
 	KeyTorrentSeedRatioLimit = "torrent.seed_ratio_limit"  // e.g. "2.0"; "0" = unlimited
 	KeyTorrentSeedTimeLimitH = "torrent.seed_time_limit_h" // hours; "0" = unlimited
 
-	// Automation (PRD §7 Phase 2 — RSS sync, scheduled search, hunting).
+	// Automation (RSS sync, scheduled search, hunting).
 	KeyAutomationEnabled = "automation.enabled"         // "0" disables; anything else (including unset) enables
-	KeyQualityProfile    = "library.quality_profile"    // legacy: a quality.Presets() key; only read once to pick the initial default profile
+	KeyQualityProfile    = "library.quality_profile"    // legacy: an old preset key (any-1080p, ultra-hd, any); only read once to pick the initial default profile
 	KeyDefaultSources    = "library.default_sources"    // usenet | torrent | both (default both)
 	KeyDefaultProfileID  = "library.default_profile_id" // id of the stored quality profile used by items with no profile of their own
+	KeyPresetsVersion    = "library.presets_version"    // revision of the built-in quality presets last applied; unset means never (set at start, not user-editable)
 
-	// Phase 4 (PRD §7) — subtitles module.
+	// Phase 4 — subtitles module.
 	KeyOpenSubtitlesUsername = "subtitles.opensubtitles_username" // optional account for a higher download quota
 	KeyOpenSubtitlesPassword = "subtitles.opensubtitles_password" // encrypted
 	KeySubtitleLanguages     = "subtitles.languages"              // comma-separated OpenSubtitles codes; default "en"
-	KeySubtitleAutoDownload  = "subtitles.auto_download"          // "0" disables; anything else enables
+	KeySubtitleAutoDownload  = "subtitles.auto_download"          // "1" fetches subtitles automatically; unset or "0" only offers them ("ask me")
 	KeyOpenSubtitlesAPIKey   = "subtitles.opensubtitles_api_key"  // encrypted
 
-	// Phase 3 (PRD §7) — curated/public list import (Discover). Trakt's
+	// Phase 3 — curated/public list import (Discover). Trakt's
 	// public list-items endpoint only needs a client ID (an app
 	// registration on trakt.tv), no OAuth user login — see internal/trakt.
 	KeyTraktClientID = "metadata.trakt_client_id" // encrypted
 
-	// Illegal filename character handling (PRD §4.8 — "configurable
+	// Illegal filename character handling ("configurable
 	// (replace vs. strip)"). The engine (internal/organizer.Sanitize) has
 	// always supported both modes; this was the only way to actually
-	// choose one, found missing during a full PRD-vs-code audit.
+	// choose one, found missing during a full feature-vs-code audit.
 	KeyIllegalCharMode        = "library.illegal_char_mode"        // "strip" (default) | "replace"
 	KeyIllegalCharReplacement = "library.illegal_char_replacement" // used when mode=replace, e.g. "-"
 
-	// VPN kill switch (PRD §4.7). Defaults off ("" reads back false via
+	// VPN kill switch. Defaults off ("" reads back false via
 	// GetBool) rather than on, since flipping it on by default would
 	// silently block every torrent grab for anyone who hasn't configured a
 	// VPN at all yet — an opt-in kill switch, not an opt-out one.
 	KeyVPNRequireForTorrents = "vpn.require_for_torrents"
 
-	// Manual-import naming-collision conflict policy (PRD §4.8 — "skip /
+	// Manual-import naming-collision conflict policy ("skip /
 	// overwrite if better quality / always ask"). "skip" (default) matches
 	// the historical behavior before this setting existed, so upgrading
 	// doesn't change anyone's existing import behavior underneath them.
@@ -74,6 +75,21 @@ const (
 
 	// When the person accepted the legal notice (RFC 3339); unset until then.
 	KeyLegalAcknowledgedAt = "legal.acknowledged_at"
+
+	// Address of a FlareSolverr the person runs (e.g. http://flaresolverr:8191),
+	// used to pass Cloudflare checks on definition-based indexer sites. Unset
+	// means none: such sites fail with an explanation instead.
+	KeyFlareSolverrURL = "flaresolverr.url" // e.g. http://flaresolverr:8191; unset = none
+
+	// Clean-up of the downloads working folder and of old history.
+	KeyCleanupAuto          = "cleanup.auto"                   // "0" turns the daily automatic clean-up off; anything else (including unset) leaves it on
+	KeyHistoryRetentionDays = "cleanup.history_retention_days" // days finished downloads and activity are kept; unset = 90, "0" = forever
+	KeyCleanupLastRunAt     = "cleanup.last_run_at"            // when clean-up last ran (RFC 3339; set by the app, not user-editable)
+
+	// Signing in to Plex, Jellyfin and Emby: the id this install presents as
+	// its device (X-Plex-Client-Identifier, MediaBrowser DeviceId). Random,
+	// made on first use, kept so the servers see the same device every time.
+	KeyMediaServersClientID = "mediaservers.client_id" // set by the app, not user-editable
 )
 
 type Store struct {

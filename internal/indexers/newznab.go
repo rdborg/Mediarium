@@ -1,17 +1,3 @@
-// Package indexers implements the indexer engine (PRD.md §4.4).
-//
-// Scope decision (logged in PROGRESS.md): the overwhelming majority of
-// real Usenet indexers — including ones wrapped by a Cardigann YAML
-// definition — expose a Newznab/Torznab-compatible search API (the same
-// API SABnzbd/Radarr/Sonarr/NZBHydra already speak). Rather than building
-// a full generic Cardigann template/CSS-selector interpreter (a large,
-// brittle undertaking covering a custom expression language, login flows,
-// CAPTCHA handling, etc.), this package implements a solid generic
-// Newznab/Torznab client as the actual search transport, and a minimal
-// Cardigann YAML loader (cardigann.go) that reads just enough of a
-// definition (id/name/links/categories) to register an indexer by its
-// known identity. This covers real indexers end-to-end without pretending
-// to interpret the full Cardigann spec.
 package indexers
 
 import (
@@ -28,7 +14,7 @@ import (
 )
 
 // Result is a single normalized search result, regardless of which
-// indexer/protocol produced it (PRD §6 — "one unified result list").
+// indexer/protocol produced it ("one unified result list").
 type Result struct {
 	Title       string
 	IndexerName string
@@ -38,13 +24,14 @@ type Result struct {
 	SizeBytes   int64
 	PublishDate time.Time
 	Categories  []int
-	Seeders     int // torrent-only (Torznab attr), 0 for usenet results
-	Peers       int // torrent-only (Torznab attr), 0 for usenet results
+	Seeders     int    // torrent-only (Torznab attr), 0 for usenet results
+	Peers       int    // torrent-only (Torznab attr), 0 for usenet results
+	InfoHash    string // torrent-only, when the indexer reports it
 }
 
 // NewznabClient talks to a single Newznab/Torznab-compatible API endpoint.
 type NewznabClient struct {
-	Name       string // display name for tagging results (PRD §6)
+	Name       string // display name for tagging results
 	BaseURL    string // e.g. https://api.example.com
 	APIKey     string
 	httpClient *http.Client
@@ -200,6 +187,7 @@ func (item newznabItem) toResult(indexerName string) Result {
 			r.Seeders = n
 		}
 	}
+	r.InfoHash = strings.ToLower(item.attr("infohash"))
 	if peers := item.attr("peers"); peers != "" {
 		if n, err := strconv.Atoi(peers); err == nil {
 			r.Peers = n

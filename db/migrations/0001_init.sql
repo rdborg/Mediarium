@@ -1,4 +1,4 @@
--- Initial schema (PRD.md §4.3): one SQLite file covering config, library,
+-- Initial schema: one SQLite file covering config, library,
 -- indexer state, download queue, and credentials for Phase 1 (movies, Usenet).
 
 CREATE TABLE users (

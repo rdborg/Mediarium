@@ -43,7 +43,12 @@ export default function ReleaseTable({
                   blocklisted
                 </span>
               )}
-              {r.rejections && r.rejections.length > 0 && (
+              {r.acceptedBy?.fallback && (
+                <span className="badge fallback-badge" style={{ marginLeft: 8 }} title={`Only used if nothing is found at the title's own quality: accepted by the "${r.acceptedBy.profileName}" fallback`}>
+                  fallback: {r.acceptedBy.profileName}
+                </span>
+              )}
+              {r.rejections && r.rejections.length > 0 && !r.acceptedBy?.fallback && (
                 <span className="badge conflict" style={{ marginLeft: 8 }} title={r.rejections.join('\n')}>
                   {r.rejections[0]}
                 </span>

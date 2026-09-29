@@ -308,7 +308,15 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	out.Health = s.collectHealth()
+	// Members see the library, downloads and what is coming up, but not setup
+	// problems or where things live on the server: they cannot change either.
+	if isAdminRequest(r) {
+		out.Health = s.collectHealth()
+	} else {
+		for i := range out.Folders {
+			out.Folders[i].Path, out.Folders[i].Warnings = "", []string{}
+		}
+	}
 	if out.Health == nil {
 		out.Health = []healthItem{}
 	}

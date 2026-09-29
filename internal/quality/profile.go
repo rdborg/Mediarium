@@ -1,5 +1,5 @@
-// Package quality implements quality profiles (PRD.md §7 Phase 2 —
-// "Quality profiles (custom formats, TRaSH-Guides-inspired sane defaults
+// Package quality implements quality profiles
+// ("Quality profiles (custom formats, TRaSH-Guides-inspired sane defaults
 // shipped out of the box)"). A profile ranks known quality tiers from
 // worst to best, decides whether a given release is acceptable at all,
 // and whether one release is an upgrade over another (for the
@@ -21,6 +21,7 @@ type Tier string
 
 const (
 	TierUnknown     Tier = "Unknown"
+	TierPreRelease  Tier = "CAM/TeleSync" // cinema recordings and screeners, whatever resolution they claim
 	TierSDTV        Tier = "SDTV"
 	TierDVD         Tier = "DVD"
 	TierWebDL480p   Tier = "WEBDL-480p"
@@ -40,6 +41,7 @@ const (
 // ladder is ordered worst to best; its index is the tier's rank.
 var ladder = []Tier{
 	TierUnknown,
+	TierPreRelease,
 	TierSDTV,
 	TierDVD,
 	TierWebDL480p,
@@ -79,6 +81,12 @@ func AllTiers() []Tier {
 func Classify(r parser.Release) Tier {
 	res := r.Resolution
 	src := r.Source
+
+	// A camera or telesync copy stays one however high its claimed
+	// resolution; no built-in preset accepts it.
+	if parser.IsPreRelease(src) {
+		return TierPreRelease
+	}
 
 	switch res {
 	case "2160p":
@@ -130,7 +138,7 @@ func Classify(r parser.Release) Tier {
 
 // Profile is a named allow-list of tiers plus a cutoff — once a movie has
 // a file at or above the cutoff, the hunting loop stops looking for
-// upgrades (PRD §7 Phase 2).
+// upgrades.
 type Profile struct {
 	ID      int64 // 0 for a profile that isn't stored (the built-in presets in tests)
 	Name    string
@@ -149,6 +157,69 @@ type Profile struct {
 	// Preferred terms add their score to a matching release; among releases
 	// of the same quality tier the highest total score wins.
 	Preferred []Preferred
+
+	// Fallback lists other profiles (by id) that an automatic search tries,
+	// in this order, when nothing it found is acceptable to this profile.
+	// Only this profile's own list is used (a fallback's fallbacks are not
+	// followed). Empty means no fallback.
+	Fallback []int64
+	// FallbackProfiles is Fallback resolved to the profiles themselves, filled
+	// in by whoever loads the profile for a decision; it is not stored.
+	FallbackProfiles []Profile
+}
+
+// Chain is the profile followed by its resolved fallbacks, in the order an
+// automatic search tries them.
+func (p Profile) Chain() []Profile {
+	out := make([]Profile, 0, 1+len(p.FallbackProfiles))
+	out = append(out, p)
+	return append(out, p.FallbackProfiles...)
+}
+
+// AcceptsTitle reports whether a release title passes both this profile's
+// quality allow-list and its release restrictions.
+func (p Profile) AcceptsTitle(title string) bool {
+	if ok, _ := p.TitleAllowed(title); !ok {
+		return false
+	}
+	return p.Accepts(parser.Parse(title))
+}
+
+// AcceptedBy returns the first profile in the chain (this profile, then its
+// fallbacks in order) that accepts a release title, and whether it is a
+// fallback. ok is false when none does.
+func (p Profile) AcceptedBy(title string) (by Profile, fallback, ok bool) {
+	for i, c := range p.Chain() {
+		if c.AcceptsTitle(title) {
+			return c, i > 0, true
+		}
+	}
+	return Profile{}, false, false
+}
+
+// OnFallback reports whether a file of tier t is there only because of a
+// fallback: this profile does not allow t but one of its fallbacks does.
+// Such a file is always replaced by a release this profile accepts, whatever
+// its rank, the cutoff or the upgrade switch.
+func (p Profile) OnFallback(t Tier) bool {
+	if p.allows(t) {
+		return false
+	}
+	for _, f := range p.FallbackProfiles {
+		if f.allows(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p Profile) allows(t Tier) bool {
+	for _, a := range p.Allowed {
+		if a == t {
+			return true
+		}
+	}
+	return false
 }
 
 // Preferred is a release-title term with a score (negative to disfavour).
@@ -203,13 +274,7 @@ func (p Profile) Score(title string) int {
 // Accepts reports whether a release's tier is in this profile's allow-list
 // at all (regardless of whether it's an upgrade over anything).
 func (p Profile) Accepts(r parser.Release) bool {
-	tier := Classify(r)
-	for _, t := range p.Allowed {
-		if t == tier {
-			return true
-		}
-	}
-	return false
+	return p.allows(Classify(r))
 }
 
 // ReachedCutoff reports whether a release already meets or exceeds this
@@ -236,9 +301,15 @@ func (p Profile) ReachedCutoffTier(t Tier) bool {
 // previously-classified tier on hand (e.g. the automation hunt loop
 // re-checking an already-downloaded movie) rather than a fresh
 // parser.Release for "current".
+//
+// A current file that is there only because of a fallback (see OnFallback)
+// is never "at the cutoff": any release this profile accepts replaces it.
 func (p Profile) IsUpgradeOverTier(currentTier Tier, candidate parser.Release) bool {
 	if !p.Accepts(candidate) {
 		return false
+	}
+	if p.OnFallback(currentTier) {
+		return true
 	}
 	if p.ReachedCutoffTier(currentTier) {
 		return false
@@ -246,24 +317,176 @@ func (p Profile) IsUpgradeOverTier(currentTier Tier, candidate parser.Release) b
 	return Rank(Classify(candidate)) > Rank(currentTier)
 }
 
-// Presets ships a couple of TRaSH-Guides-inspired sane defaults (PRD §7)
-// so most users never need to hand-build a profile.
+// Keys of the built-in presets returned by Presets.
+const (
+	PresetCinema = "cinema"
+	PresetAny    = "any"
+	Preset720p   = "720p"
+	Preset1080p  = "1080p"
+	Preset4K     = "4k"
+
+	// DefaultPreset is the preset a fresh install uses for every item that has
+	// no profile of its own.
+	DefaultPreset = Preset1080p
+)
+
+// PresetKeys lists the built-in presets in the order they are created (and
+// so listed): from lowest to best, then "Any".
+func PresetKeys() []string {
+	return []string{PresetCinema, Preset720p, Preset1080p, Preset4K, PresetAny}
+}
+
+// presetSince is the PresetsVersion that first shipped each preset under its
+// current name. An install already seeded at that version or later has had
+// the chance to create it, so a missing one was deleted on purpose.
+func presetSince(key string) int {
+	switch key {
+	case PresetCinema:
+		return 4
+	case Preset720p, Preset1080p, Preset4K:
+		return 2
+	}
+	return 1
+}
+
+// Presets ships TRaSH-Guides-inspired sane defaults so most
+// users never need to hand-build a profile. Every preset keeps upgrading
+// until its cutoff and then stops.
+//
+// "Cinema recordings" is the only preset that takes CAM/TeleSync copies, and
+// takes nothing else: it is meant as an opt-in fallback for a film that is
+// still only in cinemas, so the normal upgrade hunt of the title's own
+// profile replaces it once a proper release appears.
+//
+// Each resolution preset accepts only its own resolution, so what it says is
+// what you get: "1080p" never settles for 720p and "4K & over" never settles
+// for 1080p. A title with no release at that resolution waits until one
+// appears; "Any" is the preset that takes whatever exists.
+//
+// Remux tiers are deliberately left out of "1080p": a 1080p remux is an
+// untouched copy of the disc, typically 20-40 GB per movie, several times the
+// size of a Bluray encode that looks the same on most screens. Someone who
+// wants remuxes is choosing large files on purpose and can build a profile
+// for it; the everyday default should not fill a disk by surprise. "4K &
+// over" does include Remux-2160p, but its cutoff (Bluray-2160p) means a remux
+// is only grabbed when it is the best release found, never hunted as an
+// upgrade.
 func Presets() map[string]Profile {
 	return map[string]Profile{
-		"any-1080p": {
+		// Cinema recordings and screeners only, see above.
+		PresetCinema: {
+			Name:    "Cinema recordings",
+			Allowed: []Tier{TierPreRelease},
+			Cutoff:  TierPreRelease, UpgradeAllowed: true,
+		},
+		// Anything recognisable, SD included. The cutoff stops the upgrade
+		// hunt at Bluray-1080p so an "Any" item is not chased all the way to
+		// a 4K remux.
+		PresetAny: {
+			Name:    "Any",
+			Allowed: []Tier{TierSDTV, TierDVD, TierWebDL480p, TierHDTV720p, TierWebDL720p, TierBluray720p, TierHDTV1080p, TierWebDL1080p, TierBluray1080p, TierRemux1080p, TierHDTV2160p, TierWebDL2160p, TierBluray2160p, TierRemux2160p},
+			Cutoff:  TierBluray1080p, UpgradeAllowed: true,
+		},
+		// 720p only, for small screens or limited storage and bandwidth.
+		Preset720p: {
+			Name:    "720p",
+			Allowed: []Tier{TierHDTV720p, TierWebDL720p, TierBluray720p},
+			Cutoff:  TierBluray720p, UpgradeAllowed: true,
+		},
+		// The default. 1080p only: TV, WEB and Bluray. No remux, see above.
+		Preset1080p: {
+			Name:    "1080p",
+			Allowed: []Tier{TierHDTV1080p, TierWebDL1080p, TierBluray1080p},
+			Cutoff:  TierBluray1080p, UpgradeAllowed: true,
+		},
+		// 4K only: WEB, Bluray and remux.
+		Preset4K: {
+			Name:    "4K & over",
+			Allowed: []Tier{TierWebDL2160p, TierBluray2160p, TierRemux2160p},
+			Cutoff:  TierBluray2160p, UpgradeAllowed: true,
+		},
+	}
+}
+
+// legacyPreset is a built-in preset shipped by earlier versions, exactly as
+// it was seeded, and the current preset it becomes.
+type legacyPreset struct {
+	Key   string // the old Presets() key, still found in the legacy library.quality_profile setting
+	Old   Profile
+	NewTo string // current preset key
+}
+
+// legacyPresets are the presets earlier versions seeded. An install that
+// still has one of them unchanged is moved to the new equivalent in place
+// (see Repo.SeedPresets).
+func legacyPresets() []legacyPreset {
+	return []legacyPreset{
+		// Revision 2: "1080p" and "4K & over" with a lower-resolution fallback.
+		{Key: Preset1080p, NewTo: Preset1080p, Old: Profile{
+			Name:    "1080p",
+			Allowed: []Tier{TierWebDL720p, TierBluray720p, TierHDTV1080p, TierWebDL1080p, TierBluray1080p},
+			Cutoff:  TierBluray1080p, UpgradeAllowed: true,
+		}},
+		{Key: Preset4K, NewTo: Preset4K, Old: Profile{
+			Name:    "4K & over",
+			Allowed: []Tier{TierWebDL1080p, TierBluray1080p, TierWebDL2160p, TierBluray2160p, TierRemux2160p},
+			Cutoff:  TierBluray2160p, UpgradeAllowed: true,
+		}},
+		// Revision 1.
+		{Key: "any-1080p", NewTo: Preset1080p, Old: Profile{
 			Name:    "Up to 1080p",
 			Allowed: []Tier{TierHDTV720p, TierWebDL720p, TierBluray720p, TierHDTV1080p, TierWebDL1080p, TierBluray1080p, TierRemux1080p},
 			Cutoff:  TierBluray1080p, UpgradeAllowed: true,
-		},
-		"ultra-hd": {
+		}},
+		{Key: "ultra-hd", NewTo: Preset4K, Old: Profile{
 			Name:    "Ultra-HD (up to 2160p)",
 			Allowed: []Tier{TierWebDL1080p, TierBluray1080p, TierRemux1080p, TierWebDL2160p, TierBluray2160p, TierRemux2160p},
 			Cutoff:  TierBluray2160p, UpgradeAllowed: true,
-		},
-		"any": {
+		}},
+		{Key: "any", NewTo: PresetAny, Old: Profile{
 			Name:    "Any",
-			Allowed: AllTiers(),
+			Allowed: tiersBeforePreRelease(),
 			Cutoff:  TierRemux2160p, UpgradeAllowed: true,
-		},
+		}},
 	}
+}
+
+// sameDefinition reports whether two profiles have the same name, tiers,
+// cutoff, upgrade switch and release restrictions (ids are ignored; tier
+// order is not significant).
+func sameDefinition(a, b Profile) bool {
+	if a.Name != b.Name || a.Cutoff != b.Cutoff || a.UpgradeAllowed != b.UpgradeAllowed ||
+		len(a.MustContain) != 0 || len(a.MustNotContain) != 0 || len(a.Preferred) != 0 || len(a.Fallback) != 0 ||
+		len(b.MustContain) != 0 || len(b.MustNotContain) != 0 || len(b.Preferred) != 0 || len(b.Fallback) != 0 {
+		return false
+	}
+	set := func(ts []Tier) map[Tier]bool {
+		m := map[Tier]bool{}
+		for _, t := range ts {
+			m[t] = true
+		}
+		return m
+	}
+	as, bs := set(a.Allowed), set(b.Allowed)
+	if len(as) != len(bs) {
+		return false
+	}
+	for t := range as {
+		if !bs[t] {
+			return false
+		}
+	}
+	return true
+}
+
+// tiersBeforePreRelease is AllTiers as it was before the CAM/TeleSync tier
+// existed, which is what revision 1's "Any" preset stored.
+func tiersBeforePreRelease() []Tier {
+	var out []Tier
+	for _, t := range ladder {
+		if t != TierPreRelease {
+			out = append(out, t)
+		}
+	}
+	return out
 }

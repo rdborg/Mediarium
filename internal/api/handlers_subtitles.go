@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -20,6 +21,38 @@ type subtitleResultPayload struct {
 	Score float64 `json:"score"`
 }
 
+// errSubtitleItemNotFound means a movie or episode id matches nothing.
+var errSubtitleItemNotFound = errors.New("not found")
+
+// loadSubtitleItem loads the movie or episode with the given id.
+func (s *Server) loadSubtitleItem(kind string, id int64) (subtitleItem, error) {
+	switch kind {
+	case "movie":
+		m, err := s.MovieRepo.Get(id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return subtitleItem{}, fmt.Errorf("movie %d: %w", id, errSubtitleItemNotFound)
+		}
+		if err != nil {
+			return subtitleItem{}, err
+		}
+		return movieSubtitleItem(m), nil
+	case "episode":
+		ep, err := s.MovieRepo.GetEpisodeByID(id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return subtitleItem{}, fmt.Errorf("episode %d: %w", id, errSubtitleItemNotFound)
+		}
+		if err != nil {
+			return subtitleItem{}, err
+		}
+		sr, err := s.MovieRepo.GetSeries(ep.SeriesID)
+		if err != nil {
+			return subtitleItem{}, err
+		}
+		return episodeSubtitleItem(sr, ep), nil
+	}
+	return subtitleItem{}, fmt.Errorf("unknown kind %q", kind)
+}
+
 // subtitleItemFor loads the movie or episode named by the path's {id}. It
 // writes the error response itself and returns ok=false on failure.
 func (s *Server) subtitleItemFor(w http.ResponseWriter, r *http.Request, kind string) (subtitleItem, bool) {
@@ -28,35 +61,16 @@ func (s *Server) subtitleItemFor(w http.ResponseWriter, r *http.Request, kind st
 		writeError(w, http.StatusBadRequest, "invalid "+kind+" id")
 		return subtitleItem{}, false
 	}
-	switch kind {
-	case "movie":
-		m, err := s.MovieRepo.Get(id)
-		if errors.Is(err, sql.ErrNoRows) {
-			writeError(w, http.StatusNotFound, "movie not found")
-			return subtitleItem{}, false
-		}
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return subtitleItem{}, false
-		}
-		return movieSubtitleItem(m), true
-	default:
-		ep, err := s.MovieRepo.GetEpisodeByID(id)
-		if errors.Is(err, sql.ErrNoRows) {
-			writeError(w, http.StatusNotFound, "episode not found")
-			return subtitleItem{}, false
-		}
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return subtitleItem{}, false
-		}
-		sr, err := s.MovieRepo.GetSeries(ep.SeriesID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return subtitleItem{}, false
-		}
-		return episodeSubtitleItem(sr, ep), true
+	it, err := s.loadSubtitleItem(kind, id)
+	switch {
+	case errors.Is(err, errSubtitleItemNotFound):
+		writeError(w, http.StatusNotFound, kind+" not found")
+		return subtitleItem{}, false
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return subtitleItem{}, false
 	}
+	return it, true
 }
 
 func (s *Server) handleSearchMovieSubtitles(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +82,7 @@ func (s *Server) handleSearchEpisodeSubtitles(w http.ResponseWriter, r *http.Req
 }
 
 // searchSubtitles lists subtitle candidates for one movie or episode in a
-// language, best fit for the video file first (PRD §4.4 — subtitles module).
+// language, best fit for the video file first (subtitles module).
 func (s *Server) searchSubtitles(w http.ResponseWriter, r *http.Request, kind string) {
 	it, ok := s.subtitleItemFor(w, r, kind)
 	if !ok {
@@ -171,7 +185,7 @@ func (s *Server) subtitleStatus(w http.ResponseWriter, r *http.Request, kind str
 	have := languagesOnDisk(it.filePath)
 	out := subtitleStatusPayload{Languages: s.subtitleLanguages(), Present: []string{}}
 	for _, l := range out.Languages {
-		if have[lowerASCII(l)] {
+		if subtitles.LanguageSatisfied(have, l) {
 			out.Present = append(out.Present, l)
 		}
 	}
@@ -186,18 +200,28 @@ type subtitleWantedPayload struct {
 	Title     string   `json:"title"`
 	Subtitle  string   `json:"subtitle,omitempty"`
 	Missing   []string `json:"missing"`
+	// Dismissed is set (only with ?includeDismissed=1) on titles marked "no
+	// subtitles wanted".
+	Dismissed bool `json:"dismissed,omitempty"`
 }
 
 // handleSubtitlesWanted lists downloaded items that lack a subtitle in one
-// of the configured languages.
+// of the configured languages, leaving out titles marked "no subtitles wanted"
+// unless ?includeDismissed=1 is given (they are then flagged dismissed).
 func (s *Server) handleSubtitlesWanted(w http.ResponseWriter, r *http.Request) {
 	items, err := s.downloadedSubtitleItems()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	includeDismissed := r.URL.Query().Get("includeDismissed") == "1"
+	dismissed := s.dismissedSubtitles()
 	out := []subtitleWantedPayload{}
 	for _, it := range items {
+		isDismissed := dismissed[it.ref()]
+		if isDismissed && !includeDismissed {
+			continue
+		}
 		if _, err := os.Stat(it.filePath); err != nil {
 			continue
 		}
@@ -205,7 +229,7 @@ func (s *Server) handleSubtitlesWanted(w http.ResponseWriter, r *http.Request) {
 		if len(missing) == 0 {
 			continue
 		}
-		p := subtitleWantedPayload{Kind: it.kind, ID: it.id, Title: it.title, Subtitle: it.subtitle, Missing: missing, MovieTMDB: it.tmdbID}
+		p := subtitleWantedPayload{Kind: it.kind, ID: it.id, Title: it.title, Subtitle: it.subtitle, Missing: missing, MovieTMDB: it.tmdbID, Dismissed: isDismissed}
 		if it.kind == "episode" {
 			if ep, err := s.MovieRepo.GetEpisodeByID(it.id); err == nil {
 				p.SeriesID = ep.SeriesID

@@ -1,7 +1,6 @@
 // Package config loads container-level configuration from environment
-// variables (PRD.md §4.9, CLAUDE.md "Config" convention). Everything else
-// (indexers, download clients, naming, VPN) lives in the settings table,
-// not here.
+// variables. Everything else (indexers, download clients, naming, VPN)
+// lives in the settings table, not here.
 package config
 
 import (
@@ -26,7 +25,7 @@ type Config struct {
 
 func Load() Config {
 	cfg := Config{
-		Port:         envInt("APP_PORT", 8080),
+		Port:         envInt("APP_PORT", 8264),
 		ConfigDir:    envStr("CONFIG_DIR", "/config"),
 		DownloadsDir: envStr("DOWNLOADS_DIR", "/downloads"),
 		MoviesDir:    envStr("MOVIES_DIR", "/movies"),

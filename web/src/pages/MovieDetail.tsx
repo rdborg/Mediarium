@@ -5,18 +5,27 @@ import Icon from '../components/Icon'
 import PosterCard from '../components/PosterCard'
 import ProfilePicker from '../components/ProfilePicker'
 import ReleaseTable from '../components/ReleaseTable'
+import FilesPanel from '../components/FilesPanel'
 import SubtitlesPanel from '../components/SubtitlesPanel'
 import Switch from '../components/Switch'
 import TitleHero from '../components/TitleHero'
+import WatchLinks from '../components/WatchLinks'
+import TitleEvents from '../components/TitleEvents'
+import SearchStatus from '../components/SearchStatus'
 import { describeState } from '../components/state'
 import { useToast } from '../components/Toast'
-import { api, type DiscoverMovie, type MovieDetail as MovieDetailData, type SearchResult } from '../api'
+import { useAuth } from '../AuthContext'
+import { api, isAdmin, type DiscoverMovie, type MovieDetail as MovieDetailData, type SearchResult } from '../api'
+import { useLive } from '../useLive'
+import { useConfirm } from '../components/ConfirmProvider'
 
 // One page per movie. Not in your library: exactly one main action, "Add to
 // library" (the dialog picks quality and where to download, and can start the
 // search). In your library: "Find and download now" does the automatic search,
 // and "Choose a release" is the manual version for when you want to pick.
 export default function MovieDetail() {
+  const confirm = useConfirm()
+  const admin = isAdmin(useAuth().user)
   const { tmdbId } = useParams<{ tmdbId: string }>()
   const navigate = useNavigate()
   const id = Number(tmdbId)
@@ -40,6 +49,7 @@ export default function MovieDetail() {
     api.tmdbSimilarMovies(id).then(setSimilar).catch(() => undefined)
   }
   useEffect(reload, [id])
+  useLive(() => api.tmdbMovieDetail(id).then(setMovie).catch(() => undefined), 5000)
 
   const libraryId = movie?.libraryId
   useEffect(() => {
@@ -103,8 +113,16 @@ export default function MovieDetail() {
   }
 
   async function onRemove() {
-    if (!movie?.libraryId || !window.confirm(`Remove ${movie.title} from your library?`)) return
-    const deleteFiles = !!movie.filePath && window.confirm(`Also delete the file from disk?\n${movie.filePath}\n\nOK = delete the file too. Cancel = keep it.`)
+    if (!movie?.libraryId) return
+    const answer = await confirm({
+      title: `Remove ${movie.title} from your library?`,
+      body: <p>Mediarium stops tracking this movie and cancels anything still downloading for it. You can add it again at any time.</p>,
+      confirmLabel: 'Remove',
+      danger: true,
+      option: { label: 'Also delete everything on disk', hint: 'The files in your library and anything left over from downloads, so nothing is left behind.', defaultChecked: true },
+    })
+    if (!answer) return
+    const deleteFiles = answer.checked
     try {
       await api.deleteMovie(movie.libraryId, deleteFiles)
       toast.success(`${movie.title} removed.`)
@@ -142,9 +160,12 @@ export default function MovieDetail() {
               <button className="btn-with-icon" onClick={chooseRelease} disabled={searching}>
                 <Icon name="list" size={16} /> {searching ? 'Loading…' : 'Choose a release'}
               </button>
-              <button className="btn-with-icon danger-ghost" onClick={onRemove}>
-                <Icon name="trash" size={16} /> Remove
-              </button>
+              {movie.status === 'downloaded' && <WatchLinks tmdbId={movie.tmdbId} kind="movie" />}
+              {admin && (
+                <button className="btn-with-icon danger-ghost" onClick={onRemove}>
+                  <Icon name="trash" size={16} /> Remove
+                </button>
+              )}
             </>
           ) : (
             <button className="primary btn-with-icon big" onClick={() => setAdding(true)}>
@@ -153,6 +174,7 @@ export default function MovieDetail() {
           )
         }
       >
+        {inLibrary && movie.status === 'missing' && movie.libraryId && <SearchStatus kind="movie" id={movie.libraryId} />}
         {inLibrary && (
           <div className="title-controls">
             <Switch checked={monitored ?? true} onChange={toggleMonitored} label="Monitored" description="Mediarium keeps looking until it finds this movie." />
@@ -186,11 +208,24 @@ export default function MovieDetail() {
         </section>
       )}
 
-      {movie.libraryId && movie.status === 'downloaded' && (
+      {movie.libraryId && (
         <section className="card" style={{ marginBottom: 24 }}>
-          <h2>Subtitles</h2>
-          <SubtitlesPanel kind="movie" id={movie.libraryId} />
+          <h2>What happened</h2>
+          <TitleEvents kind="movie" id={movie.libraryId} />
         </section>
+      )}
+
+      {movie.libraryId && movie.status === 'downloaded' && (
+        <div className="half-cols" style={{ marginBottom: 24 }}>
+          <section className="card">
+            <h2>Files</h2>
+            <FilesPanel kind="movie" id={movie.libraryId} />
+          </section>
+          <section className="card">
+            <h2>Subtitles</h2>
+            <SubtitlesPanel kind="movie" id={movie.libraryId} />
+          </section>
+        </div>
       )}
 
       {similar.length > 0 && (

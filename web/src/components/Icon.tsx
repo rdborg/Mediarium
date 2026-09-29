@@ -51,6 +51,10 @@ const PATHS: Record<string, string> = {
   key: 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
   play: 'M5 3l14 9-14 9z',
   pause: 'M6 4h4v16H6zM14 4h4v16h-4z',
+  'chevron-right': 'M9 18l6-6-6-6',
+  'chevron-left': 'M15 18l-6-6 6-6',
+  'chevron-down': 'M6 9l6 6 6-6',
+  'chevron-up': 'M18 15l-6-6-6 6',
 }
 
 export type IconName = keyof typeof PATHS

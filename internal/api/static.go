@@ -11,7 +11,7 @@ import (
 // frontendHandler serves the embedded React build, falling back to
 // index.html for any path that isn't a real static asset — required for
 // client-side routing (search/library/settings/onboarding are all
-// client-side routes, PRD §6).
+// client-side routes).
 func frontendHandler() http.Handler {
 	sub, err := fs.Sub(web.DistFS, web.DistDir)
 	if err != nil {

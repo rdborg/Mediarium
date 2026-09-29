@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,23 +25,36 @@ import (
 	"github.com/ryanborg/mediarium/internal/torrentclient"
 )
 
-// runPipeline is the whole grab -> download -> organize flow (PRD §7's
+// runPipeline is the whole grab -> download -> organize flow (the
 // Phase 1 exit criteria, extended in Phase 2 to also cover torrents) for
 // one queued release. It runs in its own goroutine, started from
 // handleGrab/handleSearchGrab, and reports every state transition through
 // QueueRepo/MovieRepo/activity so the UI (polling /api/queue) sees
 // progress without needing a websocket.
 func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYear, tmdbID int, releaseTitle, downloadURL string, protocol indexers.Protocol) error {
-	ctx := context.Background()
+	ctx, run := s.pipelines.begin(queueID)
+	defer s.pipelines.end(queueID, run)
 
+	// A failed upgrade leaves the movie "downloaded" (its old file is still
+	// there); anything else goes back to "missing".
+	restoreStatus := library.StatusMissing
+	if m, err := s.MovieRepo.Get(movieID); err == nil && m.Status == library.StatusDownloaded {
+		restoreStatus = library.StatusDownloaded
+	}
 	fail := func(stepErr error) error {
+		if run.cancelled.Load() {
+			// The movie was removed from the library: nothing to report or retry.
+			_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, errRemovedFromLibrary.Error())
+			return errRemovedFromLibrary
+		}
 		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, stepErr.Error())
-		_ = s.MovieRepo.SetStatus(movieID, library.StatusMissing, "", "")
+		blocklisted := isBadRelease(stepErr) && s.blocklistBadRelease(releaseTitle, protocol, movieID, 0, stepErr)
+		_ = s.MovieRepo.SetStatus(movieID, restoreStatus, "", "")
 		message := fmt.Sprintf("%s: %v", movieTitle, stepErr)
 		_ = s.QueueRepo.LogActivity(movieID, "failed", message)
 		s.notifyEvent("failed", movieTitle, message)
-		if isBadRelease(stepErr) {
-			s.onBadRelease(releaseTitle, protocol, movieID, 0, stepErr)
+		if blocklisted {
+			s.retryAfterBadRelease(movieID, 0)
 		}
 		return stepErr
 	}
@@ -71,10 +83,13 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	// both for ConflictOverwriteIfBetter's comparison below and for what
 	// gets stored on the movie once import succeeds — the automation hunt
 	// loop's upgrade-hunting needs a tier it can directly Rank() against a
-	// candidate release (PRD §7 Phase 2).
+	// candidate release.
 	release := parser.Parse(releaseTitle)
 	tier := quality.Classify(release)
 
+	if ctx.Err() != nil {
+		return fail(ctx.Err()) // cancelled: never import for a movie that was removed
+	}
 	policy, isBetter := s.importConflictPolicy(movieID, tier)
 	result, err := organizer.Import(videoFile, destPath, policy, isBetter)
 	if err != nil {
@@ -96,6 +111,9 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	if err := s.MovieRepo.SetStatus(movieID, library.StatusDownloaded, string(tier), result.DestPath); err != nil {
 		return fail(err)
 	}
+	// Subtitles that came with the release go next to the movie before any
+	// download is considered, so they count as already there.
+	s.importSidecarSubtitles(sidecarsIn(incompleteDir), result.DestPath, movieID, movieTitle)
 	s.autoSubtitlesFor(subtitleItem{kind: "movie", id: movieID, title: movieTitle, tmdbID: tmdbID, filePath: result.DestPath})
 	if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, ""); err != nil {
 		return fail(err)
@@ -104,6 +122,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	importedMessage := fmt.Sprintf("%s imported to %s", movieTitle, result.DestPath)
 	_ = s.QueueRepo.LogActivity(movieID, "imported", importedMessage)
 	s.notifyEvent("imported", movieTitle, importedMessage)
+	s.movieImported(result.DestPath)
 	return nil
 }
 
@@ -119,8 +138,12 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 		downloadErr error
 		missing     int
 	)
-	switch protocol {
-	case indexers.ProtocolTorrent:
+	// A retry of a failed Usenet download starts from the files it already
+	// has when they are still there and pass PAR2 (see reuseDownloaded).
+	reused := s.reuseDownloaded(queueID, downloadURL, incompleteDir)
+	switch {
+	case reused:
+	case protocol == indexers.ProtocolTorrent:
 		downloadErr = s.downloadTorrent(ctx, queueID, downloadURL, incompleteDir)
 	default:
 		missing, downloadErr = s.downloadUsenet(ctx, queueID, downloadURL, incompleteDir)
@@ -128,14 +151,17 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 	if downloadErr != nil {
 		return "", fmt.Errorf("download: %w", downloadErr)
 	}
+	if !reused && protocol != indexers.ProtocolTorrent {
+		markDownloaded(incompleteDir, missing)
+	}
 
 	if err := s.QueueRepo.SetStatus(queueID, queue.StatusImporting, ""); err != nil {
 		return "", err
 	}
-	if err := verifyAndRepair(incompleteDir, missing); err != nil {
+	if err := s.verifyStep(queueID, incompleteDir, missing); err != nil {
 		return "", badRelease(fmt.Errorf("par2 repair: %w", err))
 	}
-	if err := unpackArchives(incompleteDir); err != nil {
+	if err := s.unpackStep(queueID, incompleteDir); err != nil {
 		return "", unpackFailure(err)
 	}
 	return incompleteDir, nil
@@ -145,7 +171,7 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 // enabled Usenet server, primary first. It returns how many articles no
 // server had: those are left for PAR2 repair rather than failing outright.
 func (s *Server) downloadUsenet(ctx context.Context, queueID int64, nzbURL, incompleteDir string) (int, error) {
-	nzbBytes, err := fetchURL(ctx, nzbURL)
+	nzbBytes, err := s.fetchRelease(ctx, nzbURL)
 	if err != nil {
 		return 0, fmt.Errorf("fetch nzb: %w", err)
 	}
@@ -159,7 +185,7 @@ func (s *Server) downloadUsenet(ctx context.Context, queueID int64, nzbURL, inco
 		return 0, fmt.Errorf("load usenet servers: %w", err)
 	}
 	if len(servers) == 0 {
-		return 0, fmt.Errorf("no Usenet server configured — add your provider's server in Settings > Downloads before grabbing from Usenet")
+		return 0, fmt.Errorf("no Usenet server configured — add your provider's server in Settings > Downloads & VPN before grabbing from Usenet")
 	}
 	configs := make([]download.ClientConfig, len(servers))
 	for i, sc := range servers {
@@ -175,67 +201,62 @@ func (s *Server) downloadUsenet(ctx context.Context, queueID int64, nzbURL, inco
 	return res.MissingSegments, nil
 }
 
-// downloadTorrent handles both magnet URIs and direct .torrent file URLs
-// (PRD §7 Phase 2). A dedicated torrentclient.Client is spun up per grab
-// with its data dir scoped to this queue item, rather than sharing one
-// long-lived client across every torrent — simpler and collision-free for
-// Phase 2, at the cost of each grab paying its own client startup (new
-// listen socket, DHT bootstrap if enabled). Worth revisiting alongside
-// proper category-based save paths (PRD §7 Phase 2 bullet) later.
+// downloadTorrent handles both magnet URIs and direct .torrent file URLs.
+// Every torrent runs in one shared engine listening on the torrent port
+// (see torrentRegistry), saved in this queue item's own folder.
 //
-// The client is deliberately NOT closed as soon as the download finishes:
-// ownership passes to a background goroutine that keeps seeding (a good
-// swarm citizen, and how the seed ratio/time limits in Settings have any
-// effect at all) until EnforceSeedLimits decides to stop, at which point
-// it closes the client itself. This function returns as soon as the
-// download completes so the pipeline can move on to import.
+// The torrent is deliberately NOT stopped as soon as the download finishes:
+// a background goroutine keeps it seeding (a good swarm citizen, and how the
+// seed ratio/time limits in Settings have any effect at all) until its
+// seeding goal is met, then stops it and, once the download has been
+// imported, removes its data (seedingGoalMet). This function returns as soon
+// as the download completes so the pipeline can move on to import.
 func (s *Server) downloadTorrent(ctx context.Context, queueID int64, downloadURL, incompleteDir string) error {
 	if !s.torrentsEnabled() {
 		return errTorrentsDisabled
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	cfg := torrentclient.Config{
-		DataDir:        incompleteDir,
-		ListenPort:     s.torrentListenPort(),
-		SeedRatioLimit: s.torrentSeedRatioLimit(),
-		SeedTimeLimit:  s.torrentSeedTimeLimit(),
+	// Get the magnet link or .torrent file first. For a definition-based
+	// indexer this goes through its signed-in session; it is indexer
+	// traffic, not torrent traffic, so it doesn't wait for the VPN check.
+	magnet, torrentFilePath, err := s.torrentSource(ctx, downloadURL, incompleteDir)
+	if err != nil {
+		return fmt.Errorf("get the torrent: %w", err)
 	}
+	var tunnel torrentclient.TunnelDialer
 	if s.vpnRequiredForTorrents() {
-		tunnel := s.VPNManager.Tunnel()
-		if tunnel == nil {
-			// Fail closed (PRD §4.7's kill switch): the setting says torrent
+		t := s.VPNManager.Tunnel()
+		if t == nil {
+			// Fail closed: the setting says torrent
 			// traffic must go through the VPN, and none is connected, so the
 			// grab does not proceed — never silently fall back to a direct
 			// connection just because that's easier.
-			cancel()
 			return fmt.Errorf("VPN required for torrent downloads (see Settings) but none is connected")
 		}
-		cfg.Tunnel = tunnel
+		tunnel = t
 	}
-	tc, err := torrentclient.New(cfg)
+	ctx, cancel := context.WithCancel(ctx)
+	job, err := s.torrents.start(queueID, incompleteDir, s.downloadsIncompleteDir(), s.torrentListenPort(), tunnel, cancel)
 	if err != nil {
 		cancel()
 		return fmt.Errorf("start torrent client: %w", err)
 	}
-	s.torrents.add(tc, cancel)
 	// Torrents may be switched off while this one is still starting up.
 	if !s.torrentsEnabled() {
-		s.torrents.closeClient(tc)
+		s.torrents.stop(job)
 		return errTorrentsDisabled
 	}
 
 	var t *torrent.Torrent
-	if isMagnetURI(downloadURL) {
-		t, err = tc.AddMagnet(ctx, downloadURL)
+	if magnet != "" {
+		t, err = job.engine.tc.AddMagnetIn(ctx, magnet, incompleteDir)
 	} else {
-		var torrentFilePath string
-		torrentFilePath, err = downloadToTempFile(ctx, downloadURL, incompleteDir)
-		if err == nil {
-			t, err = tc.AddTorrentFile(ctx, torrentFilePath)
-		}
+		t, err = job.engine.tc.AddTorrentFileIn(ctx, torrentFilePath, incompleteDir)
+	}
+	if err == nil && !s.torrents.attach(job, t) {
+		err = context.Canceled
 	}
 	if err != nil {
-		s.torrents.closeClient(tc)
+		s.torrents.stop(job)
 		if !s.torrentsEnabled() {
 			return errTorrentsDisabled
 		}
@@ -245,24 +266,33 @@ func (s *Server) downloadTorrent(ctx context.Context, queueID int64, downloadURL
 	if err := torrentclient.Download(ctx, t, func(done, total int64) {
 		_ = s.QueueRepo.SetProgress(queueID, percent(done, total))
 	}); err != nil {
-		s.torrents.closeClient(tc)
+		s.torrents.stop(job)
 		if !s.torrentsEnabled() {
 			return errTorrentsDisabled
 		}
 		return err
 	}
 
+	goal := torrentclient.SeedGoal{Ratio: s.torrentSeedRatioLimit(), Time: s.torrentSeedTimeLimit()}
 	go func() {
-		defer s.torrents.closeClient(tc)
-		tc.EnforceSeedLimits(t, time.Now())
+		met := torrentclient.SeedUntilGoal(ctx, t, time.Now(), goal, seedCheckInterval)
+		s.torrents.stop(job)
+		if met {
+			s.seedingGoalMet(queueID, incompleteDir)
+		}
 	}()
 	return nil
 }
 
+// torrentListenPort is the port the torrent engine listens on: the saved
+// setting, or torrentclient.DefaultListenPort (58264) when it is unset or 0
+// (which older versions saved to mean "any port").
 func (s *Server) torrentListenPort() int {
 	v, _ := s.Settings.Get(settings.KeyTorrentListenPort)
-	n, _ := strconv.Atoi(v)
-	return n
+	if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n > 0 && n <= 65535 {
+		return n
+	}
+	return torrentclient.DefaultListenPort
 }
 
 func (s *Server) torrentSeedRatioLimit() float64 {
@@ -282,8 +312,8 @@ func (s *Server) vpnRequiredForTorrents() bool {
 	return v
 }
 
-// importConflictPolicy reads the configured naming-collision policy (PRD
-// §4.8) for a movie import. See conflictPolicy for the shared logic.
+// importConflictPolicy reads the configured naming-collision policy for a
+// movie import. See conflictPolicy for the shared logic.
 func (s *Server) importConflictPolicy(movieID int64, incomingTier quality.Tier) (organizer.ConflictPolicy, func() bool) {
 	return s.conflictPolicy(incomingTier, func() (quality.Tier, bool) {
 		current, err := s.MovieRepo.Get(movieID)
@@ -322,7 +352,7 @@ func (s *Server) conflictPolicy(incomingTier quality.Tier, currentTier func() (q
 }
 
 // resolveConflict finishes a queue item parked in StatusConflict (the
-// "always ask" policy, PRD §4.8) — overwrite replaces the existing file
+// "always ask" policy) — overwrite replaces the existing file
 // with the parked download, skip leaves the existing file untouched
 // (nothing new was imported, so the movie goes back to missing, matching
 // how any other failed grab is handled).
@@ -339,6 +369,9 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 		if err := s.QueueRepo.SetStatus(queueID, queue.StatusFailed, "skipped by user — existing file kept"); err != nil {
 			return err
 		}
+		// The download is not wanted: its working folder goes (a torrent
+		// still seeding keeps it until its seeding goal is met).
+		s.cleanupWorkDir(s.workDirFor(queueID), indexers.Protocol(item.Protocol))
 		return s.MovieRepo.SetStatus(item.MovieID, library.StatusMissing, "", "")
 	}
 
@@ -353,14 +386,88 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 	if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, ""); err != nil {
 		return err
 	}
+	s.cleanupWorkDir(s.workDirFor(queueID), indexers.Protocol(item.Protocol))
 	message := fmt.Sprintf("Manually resolved import conflict, imported to %s", result.DestPath)
 	_ = s.QueueRepo.LogActivity(item.MovieID, "imported", message)
 	s.notifyEvent("imported", item.ReleaseTitle, message)
+	s.movieImported(result.DestPath)
 	return nil
 }
 
 func isMagnetURI(s string) bool {
 	return strings.HasPrefix(s, "magnet:")
+}
+
+// torrentSource turns a grab's download URL into either a magnet link or a
+// local .torrent file. Links from definition-based indexers are resolved
+// through that indexer's session (login, details page, Cloudflare).
+func (s *Server) torrentSource(ctx context.Context, downloadURL, destDir string) (magnet, torrentFile string, err error) {
+	switch {
+	case isMagnetURI(downloadURL):
+		return downloadURL, "", nil
+	case indexers.IsLinkRef(downloadURL):
+		dl, err := s.resolveIndexerLink(ctx, downloadURL)
+		if err != nil {
+			return "", "", err
+		}
+		if dl.Magnet != "" {
+			return dl.Magnet, "", nil
+		}
+		path, err := writeTorrentFile(dl.Data, destDir)
+		return "", path, err
+	default:
+		path, err := downloadToTempFile(ctx, downloadURL, destDir)
+		return "", path, err
+	}
+}
+
+// fetchRelease downloads a release file (an NZB), resolving links from
+// definition-based indexers through their session.
+func (s *Server) fetchRelease(ctx context.Context, downloadURL string) ([]byte, error) {
+	if !indexers.IsLinkRef(downloadURL) {
+		return fetchURL(ctx, downloadURL)
+	}
+	dl, err := s.resolveIndexerLink(ctx, downloadURL)
+	if err != nil {
+		return nil, err
+	}
+	if dl.Magnet != "" {
+		return nil, fmt.Errorf("the indexer returned a magnet link, not a file")
+	}
+	return dl.Data, nil
+}
+
+// resolveIndexerLink asks the definition-based indexer a link came from for
+// the actual download.
+func (s *Server) resolveIndexerLink(ctx context.Context, ref string) (*indexers.Download, error) {
+	id, link, ok := indexers.DecodeLinkRef(ref)
+	if !ok {
+		return nil, fmt.Errorf("invalid indexer download link")
+	}
+	inst, err := s.IndexerRepo.Get(id)
+	if errors.Is(err, indexers.ErrNotFound) {
+		return nil, fmt.Errorf("the indexer this release came from has been removed")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !inst.IsCardigann() {
+		return nil, fmt.Errorf("indexer %q can't resolve this link", inst.Name)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	return s.Cardigann.Download(ctx, inst, link)
+}
+
+func writeTorrentFile(data []byte, destDir string) (string, error) {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return "", fmt.Errorf("create dest dir: %w", err)
+	}
+	path := filepath.Join(destDir, "release.torrent")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", fmt.Errorf("write .torrent file: %w", err)
+	}
+	return path, nil
 }
 
 // downloadToTempFile fetches a .torrent file's bytes and writes them into
@@ -371,14 +478,7 @@ func downloadToTempFile(ctx context.Context, url, destDir string) (string, error
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return "", fmt.Errorf("create dest dir: %w", err)
-	}
-	path := filepath.Join(destDir, "release.torrent")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return "", fmt.Errorf("write .torrent file: %w", err)
-	}
-	return path, nil
+	return writeTorrentFile(data, destDir)
 }
 
 func percent(done, total int64) float64 {
@@ -472,30 +572,12 @@ func unpackFailure(err error) error {
 	return badRelease(wrapped)
 }
 
-// cleanupWorkDir removes a finished Usenet download's working folder
-// (downloads/incomplete/queue-N) once its files are safely in the library.
-// It only ever touches a queue-N folder directly inside the incomplete
-// directory. Torrent data is left alone: it is still being seeded.
-func (s *Server) cleanupWorkDir(dir string, protocol indexers.Protocol) {
-	if protocol == indexers.ProtocolTorrent {
-		return
-	}
-	root := filepath.Clean(s.downloadsIncompleteDir())
-	dir = filepath.Clean(dir)
-	if filepath.Dir(dir) != root || !strings.HasPrefix(filepath.Base(dir), "queue-") {
-		return
-	}
-	if err := os.RemoveAll(dir); err != nil {
-		log.Printf("pipeline: clean up working folder %s: %v", dir, err)
-	}
-}
-
-// downloadsIncompleteDir resolves the root of in-progress downloads (PRD
-// §4.9). Settings.KeyDownloadsPath — the "Downloads folder" field the
+// downloadsIncompleteDir resolves the root of in-progress downloads.
+// Settings.KeyDownloadsPath — the "Downloads folder" field the
 // onboarding wizard and Settings UI collect — takes precedence when set;
 // the DOWNLOADS_DIR env var / cfg.DownloadsDir is only the container-level
-// default a fresh install starts with (CLAUDE.md's "Config" convention:
-// env vars are container-level defaults, everything a user can actually
+// default a fresh install starts with (the "Config" convention: env
+// vars are container-level defaults, everything a user can actually
 // change belongs in Settings). This was previously a real bug: the
 // pipeline always used cfg.DownloadsIncomplete directly, so changing
 // "Downloads folder" in Settings silently did nothing.
@@ -508,7 +590,7 @@ func (s *Server) downloadsIncompleteDir() string {
 }
 
 // buildDestPath renders the configured naming preset/format into a final
-// library path (PRD §4.8).
+// library path.
 func (s *Server) buildDestPath(movieTitle string, year, tmdbID int, releaseTitle, videoFile string) (string, error) {
 	moviesPath := s.moviesRoot()
 	if moviesPath == "" {
@@ -542,8 +624,8 @@ func (s *Server) buildDestPath(movieTitle string, year, tmdbID int, releaseTitle
 }
 
 // illegalCharSettings reads the configured illegal-filename-character
-// handling mode (PRD §4.8 — "configurable (replace vs. strip)"), found
-// missing entirely during a full PRD-vs-code audit: organizer.Sanitize
+// handling mode ("configurable (replace vs. strip)"), found
+// missing entirely during a full feature-vs-code audit: organizer.Sanitize
 // always supported both modes, but nothing let a user actually choose.
 func (s *Server) illegalCharSettings() (organizer.SanitizeMode, string) {
 	mode, _ := s.Settings.Get(settings.KeyIllegalCharMode)

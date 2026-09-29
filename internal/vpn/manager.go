@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Manager owns the single live Tunnel (if any) for the whole app — PRD
-// §4.7 is explicit that only one VPN config is active at a time.
+// Manager owns the single live Tunnel (if any) for the whole app — only
+// one VPN config is ever active at a time.
 type Manager struct {
 	mu          sync.Mutex
 	tunnel      *Tunnel
@@ -48,7 +48,7 @@ func (m *Manager) Deactivate() {
 	m.activeLabel = ""
 }
 
-// Status reports current connection state for the UI (PRD §4.7 — "status
+// Status reports current connection state for the UI ("status
 // visibility... shown clearly in the UI, not just in logs").
 type Status struct {
 	Connected   bool
@@ -66,8 +66,8 @@ func (m *Manager) Status() Status {
 // active. Callers (e.g. the torrent engine) should treat a nil tunnel or
 // a failed Dial through it as "can't proceed" rather than silently
 // falling back to a direct connection when the caller's configuration
-// says traffic should be tunneled — that fallback is exactly what PRD
-// §4.7's kill-switch requirement rules out.
+// says traffic should be tunneled — that fallback is exactly what the
+// kill-switch requirement rules out.
 func (m *Manager) Tunnel() *Tunnel {
 	m.mu.Lock()
 	defer m.mu.Unlock()

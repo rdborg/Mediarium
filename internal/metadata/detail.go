@@ -24,7 +24,7 @@ func (c *Client) GenreNames(ctx context.Context, kind string, ids []int) []strin
 	if len(ids) == 0 {
 		return out
 	}
-	table := c.genreTable(ctx, kind)
+	table, _ := c.genreTable(ctx, kind)
 	for _, id := range ids {
 		if name, ok := table[id]; ok {
 			out = append(out, name)
@@ -33,17 +33,35 @@ func (c *Client) GenreNames(ctx context.Context, kind string, ids []int) []strin
 	return out
 }
 
-func (c *Client) genreTable(ctx context.Context, kind string) map[int]string {
+// Genres lists TMDB's genres for kind ("movie" or "tv"), sorted by name,
+// from the same once-per-process cache GenreNames uses.
+func (c *Client) Genres(ctx context.Context, kind string) ([]Genre, error) {
+	if kind != "movie" && kind != "tv" {
+		return nil, fmt.Errorf("unknown genre kind %q", kind)
+	}
+	table, err := c.genreTable(ctx, kind)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Genre, 0, len(table))
+	for id, name := range table {
+		out = append(out, Genre{ID: id, Name: name})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func (c *Client) genreTable(ctx context.Context, kind string) (map[int]string, error) {
 	c.genreMu.Lock()
 	defer c.genreMu.Unlock()
 	if t, ok := c.genres[kind]; ok {
-		return t
+		return t, nil
 	}
 	var resp struct {
 		Genres []Genre `json:"genres"`
 	}
 	if err := c.get(ctx, "/genre/"+kind+"/list", url.Values{"language": {"en-US"}}, &resp); err != nil {
-		return nil
+		return nil, fmt.Errorf("fetch %s genres: %w", kind, err)
 	}
 	t := make(map[int]string, len(resp.Genres))
 	for _, g := range resp.Genres {
@@ -53,7 +71,7 @@ func (c *Client) genreTable(ctx context.Context, kind string) map[int]string {
 		c.genres = make(map[string]map[int]string)
 	}
 	c.genres[kind] = t
-	return t
+	return t, nil
 }
 
 // itemGenres returns the display names for a movie's or show's genres,

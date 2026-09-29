@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Settings } from '../../api'
+import CleanupCard from '../../components/CleanupCard'
 import Icon from '../../components/Icon'
 import { useToast } from '../../components/Toast'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 // Backup and restore, plus the legal notice you accepted. Your name, email and
 // password live on the Profile page.
 export default function SystemSettings() {
+  const confirm = useConfirm()
   const toast = useToast()
   const [s, setS] = useState<Settings | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -20,7 +23,7 @@ export default function SystemSettings() {
 
   async function restore() {
     if (!file) return
-    if (!window.confirm('Restore this backup? It replaces your library database, accounts and settings with the ones in the file. Your current data is kept in a "before-restore" folder inside your config folder. Mediarium will restart.')) return
+    if (!(await confirm({ title: 'Restore this backup?', body: <p>It replaces your library, accounts and settings with the ones in the file. Your current data is kept in a &quot;before-restore&quot; folder inside your config folder, and Mediarium restarts.</p>, confirmLabel: 'Restore and restart', danger: true }))) return
     setRestoring(true)
     try {
       const body = new FormData()
@@ -57,6 +60,7 @@ export default function SystemSettings() {
 
   return (
     <div className="settings-stack">
+      <CleanupCard />
       <fieldset className="group folders">
         <legend>
           <Icon name="hard" size={14} /> Backup
@@ -82,16 +86,6 @@ export default function SystemSettings() {
             <Icon name="refresh" size={15} /> {waiting ? 'Restarting…' : restoring ? 'Uploading…' : 'Restore this backup'}
           </button>
         </div>
-      </fieldset>
-
-      <fieldset className="group">
-        <legend>
-          <Icon name="user" size={14} /> Your account
-        </legend>
-        <p style={{ marginTop: 0 }}>Your name, email, username and password.</p>
-        <Link className="btn-link" to="/settings/profile">
-          <Icon name="user" size={16} /> Open your profile
-        </Link>
       </fieldset>
 
       <fieldset className="group torrent">

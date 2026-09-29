@@ -84,13 +84,13 @@ func TestMonitorTogglesAffectAutomation(t *testing.T) {
 		t.Fatalf("series should be unmonitored: %+v", got)
 	}
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 0))
+	requireTitles(t, env.grabbedTitles(t))
 
 	// Back on, but unmonitor season 1 as a whole: still nothing.
 	putJSONStatus(t, env.client, seriesURL+"/monitored", map[string]any{"monitored": true}, http.StatusOK)
 	putJSONStatus(t, env.client, seriesURL+"/seasons/1/monitored", map[string]any{"monitored": false}, http.StatusOK)
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 0))
+	requireTitles(t, env.grabbedTitles(t))
 
 	// Monitor just episode 2: only that one is grabbed.
 	detail := getJSON[map[string]any](t, env.client, seriesURL)
@@ -106,13 +106,13 @@ func TestMonitorTogglesAffectAutomation(t *testing.T) {
 	}
 	putJSONStatus(t, env.client, fmt.Sprintf("%s/api/episodes/%d/monitored", env.baseURL, int64(e2)), map[string]any{"monitored": true}, http.StatusOK)
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 1), s1e2WEB)
+	requireTitles(t, env.grabbedTitles(t), s1e2WEB)
 }
 
 func TestMovieInteractiveSearchExplainsRejections(t *testing.T) {
 	env := newTVAutoEnv(t, []string{
 		"Some.Movie.2001.1080p.BluRay.x264-A",
-		"Some.Movie.2001.720p.WEB-DL.x264-B",
+		"Some.Movie.2001.1080p.HDTV.x264-B",
 		"Some.Movie.2001.2160p.WEB-DL.x264-C",
 		"Other.Movie.2001.1080p.BluRay.x264-D",
 	}, nil)
@@ -134,8 +134,8 @@ func TestMovieInteractiveSearchExplainsRejections(t *testing.T) {
 	if rej := byTitle["Some.Movie.2001.1080p.BluRay.x264-A"]; len(rej) != 0 {
 		t.Fatalf("the Bluray release is a valid upgrade, got rejections %v", rej)
 	}
-	if rej := byTitle["Some.Movie.2001.720p.WEB-DL.x264-B"]; len(rej) != 1 {
-		t.Fatalf("720p is allowed but not an upgrade, got %v", rej)
+	if rej := byTitle["Some.Movie.2001.1080p.HDTV.x264-B"]; len(rej) != 1 {
+		t.Fatalf("1080p HDTV is allowed but not an upgrade over WEB-DL, got %v", rej)
 	}
 	if rej := byTitle["Some.Movie.2001.2160p.WEB-DL.x264-C"]; len(rej) == 0 {
 		t.Fatalf("2160p should be rejected by the 1080p profile")
@@ -154,7 +154,7 @@ func TestSearchNowIgnoresMonitoredAndScopesToEpisode(t *testing.T) {
 	if got["grabbed"] != float64(1) {
 		t.Fatalf("expected one grab, got %+v", got)
 	}
-	requireTitles(t, env.grabbedTitles(t, 1), s1e2WEB)
+	requireTitles(t, env.grabbedTitles(t), s1e2WEB)
 
 	// Movie search-now works on an unmonitored movie too.
 	m, err := env.server.MovieRepo.Add(library.Movie{TMDBID: 9, Title: "Some Movie", Year: 2001, Monitored: false})
@@ -165,5 +165,8 @@ func TestSearchNowIgnoresMonitoredAndScopesToEpisode(t *testing.T) {
 	if res["grabbed"] != float64(1) {
 		t.Fatalf("expected the movie to be grabbed, got %+v", res)
 	}
-	waitForQueue(t, env.client, env.baseURL, 2)
+	env.finish(t)
+	if q := env.queued(t); len(q) != 2 {
+		t.Fatalf("expected 2 grabs, got %+v", q)
+	}
 }

@@ -117,10 +117,10 @@ Files Mediarium writes are owned by the numeric user and group in `PUID` and `PG
 
 | Port | Used for | Notes |
 |---|---|---|
-| `8080` (TCP) | Web interface and API | Change the **left** side of `8080:8080` to use another host port. Natively, set `APP_PORT`. |
-| Torrent listen port | BitTorrent peers | Setting: Settings > Downloads > Torrent settings, `0` means the operating system picks a random port each start. Downloading works without incoming connections. If you want incoming peers in Docker you would need to set a fixed port there and also publish it (TCP and UDP) in your compose file. Not tested. |
+| `8264` (TCP) | Web interface and API | Change the **left** side of `8264:8264` to use another host port. Natively, set `APP_PORT`. |
+| `58264` (TCP and UDP) | BitTorrent peers connecting to you | Optional. Torrents download without it, but publishing it (`58264:58264/tcp` and `58264:58264/udp`, as in the compose files here) lets other peers connect to you: you find more peers and can seed properly. Keep the same number on both sides and in Settings > Downloads & VPN > Listen port (`torrent.listen_port`, default 58264; empty or `0` also means 58264). Forward it on your router too if you want peers from the internet. Settings > Downloads & VPN shows whether an incoming connection has been seen. With the VPN kill switch on, torrent traffic only goes out through the tunnel and nothing listens on this port. |
 
-Mediarium serves plain HTTP. Do not expose port 8080 directly to the internet. Put a reverse proxy with TLS in front, or use a VPN into your home network.
+Mediarium serves plain HTTP. Do not expose port 8264 directly to the internet. Put a reverse proxy with TLS in front, or use a VPN into your home network.
 
 ---
 
@@ -142,7 +142,9 @@ Mediarium serves plain HTTP. Do not expose port 8080 directly to the internet. P
        container_name: mediarium
        restart: unless-stopped
        ports:
-         - "8080:8080"
+         - "8264:8264"
+         - "58264:58264/tcp"   # optional torrent port, see Ports
+         - "58264:58264/udp"
        environment:
          PUID: "1000"
          PGID: "1000"
@@ -155,7 +157,7 @@ Mediarium serves plain HTTP. Do not expose port 8080 directly to the internet. P
          - /srv/media:/data
    ```
 4. Start it: `docker compose up -d`. Check the log: `docker compose logs -f`.
-5. Open `http://<host-ip>:8080` and follow the [first-run wizard](#first-run-updating-backup-and-restore).
+5. Open `http://<host-ip>:8264` and follow the [first-run wizard](#first-run-updating-backup-and-restore).
 
 More Linux notes (including a systemd unit that wraps compose) are in [linux.md](./linux.md).
 
@@ -167,7 +169,8 @@ More Linux notes (including a systemd unit that wraps compose) are in [linux.md]
 docker run -d \
   --name mediarium \
   --restart unless-stopped \
-  -p 8080:8080 \
+  -p 8264:8264 \
+  -p 58264:58264/tcp -p 58264:58264/udp \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -e DOWNLOADS_DIR=/data/downloads -e MOVIES_DIR=/data/movies -e TV_DIR=/data/tv \
   -v /srv/mediarium/config:/config \
@@ -195,7 +198,9 @@ Needs **Container Manager** (Package Center). Container Manager replaced the old
        container_name: mediarium
        restart: unless-stopped
        ports:
-         - "8080:8080"
+         - "8264:8264"
+         - "58264:58264/tcp"   # optional torrent port, see Ports
+         - "58264:58264/udp"
        environment:
          PUID: "1026"          # from step 1
          PGID: "100"           # from step 1
@@ -208,7 +213,7 @@ Needs **Container Manager** (Package Center). Container Manager replaced the old
          - /volume1/data:/data
    ```
    `/volume1` is the first storage volume; use the real volume name if yours differs. Replace the `1026`/`100` example numbers with yours.
-4. Build/start the project. Open `http://<nas-ip>:8080`.
+4. Build/start the project. Open `http://<nas-ip>:8264`.
 5. If you cannot reach it: Control Panel > Security > Firewall may block the port.
 
 Backups: include `/volume1/docker/mediarium-config` in Hyper Backup or copy it.
@@ -270,7 +275,7 @@ If the image is not published yet you will need to build it on the Docker host f
 What Umbrel needs (from memory of Umbrel's community app store format; verify against Umbrel's current developer docs before building):
 
 - A git repository acting as a **community app store**: an `umbrel-app-store.yml` at the root and one folder per app.
-- In the app folder: `umbrel-app.yml` (manifest: id, name, tagline, category, version, port, description, developer, website, repo, support, and so on) and a `docker-compose.yml` that includes Umbrel's `app_proxy` service pointing at Mediarium's port `8080`, with data under Umbrel's app data folder and shared media under Umbrel's storage folder.
+- In the app folder: `umbrel-app.yml` (manifest: id, name, tagline, category, version, port, description, developer, website, repo, support, and so on) and a `docker-compose.yml` that includes Umbrel's `app_proxy` service pointing at Mediarium's port `8264`, with data under Umbrel's app data folder and shared media under Umbrel's storage folder.
 - The image must be published and reachable, ideally pinned by digest.
 - Umbrel puts its own login in front of apps by default; Mediarium has its own login too, so you would decide whether to disable one.
 
@@ -325,14 +330,14 @@ Two routes: Docker Desktop (Linux container) or the native `mediarium.exe`.
    ```powershell
    docker volume create mediarium-config
    docker volume create mediarium-data
-   docker run -d --name mediarium --restart unless-stopped -p 8080:8080 `
+   docker run -d --name mediarium --restart unless-stopped -p 8264:8264 -p 58264:58264/tcp -p 58264:58264/udp `
      -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC `
      -e DOWNLOADS_DIR=/data/downloads -e MOVIES_DIR=/data/movies -e TV_DIR=/data/tv `
      -v mediarium-config:/config -v mediarium-data:/data `
      ghcr.io/rdborg/mediarium:latest
    ```
    Then point Plex/Jellyfin/Emby at the same data through your usual means. Volumes are hard to reach from Windows Explorer; if you need the files visible on Windows, the native route below is simpler.
-3. Open `http://localhost:8080`.
+3. Open `http://localhost:8264`.
 
 ### Windows: native binary
 
@@ -359,7 +364,7 @@ Mediarium finds them by the names `7z` and `par2` on your `PATH` (`internal/orga
    powershell -ExecutionPolicy Bypass -File .\run-mediarium.ps1
    ```
    The script downloads nothing. It looks for `7z` and `par2`, prints what to do if one is missing, creates `%USERPROFILE%\Mediarium\{config,downloads,movies,tv}`, sets the environment variables Mediarium reads, and starts the exe. Choose other locations with `-DataRoot D:\Media`, another port with `-Port 8181`.
-5. Open `http://localhost:8080`. Windows Firewall may ask whether to allow it on your network; that only matters if you want to reach it from other devices.
+5. Open `http://localhost:8264`. Windows Firewall may ask whether to allow it on your network; that only matters if you want to reach it from other devices.
 
 **Windows-specific things to know**
 
@@ -427,12 +432,14 @@ docker build -t mediarium:local .
 
 Then use `image: mediarium:local` in the compose file instead of the `ghcr.io/...` name. The Dockerfile builds the frontend and the Go binary itself (Node 22 and Go are used inside the build, you do not need them on the host). Optional build arguments `TMDB_API_KEY`, `OPENSUBTITLES_API_KEY` and `TRAKT_CLIENT_ID` bake in app-wide keys; without them the app asks you for your own in the wizard. On a NAS you may prefer to build on your PC and move the image: `docker save mediarium:local -o mediarium.tar` then `docker load -i mediarium.tar` on the NAS.
 
-Native binary from source:
+Native binary from source (needs Go 1.26.8 or newer, the minimum in `go.mod`, which includes the standard-library security fixes):
 
 ```bash
 cd web && npm ci && npm run build && cd ..     # writes web/dist, embedded by web/embed.go
-CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=v0.0.0-local" -o mediarium ./cmd/app
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$(cat VERSION)" -o mediarium ./cmd/app
 ```
+
+The `-X main.version=...` part stamps the number from the `VERSION` file into the binary; leave it out and the app reports `dev`. A Docker build reads `VERSION` by itself.
 
 Skip the npm step and the binary embeds only the tiny placeholder page that is checked into `web/dist/index.html`. The API works, but there is no real web interface.
 
@@ -459,9 +466,9 @@ The release workflow uses exactly these commands. It has not been run on GitHub.
 
 ## First run, updating, backup and restore
 
-**First run.** Open `http://<host>:8080`. There is no default password: the wizard creates the admin account (the first account is the admin). It then checks your folders live (exists, writable, really mapped, free space), and asks about indexers, your Usenet provider (optional if you only use torrents) and naming. Everything is changeable later in Settings. Forgotten password: `docker exec -it -u 1000:1000 mediarium /app/app reset-password <username>` (use your PUID:PGID; running as root could leave root-owned database files). Natively: `mediarium reset-password <username>` with the same environment variables set.
+**First run.** Open `http://<host>:8264`. There is no default password: the wizard creates the admin account (the first account is the admin). It then checks your folders live (exists, writable, really mapped, free space), and asks about indexers, your Usenet provider (optional if you only use torrents) and naming. Everything is changeable later in Settings. Forgotten password: `docker exec -it -u 1000:1000 mediarium /app/app reset-password <username>` (use your PUID:PGID; running as root could leave root-owned database files). Natively: `mediarium reset-password <username>` with the same environment variables set.
 
-**Updating (Docker).** Releases are meant to be version-pinned. Change the tag in your compose file (for example `:v0.2.0`), then `docker compose pull && docker compose up -d`. Portainer: see the Portainer section. Synology: Container Manager > Project > Action > Build. Nothing updates itself. The database schema migrates automatically on start. **Back up `/config` before updating**, and note there is no downgrade path documented.
+**Updating (Docker).** Each release publishes three image tags: the exact version (`:1.2.3`, never changes), the minor line (`:1.2`, moves to each bug-fix release of 1.2) and `:latest` (moves to every release, including new features and, after reading the changelog, breaking ones). Pin `:1.2.3` or `:1.2` if you want to decide when to move; see [RELEASING.md](./RELEASING.md#what-the-version-numbers-mean) for what a change of each number means. Change the tag in your compose file (for example `:1.1.0`), then `docker compose pull && docker compose up -d`. Portainer: see the Portainer section. Synology: Container Manager > Project > Action > Build. Nothing updates itself. The database schema migrates automatically on start. **Back up `/config` before updating**, and note there is no downgrade path documented.
 
 **Updating (native).** Stop it, replace the binary, start it.
 
@@ -506,7 +513,7 @@ Symptoms: disk use doubles after each import.
 ### Cannot open the web page
 
 - Check the container is running: `docker ps`, `docker logs mediarium`.
-- Host firewall or NAS firewall blocking `8080`; port already used by another app (change the left side of `8080:8080`).
+- Host firewall or NAS firewall blocking `8264`; port already used by another app (change the left side of `8264:8264`).
 - Native install: check `APP_PORT` and that nothing else listens there.
 
 ### Search finds nothing / downloads never start

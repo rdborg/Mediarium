@@ -8,7 +8,7 @@ import { SUBTITLE_LANGUAGES } from '../../languages'
 
 function SubtitlesSection() {
   const [languages, setLanguages] = useState<string[]>(['en'])
-  const [auto, setAuto] = useState(true)
+  const [auto, setAuto] = useState(false)
   const [hasKey, setHasKey] = useState(false)
   const [status, setStatus] = useState('')
   const [sweeping, setSweeping] = useState(false)
@@ -18,7 +18,7 @@ function SubtitlesSection() {
     api.getSettings().then((s) => {
       setHasKey(!!s.hasOpenSubtitlesApiKey)
       setLanguages(s.subtitleLanguages?.length ? s.subtitleLanguages : ['en'])
-      setAuto(s.subtitleAutoDownload ?? true)
+      setAuto(s.subtitleAutoDownload ?? false)
     })
   }, [])
 
@@ -115,11 +115,13 @@ function OpenSubtitlesCard() {
       builtIn={!!s.openSubtitlesKeyBuiltIn}
       configured={!!s.hasOpenSubtitlesApiKey}
       onSaved={load}
+      allowOverride
+      usingOwnKey={!!s.openSubtitlesUsingOwnKey}
     >
       <div className="grid-form" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
         <h3 style={{ margin: 0 }}>Your OpenSubtitles.com account (optional)</h3>
         <p style={{ color: 'var(--text-dim)', margin: 0 }}>
-          Without an account, downloads are limited to about 5 per day. Logging in with a free account raises that limit, which
+          Without an account, downloads are limited to about 5 per day (per internet connection). A free account raises that to about 20 per day, which
           matters when Mediarium fills in subtitles for a whole library. Your password is stored encrypted.
         </p>
         <label>

@@ -8,7 +8,7 @@ import (
 	"github.com/ryanborg/mediarium/internal/crypto"
 )
 
-// StoredConfig is a saved VPN config (PRD.md §4.7 — "multiple provider
+// StoredConfig is a saved VPN config ("multiple provider
 // configs stored, one active at a time, switchable from Settings").
 type StoredConfig struct {
 	ID       int64

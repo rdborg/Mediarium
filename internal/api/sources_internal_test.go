@@ -27,7 +27,7 @@ func TestFilterSources(t *testing.T) {
 
 // With identical quality, a Usenet release wins whichever order they arrive in.
 func TestEqualReleasesPreferUsenet(t *testing.T) {
-	profile := quality.Presets()["any-1080p"]
+	profile := quality.Presets()[quality.Preset1080p]
 	torrent := indexers.Result{Title: "Movie.2024.1080p.BluRay.x264-T", DownloadURL: "t", Protocol: indexers.ProtocolTorrent}
 	usenet := indexers.Result{Title: "Movie.2024.1080p.BluRay.x264-U", DownloadURL: "u", Protocol: indexers.ProtocolUsenet}
 
@@ -39,8 +39,9 @@ func TestEqualReleasesPreferUsenet(t *testing.T) {
 	}
 
 	// But quality still beats the protocol preference.
-	better := indexers.Result{Title: "Movie.2024.1080p.Remux.x264-T", DownloadURL: "t2", Protocol: indexers.ProtocolTorrent}
-	if best := pickBestResult([]indexers.Result{usenet, better}, profile, 2024); best == nil || best.DownloadURL != "t2" {
+	worse := indexers.Result{Title: "Movie.2024.1080p.WEB-DL.x264-U", DownloadURL: "u2", Protocol: indexers.ProtocolUsenet}
+	better := indexers.Result{Title: "Movie.2024.1080p.BluRay.x264-T", DownloadURL: "t2", Protocol: indexers.ProtocolTorrent}
+	if best := pickBestResult([]indexers.Result{worse, better}, profile, 2024); best == nil || best.DownloadURL != "t2" {
 		t.Fatalf("a better-quality torrent should still win, got %+v", best)
 	}
 }

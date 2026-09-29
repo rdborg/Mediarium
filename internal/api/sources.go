@@ -132,7 +132,7 @@ func (s *Server) handleTitleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "TMDB API key not configured yet — set it in Settings > Metadata")
+		writeError(w, http.StatusPreconditionFailed, "TMDB API key not configured yet — set it in Settings > Lists & Subtitles")
 		return
 	}
 	results, err := s.searchTitles(r.Context(), query)

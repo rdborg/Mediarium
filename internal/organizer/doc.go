@@ -1,3 +1,3 @@
-// Package organizer is a placeholder for the organizer module described in
-// PRD.md §4.4 (core modules table). Not yet implemented.
+// Package organizer turns a finished download into library files: PAR2
+// repair, unpacking, naming and hardlinking or copying into place.
 package organizer

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type CalendarEntry } from '../api'
 import CalendarGrid from '../components/CalendarGrid'
+import { useLive } from '../useLive'
 
 // Monitored movie releases and episode airs on one month view.
 export default function Calendar() {
@@ -13,6 +14,7 @@ export default function Calendar() {
       .then(setEntries)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }, [])
+  useLive(() => api.calendar().then(setEntries).catch(() => undefined), 30000)
 
   return (
     <div>

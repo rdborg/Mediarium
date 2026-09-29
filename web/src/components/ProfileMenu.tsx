@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, displayName } from '../api'
+import { api, displayName, isAdmin } from '../api'
 import { useAuth } from '../AuthContext'
 import { demoEnabled, setDemo } from '../demo'
 import Icon from './Icon'
 
 function initials(name?: string, username?: string): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (username ?? '?').slice(0, 2).toUpperCase()
+  const first = ((name ?? '').trim() || (username ?? '?').trim()).charAt(0)
+  return first.toUpperCase() || '?'
 }
 
 // Avatar in the top-right corner: opens the profile, demo mode and sign out.
@@ -34,6 +32,7 @@ export default function ProfileMenu() {
   }, [open])
 
   if (!user) return null
+  const admin = isAdmin(user)
 
   async function signOut() {
     await api.logout()
@@ -52,11 +51,13 @@ export default function ProfileMenu() {
             <small>{user.email || `@${user.username}`}</small>
           </div>
           <Link to="/settings/profile" role="menuitem" onClick={() => setOpen(false)}>
-            <Icon name="user" size={16} /> Profile &amp; password
+            <Icon name="user" size={16} /> {admin ? 'Profile & Accounts' : 'Your profile'}
           </Link>
-          <Link to="/settings/media" role="menuitem" onClick={() => setOpen(false)}>
-            <Icon name="sliders" size={16} /> Settings
-          </Link>
+          {admin && (
+            <Link to="/settings/media" role="menuitem" onClick={() => setOpen(false)}>
+              <Icon name="sliders" size={16} /> Settings
+            </Link>
+          )}
           <button role="menuitem" onClick={() => setDemo(!demo)}>
             <Icon name="flask" size={16} /> {demo ? 'Turn off demo data' : 'Show demo data'}
           </button>

@@ -10,11 +10,11 @@ import (
 )
 
 func TestHuntHonoursProfileRestrictionsAndPreferredScores(t *testing.T) {
-	env := newTVAutoEnv(t, []string{
+	env := newTVAutoEnvWith(t, []string{
 		"Some.Movie.2001.1080p.BluRay.HDR.x265-A",
 		"Some.Movie.2001.1080p.BluRay.x264-B",
 		"Some.Movie.2001.1080p.BluRay.x265-C",
-	}, nil)
+	}, nil, http.StatusOK, "this is not an nzb")
 
 	// Excludes HDR, prefers x265: of three equal-quality releases the only
 	// allowed x265 one (C) must win — A is excluded, B has no score.
@@ -32,11 +32,13 @@ func TestHuntHonoursProfileRestrictionsAndPreferredScores(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The fixture's NZB URLs serve XML rather than an NZB, so each grab fails
-	// as a bad release and the automatic retry moves on to the next-best
-	// allowed one: C first (highest score), then B, and never the excluded A.
+	// The fixture's NZB URLs serve something that is not an NZB, so each grab
+	// fails as a bad release and the automatic retry moves on to the
+	// next-best allowed one: C first (highest score), then B, and never the
+	// excluded A.
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 2), "Some.Movie.2001.1080p.BluRay.x264-B", "Some.Movie.2001.1080p.BluRay.x265-C")
+	env.finish(t)
+	requireTitles(t, env.grabbedTitles(t), "Some.Movie.2001.1080p.BluRay.x264-B", "Some.Movie.2001.1080p.BluRay.x265-C")
 	first := ""
 	var firstID float64 = -1
 	for _, it := range getJSON[[]map[string]any](t, env.client, env.baseURL+"/api/queue") {

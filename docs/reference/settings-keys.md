@@ -7,6 +7,10 @@ The keys the app stores in its settings table. You normally change these from th
 | Key | Notes |
 |---|---|
 | `automation.enabled` | "0" disables; anything else (including unset) enables |
+| `cleanup.auto` | "0" turns the daily automatic clean-up off; anything else (including unset) leaves it on |
+| `cleanup.history_retention_days` | days finished downloads and activity are kept; unset = 90, "0" = forever |
+| `cleanup.last_run_at` | when clean-up last ran (RFC 3339; set by the app, not user-editable) |
+| `flaresolverr.url` | e.g. http://flaresolverr:8191; unset = none |
 | `legal.acknowledged_at` |  |
 | `library.default_profile_id` | id of the stored quality profile used by items with no profile of their own |
 | `library.default_sources` | usenet \| torrent \| both (default both) |
@@ -18,19 +22,21 @@ The keys the app stores in its settings table. You normally change these from th
 | `library.movie_name_format` | token string, used when preset=custom |
 | `library.movies_path` |  |
 | `library.naming_preset` | plex\|jellyfin\|kodi\|minimal\|custom |
-| `library.quality_profile` | legacy: a quality.Presets() key; only read once to pick the initial default profile |
+| `library.presets_version` | revision of the built-in quality presets last applied; unset means never (set at start, not user-editable) |
+| `library.quality_profile` | legacy: an old preset key (any-1080p, ultra-hd, any); only read once to pick the initial default profile |
 | `library.tv_path` | falls back to the TV_DIR env default when unset |
+| `mediaservers.client_id` | set by the app, not user-editable |
 | `metadata.tmdb_api_key` | encrypted |
 | `metadata.trakt_client_id` | encrypted |
 | `monitor.interval_minutes` |  |
 | `onboarding.done` | "1" once the first-run wizard completes |
-| `subtitles.auto_download` | "0" disables; anything else enables |
+| `subtitles.auto_download` | "1" fetches subtitles automatically; unset or "0" only offers them ("ask me") |
 | `subtitles.languages` | comma-separated OpenSubtitles codes; default "en" |
 | `subtitles.opensubtitles_api_key` | encrypted |
 | `subtitles.opensubtitles_password` | encrypted |
 | `subtitles.opensubtitles_username` | optional account for a higher download quota |
 | `torrent.enabled` | "0" turns torrents off entirely; anything else (including unset) leaves them on |
-| `torrent.listen_port` | "0" = let the OS pick |
+| `torrent.listen_port` | TCP+UDP port for incoming peers; unset or "0" = 58264 |
 | `torrent.seed_ratio_limit` | e.g. "2.0"; "0" = unlimited |
 | `torrent.seed_time_limit_h` | hours; "0" = unlimited |
 | `vpn.require_for_torrents` |  |

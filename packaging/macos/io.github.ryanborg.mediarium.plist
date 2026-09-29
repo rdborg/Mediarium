@@ -37,7 +37,7 @@
     <key>TV_DIR</key>
     <string>__HOME__/Mediarium/tv</string>
     <key>APP_PORT</key>
-    <string>8080</string>
+    <string>8264</string>
   </dict>
 
   <key>RunAtLoad</key>

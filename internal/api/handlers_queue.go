@@ -28,11 +28,11 @@ type queueItemPayload struct {
 	CompletedAt  string  `json:"completedAt,omitempty"`
 	// DestPath is only populated for a StatusConflict item — the path a
 	// naming collision was found at, under the "always ask" import
-	// conflict policy (PRD §4.8). See handleResolveQueueConflict.
+	// conflict policy. See handleResolveQueueConflict.
 	DestPath string `json:"destPath,omitempty"`
 }
 
-// handleListQueue is the Activity/Queue view (PRD §6 — "one live view of
+// handleListQueue is the Activity/Queue view ("one live view of
 // everything currently downloading/importing/post-processing"). Each entry
 // carries the name and poster of the movie or show it is for, so the page
 // reads as titles rather than release names.
@@ -86,6 +86,7 @@ func (s *Server) handleDeleteQueueItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	s.itemEvent(item.MovieID, item.SeriesID, "removed", queue.LevelInfo, "Removed from the download list: "+item.ReleaseTitle)
 	writeJSON(w, http.StatusOK, nil)
 }
 
@@ -99,7 +100,11 @@ func (s *Server) handleClearFinishedQueue(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]int64{"removed": n})
 }
 
-// handleRetryQueueItem grabs the same release again after it failed.
+// handleRetryQueueItem grabs the same release again after it failed. A
+// Usenet download whose files were all fetched and are still in its working
+// folder is not downloaded again: the retry repeats post-processing (PAR2
+// verify/repair, unpack, import) on those files, and only downloads anew
+// when they fail the PAR2 check.
 func (s *Server) handleRetryQueueItem(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -115,11 +120,23 @@ func (s *Server) handleRetryQueueItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "only a failed download can be retried")
 		return
 	}
+	keptDir, reuse := s.keptDownload(item)
+	if reuse {
+		s.offerKeptDownload(item.NZBURL, keptDir)
+	}
 	newID, err := s.regrab(item)
 	if err != nil {
+		if reuse {
+			s.withdrawKeptDownload(item.NZBURL)
+		}
 		writeGrabError(w, err, http.StatusBadRequest)
 		return
 	}
+	message := "Retrying, downloading again: " + item.ReleaseTitle
+	if reuse {
+		message = "Retrying from the files already downloaded: " + item.ReleaseTitle
+	}
+	s.itemEvent(item.MovieID, item.SeriesID, "retried", queue.LevelInfo, message)
 	_ = s.QueueRepo.Delete(id) // the retry replaces the failed entry
 	writeJSON(w, http.StatusAccepted, map[string]int64{"queueId": newID})
 }
@@ -168,7 +185,7 @@ func (s *Server) handleBlocklistQueueItem(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	_ = s.QueueRepo.LogActivity(item.MovieID, "blocklisted", "Blocklisted \""+item.ReleaseTitle+"\": by you")
+	_ = s.QueueRepo.LogItemActivity(item.MovieID, item.SeriesID, "blocklisted", "Blocklisted \""+item.ReleaseTitle+"\": by you")
 	_ = s.QueueRepo.Delete(id)
 	switch {
 	case item.MovieID > 0:
@@ -183,7 +200,7 @@ type resolveConflictRequest struct {
 	Overwrite bool `json:"overwrite"`
 }
 
-// handleResolveQueueConflict is the manual-import review action PRD §4.8's
+// handleResolveQueueConflict is the manual-import review action the
 // "always ask" conflict policy defers to: a person decides, per item,
 // whether the newly-downloaded file should replace the one already at the
 // destination, or be left alone (skip). See Server.resolveConflict for the

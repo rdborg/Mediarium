@@ -4,10 +4,16 @@ import Icon from '../components/Icon'
 import ProfilePicker from '../components/ProfilePicker'
 import Switch from '../components/Switch'
 import TitleHero from '../components/TitleHero'
+import WatchLinks from '../components/WatchLinks'
+import TitleEvents from '../components/TitleEvents'
 import { useToast } from '../components/Toast'
 import ReleaseTable from '../components/ReleaseTable'
+import FilesPanel from '../components/FilesPanel'
 import SubtitlesPanel from '../components/SubtitlesPanel'
-import { api, type Episode, type SearchResult, type SeriesDetail as SeriesDetailData, type TVDetail } from '../api'
+import { useAuth } from '../AuthContext'
+import { api, isAdmin, type Episode, type SearchResult, type SeriesDetail as SeriesDetailData, type TVDetail } from '../api'
+import { useLive } from '../useLive'
+import { useConfirm } from '../components/ConfirmProvider'
 
 // A target for interactive search: one episode, or a whole season (no
 // episode set) which only offers season packs.
@@ -21,6 +27,8 @@ interface SearchTarget {
 // interactive search — pick an episode (or a whole season) and choose which
 // release to grab.
 export default function SeriesDetail() {
+  const confirm = useConfirm()
+  const admin = isAdmin(useAuth().user)
   const { id } = useParams()
   const seriesId = Number(id)
   const navigate = useNavigate()
@@ -43,6 +51,7 @@ export default function SeriesDetail() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }, [seriesId])
   useEffect(load, [load])
+  useLive(load, 5000)
   const tmdbId = series?.tmdbId
   useEffect(() => {
     if (tmdbId) api.tmdbTVDetail(tmdbId).then(setTv).catch(() => undefined)
@@ -157,12 +166,16 @@ export default function SeriesDetail() {
   }
 
   async function remove() {
-    if (!series || !window.confirm(`Remove ${series.title} from your library?`)) return
-    const deleteFiles =
-      series.downloadedCount > 0 &&
-      window.confirm(`Also delete its ${series.downloadedCount} downloaded episode file(s) from disk?
-
-OK = delete the files too. Cancel = keep the files.`)
+    if (!series) return
+    const answer = await confirm({
+      title: `Remove ${series.title} from your library?`,
+      body: <p>Mediarium stops tracking this show and cancels anything still downloading for it. You can add it again at any time.</p>,
+      confirmLabel: 'Remove',
+      danger: true,
+      option: { label: 'Also delete everything on disk', hint: 'The files in your library and anything left over from downloads, so nothing is left behind.', defaultChecked: true },
+    })
+    if (!answer) return
+    const deleteFiles = answer.checked
     try {
       await api.deleteSeries(seriesId, deleteFiles)
       navigate('/library')
@@ -196,9 +209,12 @@ OK = delete the files too. Cancel = keep the files.`)
             <button className="btn-with-icon" onClick={refresh}>
               <Icon name="refresh" size={16} /> Refresh from TMDB
             </button>
-            <button className="btn-with-icon danger-ghost" onClick={remove}>
-              <Icon name="trash" size={16} /> Remove
-            </button>
+            {series.downloadedCount > 0 && <WatchLinks tmdbId={series.tmdbId} kind="tv" />}
+            {admin && (
+              <button className="btn-with-icon danger-ghost" onClick={remove}>
+                <Icon name="trash" size={16} /> Remove
+              </button>
+            )}
           </>
         }
       >
@@ -302,6 +318,26 @@ OK = delete the files too. Cancel = keep the files.`)
                     </Fragment>
                   )
                 })}
+
+      <details className="card files-card" style={{ marginBottom: 24 }}>
+        <summary>
+          <h2 style={{ margin: 0, display: 'inline' }}>What happened</h2>
+        </summary>
+        <div style={{ marginTop: 14 }}>
+          <TitleEvents kind="series" id={series.id} />
+        </div>
+      </details>
+
+      {series.downloadedCount > 0 && (
+        <details className="card files-card" style={{ marginBottom: 24 }}>
+          <summary>
+            <h2 style={{ margin: 0, display: 'inline' }}>Files on disk</h2>
+          </summary>
+          <div style={{ marginTop: 14 }}>
+            <FilesPanel kind="series" id={series.id} />
+          </div>
+        </details>
+      )}
               </tbody>
             </table>
           </section>

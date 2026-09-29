@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useToast } from '../../components/Toast'
 import { api, type Settings as SettingsData } from '../../api'
 import FolderStatus from '../../components/FolderStatus'
+import Icon from '../../components/Icon'
 import HardlinkWarning from '../../components/HardlinkWarning'
 import NamingPreview from '../../components/NamingPreview'
 
@@ -53,67 +54,97 @@ function LibrarySection() {
   if (!settings) return null
 
   return (
-    <section className="card grid-form wide">
-      <h2>Library Paths & Naming</h2>
-      <label>
-        Movies folder
-        <input value={moviesPath} onChange={(e) => setMoviesPath(e.target.value)} />
-      </label>
-      <FolderStatus path={moviesPath} />
-      <label>
-        TV folder
-        <input value={tvPath} onChange={(e) => setTvPath(e.target.value)} />
-      </label>
-      <FolderStatus path={tvPath} />
-      <label>
-        Downloads folder
-        <input value={downloadsPath} onChange={(e) => setDownloadsPath(e.target.value)} />
-      </label>
-      <FolderStatus path={downloadsPath} />
-      <HardlinkWarning pathA={moviesPath} pathB={downloadsPath} />
-      <label>
-        Naming preset
-        <select value={namingPreset} onChange={(e) => setNamingPreset(e.target.value)}>
-          <option value="plex">Plex</option>
-          <option value="jellyfin">Jellyfin</option>
-          <option value="kodi">Kodi</option>
-          <option value="minimal">Minimal</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
-      {namingPreset === 'custom' && (
-        <label>
-          Custom format
-          <input value={customFormat} onChange={(e) => setCustomFormat(e.target.value)} placeholder="{Movie Title} ({Year}) [{Quality}]" />
-        </label>
-      )}
-      <NamingPreview preset={namingPreset} format={namingPreset === 'custom' ? customFormat : undefined} />
-      <label>
-        Illegal character handling
-        <select value={illegalCharMode} onChange={(e) => setIllegalCharMode(e.target.value)}>
-          <option value="strip">Strip</option>
-          <option value="replace">Replace</option>
-        </select>
-      </label>
-      {illegalCharMode === 'replace' && (
-        <label>
-          Replacement character
-          <input value={illegalCharReplacement} onChange={(e) => setIllegalCharReplacement(e.target.value)} maxLength={3} />
-        </label>
-      )}
-      <label>
-        If an import would overwrite an existing file
-        <select value={importConflictPolicy} onChange={(e) => setImportConflictPolicy(e.target.value)}>
-          <option value="skip">Skip (leave the existing file alone)</option>
-          <option value="overwrite">Always overwrite</option>
-          <option value="overwrite_if_better">Overwrite only if the new file is better quality</option>
-          <option value="ask">Always ask (review each one in Activity / Queue)</option>
-        </select>
-      </label>
-      <button className="primary" onClick={save}>
-        Save
-      </button>
-    </section>
+    <>
+      <fieldset className="group folders span-all">
+        <legend>
+          <Icon name="folder" size={14} /> Library folders
+        </legend>
+        <div className="path-cols">
+          <div className="path-col">
+            <label>
+              Movies folder
+              <input value={moviesPath} onChange={(e) => setMoviesPath(e.target.value)} />
+            </label>
+            <FolderStatus path={moviesPath} />
+          </div>
+          <div className="path-col">
+            <label>
+              TV folder
+              <input value={tvPath} onChange={(e) => setTvPath(e.target.value)} />
+            </label>
+            <FolderStatus path={tvPath} />
+          </div>
+          <div className="path-col">
+            <label>
+              Downloads folder
+              <input value={downloadsPath} onChange={(e) => setDownloadsPath(e.target.value)} />
+            </label>
+            <FolderStatus path={downloadsPath} />
+          </div>
+        </div>
+        <HardlinkWarning pathA={moviesPath} pathB={downloadsPath} />
+      </fieldset>
+
+      <fieldset className="group span-all">
+        <legend>
+          <Icon name="list" size={14} /> Naming and importing
+        </legend>
+        <div className="triple-cols">
+          <div className="grid-form">
+            <label>
+              Naming preset
+              <select value={namingPreset} onChange={(e) => setNamingPreset(e.target.value)}>
+                <option value="plex">Plex</option>
+                <option value="jellyfin">Jellyfin / Emby</option>
+                <option value="kodi">Kodi</option>
+                <option value="minimal">Simple</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            {namingPreset === 'custom' && (
+              <label>
+                Custom format
+                <input value={customFormat} onChange={(e) => setCustomFormat(e.target.value)} placeholder="{Movie Title} ({Year}) [{Quality}]" />
+              </label>
+            )}
+            <NamingPreview preset={namingPreset} format={namingPreset === 'custom' ? customFormat : undefined} />
+          </div>
+          <div className="grid-form">
+            <label>
+              Illegal characters in names
+              <select value={illegalCharMode} onChange={(e) => setIllegalCharMode(e.target.value)}>
+                <option value="strip">Remove them</option>
+                <option value="replace">Replace them</option>
+              </select>
+            </label>
+            {illegalCharMode === 'replace' && (
+              <label>
+                Replace with
+                <input value={illegalCharReplacement} onChange={(e) => setIllegalCharReplacement(e.target.value)} maxLength={3} />
+              </label>
+            )}
+            <small style={{ color: 'var(--text-dim)' }}>Characters like : ? * that are not allowed in file names on some systems.</small>
+          </div>
+          <div className="grid-form">
+            <label>
+              If a file already exists
+              <select value={importConflictPolicy} onChange={(e) => setImportConflictPolicy(e.target.value)}>
+                <option value="skip">Skip (leave the existing file alone)</option>
+                <option value="overwrite">Always overwrite</option>
+                <option value="overwrite_if_better">Overwrite only if the new file is better</option>
+                <option value="ask">Ask me each time (in Activity)</option>
+              </select>
+            </label>
+            <small style={{ color: 'var(--text-dim)' }}>What happens when a download would replace a file that is already in your library.</small>
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <button className="primary" onClick={save}>
+            Save
+          </button>
+        </div>
+      </fieldset>
+    </>
   )
 }
 

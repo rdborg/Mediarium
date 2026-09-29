@@ -19,8 +19,7 @@ type StoredClient struct {
 	Enabled  bool // disabled servers are kept but never used
 }
 
-// Repo persists Usenet server configs, encrypting the password at rest
-// (PRD §11).
+// Repo persists Usenet server configs, encrypting the password at rest.
 type Repo struct {
 	db  *sql.DB
 	box *crypto.Box

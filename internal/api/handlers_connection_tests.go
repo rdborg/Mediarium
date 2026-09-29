@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ryanborg/mediarium/internal/download"
@@ -57,7 +60,35 @@ func (s *Server) handleTestIndexerConfig(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	writeJSON(w, http.StatusOK, testIndexer(r.Context(), req.Name, req.BaseURL, req.APIKey))
+	if !req.isCardigann() {
+		writeJSON(w, http.StatusOK, testIndexer(r.Context(), req.Name, req.BaseURL, req.APIKey))
+		return
+	}
+	sum, ok := s.definitionFor(r.Context(), w, req.DefinitionID)
+	if !ok {
+		return
+	}
+	settingsMap, err := cardigannSettings(sum, req.Settings)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	base := strings.TrimSpace(req.BaseURL)
+	if base == "" && len(sum.Links) > 0 {
+		base = sum.Links[0]
+	}
+	if !sum.HasLink(base) {
+		writeError(w, http.StatusBadRequest, "baseUrl must be one of the site's addresses: "+strings.Join(sum.Links, ", "))
+		return
+	}
+	name := req.Name
+	if name == "" {
+		name = sum.Name
+	}
+	// ID 0: a throw-away session, nothing is kept
+	writeJSON(w, http.StatusOK, s.testIndexerInstance(r.Context(), indexers.Instance{
+		Name: name, Kind: indexers.KindCardigann, DefinitionID: sum.ID, BaseURL: base, Settings: settingsMap, Cardigann: s.Cardigann,
+	}))
 }
 
 // handleTestIndexer tests a saved indexer with its stored credentials.
@@ -67,18 +98,24 @@ func (s *Server) handleTestIndexer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid indexer id")
 		return
 	}
-	list, err := s.IndexerRepo.List()
+	inst, err := s.IndexerRepo.Get(id)
+	if errors.Is(err, indexers.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "indexer not found")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	for _, inst := range list {
-		if inst.ID == id {
-			writeJSON(w, http.StatusOK, testIndexer(r.Context(), inst.Name, inst.BaseURL, inst.APIKey))
-			return
-		}
+	res := s.testIndexerInstance(r.Context(), inst)
+	msg := ""
+	if !res.OK {
+		msg = res.Message
 	}
-	writeError(w, http.StatusNotFound, "indexer not found")
+	if err := s.IndexerRepo.SetTestResult(inst.ID, msg, time.Now()); err != nil {
+		log.Printf("api: record indexer test result: %v", err)
+	}
+	writeJSON(w, http.StatusOK, res)
 }
 
 type enabledRequest struct {

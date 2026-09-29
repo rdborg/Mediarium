@@ -1,11 +1,11 @@
-// Package vpn implements the built-in VPN protection described in
-// PRD.md §4.7: userspace WireGuard embedded directly in the process via
+// Package vpn implements the built-in VPN protection: userspace WireGuard
+// embedded directly in the process via
 // wireguard-go + a gVisor netstack, so tunneling torrent traffic needs no
 // NET_ADMIN capability or /dev/net/tun device — the same technique
 // projects like Tailscale use. The "provider picker" the UI shows is a
 // friendly wrapper over this one generic mechanism: every provider
 // integration ultimately reduces to feeding this a WireGuard config, and
-// the generic "paste your own config" option (also required by §4.7)
+// the generic "paste your own config" option (always available)
 // exercises the exact same path as a named provider.
 package vpn
 
@@ -27,7 +27,7 @@ import (
 
 // Config is a generic WireGuard peer config — deliberately provider-
 // agnostic. A "provider picker" in Settings is just a UI convenience for
-// producing one of these (PRD §4.7); the tunnel itself never special-
+// producing one of these; the tunnel itself never special-
 // cases a provider.
 type Config struct {
 	PrivateKey          string // base64, as found in a standard WireGuard config file
@@ -44,7 +44,7 @@ type Config struct {
 
 // Tunnel is a live WireGuard connection. Callers dial out through it via
 // DialContext, which is all that's needed to route torrent traffic (or,
-// per §4.7, optionally Usenet/general app traffic) through the tunnel
+// optionally, Usenet/general app traffic) through the tunnel
 // instead of the host network directly.
 type Tunnel struct {
 	dev  *device.Device
@@ -55,7 +55,7 @@ type Tunnel struct {
 // handshake completes — that happens asynchronously, same as any
 // WireGuard client; callers should treat a Dial failing/timing out as the
 // signal the tunnel isn't actually passing traffic (this is also what the
-// kill switch in the download engine checks — PRD §4.7).
+// kill switch in the download engine checks).
 func Up(cfg Config) (*Tunnel, error) {
 	localAddrs, err := parseAddrs(cfg.LocalAddresses)
 	if err != nil {
@@ -95,7 +95,7 @@ func Up(cfg Config) (*Tunnel, error) {
 }
 
 // DialContext dials addr through the tunnel — use this as the dialer for
-// anything that should go over the VPN (PRD §4.7 — torrent traffic by
+// anything that should go over the VPN (torrent traffic by
 // default, Usenet/general traffic optionally).
 func (t *Tunnel) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return t.tnet.DialContext(ctx, network, addr)
@@ -134,8 +134,8 @@ func (t *Tunnel) ListenPort() (int, error) {
 
 // PublicIP asks a third-party IP-echo service, dialed through the tunnel,
 // what address it's seeing — the standard way any VPN app confirms traffic
-// is actually egressing via the provider rather than leaking (PRD §4.7 —
-// "status visibility"). This is an on-demand outbound request the user
+// is actually egressing via the provider rather than leaking
+// ("status visibility"). This is an on-demand outbound request the user
 // explicitly triggers by viewing VPN status, not a background poll.
 func (t *Tunnel) PublicIP(ctx context.Context) (string, error) {
 	return t.publicIPFrom(ctx, "https://api.ipify.org")
@@ -143,8 +143,8 @@ func (t *Tunnel) PublicIP(ctx context.Context) (string, error) {
 
 // publicIPFrom is PublicIP with the echo-service URL as a parameter, purely
 // so tests can point it at a local fixture server through a real tunnel
-// instead of making a live call to a third party (CLAUDE.md — local
-// fixtures over live network calls in tests).
+// instead of making a live call to a third party (tests use local
+// fixtures over live network calls).
 func (t *Tunnel) publicIPFrom(ctx context.Context, url string) (string, error) {
 	client := &http.Client{
 		Transport: &http.Transport{DialContext: t.DialContext},
@@ -173,8 +173,8 @@ func (t *Tunnel) publicIPFrom(ctx context.Context, url string) (string, error) {
 }
 
 // Close tears down the tunnel. Any in-flight Dial-ed connections through
-// it will start failing — the natural kill-switch behavior (PRD §4.7:
-// "if the tunnel drops, torrent traffic must pause immediately") as long
+// it will start failing — the natural kill-switch behavior ("if the
+// tunnel drops, torrent traffic must pause immediately") as long
 // as callers treat a dial/read/write error on a tunneled connection as
 // fatal for that transfer rather than silently falling back to a direct
 // connection.

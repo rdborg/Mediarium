@@ -14,13 +14,13 @@ import (
 
 // TestTunnelBetweenTwoLocalPeers brings up two independent userspace
 // WireGuard tunnels (no kernel TUN device, no elevated privileges — the
-// whole point of PRD.md §4.7's embedded-WireGuard approach) and proves
+// whole point of the embedded-WireGuard approach) and proves
 // actual encrypted tunnel traffic flows between them: peer B listens on
 // its tunnel-local address, peer A dials it through its own tunnel, and
 // the bytes that arrive are exactly what A sent. This is the real
 // WireGuard protocol (handshake, session keys, encrypted transport)
 // running over a loopback UDP socket — not a mock — proving the
-// mechanics PRD §4.7 actually depends on.
+// mechanics the built-in VPN actually depends on.
 func TestTunnelBetweenTwoLocalPeers(t *testing.T) {
 	keyA, err := vpn.GenerateKeyPair()
 	if err != nil {
@@ -123,8 +123,8 @@ func listenTCPOnNetstack(t *vpn.Tunnel, addr string) (net.Listener, error) {
 
 // TestPublicIPThroughTunnel proves PublicIP actually dials out through the
 // tunnel and parses a real HTTP response, using a fixture "IP echo" server
-// reachable only via the tunnel's own netstack (CLAUDE.md: local fixtures
-// over live third-party calls in tests) rather than hitting the real
+// reachable only via the tunnel's own netstack (tests use local fixtures
+// over live third-party calls) rather than hitting the real
 // api.ipify.org.
 func TestPublicIPThroughTunnel(t *testing.T) {
 	keyA, err := vpn.GenerateKeyPair()

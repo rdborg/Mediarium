@@ -14,11 +14,11 @@ import (
 // covered by pipeline_integration_test.go.
 
 func TestPickBestResultPrefersHigherQualityAndAcceptsProfile(t *testing.T) {
-	profile := quality.Presets()["any-1080p"]
+	profile := quality.Presets()[quality.Preset1080p]
 	results := []indexers.Result{
 		{Title: "Movie.2024.720p.WEBRip.x264-GROUP", DownloadURL: "a"},
 		{Title: "Movie.2024.1080p.BluRay.x264-GROUP", DownloadURL: "b"},
-		{Title: "Movie.2024.2160p.BluRay.REMUX-GROUP", DownloadURL: "c"}, // outside any-1080p's allow-list
+		{Title: "Movie.2024.2160p.BluRay.REMUX-GROUP", DownloadURL: "c"}, // outside the 1080p preset's allow-list
 		{Title: "Movie.2024.CAM-GROUP", DownloadURL: "d"},                // unrecognized, rejected
 	}
 
@@ -32,7 +32,7 @@ func TestPickBestResultPrefersHigherQualityAndAcceptsProfile(t *testing.T) {
 }
 
 func TestPickBestResultFiltersByYear(t *testing.T) {
-	profile := quality.Presets()["any-1080p"]
+	profile := quality.Presets()[quality.Preset1080p]
 	results := []indexers.Result{
 		{Title: "Movie.2019.1080p.BluRay.x264-GROUP", DownloadURL: "wrong-year"},
 		{Title: "Movie.2024.1080p.WEB-DL.x264-GROUP", DownloadURL: "right-year"},
@@ -44,7 +44,7 @@ func TestPickBestResultFiltersByYear(t *testing.T) {
 }
 
 func TestPickBestResultNoneAccepted(t *testing.T) {
-	profile := quality.Presets()["any-1080p"]
+	profile := quality.Presets()[quality.Preset1080p]
 	results := []indexers.Result{
 		{Title: "Movie.2024.CAM-GROUP", DownloadURL: "a"},
 	}

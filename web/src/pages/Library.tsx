@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, type Movie, type QualityProfile, type QueueItem, type Series } from '../api'
+import { api, isAdmin, type Movie, type QualityProfile, type QueueItem, type Series } from '../api'
+import { useAuth } from '../AuthContext'
+import Dropdown from '../components/Dropdown'
 import Icon from '../components/Icon'
 import PosterCard, { PosterFallback, type CardAction } from '../components/PosterCard'
 import { movieState, progressFor, seriesState, type ItemState } from '../components/state'
 import { useToast } from '../components/Toast'
 import { formatBytes } from '../format'
+import { useConfirm } from '../components/ConfirmProvider'
 
 type Kind = 'movie' | 'tv'
 type View = 'grid' | 'list'
@@ -30,6 +33,7 @@ interface Item {
   filePath?: string
   state: ItemState
   live?: QueueItem
+  genres: string[]
 }
 
 const STORAGE = { kind: 'mediarium-library-tab', view: 'mediarium-library-view' }
@@ -52,7 +56,7 @@ function fromMovie(m: Movie, queue: QueueItem[]): Item {
   return {
     key: `movie-${m.id}`, kind: 'movie', id: m.id, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl,
     monitored: m.monitored !== false, profileId: m.profileId ?? 0, status: m.status, quality: m.quality, have: m.status === 'downloaded' ? 1 : 0, total: 1, filePath: m.filePath,
-    state: movieState(m, queue), live: progressFor(queue, (q) => q.movieId === m.id && !q.seriesId),
+    state: movieState(m, queue), live: progressFor(queue, (q) => q.movieId === m.id && !q.seriesId), genres: m.genres ?? [],
   }
 }
 
@@ -61,7 +65,7 @@ function fromSeries(s: Series, queue: QueueItem[]): Item {
   return {
     key: `tv-${s.id}`, kind: 'tv', id: s.id, tmdbId: s.tmdbId, title: s.title, year: s.year, posterUrl: s.posterUrl,
     monitored: s.monitored, profileId: s.profileId ?? 0, status, have: s.downloadedCount, total: s.episodeCount,
-    state: seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id),
+    state: seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id), genres: s.genres ?? [],
   }
 }
 
@@ -81,8 +85,12 @@ const FILTERS: Record<Kind, { id: string; label: string; test: (i: Item) => bool
 // most a click away on every item (search for a release, monitor, open,
 // remove) and a select mode for doing them to many at once.
 export default function Library() {
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const toast = useToast()
+  // Removing titles, changing their quality profile and importing a library
+  // are for administrators.
+  const admin = isAdmin(useAuth().user)
   const [kind, setKind] = useState<Kind>(() => (recall(STORAGE.kind) === 'tv' ? 'tv' : 'movie'))
   const [view, setView] = useState<View>(() => (recall(STORAGE.view) === 'list' ? 'list' : 'grid'))
   const [movies, setMovies] = useState<Item[] | null>(null)
@@ -93,6 +101,8 @@ export default function Library() {
   const [text, setText] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState<Sort>('added')
+  const [genre, setGenre] = useState('')
+  const [decade, setDecade] = useState('')
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -123,12 +133,20 @@ export default function Library() {
     if (!items) return null
     const test = FILTERS[kind].find((f) => f.id === filter)?.test ?? (() => true)
     const needle = text.trim().toLowerCase()
-    const list = items.filter((i) => test(i) && (!needle || i.title.toLowerCase().includes(needle)))
+    const list = items.filter(
+      (i) =>
+        test(i) &&
+        (!needle || i.title.toLowerCase().includes(needle)) &&
+        (!genre || i.genres.includes(genre)) &&
+        (!decade || (i.year >= Number(decade) && i.year < Number(decade) + 10)),
+    )
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
     else if (sort === 'year') list.sort((a, b) => b.year - a.year)
     else if (sort === 'status') list.sort((a, b) => a.state.key.localeCompare(b.state.key) || a.title.localeCompare(b.title))
     return list
-  }, [items, kind, filter, text, sort])
+  }, [items, kind, filter, text, sort, genre, decade])
+  const genreOptions = useMemo(() => [...new Set((items ?? []).flatMap((i) => i.genres))].sort(), [items])
+  const decadeOptions = useMemo(() => [...new Set((items ?? []).filter((i) => i.year).map((i) => Math.floor(i.year / 10) * 10))].sort((a, b) => b - a), [items])
 
   function chooseKind(k: Kind) {
     setKind(k)
@@ -176,9 +194,15 @@ export default function Library() {
   async function remove(list: Item[]) {
     if (list.length === 0) return
     const what = list.length === 1 ? list[0].title : `${list.length} items`
-    if (!window.confirm(`Remove ${what} from your library?`)) return
-    const hasFiles = list.some((i) => (i.kind === 'movie' ? !!i.filePath : i.have > 0))
-    const files = hasFiles && window.confirm('Also delete the downloaded files from disk?\n\nOK = delete the files too. Cancel = keep the files.')
+    const answer = await confirm({
+      title: `Remove ${what} from your library?`,
+      body: <p>Mediarium stops tracking {list.length === 1 ? 'it' : 'them'}. You can add {list.length === 1 ? 'it' : 'them'} again at any time.</p>,
+      confirmLabel: 'Remove',
+      danger: true,
+      option: { label: 'Also delete everything on disk', hint: 'The files in your library and anything left over from downloads, so nothing is left behind.', defaultChecked: true },
+    })
+    if (!answer) return
+    const files = answer.checked
     const ok = await run(async () => {
       for (const i of list) await (i.kind === 'movie' ? api.deleteMovie(i.id, files) : api.deleteSeries(i.id, files))
     }, `Removed ${what}${files ? ' and its files' : ''}.`)
@@ -192,7 +216,7 @@ export default function Library() {
     { icon: 'search', label: 'Search for a release now', onClick: () => void searchNow(i), disabled: busy },
     { icon: i.monitored ? 'eye' : 'eye-off', label: i.monitored ? 'Monitored (click to stop)' : 'Not monitored (click to monitor)', onClick: () => void setMonitored(i, !i.monitored), active: i.monitored, disabled: busy },
     { icon: 'open', label: 'Open', onClick: () => navigate(openPath(i)) },
-    { icon: 'trash', label: 'Remove from library', onClick: () => void remove([i]), danger: true, disabled: busy },
+    ...(admin ? [{ icon: 'trash', label: 'Remove from library', onClick: () => void remove([i]), danger: true, disabled: busy } satisfies CardAction] : []),
   ]
 
   const toggle = (key: string) =>
@@ -215,18 +239,6 @@ export default function Library() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Library</h1>
-        <div className="row-actions">
-          <button className="btn-with-icon" onClick={() => navigate('/import')}>
-            <Icon name="folder" size={16} /> Import existing
-          </button>
-          <button className="primary btn-with-icon" onClick={() => navigate('/search')}>
-            <Icon name="plus" size={16} /> Add new
-          </button>
-        </div>
-      </div>
-
       <div className="toolbar">
         <div className="seg">
           <button className={kind === 'movie' ? 'active' : ''} onClick={() => chooseKind('movie')}>
@@ -236,13 +248,22 @@ export default function Library() {
             TV {shows ? <small>({shows.length})</small> : null}
           </button>
         </div>
-        <input type="search" placeholder={`Filter ${kind === 'movie' ? 'movies' : 'shows'}…`} value={text} onChange={(e) => setText(e.target.value)} aria-label="Filter by title" />
-        <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
-          <option value="added">Recently added</option>
-          <option value="title">Title A–Z</option>
-          <option value="year">Newest year</option>
-          <option value="status">Status</option>
-        </select>
+        <input type="search" placeholder={`Find in your ${kind === 'movie' ? 'movies' : 'shows'}…`} value={text} onChange={(e) => setText(e.target.value)} aria-label="Find in your library" />
+        {genreOptions.length > 0 && (
+          <Dropdown label="Genre" value={genre} onChange={setGenre} options={[{ value: '', label: 'All genres' }, ...genreOptions.map((g) => ({ value: g, label: g }))]} />
+        )}
+        <Dropdown label="Year" value={decade} onChange={setDecade} options={[{ value: '', label: 'Any year' }, ...decadeOptions.map((d) => ({ value: String(d), label: `${d}s` }))]} />
+        <Dropdown
+          label="Sort"
+          value={sort}
+          onChange={(v) => setSort(v as Sort)}
+          options={[
+            { value: 'added', label: 'Recently added' },
+            { value: 'title', label: 'Title A–Z' },
+            { value: 'year', label: 'Newest year' },
+            { value: 'status', label: 'Status' },
+          ]}
+        />
         <span className="spacer" />
         <button className={`btn-with-icon${selecting ? ' primary' : ''}`} aria-pressed={selecting} onClick={() => { setSelecting((s) => !s); setSelected(new Set()) }}>
           <Icon name="check" size={16} /> Select
@@ -255,6 +276,14 @@ export default function Library() {
             <Icon name="list" size={16} />
           </button>
         </div>
+        {admin && (
+          <button className="btn-with-icon" onClick={() => navigate('/import')}>
+            <Icon name="folder" size={16} /> Import existing
+          </button>
+        )}
+        <button className="primary btn-with-icon" onClick={() => navigate('/search')}>
+          <Icon name="plus" size={16} /> Add new
+        </button>
       </div>
 
       <div className="chip-row" style={{ marginBottom: 18 }}>
@@ -278,27 +307,31 @@ export default function Library() {
           <button className="btn-sm" disabled={chosen.length === 0 || busy} onClick={() => void bulk((i) => (i.kind === 'movie' ? api.searchNowMovie(i.id) : api.searchNowSeries(i.id)), 'Searched for releases.')}>
             Search now
           </button>
-          <select
-            className="btn-sm"
-            value=""
-            disabled={chosen.length === 0 || busy}
-            onChange={(e) => {
-              const id = Number(e.target.value)
-              void bulk((i) => (i.kind === 'movie' ? api.setMovieProfile(i.id, id) : api.setSeriesProfile(i.id, id)), 'Quality profile changed.')
-            }}
-            aria-label="Set quality profile"
-          >
-            <option value="">Set quality profile…</option>
-            <option value={0}>Default</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <button className="btn-sm btn-danger" disabled={chosen.length === 0 || busy} onClick={() => void remove(chosen)}>
-            Remove
-          </button>
+          {admin && (
+            <select
+              className="btn-sm"
+              value=""
+              disabled={chosen.length === 0 || busy}
+              onChange={(e) => {
+                const id = Number(e.target.value)
+                void bulk((i) => (i.kind === 'movie' ? api.setMovieProfile(i.id, id) : api.setSeriesProfile(i.id, id)), 'Quality profile changed.')
+              }}
+              aria-label="Set quality profile"
+            >
+              <option value="">Set quality profile…</option>
+              <option value={0}>Default</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {admin && (
+            <button className="btn-sm btn-danger" disabled={chosen.length === 0 || busy} onClick={() => void remove(chosen)}>
+              Remove
+            </button>
+          )}
         </div>
       )}
 
@@ -320,9 +353,11 @@ export default function Library() {
                 <button className="primary btn-with-icon" onClick={() => navigate('/search')}>
                   <Icon name="search" size={16} /> Search to add {kind === 'movie' ? 'a movie' : 'a show'}
                 </button>
-                <button className="btn-with-icon" onClick={() => navigate('/import')}>
-                  <Icon name="folder" size={16} /> Import what you already have
-                </button>
+                {admin && (
+                  <button className="btn-with-icon" onClick={() => navigate('/import')}>
+                    <Icon name="folder" size={16} /> Import what you already have
+                  </button>
+                )}
               </div>
             </>
           ) : (

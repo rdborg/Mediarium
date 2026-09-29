@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type ActivityEntry, type BlocklistEntry, type QueueItem } from '../api'
+import { api, isAdmin, type ActivityEntry, type BlocklistEntry, type QueueItem, type WantedItem } from '../api'
+import { useAuth } from '../AuthContext'
 import Icon, { type IconName } from '../components/Icon'
 import { PosterFallback } from '../components/PosterCard'
 import { useToast } from '../components/Toast'
 import { formatBytes, timeAgo } from '../format'
+import { useConfirm } from '../components/ConfirmProvider'
+import { useLive } from '../useLive'
 
 type Tab = 'queue' | 'history' | 'blocklist'
 
@@ -25,7 +28,11 @@ const EVENT: Record<string, { icon: IconName; tone: string; group: string }> = {
 // on each entry), a readable history of what Mediarium has done, and the
 // blocklist of releases it will not grab again.
 export default function Queue() {
+  const confirm = useConfirm()
   const toast = useToast()
+  // Members can watch the queue and retry, but removing, blocklisting and
+  // resolving conflicts are for administrators.
+  const admin = isAdmin(useAuth().user)
   const [tab, setTab] = useState<Tab>('queue')
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [activity, setActivity] = useState<ActivityEntry[]>([])
@@ -34,10 +41,17 @@ export default function Queue() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [group, setGroup] = useState('All')
+  // Titles still waiting for a release, with why, so an empty queue explains itself.
+  const [waiting, setWaiting] = useState<WantedItem[]>([])
+  const loadWaiting = useCallback(() => {
+    api.getWanted('missing').then(setWaiting).catch(() => setWaiting([]))
+  }, [])
+  useEffect(loadWaiting, [loadWaiting])
+  useLive(loadWaiting, 30000)
 
   const load = useCallback(async () => {
     try {
-      const [q, a, b] = await Promise.all([api.listQueue(), api.listActivity(), api.listBlocklist()])
+      const [q, a, b] = await Promise.all([api.listQueue(), api.listActivity(), admin ? api.listBlocklist() : Promise.resolve([])])
       setQueue(q)
       setActivity(a)
       setBlocklist(b)
@@ -47,7 +61,7 @@ export default function Queue() {
     } finally {
       setLoaded(true)
     }
-  }, [])
+  }, [admin])
 
   useEffect(() => {
     void load()
@@ -80,7 +94,11 @@ export default function Queue() {
 
   const active = queue.filter((q) => ACTIVE.has(q.status))
   const parked = queue.filter((q) => q.status === 'conflict')
-  const finished = queue.filter((q) => q.status === 'completed' || q.status === 'failed')
+  // Completed downloads are done: they live under History. Failed ones stay
+  // in the queue because they still need a decision (retry or blocklist).
+  const failed = queue.filter((q) => q.status === 'failed')
+  const completed = queue.filter((q) => q.status === 'completed')
+  const needsAttention = active.length + parked.length + failed.length
 
   const groups = useMemo(() => ['All', ...Array.from(new Set(Object.values(EVENT).map((e) => e.group)))], [])
   const shownActivity = activity.filter((a) => group === 'All' || (EVENT[a.eventType]?.group ?? 'Other') === group)
@@ -124,7 +142,7 @@ export default function Queue() {
           )}
         </div>
         <div className="row-actions qactions">
-          {q.status === 'conflict' && (
+          {q.status === 'conflict' && admin && (
             <>
               <button className="primary btn-sm" disabled={busy === q.id} onClick={() => void act(q, () => api.resolveConflict(q.id, true), 'File replaced.')}>
                 Overwrite
@@ -139,9 +157,11 @@ export default function Queue() {
               <button className="btn-sm btn-with-icon" disabled={busy === q.id} onClick={() => void act(q, () => api.retryQueueItem(q.id), 'Trying that release again.')}>
                 <Icon name="refresh" size={15} /> Retry
               </button>
-              <button className="btn-sm btn-with-icon" disabled={busy === q.id} title="Never grab this release again and look for another" onClick={() => void act(q, () => api.blocklistQueueItem(q.id), 'Blocklisted. Looking for another release.')}>
-                <Icon name="ban" size={15} /> Blocklist &amp; search again
-              </button>
+              {admin && (
+                <button className="btn-sm btn-with-icon" disabled={busy === q.id} title="Never grab this release again and look for another" onClick={() => void act(q, () => api.blocklistQueueItem(q.id), 'Blocklisted. Looking for another release.')}>
+                  <Icon name="ban" size={15} /> Blocklist &amp; search again
+                </button>
+              )}
             </>
           )}
           {link && (
@@ -149,7 +169,7 @@ export default function Queue() {
               <Icon name="open" size={17} />
             </Link>
           )}
-          {!isActive && q.status !== 'conflict' && (
+          {!isActive && q.status !== 'conflict' && admin && (
             <button className="icon-btn danger" title="Remove from this list" aria-label="Remove from this list" disabled={busy === q.id} onClick={() => void act(q, () => api.deleteQueueItem(q.id), 'Removed from the list.')}>
               <Icon name="trash" size={17} />
             </button>
@@ -165,14 +185,16 @@ export default function Queue() {
         <h1>Activity</h1>
         <div className="seg">
           <button className={tab === 'queue' ? 'active' : ''} onClick={() => setTab('queue')}>
-            Queue <small>({active.length + parked.length + finished.length})</small>
+            Queue <small>({needsAttention})</small>
           </button>
           <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>
-            History
+            History {completed.length > 0 && <small>({completed.length})</small>}
           </button>
-          <button className={tab === 'blocklist' ? 'active' : ''} onClick={() => setTab('blocklist')}>
-            Blocklist <small>({blocklist.length})</small>
-          </button>
+          {admin && (
+            <button className={tab === 'blocklist' ? 'active' : ''} onClick={() => setTab('blocklist')}>
+              Blocklist <small>({blocklist.length})</small>
+            </button>
+          )}
         </div>
       </div>
       {error && <p className="error-text">{error}</p>}
@@ -180,15 +202,48 @@ export default function Queue() {
       {tab === 'queue' && (
         <>
           {!loaded && <div className="skeleton" style={{ height: 96 }} />}
-          {loaded && active.length + parked.length + finished.length === 0 && (
+          {loaded && needsAttention === 0 && (
             <div className="empty-state">
               <Icon name="download" size={44} />
-              <p>Nothing downloading right now. Add something and it will show up here.</p>
+              <p>
+                Nothing downloading right now.{waiting.length > 0 ? ' The titles below are waiting for a release.' : ' Add something and it will show up here.'}
+                {completed.length > 0 && (
+                  <>
+                    {' '}
+                    <button className="link-btn" onClick={() => setTab('history')}>
+                      {completed.length} finished {completed.length === 1 ? 'download is' : 'downloads are'} in History.
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
+          )}
+          {waiting.length > 0 && (
+            <section className="waiting-list">
+              <h2>
+                Waiting for a release <small>({waiting.length})</small>
+              </h2>
+              <ul>
+                {waiting.slice(0, 20).map((w) => (
+                  <li key={`${w.kind}-${w.id}`}>
+                    <Link to={w.kind === 'movie' && w.tmdbId ? `/title/${w.tmdbId}` : `/series/${w.seriesId}`}>
+                      <strong>{w.title}</strong>
+                      {w.subtitle && <span> · {w.subtitle}</span>}
+                    </Link>
+                    <small>{w.lastSearch ? `${w.lastSearch.replace(/^Searched: /, '')}${w.lastSearchAt ? ` (${timeAgo(w.lastSearchAt)})` : ''}` : 'Not searched yet.'}</small>
+                  </li>
+                ))}
+              </ul>
+              {waiting.length > 20 && (
+                <Link to="/wanted" className="btn btn-sm">
+                  See all {waiting.length} in Upcoming → Wanted
+                </Link>
+              )}
+            </section>
           )}
           {parked.length > 0 && (
             <section style={{ marginBottom: 24 }}>
-              <h2>Needs your decision</h2>
+              <h2>{admin ? 'Needs your decision' : 'Waiting for an administrator'}</h2>
               {parked.map((q) => (
                 <Row key={q.id} q={q} />
               ))}
@@ -202,15 +257,13 @@ export default function Queue() {
               ))}
             </section>
           )}
-          {finished.length > 0 && (
+          {failed.length > 0 && (
             <section>
               <div className="rail-head">
-                <h2>Finished</h2>
-                <button className="btn-sm btn-with-icon" onClick={() => void clearFinished()}>
-                  <Icon name="trash" size={14} /> Clear finished
-                </button>
+                <h2>Failed</h2>
+                <span>retry, pick another release, or remove</span>
               </div>
-              {finished.map((q) => (
+              {failed.map((q) => (
                 <Row key={q.id} q={q} />
               ))}
             </section>
@@ -220,6 +273,21 @@ export default function Queue() {
 
       {tab === 'history' && (
         <>
+          {completed.length > 0 && (
+            <section style={{ marginBottom: 24 }}>
+              <div className="rail-head">
+                <h2>Recently downloaded</h2>
+                {admin && (
+                  <button className="btn-sm btn-with-icon" onClick={() => void clearFinished()}>
+                    <Icon name="trash" size={14} /> Clear finished
+                  </button>
+                )}
+              </div>
+              {completed.map((q) => (
+                <Row key={q.id} q={q} />
+              ))}
+            </section>
+          )}
           <div className="chip-row" style={{ marginBottom: 16 }}>
             {groups.map((g) => (
               <button key={g} className={`chip${group === g ? ' active' : ''}`} onClick={() => setGroup(g)}>
@@ -253,7 +321,7 @@ export default function Queue() {
         </>
       )}
 
-      {tab === 'blocklist' && (
+      {tab === 'blocklist' && admin && (
         <>
           <p style={{ color: 'var(--text-dim)' }}>
             Releases that failed because the release itself was bad. Automation won't grab these again; you can still pick one by hand.
@@ -269,7 +337,7 @@ export default function Queue() {
                 <button
                   className="btn-sm btn-danger"
                   onClick={async () => {
-                    if (!window.confirm('Remove every release from the blocklist?')) return
+                    if (!(await confirm({ title: 'Clear the whole blocklist?', body: <p>Every blocked release can be picked again by searches.</p>, confirmLabel: 'Clear blocklist', danger: true }))) return
                     await api.clearBlocklist()
                     toast.success('Blocklist cleared.')
                     void load()

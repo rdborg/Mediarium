@@ -14,6 +14,7 @@ import (
 	"github.com/ryanborg/mediarium/internal/library"
 	"github.com/ryanborg/mediarium/internal/parser"
 	"github.com/ryanborg/mediarium/internal/quality"
+	"github.com/ryanborg/mediarium/internal/queue"
 )
 
 // rejectionsFor explains why automation would not pick a release: quality
@@ -29,8 +30,15 @@ func rejectionsFor(title string, profile quality.Profile, downloaded bool, curre
 	}
 	if !profile.Accepts(rel) {
 		out = append(out, fmt.Sprintf("%s is not allowed by the %q profile", tier, profile.Name))
+		if by, fallback, ok := profile.AcceptedBy(title); ok && fallback {
+			if downloaded {
+				out = append(out, fmt.Sprintf("allowed only as a fallback (%q), which is used only when nothing is downloaded yet", by.Name))
+			} else {
+				out = append(out, fmt.Sprintf("allowed only as a fallback (%q): taken only when no release the %q profile accepts is found", by.Name, profile.Name))
+			}
+		}
 	}
-	if downloaded && tierKnown(currentQuality) {
+	if downloaded && tierKnown(currentQuality) && !profile.OnFallback(quality.Tier(currentQuality)) {
 		switch {
 		case profile.ReachedCutoffTier(quality.Tier(currentQuality)):
 			out = append(out, fmt.Sprintf("already at the profile cutoff (%s)", currentQuality))
@@ -82,9 +90,10 @@ func (s *Server) handleMovieSearch(w http.ResponseWriter, r *http.Request) {
 		if !matchesMovie(res.Title, m) {
 			continue
 		}
-		p := toSearchResultPayload(res)
+		p := s.toSearchResultPayload(res)
 		p.Blocklisted = blocked[blocklist.Key(res.Title)]
 		p.Rejections = rejectionsFor(res.Title, profile, m.Status == library.StatusDownloaded, m.Quality)
+		p.AcceptedBy = acceptedBy(profile, res.Title)
 		out = append(out, p)
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -199,6 +208,20 @@ type wantedItemPayload struct {
 	Quality     string `json:"quality,omitempty"`
 	Cutoff      string `json:"cutoff,omitempty"`
 	ProfileName string `json:"profileName,omitempty"`
+	// The latest automatic search for this title, in plain words, so a
+	// title waiting for a release says why ("100 releases, none acceptable: …").
+	LastSearch   string `json:"lastSearch,omitempty"`
+	LastSearchAt string `json:"lastSearchAt,omitempty"`
+}
+
+// lastSearch returns the newest "searched" event among events (newest first).
+func lastSearch(events []queue.Event) (string, string) {
+	for _, e := range events {
+		if e.Kind == "searched" {
+			return e.Message, e.At
+		}
+	}
+	return "", ""
 }
 
 // handleWanted lists what automation is still looking for: "missing"
@@ -234,6 +257,9 @@ func (s *Server) handleWanted(w http.ResponseWriter, r *http.Request) {
 		case kind == "missing" && m.Status == library.StatusMissing,
 			kind == "cutoff" && m.Status == library.StatusDownloaded && wantsUpgrade(p, m.Quality):
 			item := wantedItemPayload{Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: m.Title, Date: m.ReleaseDate, ProfileName: p.Name}
+			if events, err := s.QueueRepo.MovieEvents(m.ID, 40); err == nil {
+				item.LastSearch, item.LastSearchAt = lastSearch(events)
+			}
 			if kind == "cutoff" {
 				item.Quality, item.Cutoff = m.Quality, string(p.Cutoff)
 			}
@@ -252,6 +278,10 @@ func (s *Server) handleWanted(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		p := profiles.resolve(sr.ProfileID)
+		var seriesSearch, seriesSearchAt string
+		if events, err := s.QueueRepo.SeriesEvents(sr.ID, 40); err == nil {
+			seriesSearch, seriesSearchAt = lastSearch(events)
+		}
 		eps, err := s.MovieRepo.ListEpisodes(sr.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -273,6 +303,7 @@ func (s *Server) handleWanted(w http.ResponseWriter, r *http.Request) {
 			item := wantedItemPayload{
 				Kind: "episode", ID: ep.ID, SeriesID: sr.ID, Season: ep.Season, Episode: ep.Episode,
 				Title: sr.Title, Subtitle: label, Date: ep.AirDate, ProfileName: p.Name,
+				LastSearch: seriesSearch, LastSearchAt: seriesSearchAt,
 			}
 			if kind == "cutoff" {
 				item.Quality, item.Cutoff = ep.Quality, string(p.Cutoff)

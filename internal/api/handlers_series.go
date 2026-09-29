@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,24 +14,33 @@ import (
 )
 
 type seriesPayload struct {
-	ID              int64  `json:"id"`
-	TMDBID          int    `json:"tmdbId"`
-	Title           string `json:"title"`
-	Year            int    `json:"year"`
-	Overview        string `json:"overview,omitempty"`
-	PosterURL       string `json:"posterUrl,omitempty"`
-	Monitored       bool   `json:"monitored"`
-	EpisodeCount    int    `json:"episodeCount"`
-	DownloadedCount int    `json:"downloadedCount"`
-	ProfileID       int64  `json:"profileId"`
-	Sources         string `json:"sources"`
+	ID              int64    `json:"id"`
+	TMDBID          int      `json:"tmdbId"`
+	Title           string   `json:"title"`
+	Year            int      `json:"year"`
+	Overview        string   `json:"overview,omitempty"`
+	PosterURL       string   `json:"posterUrl,omitempty"`
+	Monitored       bool     `json:"monitored"`
+	EpisodeCount    int      `json:"episodeCount"`
+	DownloadedCount int      `json:"downloadedCount"`
+	ProfileID       int64    `json:"profileId"`
+	Sources         string   `json:"sources"`
+	Genres          []string `json:"genres"`  // TMDB genre names; empty until fetched
+	AddedBy         *userRef `json:"addedBy"` // null when unknown
 }
 
-func toSeriesPayload(s library.Series) seriesPayload {
+// toSeriesPayload builds a library show's JSON; who resolves the account
+// that added it (see accountNames).
+func toSeriesPayload(s library.Series, who func(int64) *userRef) seriesPayload {
+	genres := s.Genres
+	if genres == nil {
+		genres = []string{}
+	}
 	return seriesPayload{
 		ID: s.ID, TMDBID: s.TMDBID, Title: s.Title, Year: s.Year, Overview: s.Overview,
 		PosterURL: metadata.PosterURL(s.PosterPath), Monitored: s.Monitored,
 		EpisodeCount: s.EpisodeCount, DownloadedCount: s.DownloadedCount, ProfileID: s.ProfileID, Sources: s.SourcePref,
+		Genres: genres, AddedBy: who(s.AddedBy),
 	}
 }
 
@@ -90,9 +100,10 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	who := s.accountNames()
 	out := make([]seriesPayload, len(list))
 	for i, sr := range list {
-		out[i] = toSeriesPayload(sr)
+		out[i] = toSeriesPayload(sr, who)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -117,7 +128,7 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	out := seriesDetailPayload{seriesPayload: toSeriesPayload(sr), Episodes: make([]episodePayload, len(eps))}
+	out := seriesDetailPayload{seriesPayload: toSeriesPayload(sr, s.accountNames()), Episodes: make([]episodePayload, len(eps))}
 	for i, e := range eps {
 		out.Episodes[i] = toEpisodePayload(e)
 	}
@@ -170,7 +181,8 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := s.addSeriesFromTMDB(r.Context(), req.TMDBID)
+	userID, byline := requester(r)
+	created, err := s.addSeriesFromTMDB(r.Context(), req.TMDBID, userID)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "add series from TMDB: "+err.Error())
 		return
@@ -191,14 +203,16 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 			created.SourcePref = req.Sources
 		}
 	}
-	_ = s.QueueRepo.LogActivity(0, "added", created.Title+" (series) added to library")
+	_ = s.QueueRepo.LogSeriesActivity(created.ID, "added", created.Title+" (series) added to library"+byline)
 	if req.SearchNow {
 		go s.searchSeriesInBackground(created.ID)
 	}
-	writeJSON(w, http.StatusCreated, toSeriesPayload(created))
+	writeJSON(w, http.StatusCreated, toSeriesPayload(created, s.accountNames()))
 }
 
-func (s *Server) addSeriesFromTMDB(ctx context.Context, tmdbID int) (library.Series, error) {
+// addSeriesFromTMDB adds a show with its episode list and genres, recording
+// userID (0 = unknown) as the account that added it.
+func (s *Server) addSeriesFromTMDB(ctx context.Context, tmdbID int, userID int64) (library.Series, error) {
 	detail, infos, err := s.TMDB().GetShowEpisodes(ctx, tmdbID)
 	if err != nil {
 		return library.Series{}, err
@@ -206,6 +220,7 @@ func (s *Server) addSeriesFromTMDB(ctx context.Context, tmdbID int) (library.Ser
 	return s.MovieRepo.AddSeries(library.Series{
 		TMDBID: detail.TMDBID, Title: detail.Name, Year: detail.Year(), Overview: detail.Overview,
 		PosterPath: detail.PosterPath, FirstAirDate: detail.FirstAirDate, Monitored: true,
+		AddedBy: userID, Genres: s.TMDB().ShowGenres(ctx, detail.Show),
 	}, toLibraryEpisodes(infos))
 }
 
@@ -244,13 +259,19 @@ func (s *Server) handleRefreshSeries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, toSeriesPayload(updated))
+	writeJSON(w, http.StatusOK, toSeriesPayload(updated, s.accountNames()))
 }
 
+// refreshSeries brings a show's episode list and genres up to date from TMDB.
 func (s *Server) refreshSeries(ctx context.Context, sr library.Series) error {
-	_, infos, err := s.TMDB().GetShowEpisodes(ctx, sr.TMDBID)
+	detail, infos, err := s.TMDB().GetShowEpisodes(ctx, sr.TMDBID)
 	if err != nil {
 		return err
+	}
+	if len(detail.Genres) > 0 || sr.Genres == nil {
+		if err := s.MovieRepo.SetSeriesGenres(sr.ID, s.TMDB().ShowGenres(ctx, detail.Show)); err != nil {
+			log.Printf("api: refresh %q genres: %v", sr.Title, err)
+		}
 	}
 	return s.MovieRepo.UpsertEpisodes(sr.ID, toLibraryEpisodes(infos), sr.Monitored)
 }
@@ -290,6 +311,9 @@ func (s *Server) handleGrabSeries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "releaseTitle and downloadUrl are required")
 		return
 	}
+	if !s.checkGrabURL(w, r, &req.DownloadURL) {
+		return
+	}
 	queueID, err := s.grabTVRelease(sr, req.Season, req.Episode, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol())
 	if err != nil {
 		writeGrabError(w, err, http.StatusBadRequest)
@@ -298,6 +322,12 @@ func (s *Server) handleGrabSeries(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]int64{"queueId": queueID})
 }
 
+// handleDeleteSeries removes a show from the library. Its downloads are
+// always cancelled and their files in the downloads folder deleted. With
+// ?deleteFiles=true its folder in the TV library goes too, with every
+// season, subtitle, .nfo and artwork (or, when the episodes do not sit in a
+// folder of the show's own, each episode file with the files named after
+// it).
 func (s *Server) handleDeleteSeries(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -320,16 +350,24 @@ func (s *Server) handleDeleteSeries(w http.ResponseWriter, r *http.Request) {
 	}
 	var files []string
 	for _, ep := range eps {
-		if ep.Status == library.StatusDownloading {
-			writeError(w, http.StatusConflict, "an episode is downloading right now — wait for it to finish or fail first")
-			return
-		}
 		if ep.FilePath != "" {
 			files = append(files, ep.FilePath)
 		}
 	}
-	if r.URL.Query().Get("deleteFiles") == "true" {
-		if err := removeFiles(files); err != nil {
+	deleteFiles := r.URL.Query().Get("deleteFiles") == "true"
+	if deleteFiles {
+		if err := checkRemovable(s.tvRoot(), files); err != nil {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		}
+	}
+	// Downloads are always cancelled and their working folders deleted.
+	if _, err := s.removeDownloadsFor(0, series.ID, series.Title); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if deleteFiles {
+		if err := s.removeSeriesFiles(series, files); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

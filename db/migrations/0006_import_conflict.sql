@@ -1,5 +1,5 @@
--- Phase 2/3: manual-import "always ask" conflict policy (PRD.md §4.8 —
--- "never delete/overwrite an existing file on a naming collision without
+-- Phase 2/3: manual-import "always ask" conflict policy
+-- ("never delete/overwrite an existing file on a naming collision without
 -- an explicit user-configured conflict policy: skip / overwrite if better
 -- quality / always ask"). When the policy is "ask" and a naming collision
 -- happens, the queue item parks in a new 'conflict' status with enough

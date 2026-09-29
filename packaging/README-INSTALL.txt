@@ -37,7 +37,7 @@ inside the Docker image and they will not exist on Windows or macOS):
   DOWNLOADS_DIR   contains incomplete/ and complete/
   MOVIES_DIR      movie library
   TV_DIR          TV library
-  APP_PORT        web UI port (default 8080)
+  APP_PORT        web UI port (default 8264)
 
 PUID, PGID and TZ are handled by the Docker entrypoint only. A native run
 runs as whoever starts it and uses the system timezone.
@@ -45,7 +45,7 @@ runs as whoever starts it and uses the system timezone.
 Keep DOWNLOADS_DIR, MOVIES_DIR and TV_DIR on the same drive/filesystem so
 imports can hardlink instead of copy.
 
-Then open http://localhost:8080 and follow the first-run wizard.
+Then open http://localhost:8264 and follow the first-run wizard.
 
 Files in this archive marked "UNTESTED" in docs/INSTALL.md (service files,
 installer scripts) have not been tried on real machines yet.

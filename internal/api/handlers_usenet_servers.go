@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ryanborg/mediarium/internal/download"
 )
@@ -105,15 +106,26 @@ func (s *Server) handleCreateUsenetServer(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusCreated, toUsenetServerPayload(created))
 }
 
-// handleUpdateUsenetServer edits a server. Leaving the password blank keeps
-// the stored one.
+// handleUpdateUsenetServer edits a server. Fields left out of the request
+// keep their saved values, and a blank or missing password keeps the stored
+// one, so an edit form can send only what changed.
 func (s *Server) handleUpdateUsenetServer(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid server id")
 		return
 	}
-	var req usenetServerPayload
+	stored, err := s.ClientRepo.Get(id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "server not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// Decoding over the saved values overwrites only the fields sent.
+	req := toUsenetServerPayload(stored)
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -209,6 +221,19 @@ type downloadsStatusPayload struct {
 		VPNRequired  bool   `json:"vpnRequired"`
 		VPNConnected bool   `json:"vpnConnected"`
 		BlockedByVPN bool   `json:"blockedByVpn"`
+		// Incoming connections. Listening is true while the engine runs
+		// (only while a torrent is downloading or seeding) and has a host port
+		// open; ActivePort is that port (it differs from ListenPort only when
+		// the chosen port was taken by another program). IncomingSeen is true
+		// once another peer has connected to us since the app started, which
+		// proves the port is reachable from the internet; LastIncomingAt says
+		// when (RFC 3339). With the VPN kill switch on nothing listens, so no
+		// incoming connection is ever seen.
+		Listening      bool   `json:"listening"`
+		ActivePort     int    `json:"activePort,omitempty"`
+		ActiveTorrents int    `json:"activeTorrents"`
+		IncomingSeen   bool   `json:"incomingSeen"`
+		LastIncomingAt string `json:"lastIncomingAt,omitempty"`
 	} `json:"torrent"`
 }
 
@@ -232,6 +257,12 @@ func (s *Server) handleDownloadsStatus(w http.ResponseWriter, r *http.Request) {
 	out.Usenet.Ready = out.Usenet.EnabledServers > 0
 
 	out.Torrent.ListenPort = s.torrentListenPort()
+	engine := s.torrents.status()
+	out.Torrent.Listening, out.Torrent.ActivePort, out.Torrent.ActiveTorrents = engine.Listening, engine.Port, engine.Torrents
+	if !engine.LastIncoming.IsZero() {
+		out.Torrent.IncomingSeen = true
+		out.Torrent.LastIncomingAt = engine.LastIncoming.UTC().Format(time.RFC3339)
+	}
 	out.Torrent.VPNRequired = s.vpnRequiredForTorrents()
 	out.Torrent.VPNConnected = s.VPNManager.Status().Connected
 	out.Torrent.BlockedByVPN = out.Torrent.VPNRequired && !out.Torrent.VPNConnected

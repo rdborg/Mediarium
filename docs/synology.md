@@ -35,10 +35,10 @@ In **Control Panel → Shared Folder**, create (or reuse existing) shared folder
 
 ## 3. First run
 
-Open `http://<synology-ip>:8080` and complete the first-run wizard (create admin account → library path → indexer → Usenet server (optional if you only use torrents) → naming preset).
+Open `http://<synology-ip>:8264` and complete the first-run wizard (create admin account → library path → indexer → Usenet server (optional if you only use torrents) → naming preset).
 
 ## Troubleshooting
 
 - **Permission errors on import:** the owning user of your shared folders needs to match `PUID`/`PGID`. Re-check with `id <username>` over SSH.
 - **Import falls back to "copy" instead of "hardlink":** confirm `mediarium-downloads` and `mediarium-movies` are on the same Synology volume (see step 1).
-- **Can't reach the web UI:** Synology's firewall (Control Panel → Security → Firewall) may block the port — add an allow rule for `8080` (or whatever `APP_PORT` you set), or reach it through Synology's reverse proxy instead.
+- **Can't reach the web UI:** Synology's firewall (Control Panel → Security → Firewall) may block the port — add an allow rule for `8264` (or whatever `APP_PORT` you set), or reach it through Synology's reverse proxy instead.

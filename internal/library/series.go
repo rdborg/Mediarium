@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 
-// Series is a TV show in the library. Metadata is keyed by TMDB id (PRD
-// §4.4 — TMDB covers movies and TV), not TVDB.
+// Series is a TV show in the library. Metadata is keyed by TMDB id (TMDB
+// covers movies and TV), not TVDB.
 type Series struct {
 	ID           int64
 	TMDBID       int
@@ -19,6 +19,9 @@ type Series struct {
 	Monitored    bool
 	ProfileID    int64  // quality profile; 0 = the default profile
 	SourcePref   string // "" = follow Settings; else usenet, torrent or both
+	AddedBy      int64  // account that added it; 0 = unknown
+	// Genres are TMDB genre names; nil means not fetched yet (as for Movie).
+	Genres []string
 
 	// Populated by GetSeries/ListSeries only, for the library views.
 	EpisodeCount    int
@@ -46,14 +49,18 @@ const seriesSelect = `
 	       COALESCE(s.first_air_date, ''), s.monitored,
 	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id),
 	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id AND e.status = 'downloaded'),
-	       COALESCE(s.profile_id, 0), s.source_pref
+	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres
 	FROM series s`
 
 func scanSeries(scan func(dest ...any) error) (Series, error) {
-	var s Series
-	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref); err != nil {
+	var (
+		s      Series
+		genres sql.NullString
+	)
+	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres); err != nil {
 		return Series{}, fmt.Errorf("scan series: %w", err)
 	}
+	s.Genres = decodeGenres(genres)
 	return s, nil
 }
 
@@ -67,9 +74,13 @@ func (r *Repo) AddSeries(s Series, episodes []Episode) (Series, error) {
 	}
 	defer tx.Rollback()
 
+	genres, err := encodeGenres(s.Genres)
+	if err != nil {
+		return Series{}, err
+	}
 	res, err := tx.Exec(
-		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored,
+		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres,
 	)
 	if err != nil {
 		return Series{}, fmt.Errorf("insert series: %w", err)

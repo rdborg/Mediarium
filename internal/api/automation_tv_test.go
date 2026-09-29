@@ -2,8 +2,12 @@ package api_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sort"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +20,7 @@ type tvAutoEnv struct {
 	baseURL  string
 	client   *http.Client
 	seriesID int64
+	release  func() // lets the fixture's release downloads answer
 }
 
 // episodeSpec seeds one episode: airDate "" means unannounced.
@@ -26,14 +31,53 @@ type episodeSpec struct {
 	quality         string
 }
 
+// newGatedTVIndexer is newTVIndexerWith whose release downloads (/nzb/...)
+// wait until release is called and then answer with nzbStatus/nzbBody. While
+// the gate is shut every grabbed pipeline is still "downloading", so a test
+// sees exactly what one automation run queued, whatever the timing; and a
+// 404 afterwards fails the download without blaming the release, so no
+// automatic retry queues anything else.
+func newGatedTVIndexer(t *testing.T, titles []string, nzbStatus int, nzbBody string) (srv *httptest.Server, release func()) {
+	t.Helper()
+	gate := make(chan struct{})
+	var once sync.Once
+	release = func() { once.Do(func() { close(gate) }) }
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/nzb/") {
+			<-gate
+			w.WriteHeader(nzbStatus)
+			fmt.Fprint(w, nzbBody)
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		var b strings.Builder
+		b.WriteString(`<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>`)
+		for i, title := range titles {
+			fmt.Fprintf(&b, `<item><title>%s</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="1000" type="application/x-nzb"/><newznab:attr name="size" value="1000"/><newznab:attr name="category" value="5000"/></item>`,
+				title, i, r.Host, i)
+		}
+		b.WriteString(`</channel></rss>`)
+		fmt.Fprint(w, b.String())
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(release) // runs first: Close waits for the blocked downloads
+	return srv, release
+}
+
 func newTVAutoEnv(t *testing.T, titles []string, specs []episodeSpec) *tvAutoEnv {
+	t.Helper()
+	return newTVAutoEnvWith(t, titles, specs, http.StatusNotFound, "")
+}
+
+func newTVAutoEnvWith(t *testing.T, titles []string, specs []episodeSpec, nzbStatus int, nzbBody string) *tvAutoEnv {
 	t.Helper()
 	server, httpSrv, client := newHuntTestServer(t)
 	postJSON[map[string]any](t, client, httpSrv.URL+"/api/onboarding/admin", map[string]string{
 		"username": "ryan", "password": "correct-horse-battery-staple", "firstName": "Ryan", "lastName": "Tester",
 	}, http.StatusCreated)
+	indexer, release := newGatedTVIndexer(t, titles, nzbStatus, nzbBody)
 	postJSON[map[string]any](t, client, httpSrv.URL+"/api/indexers", map[string]any{
-		"name": "TV Indexer", "definitionId": "fixture", "baseUrl": newTVIndexerWith(t, titles).URL, "apiKey": "k",
+		"name": "TV Indexer", "definitionId": "fixture", "baseUrl": indexer.URL, "apiKey": "k",
 	}, http.StatusCreated)
 
 	var eps []library.Episode
@@ -57,61 +101,49 @@ func newTVAutoEnv(t *testing.T, titles []string, specs []episodeSpec) *tvAutoEnv
 			}
 		}
 	}
-	return &tvAutoEnv{server: server, baseURL: httpSrv.URL, client: client, seriesID: series.ID}
+	return &tvAutoEnv{server: server, baseURL: httpSrv.URL, client: client, seriesID: series.ID, release: release}
 }
 
-// grabbedTitles waits for at least want queue items (or the short grace
-// period when want is 0), then for every item to reach a terminal state so
-// no pipeline goroutine outlives the test's DB, and returns the release
-// titles sorted.
-func (e *tvAutoEnv) grabbedTitles(t *testing.T, want int) []string {
+// queued returns the queue as it is now, oldest first. Automation runs queue
+// their grabs before returning, and the fixture holds every download until
+// release, so this is exactly what the runs so far have grabbed.
+func (e *tvAutoEnv) queued(t *testing.T) []map[string]any {
 	t.Helper()
-	if want == 0 {
-		time.Sleep(300 * time.Millisecond)
-	}
-	deadline := time.Now().Add(10 * time.Second)
-	var list []map[string]any
-	for time.Now().Before(deadline) {
-		list = getJSON[[]map[string]any](t, e.client, e.baseURL+"/api/queue")
-		done := len(list) >= want
-		for _, it := range list {
-			if s, _ := it["status"].(string); s != "completed" && s != "failed" {
-				done = false
-			}
-		}
-		if done {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	list := getJSON[[]map[string]any](t, e.client, e.baseURL+"/api/queue")
+	sort.Slice(list, func(i, j int) bool { return list[i]["id"].(float64) < list[j]["id"].(float64) })
+	return list
+}
+
+// grabbedTitles returns the release titles queued so far, sorted.
+func (e *tvAutoEnv) grabbedTitles(t *testing.T) []string {
+	t.Helper()
 	var titles []string
-	for _, it := range list {
+	for _, it := range e.queued(t) {
 		titles = append(titles, it["releaseTitle"].(string))
 	}
 	sort.Strings(titles)
 	return titles
 }
 
-// firstGrabbedTitle waits for the first queue item and returns its release
-// title: the oldest entry, whatever the retry logic queued after it.
-func (e *tvAutoEnv) firstGrabbedTitle(t *testing.T) string {
+// finish lets the held downloads answer and waits until every pipeline and
+// automatic retry has run its course.
+func (e *tvAutoEnv) finish(t *testing.T) {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		list := getJSON[[]map[string]any](t, e.client, e.baseURL+"/api/queue")
-		if len(list) > 0 {
-			oldest := list[0]
-			for _, it := range list {
-				if it["id"].(float64) < oldest["id"].(float64) {
-					oldest = it
-				}
-			}
-			return oldest["releaseTitle"].(string)
-		}
-		time.Sleep(20 * time.Millisecond)
+	e.release()
+	waitBackground(t, e.server)
+}
+
+func (e *tvAutoEnv) episodeStatuses(t *testing.T) map[string]library.Status {
+	t.Helper()
+	eps, err := e.server.MovieRepo.ListEpisodes(e.seriesID)
+	if err != nil {
+		t.Fatalf("list episodes: %v", err)
 	}
-	t.Fatal("nothing was grabbed")
-	return ""
+	out := map[string]library.Status{}
+	for _, ep := range eps {
+		out[fmt.Sprintf("S%02dE%02d", ep.Season, ep.Episode)] = ep.Status
+	}
+	return out
 }
 
 func requireTitles(t *testing.T, got []string, want ...string) {
@@ -137,14 +169,79 @@ const (
 	otherE01 = "Other.Show.S01E01.1080p.BluRay.x264-GRP"
 )
 
+var wholeSeasonMissing = []episodeSpec{
+	{1, 1, "2020-01-01", library.StatusMissing, ""},
+	{1, 2, "2020-01-08", library.StatusMissing, ""},
+	{1, 3, "2020-01-15", library.StatusMissing, ""},
+}
+
 func TestHuntTVGrabsSeasonPackWhenWholeSeasonMissing(t *testing.T) {
-	env := newTVAutoEnv(t, []string{s1e1WEB, s1e2WEB, sPack, otherE01}, []episodeSpec{
-		{1, 1, "2020-01-01", library.StatusMissing, ""},
-		{1, 2, "2020-01-08", library.StatusMissing, ""},
-		{1, 3, "2020-01-15", library.StatusMissing, ""},
-	})
+	env := newTVAutoEnv(t, []string{s1e1WEB, s1e2WEB, sPack, otherE01}, wholeSeasonMissing)
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 1), sPack)
+	requireTitles(t, env.grabbedTitles(t), sPack)
+
+	// The pack claims every episode it will deliver the moment it is grabbed.
+	for ep, status := range env.episodeStatuses(t) {
+		if status != library.StatusDownloading {
+			t.Fatalf("%s is %q right after the pack was grabbed, want downloading", ep, status)
+		}
+	}
+
+	// Later runs while the pack is still downloading leave its episodes alone.
+	env.server.TestHunt(context.Background())
+	env.server.TestRSSSync(context.Background())
+	requireTitles(t, env.grabbedTitles(t), sPack)
+
+	env.finish(t)
+	requireTitles(t, env.grabbedTitles(t), sPack)
+	for ep, status := range env.episodeStatuses(t) {
+		if status != library.StatusMissing {
+			t.Fatalf("%s is %q after the pack's download failed, want missing again", ep, status)
+		}
+	}
+}
+
+// TestTVAutomationRunsThatOverlapGrabOnce runs the hunt and RSS sync at the
+// same time, many times over: whichever claims the season first grabs the
+// pack, and the other must not grab it again or any of its episodes.
+func TestTVAutomationRunsThatOverlapGrabOnce(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		env := newTVAutoEnv(t, []string{s1e1WEB, s1e2WEB, sPack, otherE01}, wholeSeasonMissing)
+		var wg sync.WaitGroup
+		for _, run := range []func(context.Context){env.server.TestHunt, env.server.TestRSSSync, env.server.TestHunt} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				run(context.Background())
+			}()
+		}
+		wg.Wait()
+		requireTitles(t, env.grabbedTitles(t), sPack)
+		env.finish(t)
+	}
+}
+
+// TestHuntTVFallsBackToEpisodesWhenThePackIsBad covers the one case where
+// single episodes follow a pack: the pack itself turned out to be unusable,
+// was blocklisted, and the automatic retry looks for something else. The
+// episodes are grabbed only after the pack has failed, never alongside it.
+func TestHuntTVFallsBackToEpisodesWhenThePackIsBad(t *testing.T) {
+	env := newTVAutoEnvWith(t, []string{s1e1WEB, s1e2WEB, sPack, otherE01}, wholeSeasonMissing, http.StatusOK, "this is not an nzb")
+	env.server.TestHunt(context.Background())
+	requireTitles(t, env.grabbedTitles(t), sPack)
+
+	env.finish(t)
+	items := env.queued(t)
+	if len(items) == 0 || items[0]["releaseTitle"] != sPack {
+		t.Fatalf("the pack must be the first grab: %+v", items)
+	}
+	requireTitles(t, env.grabbedTitles(t), sPack, s1e1WEB, s1e2WEB)
+	packDone := items[0]["completedAt"].(string)
+	for _, it := range items[1:] {
+		if added := it["addedAt"].(string); added < packDone {
+			t.Fatalf("%s was grabbed at %s, before the pack failed at %s", it["releaseTitle"], added, packDone)
+		}
+	}
 }
 
 func TestHuntTVGrabsEpisodeNotPackWhenSeasonPartiallyDownloaded(t *testing.T) {
@@ -153,7 +250,8 @@ func TestHuntTVGrabsEpisodeNotPackWhenSeasonPartiallyDownloaded(t *testing.T) {
 		{2, 2, "2021-01-08", library.StatusDownloaded, "WEBDL-1080p"},
 	})
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 1), s2e1WEB)
+	requireTitles(t, env.grabbedTitles(t), s2e1WEB)
+	env.finish(t)
 }
 
 func TestHuntTVSkipsUnairedEpisodes(t *testing.T) {
@@ -163,7 +261,8 @@ func TestHuntTVSkipsUnairedEpisodes(t *testing.T) {
 		{1, 2, "", library.StatusMissing, ""},
 	})
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 0))
+	env.finish(t)
+	requireTitles(t, env.grabbedTitles(t))
 }
 
 func TestRSSSyncTVGrabsMissingEpisode(t *testing.T) {
@@ -172,7 +271,8 @@ func TestRSSSyncTVGrabsMissingEpisode(t *testing.T) {
 		{1, 2, "2020-01-08", library.StatusMissing, ""},
 	})
 	env.server.TestRSSSync(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 1), s1e2WEB)
+	requireTitles(t, env.grabbedTitles(t), s1e2WEB)
+	env.finish(t)
 }
 
 func TestHuntTVUpgradesDownloadedEpisodeBelowCutoff(t *testing.T) {
@@ -180,11 +280,11 @@ func TestHuntTVUpgradesDownloadedEpisodeBelowCutoff(t *testing.T) {
 		{1, 1, "2020-01-01", library.StatusDownloaded, "WEBDL-1080p"},
 	})
 	env.server.TestHunt(context.Background())
-	// The fixture's NZB is not a real NZB, so the grab fails and the automatic
-	// retry may go on to queue the next release. What this test is about is which
-	// release the hunt itself picked first.
-	if got := env.firstGrabbedTitle(t); got != s1e1Blu {
-		t.Fatalf("hunt grabbed %q first, want the upgrade %q", got, s1e1Blu)
+	requireTitles(t, env.grabbedTitles(t), s1e1Blu)
+	env.finish(t)
+	// The upgrade's download failed: the episode still has its old file.
+	if got := env.episodeStatuses(t)["S01E01"]; got != library.StatusDownloaded {
+		t.Fatalf("after a failed upgrade the episode is %q, want downloaded", got)
 	}
 }
 
@@ -193,5 +293,6 @@ func TestHuntTVLeavesEpisodeAtCutoffAlone(t *testing.T) {
 		{1, 1, "2020-01-01", library.StatusDownloaded, "Bluray-1080p"},
 	})
 	env.server.TestHunt(context.Background())
-	requireTitles(t, env.grabbedTitles(t, 0))
+	env.finish(t)
+	requireTitles(t, env.grabbedTitles(t))
 }

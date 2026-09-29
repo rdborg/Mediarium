@@ -1,9 +1,9 @@
 // Package automation provides a generic interval-based background job
-// runner (PRD.md §7 Phase 2 — "RSS sync + scheduled automatic search/
+// runner ("RSS sync + scheduled automatic search/
 // grab", "missing/upgrade hunting loop"). It deliberately knows nothing
 // about indexers, movies, or grabbing — internal/api wires the actual
 // hunt/RSS logic in as a plain func() so this package stays a reusable,
-// easily-testable ticker, matching CLAUDE.md's package-boundary rule
+// easily-testable ticker, matching the project's package-boundary rule
 // (this package shouldn't import the feature packages it schedules work
 // for).
 package automation

@@ -1,5 +1,5 @@
 // Thin typed wrapper around the REST API in internal/api. Session auth is
-// a plain HTTP-only cookie (PRD §5.1), so every call just needs
+// a plain HTTP-only cookie, so every call just needs
 // credentials: 'include' — no token to manage client-side.
 
 const BASE = '/api'
@@ -20,7 +20,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  let data: { error?: string } | null = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    // Not JSON (for example a plain "404 page not found"): report the status instead of a parser error.
+    if (res.ok) throw new ApiError(res.status, 'The server sent an unexpected reply.')
+    throw new ApiError(res.status, res.status === 404 ? 'not available in this version yet' : `request failed with status ${res.status}`)
+  }
   if (!res.ok) {
     throw new ApiError(res.status, data?.error ?? `request failed with status ${res.status}`)
   }
@@ -38,12 +45,50 @@ export interface OnboardingStatus {
   firstRunNeeded: boolean
 }
 
+export type Role = 'admin' | 'member'
+
 export interface User {
   id: number
   username: string
   isAdmin?: boolean
+  role?: Role
   name?: string
   email?: string
+}
+
+// True for administrators. Older servers sent only isAdmin, and a missing
+// role is treated as admin so nothing disappears for a single-account setup.
+export function isAdmin(u: User | null | undefined): boolean {
+  if (!u) return false
+  if (u.role) return u.role === 'admin'
+  return u.isAdmin !== false
+}
+
+// An account as the administrator's account list shows it.
+export interface Account {
+  id: number
+  username: string
+  name: string
+  email: string
+  role: Role
+  isAdmin: boolean
+  createdAt: string
+  lastLoginAt: string | null
+}
+
+export interface NewAccount {
+  username: string
+  password: string
+  name?: string
+  email?: string
+  role: Role
+}
+
+export interface AccountChanges {
+  name?: string
+  email?: string
+  role?: Role
+  password?: string
 }
 
 // The name to greet someone by: their name, or their username when no name is set.
@@ -80,6 +125,9 @@ export interface Settings {
   hasOpenSubtitlesAccount?: boolean
   openSubtitlesAccountName?: string
   tmdbKeyBuiltIn?: boolean
+  tmdbUsingOwnKey?: boolean
+  openSubtitlesUsingOwnKey?: boolean
+  traktUsingOwnKey?: boolean
   openSubtitlesKeyBuiltIn?: boolean
   traktClientIdBuiltIn?: boolean
   subtitleLanguages?: string[]
@@ -89,6 +137,9 @@ export interface Settings {
   requireVpnForTorrents?: boolean
   importConflictPolicy?: string
   torrentEnabled?: boolean
+  flareSolverrUrl?: string
+  cleanupAuto?: boolean
+  historyRetentionDays?: number
   legalAcknowledgedAt?: string
 }
 
@@ -99,6 +150,30 @@ export interface IndexerConfig {
   baseUrl: string
   protocol: 'usenet' | 'torrent'
   enabled: boolean
+  kind?: 'torznab' | 'newznab' | 'cardigann'
+  lastTestError?: string
+  lastTestAt?: string
+}
+
+export interface IndexerDefinitionSetting {
+  name: string
+  label?: string
+  type: string
+  default?: string | boolean | number | null
+  options?: { value: string; label: string }[]
+}
+
+export interface IndexerDefinition {
+  id: string
+  name: string
+  description?: string
+  type: 'public' | 'semi-private' | 'private' | string
+  language?: string
+  protocol: 'torrent' | 'usenet'
+  links?: string[]
+  settings?: IndexerDefinitionSetting[]
+  supported?: boolean
+  problem?: string
 }
 
 export interface UsenetServer {
@@ -148,6 +223,8 @@ export interface SearchResult {
   episodes?: number[]
   blocklisted?: boolean
   rejections?: string[]
+  // Which profile would take this release: the title's own, or one of its fallbacks.
+  acceptedBy?: { profileId: number; profileName: string; fallback: boolean }
 }
 
 export type MediaStatus = 'missing' | 'downloading' | 'downloaded'
@@ -165,6 +242,8 @@ export interface QualityProfileInput {
   mustContain: string[]
   mustNotContain: string[]
   preferred: PreferredTerm[]
+  // Profiles to try, in order, when this one finds nothing acceptable.
+  fallback?: number[]
 }
 
 export interface QualityProfile extends QualityProfileInput {
@@ -214,6 +293,7 @@ export interface Series {
   monitored: boolean
   episodeCount: number
   downloadedCount: number
+  genres?: string[]
 }
 
 export interface Episode {
@@ -247,6 +327,8 @@ export interface WantedItem {
   quality?: string
   cutoff?: string
   profileName?: string
+  lastSearch?: string
+  lastSearchAt?: string
 }
 
 export interface Movie {
@@ -262,6 +344,7 @@ export interface Movie {
   status: 'missing' | 'downloading' | 'downloaded'
   quality?: string
   filePath?: string
+  genres?: string[]
 }
 
 export interface QueueItem {
@@ -308,6 +391,107 @@ export interface DiscoverMovie {
   rating?: number
   voteCount?: number
   mediaType?: 'movie' | 'tv'
+  releaseDate?: string // YYYY-MM-DD, release or first air date
+}
+
+// What the clean-up would remove from the downloads area.
+export interface CleanupReport {
+  reclaimableBytes: number
+  items: { path: string; sizeBytes: number; reason: string }[]
+  lastRunAt?: string
+  auto: boolean
+}
+
+// One entry in a title's activity log.
+export interface TitleEvent {
+  at: string
+  kind: string
+  message: string
+  level: 'info' | 'warn' | 'error'
+}
+
+// A file in a title's folder on disk (paths are relative to that folder).
+export interface TitleFile {
+  path: string
+  size: number
+  modified: string
+  kind: 'video' | 'subtitle' | 'image' | 'nfo' | 'other'
+  main: boolean // one of the files the library tracks
+  episodeId?: number
+}
+
+// A Plex, Jellyfin or Emby server Mediarium tells about new files.
+export type MediaServerKind = 'plex' | 'jellyfin' | 'emby'
+
+export interface PathMapping {
+  from: string // path as Mediarium sees it, e.g. /movies
+  to: string // the same folder as the media server sees it, e.g. /data/movies
+}
+
+export interface MediaServer {
+  id: number
+  name: string
+  kind: MediaServerKind
+  baseUrl: string
+  publicUrl: string
+  webUrl: string
+  hasToken: boolean
+  enabled: boolean
+  refreshAfterImport: boolean
+  pathMap: PathMapping[]
+  machineIdentifier?: string
+  lastError?: string
+  lastCheckedAt?: string
+}
+
+export interface MediaServerInput {
+  name?: string
+  kind: MediaServerKind
+  baseUrl: string
+  token?: string
+  publicUrl?: string
+  enabled?: boolean
+  refreshAfterImport?: boolean
+  pathMap?: PathMapping[]
+}
+
+export interface MediaServerTest {
+  ok: boolean
+  error?: string
+  serverName?: string
+  version?: string
+  machineIdentifier?: string
+  libraries?: { id: string; title: string; type: string; locations: string[] }[]
+}
+
+export interface FoundMediaServer {
+  kind: MediaServerKind
+  name: string
+  address: string
+  version?: string
+  id?: string
+  alreadyAdded: boolean
+  via: 'broadcast' | 'scan'
+}
+
+export interface PlexAccountServer {
+  name: string
+  machineIdentifier: string
+  version?: string
+  owned: boolean
+  alreadyAdded: boolean
+  connections: { uri: string; local: boolean }[]
+}
+
+export type PlexPinState = { done: false; expired?: boolean; error?: string } | { done: true; servers: PlexAccountServer[] }
+export type QuickConnectState = { done: false; code?: string; expired?: boolean; error?: string } | { done: true; server: MediaServer }
+
+export interface WatchLink {
+  serverId: number
+  name: string
+  kind: MediaServerKind
+  url: string
+  appUrl?: string
 }
 
 export interface Trailer {
@@ -370,7 +554,24 @@ export interface MovieDetail extends TitleDetails {
   filePath?: string
 }
 
+export interface SubtitleQuota {
+  hasKey: boolean
+  hasAccount: boolean
+  limit: number
+  used: number
+  remaining: number
+  windowHours: number
+  resetsAt: string | null
+  source: 'reported' | 'estimated'
+  missingItems: number
+  missingFiles: number
+  daysToFinish: number
+  message: string
+  exceeded: boolean
+}
+
 export interface SubtitleWanted {
+  dismissed?: boolean
   kind: 'movie' | 'episode'
   id: number
   tmdbId?: number
@@ -590,16 +791,25 @@ export const api = {
   createAPIKey: (name: string) => post<APIKey>('/auth/api-keys', { name }),
   revokeAPIKey: (id: number) => del<null>(`/auth/api-keys/${id}`),
 
+  // Accounts (administrators only).
+  listAccounts: () => get<Account[]>('/users'),
+  createAccount: (data: NewAccount) => post<Account>('/users', data),
+  updateAccountById: (id: number, data: AccountChanges) => put<Account>(`/users/${id}`, data),
+  deleteAccount: (id: number) => del<null>(`/users/${id}`),
+
   getSettings: () => get<Settings>('/settings'),
   putSettings: (partial: Partial<Settings> & { legalAcknowledged?: boolean; tmdbApiKey?: string; openSubtitlesApiKey?: string; openSubtitlesUsername?: string; openSubtitlesPassword?: string }) => put<Settings>('/settings', partial),
 
   listIndexers: () => get<IndexerConfig[]>('/indexers'),
-  createIndexer: (data: { name: string; definitionId: string; baseUrl: string; apiKey: string; protocol?: 'usenet' | 'torrent' }) =>
+  indexerDefinitions: (refresh = false) =>
+    get<{ updatedAt?: string; source?: string; licence?: string; definitions: IndexerDefinition[] }>(`/indexer-definitions${refresh ? '?refresh=1' : ''}`),
+  createIndexer: (data: { name: string; definitionId: string; baseUrl: string; apiKey: string; protocol?: 'usenet' | 'torrent'; settings?: Record<string, string> }) =>
     post<IndexerConfig>('/indexers', data),
   deleteIndexer: (id: number) => del<null>(`/indexers/${id}`),
   testIndexerConfig: (data: { name: string; baseUrl: string; apiKey: string }) =>
     post<{ ok: boolean; message: string }>('/indexers/test', data),
   testIndexer: (id: number) => post<{ ok: boolean; message: string }>(`/indexers/${id}/test`),
+  updateIndexer: (id: number, data: { name?: string; baseUrl?: string; apiKey?: string; enabled?: boolean }) => put<IndexerConfig>(`/indexers/${id}`, data),
   setIndexerEnabled: (id: number, enabled: boolean) => put<null>(`/indexers/${id}/enabled`, { enabled }),
 
   listUsenetServers: () => get<UsenetServer[]>('/usenet-servers'),
@@ -634,7 +844,12 @@ export const api = {
   searchEpisodeSubtitles: (id: number, lang: string) => get<SubtitleResult[]>(`/episodes/${id}/subtitles?lang=${encodeURIComponent(lang)}`),
   downloadEpisodeSubtitle: (id: number, fileId: number, language: string) =>
     post<{ path: string }>(`/episodes/${id}/subtitles/download`, { fileId, language }),
-  subtitlesWanted: () => get<SubtitleWanted[]>('/subtitles/wanted'),
+  subtitlesWanted: (includeDismissed = false) => get<SubtitleWanted[]>(`/subtitles/wanted${includeDismissed ? '?includeDismissed=1' : ''}`),
+  subtitleQuota: () => get<SubtitleQuota>('/subtitles/quota'),
+  subtitlesGet: (data: { items?: { kind: string; id: number }[]; all?: boolean }) =>
+    post<{ downloaded: number; stopped: boolean; skipped: number; message: string; quota: SubtitleQuota }>('/subtitles/get', data),
+  dismissSubtitles: (items: { kind: string; id: number }[]) => post<null>('/subtitles/dismiss', { items }),
+  undismissSubtitles: (items: { kind: string; id: number }[]) => request<null>('/subtitles/dismiss', { method: 'DELETE', body: JSON.stringify({ items }) }),
   subtitleSweep: () => post<{ downloaded: number; message: string }>('/subtitles/sweep'),
   searchSubtitles: (movieId: number, lang = 'en') => get<SubtitleResult[]>(`/movies/${movieId}/subtitles?lang=${lang}`),
   downloadSubtitle: (movieId: number, fileId: number, language = 'en') =>
@@ -687,6 +902,36 @@ export const api = {
   discoverPopularTV: () => get<DiscoverMovie[]>('/discover/tv/popular'),
   importList: (listUrl: string) => get<DiscoverMovie[]>(`/discover/import-list?url=${encodeURIComponent(listUrl)}`),
   discoverForYou: () => get<DiscoverMovie[]>('/discover/for-you'),
+  listMediaServers: () => get<MediaServer[]>('/media-servers'),
+  createMediaServer: (data: MediaServerInput) => post<MediaServer>('/media-servers', data),
+  updateMediaServer: (id: number, data: Partial<MediaServerInput>) => put<MediaServer>(`/media-servers/${id}`, data),
+  deleteMediaServer: (id: number) => del<null>(`/media-servers/${id}`),
+  testMediaServerConfig: (data: MediaServerInput & { id?: number }) => post<MediaServerTest>('/media-servers/test', data),
+  testMediaServer: (id: number) => post<MediaServerTest>(`/media-servers/${id}/test`),
+  refreshMediaServer: (id: number) => post<{ ok: boolean; error?: string }>(`/media-servers/${id}/refresh`),
+  discoverMediaServers: (subnets?: string[]) => post<{ found: FoundMediaServer[]; scanned: string[]; note?: string }>('/media-servers/discover', subnets && subnets.length ? { subnets } : {}),
+  plexPin: () => post<{ pinId: number; code: string; authUrl: string; expiresIn: number }>('/media-servers/plex/pin'),
+  plexPinStatus: (pinId: number) => get<PlexPinState>(`/media-servers/plex/pin/${pinId}`),
+  plexPinAdd: (pinId: number, machineIdentifier: string, uri?: string) => post<MediaServer>(`/media-servers/plex/pin/${pinId}/add`, { machineIdentifier, uri }),
+  jellyfinQuickConnect: (baseUrl: string) => post<{ id: string; code: string; expiresIn: number }>('/media-servers/jellyfin/quickconnect', { baseUrl }),
+  jellyfinQuickConnectStatus: (id: string) => get<QuickConnectState>(`/media-servers/jellyfin/quickconnect/${id}`),
+  mediaServerLogin: (data: { kind: 'jellyfin' | 'emby'; baseUrl: string; username: string; password: string }) => post<MediaServer>('/media-servers/login', data),
+  watchLinks: (tmdbId: number, kind: 'movie' | 'tv') => get<WatchLink[]>(`/media-servers/links?tmdbId=${tmdbId}&kind=${kind}`),
+  mediaServerHomes: () => get<WatchLink[]>('/media-servers/links'),
+  cleanupReport: () => get<CleanupReport>('/system/cleanup'),
+  runCleanup: () => post<{ removedBytes: number; removed?: unknown[]; prunedQueueItems?: number; prunedActivity?: number; errors?: unknown }>('/system/cleanup'),
+  movieEvents: (id: number) => get<TitleEvent[]>(`/movies/${id}/events`),
+  seriesEvents: (id: number) => get<TitleEvent[]>(`/series/${id}/events`),
+  movieFiles: (id: number) => get<{ folder: string; files: TitleFile[] }>(`/movies/${id}/files`),
+  seriesFiles: (id: number) => get<{ folder: string; files: TitleFile[] }>(`/series/${id}/files`),
+  streamUrl: (kind: 'movie' | 'series', id: number, path: string) => `/api/files/stream?${kind}=${id}&path=${encodeURIComponent(path)}`,
+  discoverList: (kind: 'movie' | 'tv', list: 'trending' | 'popular' | 'upcoming', page = 1) =>
+    get<{ page: number; totalPages: number; totalResults?: number; results: DiscoverMovie[] }>(`/discover/list?kind=${kind}&list=${list}&page=${page}`),
+  discoverGenres: (kind: 'movie' | 'tv') => get<{ id: number; name: string }[]>(`/discover/genres?kind=${kind}`),
+  discoverBrowse: (q: { kind: 'movie' | 'tv'; genre?: string; yearFrom?: string; yearTo?: string; sort?: string; page?: number }) =>
+    get<{ page: number; totalPages: number; results: DiscoverMovie[] }>(
+      `/discover/browse?${new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString()}`,
+    ),
 
   listVPNConfigs: () => get<VPNConfig[]>('/vpn/configs'),
   createVPNConfig: (data: {

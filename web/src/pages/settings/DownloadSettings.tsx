@@ -8,6 +8,8 @@ import TestButton from '../../components/TestButton'
 import { useToast } from '../../components/Toast'
 import { useAutosaveSetting } from '../../useAutosave'
 import TorrentSection from './TorrentSection'
+import { useLive } from '../../useLive'
+import { useConfirm } from '../../components/ConfirmProvider'
 
 // Downloads: Mediarium downloads for itself. Usenet needs only your
 // provider's news-server account; torrents need nothing at all. There is no
@@ -24,11 +26,25 @@ export default function DownloadSettings() {
     api.getSettings().then(setSettings).catch(() => undefined)
   }, [])
   useEffect(loadStatus, [loadStatus])
+  useLive(loadStatus, 10000)
   useEffect(loadSettings, [loadSettings])
 
   const torrentEnabled = settings?.torrentEnabled !== false
   const usenetOnly = settings?.defaultSources === 'usenet'
   const torrentOff = !torrentEnabled
+
+  // One click from a blurred section's notice: which sources to use.
+  async function useSources(value: 'both' | 'usenet' | 'torrent') {
+    try {
+      const saved = await api.putSettings({ defaultSources: value, torrentEnabled: value !== 'usenet' })
+      setSettings(saved)
+      toast.success(value === 'both' ? 'Now downloading from Usenet and torrents.' : value === 'usenet' ? 'Now downloading from Usenet only.' : 'Now downloading from torrents only.')
+      loadStatus()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+  const torrentOnly = settings?.defaultSources === 'torrent'
 
   async function setTorrentEnabled(v: boolean) {
     try {
@@ -48,6 +64,7 @@ export default function DownloadSettings() {
           <Icon name="download" size={14} /> Where to download from
         </legend>
         <DefaultSourcesCard
+          key={settings?.defaultSources ?? 'loading'}
           onChanged={async (value) => {
             // Choosing Usenet only also switches the torrent client off, and choosing torrents back on again.
             const wantTorrent = value !== 'usenet'
@@ -57,11 +74,22 @@ export default function DownloadSettings() {
         />
       </fieldset>
 
-      <fieldset className="group usenet">
+      <div className="half-cols span-all">
+      <fieldset className={`group usenet${torrentOnly ? ' section-off' : ''}`}>
         <legend>
           <Icon name="server" size={14} /> Usenet (NZB)
         </legend>
-        <div className="group-cols">
+        {torrentOnly && (
+          <SectionOffNotice
+            title="Usenet is not in use"
+            text="You download from torrents only, so Usenet servers and indexers are skipped."
+            actions={[
+              ['Use Usenet too', () => void useSources('both')],
+              ['Usenet only', () => void useSources('usenet')],
+            ]}
+          />
+        )}
+        <div className="stack-cols section-body">
           <section className="card">
             <h2>
               Downloader <span className="badge downloaded">built in</span>{' '}
@@ -76,10 +104,21 @@ export default function DownloadSettings() {
         </div>
       </fieldset>
 
-      <fieldset className={`group torrent${torrentOff ? ' disabled' : ''}`}>
+      <fieldset className={`group torrent${torrentOff ? ' disabled section-off' : ''}`}>
         <legend>
           <Icon name="magnet" size={14} /> Torrents
         </legend>
+        {torrentOff && (
+          <SectionOffNotice
+            title="Torrents are switched off"
+            text={usenetOnly ? 'You download from Usenet only, so the torrent client is stopped and torrent indexers are skipped.' : 'The torrent client is stopped and torrent indexers are skipped.'}
+            actions={[
+              ['Use torrents too', () => void useSources('both')],
+              ['Torrents only', () => void useSources('torrent')],
+            ]}
+          />
+        )}
+        <div className="section-body">
         <Switch
           checked={torrentEnabled}
           onChange={(v) => void setTorrentEnabled(v)}
@@ -87,7 +126,7 @@ export default function DownloadSettings() {
           description={usenetOnly ? 'You chose Usenet only, so this is off. Turn it on if you also want torrents.' : 'Turn this off if you only use Usenet. The client stops and no torrents are searched or downloaded.'}
         />
         <fieldset disabled={torrentOff} className="plain-fieldset">
-          <div className="group-cols" style={{ marginTop: 14 }}>
+          <div className="stack-cols" style={{ marginTop: 14 }}>
             <section className="card">
               <h2>
                 Client <span className="badge downloaded">built in</span>{' '}
@@ -115,7 +154,9 @@ export default function DownloadSettings() {
             <TorrentSection />
           </div>
         </fieldset>
+        </div>
       </fieldset>
+      </div>
     </div>
   )
 }
@@ -157,11 +198,29 @@ function DefaultSourcesCard({ onChanged }: { onChanged: (value: string) => void 
   )
 }
 
+// Shown over a blurred Usenet or torrent section that is not in use.
+function SectionOffNotice({ title, text, actions }: { title: string; text: string; actions: [string, () => void][] }) {
+  return (
+    <div className="section-off-notice" role="note">
+      <strong>{title}</strong>
+      <p>{text}</p>
+      <div className="row-actions">
+        {actions.map(([label, run], i) => (
+          <button key={label} className={i === 0 ? 'primary' : ''} onClick={run}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function serverLabel(s: UsenetServer): string {
   return s.priority === 0 ? 'Primary' : `Backup ${s.priority}`
 }
 
 function UsenetServersSection({ onChange }: { onChange: () => void }) {
+  const confirm = useConfirm()
   const [servers, setServers] = useState<UsenetServer[] | null>(null)
   const [editing, setEditing] = useState<UsenetServerDraft | null>(null)
   const toast = useToast()
@@ -175,6 +234,7 @@ function UsenetServersSection({ onChange }: { onChange: () => void }) {
     onChange()
   }, [onChange])
   useEffect(reload, [reload])
+  useLive(reload, 15000)
 
   async function save(d: UsenetServerDraft) {
     setError('')
@@ -210,7 +270,7 @@ function UsenetServersSection({ onChange }: { onChange: () => void }) {
   }
 
   async function remove(s: UsenetServer) {
-    if (!window.confirm(`Remove the server "${s.name}"?`)) return
+    if (!(await confirm({ title: `Remove the server "${s.name}"?`, body: <p>Downloads stop using it. You can add it again later.</p>, confirmLabel: 'Remove server', danger: true }))) return
     try {
       await api.deleteUsenetServer(s.id)
       reload()

@@ -1,5 +1,5 @@
-// Package metadata resolves titles against TMDB (PRD.md §4.4) and powers
-// the Discover panel's trending/popular lists (§7). Talks to TMDB's REST
+// Package metadata resolves titles against TMDB and powers
+// the Discover panel's trending/popular lists. Talks to TMDB's REST
 // API directly over net/http rather than an unofficial third-party Go SDK.
 package metadata
 
@@ -32,6 +32,12 @@ type Client struct {
 	// fetched at most once successfully per process (see GenreNames).
 	genreMu sync.Mutex
 	genres  map[string]map[int]string
+
+	// pages caches Discover list and browse pages for a few minutes.
+	pages pageCache
+
+	// now is the clock "upcoming" lists count from; nil means time.Now.
+	now func() time.Time
 }
 
 // New constructs a client. apiKey may be empty; calls will return
@@ -45,8 +51,8 @@ func New(apiKey string) *Client {
 }
 
 // NewWithBaseURL is used by tests to point the client at a local fixture
-// server instead of the real TMDB API (CLAUDE.md: local fixtures, not live
-// network calls, for tests).
+// server instead of the real TMDB API (tests use local fixtures, not live
+// network calls).
 func NewWithBaseURL(apiKey, base string) *Client {
 	c := New(apiKey)
 	c.baseURL = base
@@ -54,6 +60,16 @@ func NewWithBaseURL(apiKey, base string) *Client {
 }
 
 func (c *Client) SetAPIKey(key string) { c.apiKey = key }
+
+// WrapTransport wraps the HTTP transport this client uses, e.g. to count
+// requests. Call it before the client is shared between goroutines.
+func (c *Client) WrapTransport(wrap func(http.RoundTripper) http.RoundTripper) {
+	rt := c.httpClient.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	c.httpClient.Transport = wrap(rt)
+}
 
 // WithAPIKey returns a separate client using another key against the same
 // server, to test a key before saving it.
@@ -168,18 +184,18 @@ func (c *Client) GetMovie(ctx context.Context, tmdbID int) (*Movie, error) {
 	return &m, nil
 }
 
-// TrendingMovies powers the Discover panel's "trending" rail (PRD §7).
+// TrendingMovies powers the Discover panel's "trending" rail.
 func (c *Client) TrendingMovies(ctx context.Context) ([]Movie, error) {
 	return c.getMovieList(ctx, "/trending/movie/week", nil)
 }
 
-// PopularMovies powers the Discover panel's "popular" rail (PRD §7).
+// PopularMovies powers the Discover panel's "popular" rail.
 func (c *Client) PopularMovies(ctx context.Context) ([]Movie, error) {
 	return c.getMovieList(ctx, "/movie/popular", nil)
 }
 
 // SimilarMovies powers Discover's "because you added X" recommendations
-// (PRD §7 Phase 3 — "similar to items in your library").
+// ("similar to items in your library").
 func (c *Client) SimilarMovies(ctx context.Context, tmdbID int) ([]Movie, error) {
 	return c.getMovieList(ctx, fmt.Sprintf("/movie/%d/similar", tmdbID), nil)
 }
@@ -226,7 +242,7 @@ func (c *Client) get(ctx context.Context, path string, extra url.Values, out any
 
 // PosterURL builds a full poster image URL from a poster_path fragment
 // TMDB returns, using its "w500" size — good enough for a poster-grid
-// library view (PRD §6) without the app needing to know all TMDB's image
+// library view without the app needing to know all TMDB's image
 // size variants.
 func PosterURL(posterPath string) string {
 	if posterPath == "" {

@@ -8,7 +8,7 @@ export default defineConfig({
     outDir: 'dist',
   },
   server: {
-    // Go backend during `npm run dev` (PRD §6 UI talks to the same REST
+    // Go backend during `npm run dev` (the UI talks to the same REST
     // API the production single binary serves itself in prod).
     proxy: {
       '/api': {

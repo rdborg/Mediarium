@@ -48,7 +48,7 @@ func newForYouTMDBServer(t *testing.T) *httptest.Server {
 }
 
 // TestForYouRanksByAgreementAndExcludesLibrary proves the aggregate
-// recommendation rail (PRD §7 Phase 3) does what makes it different from
+// recommendation rail does what makes it different from
 // the per-title similar-movies view: ranks by how many library seeds agree
 // on a recommendation, and never recommends something already owned.
 func TestForYouRanksByAgreementAndExcludesLibrary(t *testing.T) {

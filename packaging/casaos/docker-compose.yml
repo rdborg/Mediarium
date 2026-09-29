@@ -27,9 +27,18 @@ services:
     container_name: mediarium
     restart: unless-stopped
     ports:
-      - target: 8080
-        published: "8080"
+      - target: 8264
+        published: "8264"
         protocol: tcp
+      # Optional: the torrent port. Torrents work without it, but with it other
+      # peers can connect to you (more peers, proper seeding). Keep it the same
+      # as Settings > Downloads & VPN > Listen port.
+      - target: 58264
+        published: "58264"
+        protocol: tcp
+      - target: 58264
+        published: "58264"
+        protocol: udp
     environment:
       - PUID=1000
       - PGID=1000
@@ -46,9 +55,12 @@ services:
         target: /data
     x-casaos:
       ports:
-        - container: "8080"
+        - container: "8264"
           description:
             en_us: Web interface
+        - container: "58264"
+          description:
+            en_us: Torrent port, TCP and UDP (optional, more peers and better seeding)
       volumes:
         - container: /config
           description:
@@ -82,6 +94,6 @@ x-casaos:
   description:
     en_us: Self-hosted media manager combining Radarr, Sonarr, Prowlarr, SABnzbd and Bazarr style features in one container.
   index: /
-  port_map: "8080"
+  port_map: "8264"
   # icon: set to a hosted PNG URL once the repo is public
   # (branding/mediarium-icon-512.png in the repo).

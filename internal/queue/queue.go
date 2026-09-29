@@ -1,5 +1,5 @@
 // Package queue tracks releases moving through grab -> download -> import
-// (the download_queue table) and the activity feed (PRD.md §6 — "one live
+// (the download_queue table) and the activity feed ("one live
 // view of everything currently downloading/importing/post-processing").
 package queue
 
@@ -20,7 +20,7 @@ const (
 	StatusCompleted   Status = "completed"
 	StatusFailed      Status = "failed"
 	// StatusConflict means the download finished but landed on a naming
-	// collision under the "always ask" import conflict policy (PRD §4.8) —
+	// collision under the "always ask" import conflict policy —
 	// parked here with SourcePath/DestPath populated so a person can
 	// resolve it (skip or overwrite) rather than it being silently skipped.
 	StatusConflict Status = "conflict"
@@ -103,6 +103,7 @@ func (r *Repo) SetStatus(id int64, status Status, errMsg string) error {
 	if err != nil {
 		return fmt.Errorf("update queue item %d status: %w", id, err)
 	}
+	r.statusEvent(id, status)
 	return nil
 }
 
@@ -214,6 +215,19 @@ func (r *Repo) RecentFailed(since time.Time) (int, error) {
 	return n, nil
 }
 
+// HasActiveForMovie reports whether movieID has a download that has not
+// finished yet (queued, downloading, importing, or parked on a conflict).
+func (r *Repo) HasActiveForMovie(movieID int64) (bool, error) {
+	var n int
+	err := r.db.QueryRow(
+		`SELECT COUNT(*) FROM download_queue WHERE movie_id = ? AND status IN ('queued', 'downloading', 'importing', 'conflict')`, movieID,
+	).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("check active downloads for movie %d: %w", movieID, err)
+	}
+	return n > 0, nil
+}
+
 // Delete removes one queue entry (its history), not any file. Callers must
 // not delete an item whose pipeline is still running.
 func (r *Repo) Delete(id int64) error {
@@ -236,7 +250,29 @@ func (r *Repo) ClearFinished() (int64, error) {
 	return res.RowsAffected()
 }
 
-// LogActivity records one event on the activity feed (PRD §6).
+// PruneFinished deletes completed and failed entries that finished before
+// cutoff and returns how many. Entries still running or parked on a
+// conflict are never pruned.
+func (r *Repo) PruneFinished(cutoff time.Time) (int64, error) {
+	res, err := r.db.Exec(`DELETE FROM download_queue WHERE status IN ('completed', 'failed') AND completed_at IS NOT NULL AND completed_at < ?`,
+		cutoff.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return 0, fmt.Errorf("prune finished queue items: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+// PruneActivity deletes activity entries older than cutoff and returns how
+// many.
+func (r *Repo) PruneActivity(cutoff time.Time) (int64, error) {
+	res, err := r.db.Exec(`DELETE FROM activity WHERE created_at < ?`, cutoff.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return 0, fmt.Errorf("prune activity: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+// LogActivity records one event on the activity feed.
 //
 // movieID <= 0 is stored as NULL (activity.movie_id is nullable and
 // SET NULL on delete) — used by TV events, which aren't tied to a movie.
@@ -245,7 +281,7 @@ func (r *Repo) LogActivity(movieID int64, eventType, message string) error {
 	if movieID > 0 {
 		movie = movieID
 	}
-	_, err := r.db.Exec(`INSERT INTO activity (movie_id, event_type, message) VALUES (?, ?, ?)`, movie, eventType, message)
+	_, err := r.db.Exec(`INSERT INTO activity (movie_id, event_type, message, level) VALUES (?, ?, ?, ?)`, movie, eventType, message, string(levelFor(eventType)))
 	if err != nil {
 		return fmt.Errorf("log activity: %w", err)
 	}
@@ -261,7 +297,7 @@ type ActivityEntry struct {
 }
 
 func (r *Repo) ListActivity(limit int) ([]ActivityEntry, error) {
-	rows, err := r.db.Query(`SELECT id, movie_id, event_type, message, created_at FROM activity ORDER BY created_at DESC LIMIT ?`, limit)
+	rows, err := r.db.Query(`SELECT id, movie_id, event_type, message, created_at FROM activity WHERE item_only = 0 ORDER BY created_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list activity: %w", err)
 	}

@@ -24,7 +24,7 @@ func articleFilename(subject string, fileIndex int) string {
 var illegalFilenameChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)
 
 // sanitizeFilename strips characters that are illegal in a filename on the
-// host OS (PRD.md §4.8 — illegal character handling), independent of the
+// host OS (illegal character handling), independent of the
 // user-facing library naming/token engine in internal/organizer.
 func sanitizeFilename(name string) string {
 	cleaned := illegalFilenameChars.ReplaceAllString(name, "_")

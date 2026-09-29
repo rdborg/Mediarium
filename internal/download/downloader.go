@@ -84,7 +84,7 @@ func Download(ctx context.Context, cfg ClientConfig, nzb *NZB, destDir string, o
 }
 
 // DownloadFromServers fetches every file in nzb into destDir (normally
-// /downloads/incomplete/<job-id> — PRD §4.9). servers are in priority
+// /downloads/incomplete/<job-id>). servers are in priority
 // order: the first is tried for every article; an article it lacks (or any
 // article, if the server is unreachable) falls through to the next server,
 // and so on, exactly like SABnzbd's primary and backup servers. A server

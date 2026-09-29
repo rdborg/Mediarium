@@ -3,7 +3,7 @@
 package organizer
 
 // SameFilesystem has no Windows implementation — Mediarium's actual
-// deployment target is Linux/Docker (PRD.md §3), so this only matters for
+// deployment target is Linux/Docker, so this only matters for
 // someone running the Go binary natively on Windows for local dev.
 // supported=false tells the caller to skip the warning rather than
 // guessing (see samefs_unix.go for the real, Linux implementation the

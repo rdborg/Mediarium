@@ -24,8 +24,8 @@ import (
 	"github.com/ryanborg/mediarium/internal/store"
 )
 
-// TestPhase1ExitCriteriaEndToEnd walks the exact flow PRD.md §7 defines as
-// Phase 1 "done": search -> grab -> download -> organize a movie start to
+// TestPhase1ExitCriteriaEndToEnd walks the exact flow that defines
+// Phase 1 as "done": search -> grab -> download -> organize a movie start to
 // finish, with zero separate containers. Every external dependency (the
 // indexer, the Usenet server) is faked in-process so this runs without any
 // live credentials, but the app code under test — HTTP API, indexer
@@ -72,23 +72,23 @@ func TestPhase1ExitCriteriaEndToEnd(t *testing.T) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 
-	// --- Onboarding: create the admin account (PRD §5.2 step 1) ---
+	// --- Onboarding: create the admin account ---
 	postJSON[map[string]any](t, client, httpSrv.URL+"/api/onboarding/admin", map[string]string{
 		"username": "ryan", "password": "correct-horse-battery-staple", "firstName": "Ryan", "lastName": "Tester",
 	}, http.StatusCreated)
 
-	// --- Settings: library path + naming preset (PRD §5.2 steps 2 & 5) ---
+	// --- Settings: library path + naming preset ---
 	postJSONMethod[map[string]any](t, client, http.MethodPut, httpSrv.URL+"/api/settings", map[string]string{
 		"moviesPath":   cfg.MoviesDir,
 		"namingPreset": "minimal",
 	}, http.StatusOK)
 
-	// --- Add an indexer (PRD §5.2 step 3) ---
+	// --- Add an indexer ---
 	postJSON[map[string]any](t, client, httpSrv.URL+"/api/indexers", map[string]any{
 		"name": "Fixture Indexer", "definitionId": "fixture", "baseUrl": indexerSrv.URL, "apiKey": "fixture-key",
 	}, http.StatusCreated)
 
-	// --- Add a download client (PRD §5.2 step 4) ---
+	// --- Add a download client ---
 	postJSON[map[string]any](t, client, httpSrv.URL+"/api/usenet-servers", map[string]any{
 		"name": "Fixture Usenet", "host": nntpSrv.addr, "port": nntpSrv.port, "useSsl": false, "connections": 2,
 	}, http.StatusCreated)
@@ -100,7 +100,7 @@ func TestPhase1ExitCriteriaEndToEnd(t *testing.T) {
 		t.Fatalf("seed movie: %v", err)
 	}
 
-	// --- Search (PRD §7 exit criteria, step 1) ---
+	// --- Search ---
 	searchResp := getJSON[[]map[string]any](t, client, httpSrv.URL+"/api/search?q=fixture")
 	if len(searchResp) != 1 {
 		t.Fatalf("expected 1 search result, got %d: %+v", len(searchResp), searchResp)
@@ -110,7 +110,7 @@ func TestPhase1ExitCriteriaEndToEnd(t *testing.T) {
 		t.Fatalf("expected result tagged with indexer name, got %+v", result)
 	}
 
-	// --- Grab (PRD §7 exit criteria, step 2) ---
+	// --- Grab ---
 	grabResp := postJSON[map[string]any](t, client, fmt.Sprintf("%s/api/movies/%d/grab", httpSrv.URL, movie.ID), map[string]any{
 		"releaseTitle": result["title"],
 		"downloadUrl":  result["downloadUrl"],
@@ -120,7 +120,7 @@ func TestPhase1ExitCriteriaEndToEnd(t *testing.T) {
 		t.Fatalf("expected queueId in grab response, got %+v", grabResp)
 	}
 
-	// --- Download + organize (PRD §7 exit criteria, steps 3 & 4) ---
+	// --- Download + organize ---
 	// Poll the queue until the pipeline finishes (it runs in the
 	// background — see internal/api/pipeline.go).
 	deadline := time.Now().Add(20 * time.Second)

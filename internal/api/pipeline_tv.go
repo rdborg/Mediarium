@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/ryanborg/mediarium/internal/quality"
 	"github.com/ryanborg/mediarium/internal/queue"
 	"github.com/ryanborg/mediarium/internal/settings"
+	"github.com/ryanborg/mediarium/internal/subtitles"
 )
 
 // resolveTVTarget works out which season and episodes a release covers.
@@ -34,6 +34,21 @@ func resolveTVTarget(releaseTitle string, hintSeason, hintEpisode int) (season i
 // grabTVRelease enqueues a TV release for series and starts its pipeline in
 // the background — the TV counterpart of grabRelease.
 func (s *Server) grabTVRelease(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol) (int64, error) {
+	// One download per episode: a grab by hand is refused while any episode
+	// it covers is still downloading (automation skips those on its own).
+	if err := s.checkEpisodesNotDownloading(series.ID, hintSeason, hintEpisode, releaseTitle); err != nil {
+		return 0, err
+	}
+	return s.grabTV(series, hintSeason, hintEpisode, releaseTitle, downloadURL, sizeBytes, protocol, false)
+}
+
+// grabTV is grabTVRelease with auto set for automation's grabs. The
+// episodes the release will deliver (for a season pack, every episode of
+// the season not yet downloaded) are marked as downloading in the same step
+// as the grab is queued, so no automation run that looks afterwards can grab
+// them again separately; an automatic grab is refused with
+// errAlreadyGrabbed when any of them is already being downloaded.
+func (s *Server) grabTV(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, auto bool) (int64, error) {
 	if protocol == indexers.ProtocolTorrent && !s.torrentsEnabled() {
 		return 0, errTorrentsDisabled
 	}
@@ -46,22 +61,39 @@ func (s *Server) grabTVRelease(series library.Series, hintSeason, hintEpisode in
 		firstEpisode = episodes[0]
 	}
 
+	s.grabMu.Lock()
+	targets, err := s.tvGrabTargets(series.ID, season, episodes)
+	if err != nil {
+		s.grabMu.Unlock()
+		return 0, err
+	}
+	if err := s.claimEpisodes(targets, auto); err != nil {
+		s.grabMu.Unlock()
+		return 0, err
+	}
 	queueID, err := s.QueueRepo.Enqueue(queue.Item{
 		SeriesID: series.ID, Season: season, Episode: firstEpisode,
 		ReleaseTitle: releaseTitle, NZBURL: downloadURL, SizeBytes: sizeBytes, Protocol: queue.Protocol(protocol),
 	})
 	if err != nil {
+		// Nothing was queued: hand the episodes back.
+		for _, ep := range targets {
+			_ = s.MovieRepo.SetEpisodeStatus(ep.ID, ep.Status, "", "")
+		}
+		s.grabMu.Unlock()
 		return 0, err
 	}
+	s.grabMu.Unlock()
+
 	grabbed := fmt.Sprintf("Grabbed %q for %s", releaseTitle, series.Title)
-	_ = s.QueueRepo.LogActivity(0, "grabbed", grabbed)
+	_ = s.QueueRepo.LogSeriesActivity(series.ID, "grabbed", grabbed)
 	s.notifyEvent("grabbed", series.Title, grabbed)
 
-	go func() {
-		if err := s.runTVPipeline(queueID, series, season, episodes, releaseTitle, downloadURL, protocol); err != nil {
+	s.background(func() {
+		if err := s.runTVPipeline(queueID, series, season, targets, releaseTitle, downloadURL, protocol); err != nil {
 			log.Printf("api: tv pipeline for queue item %d failed: %v", queueID, err)
 		}
-	}()
+	})
 	return queueID, nil
 }
 
@@ -69,33 +101,48 @@ func (s *Server) grabTVRelease(series library.Series, hintSeason, hintEpisode in
 // download/repair/unpack half (prepareDownload), then each finished video
 // file is matched to a library episode by the season/episode in its own
 // filename and imported into "Series (Year)/Season NN/". A season pack
-// therefore imports every episode it contains in one pass.
-func (s *Server) runTVPipeline(queueID int64, series library.Series, season int, episodes []int, releaseTitle, downloadURL string, protocol indexers.Protocol) error {
-	ctx := context.Background()
+// therefore imports every episode it contains in one pass. targets are the
+// episodes grabTV claimed for this grab.
+func (s *Server) runTVPipeline(queueID int64, series library.Series, season int, targets []library.Episode, releaseTitle, downloadURL string, protocol indexers.Protocol) error {
+	ctx, run := s.pipelines.begin(queueID)
+	defer s.pipelines.end(queueID, run)
 
-	targets, err := s.tvGrabTargets(series.ID, season, episodes)
-	if err != nil {
-		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, err.Error())
-		return err
+	handled := map[int64]bool{}
+	// releaseTargets hands back the claimed episodes this grab did not
+	// deliver: to "downloaded" for an upgrade that didn't happen (the old
+	// file is still there), otherwise to "missing" so automation can try
+	// again.
+	releaseTargets := func() {
+		for _, ep := range targets {
+			if handled[ep.ID] {
+				continue
+			}
+			status := library.StatusMissing
+			if ep.Status == library.StatusDownloaded {
+				status = library.StatusDownloaded
+			}
+			_ = s.MovieRepo.SetEpisodeStatus(ep.ID, status, "", "")
+		}
 	}
 
 	fail := func(stepErr error) error {
-		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, stepErr.Error())
-		for _, ep := range targets {
-			_ = s.MovieRepo.SetEpisodeStatus(ep.ID, library.StatusMissing, "", "")
+		if run.cancelled.Load() {
+			// The show was removed from the library: nothing to report or retry.
+			_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, errRemovedFromLibrary.Error())
+			return errRemovedFromLibrary
 		}
+		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, stepErr.Error())
+		blocklisted := isBadRelease(stepErr) && s.blocklistBadRelease(releaseTitle, protocol, 0, series.ID, stepErr)
+		releaseTargets()
 		message := fmt.Sprintf("%s: %v", series.Title, stepErr)
-		_ = s.QueueRepo.LogActivity(0, "failed", message)
+		_ = s.QueueRepo.LogSeriesActivity(series.ID, "failed", message)
 		s.notifyEvent("failed", series.Title, message)
-		if isBadRelease(stepErr) {
-			s.onBadRelease(releaseTitle, protocol, 0, series.ID, stepErr)
+		if blocklisted {
+			s.retryAfterBadRelease(0, series.ID)
 		}
 		return stepErr
 	}
 
-	for _, ep := range targets {
-		_ = s.MovieRepo.SetEpisodeStatus(ep.ID, library.StatusDownloading, "", "")
-	}
 	if err := s.QueueRepo.SetStatus(queueID, queue.StatusDownloading, ""); err != nil {
 		return fail(err)
 	}
@@ -113,8 +160,13 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 	release := parser.Parse(releaseTitle)
 	tier := quality.Classify(release)
 
+	sidecars := sidecarsIn(dir)
+	if ctx.Err() != nil {
+		return fail(ctx.Err()) // cancelled: never import for a show that was removed
+	}
+
 	imported, skipped := 0, 0
-	handled := map[int64]bool{}
+	var importedFiles []string // for the media server refresh
 	var subtitleItems []subtitleItem
 	for _, file := range files {
 		fileSeason, fileEpisodes := s.tvFileEpisodes(file, season, targets)
@@ -159,17 +211,24 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 			ep.FilePath = result.DestPath
 			subtitleItems = append(subtitleItems, episodeSubtitleItem(series, ep))
 		}
+		// Subtitles that came with the release go next to this episode. In a
+		// pack they are matched by season and episode; one that cannot be
+		// matched reliably is left out.
+		var mine []subtitles.Sidecar
+		for _, sc := range sidecars {
+			if sc.MatchesEpisodes(fileSeason, fileEpisodes, len(files) == 1) {
+				mine = append(mine, sc)
+			}
+		}
+		s.importSidecarSubtitles(mine, result.DestPath, 0, fmt.Sprintf("%s S%02dE%02d", series.Title, eps[0].Season, eps[0].Episode))
 		imported += len(eps)
+		importedFiles = append(importedFiles, result.DestPath)
 	}
 
 	// Targets the release didn't actually deliver (a pack missing an
-	// episode, or every file skipped) go back to missing rather than
-	// staying stuck in "downloading".
-	for _, ep := range targets {
-		if !handled[ep.ID] {
-			_ = s.MovieRepo.SetEpisodeStatus(ep.ID, library.StatusMissing, "", "")
-		}
-	}
+	// episode, or every file skipped) are handed back rather than staying
+	// stuck in "downloading".
+	releaseTargets()
 
 	if imported == 0 {
 		if skipped > 0 {
@@ -184,8 +243,9 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 	s.cleanupWorkDir(dir, protocol)
 	s.autoSubtitlesFor(subtitleItems...)
 	message := fmt.Sprintf("%s: imported %d episode(s) from %s", series.Title, imported, releaseTitle)
-	_ = s.QueueRepo.LogActivity(0, "imported", message)
+	_ = s.QueueRepo.LogSeriesActivity(series.ID, "imported", message)
 	s.notifyEvent("imported", series.Title, message)
+	s.episodesImported(importedFiles...)
 	return nil
 }
 

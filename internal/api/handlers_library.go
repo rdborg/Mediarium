@@ -4,11 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/ryanborg/mediarium/internal/blocklist"
 	"github.com/ryanborg/mediarium/internal/indexers"
@@ -18,14 +17,14 @@ import (
 	"github.com/ryanborg/mediarium/internal/trakt"
 )
 
-// movieCategory is the Newznab category for movies (PRD §6 — search
+// movieCategory is the Newznab category for movies (search
 // results should be scoped to what the app actually manages).
 var movieCategory = []int{2000}
 
 type searchResultPayload struct {
 	Title       string `json:"title"`
 	IndexerName string `json:"indexerName"`
-	Protocol    string `json:"protocol"` // "usenet" or "torrent" (PRD §6 — protocol icon per result)
+	Protocol    string `json:"protocol"` // "usenet" or "torrent" (protocol icon per result)
 	DownloadURL string `json:"downloadUrl"`
 	SizeBytes   int64  `json:"sizeBytes"`
 	PublishDate string `json:"publishDate,omitempty"`
@@ -35,6 +34,7 @@ type searchResultPayload struct {
 	Group       string `json:"group,omitempty"`
 	Seeders     int    `json:"seeders,omitempty"`
 	Peers       int    `json:"peers,omitempty"`
+	InfoHash    string `json:"infoHash,omitempty"` // torrents, when the indexer reports it
 	// Season/Episodes are set for TV releases (Episodes empty = a season
 	// pack), so the unified search UI can label them and route the grab.
 	Season   int   `json:"season,omitempty"`
@@ -46,15 +46,22 @@ type searchResultPayload struct {
 	// not allowed by the profile, not an upgrade...). A manual grab is still
 	// allowed.
 	Rejections []string `json:"rejections,omitempty"`
+	// AcceptedBy names the profile that accepts this release: the item's own
+	// profile, or one of its fallbacks (fallback true). Left out when none
+	// does. Only set for a search on a library item.
+	AcceptedBy *acceptedByPayload `json:"acceptedBy,omitempty"`
 }
 
-func toSearchResultPayload(res indexers.Result) searchResultPayload {
+// toSearchResultPayload builds a search result for the UI. Its download URL
+// is remembered server side and sent as an opaque reference (see
+// grab_urls.go), so the indexer's API key never reaches the browser.
+func (s *Server) toSearchResultPayload(res indexers.Result) searchResultPayload {
 	release := parser.Parse(res.Title)
 	payload := searchResultPayload{
 		Title:       res.Title,
 		IndexerName: res.IndexerName,
 		Protocol:    string(res.Protocol),
-		DownloadURL: res.DownloadURL,
+		DownloadURL: s.offered.ref(res.DownloadURL), // an opaque reference: the real URL can carry the indexer's API key
 		SizeBytes:   res.SizeBytes,
 		Resolution:  release.Resolution,
 		Source:      release.Source,
@@ -62,6 +69,7 @@ func toSearchResultPayload(res indexers.Result) searchResultPayload {
 		Group:       release.Group,
 		Seeders:     res.Seeders,
 		Peers:       res.Peers,
+		InfoHash:    res.InfoHash,
 		Season:      release.Season,
 		Episodes:    release.Episodes,
 	}
@@ -71,8 +79,8 @@ func toSearchResultPayload(res indexers.Result) searchResultPayload {
 	return payload
 }
 
-// handleSearch is the unified search endpoint (PRD §6 — "one unified
-// result list ... clearly tagged by source").
+// handleSearch is the unified search endpoint: one result list across
+// every indexer, clearly tagged by source.
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
@@ -96,31 +104,40 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	blocked := s.blockedKeys()
 	out := make([]searchResultPayload, len(merged))
 	for i, res := range merged {
-		out[i] = toSearchResultPayload(res)
+		out[i] = s.toSearchResultPayload(res)
 		out[i].Blocklisted = blocked[blocklist.Key(res.Title)]
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 type moviePayload struct {
-	ID        int64  `json:"id"`
-	TMDBID    int    `json:"tmdbId"`
-	Title     string `json:"title"`
-	Year      int    `json:"year"`
-	Overview  string `json:"overview,omitempty"`
-	PosterURL string `json:"posterUrl,omitempty"`
-	Status    string `json:"status"`
-	Quality   string `json:"quality,omitempty"`
-	FilePath  string `json:"filePath,omitempty"`
-	ProfileID int64  `json:"profileId"`
-	Monitored bool   `json:"monitored"`
-	Sources   string `json:"sources"`
+	ID        int64    `json:"id"`
+	TMDBID    int      `json:"tmdbId"`
+	Title     string   `json:"title"`
+	Year      int      `json:"year"`
+	Overview  string   `json:"overview,omitempty"`
+	PosterURL string   `json:"posterUrl,omitempty"`
+	Status    string   `json:"status"`
+	Quality   string   `json:"quality,omitempty"`
+	FilePath  string   `json:"filePath,omitempty"`
+	ProfileID int64    `json:"profileId"`
+	Monitored bool     `json:"monitored"`
+	Sources   string   `json:"sources"`
+	Genres    []string `json:"genres"`  // TMDB genre names; empty until fetched
+	AddedBy   *userRef `json:"addedBy"` // null when unknown
 }
 
-func toMoviePayload(m library.Movie) moviePayload {
+// toMoviePayload builds a library movie's JSON; who resolves the account
+// that added it (see accountNames).
+func toMoviePayload(m library.Movie, who func(int64) *userRef) moviePayload {
+	genres := m.Genres
+	if genres == nil {
+		genres = []string{}
+	}
 	return moviePayload{
 		ID: m.ID, TMDBID: m.TMDBID, Title: m.Title, Year: m.Year, Overview: m.Overview,
 		PosterURL: metadata.PosterURL(m.PosterPath), Status: string(m.Status), Quality: m.Quality, FilePath: m.FilePath, ProfileID: m.ProfileID, Monitored: m.Monitored, Sources: m.SourcePref,
+		Genres: genres, AddedBy: who(m.AddedBy),
 	}
 }
 
@@ -130,9 +147,10 @@ func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	who := s.accountNames()
 	out := make([]moviePayload, len(list))
 	for i, m := range list {
-		out[i] = toMoviePayload(m)
+		out[i] = toMoviePayload(m, who)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -152,11 +170,14 @@ func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, toMoviePayload(m))
+	writeJSON(w, http.StatusOK, toMoviePayload(m, s.accountNames()))
 }
 
-// handleDeleteMovie removes a movie from the library. With ?deleteFiles=true
-// its file on disk is deleted too; otherwise the file is left untouched.
+// handleDeleteMovie removes a movie from the library. Its downloads are
+// always cancelled and their files in the downloads folder deleted. With
+// ?deleteFiles=true its folder in the movies library goes too (or, for a
+// file loose in the library folder, the file and the subtitles, .nfo and
+// artwork named after it); otherwise the library is left untouched.
 func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -172,12 +193,19 @@ func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if m.Status == library.StatusDownloading {
-		writeError(w, http.StatusConflict, "this movie is downloading right now — wait for it to finish or fail first")
+	deleteFiles := r.URL.Query().Get("deleteFiles") == "true" && m.FilePath != ""
+	if deleteFiles {
+		if err := checkRemovable(s.moviesRoot(), []string{m.FilePath}); err != nil {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		}
+	}
+	if _, err := s.removeDownloadsFor(m.ID, 0, m.Title); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if r.URL.Query().Get("deleteFiles") == "true" && m.FilePath != "" {
-		if err := removeFiles([]string{m.FilePath}); err != nil {
+	if deleteFiles {
+		if err := s.removeMovieFiles(m); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -188,21 +216,6 @@ func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.QueueRepo.LogActivity(0, "removed", m.Title+" removed from library")
 	writeJSON(w, http.StatusOK, nil)
-}
-
-// removeFiles deletes each path, treating an already-missing file as done.
-func removeFiles(paths []string) error {
-	seen := map[string]bool{}
-	for _, p := range paths {
-		if seen[p] {
-			continue
-		}
-		seen[p] = true
-		if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("delete %s: %w", p, err)
-		}
-	}
-	return nil
 }
 
 // addMovieRequest is what the "Add to library" dialog sends. Everything but
@@ -217,7 +230,7 @@ type addMovieRequest struct {
 }
 
 // handleAddMovie adds a title to the library as "missing" from either a
-// TMDB search result or a Discover pick (PRD §5.2 step 6 / §7), applying the
+// TMDB search result or a Discover pick, applying the
 // choices made in the add dialog: quality profile, whether to monitor it,
 // which downloaders it may use, and whether to start searching now.
 func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
@@ -251,9 +264,11 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	monitored := req.Monitored == nil || *req.Monitored
+	userID, byline := requester(r)
 	created, err := s.MovieRepo.Add(library.Movie{
 		TMDBID: tmdbMovie.TMDBID, Title: tmdbMovie.Title, Year: tmdbMovie.Year(),
 		Overview: tmdbMovie.Overview, PosterPath: tmdbMovie.PosterPath, Monitored: monitored, ReleaseDate: tmdbMovie.ReleaseDate,
+		AddedBy: userID, Genres: s.TMDB().MovieGenres(r.Context(), *tmdbMovie),
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -269,11 +284,11 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 			created.SourcePref = req.Sources
 		}
 	}
-	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library")
+	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library"+byline)
 	if req.SearchNow {
 		go s.searchMovieInBackground(created.ID)
 	}
-	writeJSON(w, http.StatusCreated, toMoviePayload(created))
+	writeJSON(w, http.StatusCreated, toMoviePayload(created, s.accountNames()))
 }
 
 // searchMovieInBackground runs the automatic search for a just-added movie,
@@ -295,25 +310,37 @@ func (s *Server) searchMovieInBackground(movieID int64) {
 }
 
 // discoverPayload mirrors moviePayload's shape but for titles not yet in
-// the library (PRD §7 — Discover: TMDB trending/popular).
+// the library (Discover: TMDB trending/popular).
 type discoverPayload struct {
-	TMDBID    int      `json:"tmdbId"`
-	MediaType string   `json:"mediaType"` // "movie" | "tv"
-	Title     string   `json:"title"`
-	Year      int      `json:"year"`
-	Overview  string   `json:"overview,omitempty"`
-	PosterURL string   `json:"posterUrl,omitempty"`
-	Genres    []string `json:"genres"`
-	Rating    float64  `json:"rating"` // TMDB vote average, one decimal
-	VoteCount int      `json:"voteCount"`
+	TMDBID    int    `json:"tmdbId"`
+	MediaType string `json:"mediaType"` // "movie" | "tv"
+	Title     string `json:"title"`
+	Year      int    `json:"year"`
+	// ReleaseDate is the movie's release date or the show's first air date,
+	// "YYYY-MM-DD"; left out when TMDB does not know it.
+	ReleaseDate string   `json:"releaseDate,omitempty"`
+	Overview    string   `json:"overview,omitempty"`
+	PosterURL   string   `json:"posterUrl,omitempty"`
+	Genres      []string `json:"genres"`
+	Rating      float64  `json:"rating"` // TMDB vote average, one decimal
+	VoteCount   int      `json:"voteCount"`
+}
+
+// isoDate passes a TMDB "YYYY-MM-DD" date through, or "" for anything else
+// (TMDB sends "" for unknown dates).
+func isoDate(d string) string {
+	if _, err := time.Parse("2006-01-02", d); err != nil {
+		return ""
+	}
+	return d
 }
 
 // movieDiscover builds the list item for a TMDB movie, resolving its genre
 // names (a cached lookup, see metadata.Client.GenreNames).
 func (s *Server) movieDiscover(ctx context.Context, m metadata.Movie) discoverPayload {
 	return discoverPayload{
-		TMDBID: m.TMDBID, MediaType: "movie", Title: m.Title, Year: m.Year(), Overview: m.Overview,
-		PosterURL: metadata.PosterURL(m.PosterPath), Genres: s.TMDB().MovieGenres(ctx, m),
+		TMDBID: m.TMDBID, MediaType: "movie", Title: m.Title, Year: m.Year(), ReleaseDate: isoDate(m.ReleaseDate),
+		Overview: m.Overview, PosterURL: metadata.PosterURL(m.PosterPath), Genres: s.TMDB().MovieGenres(ctx, m),
 		Rating: metadata.RoundRating(m.VoteAverage), VoteCount: m.VoteCount,
 	}
 }
@@ -321,8 +348,8 @@ func (s *Server) movieDiscover(ctx context.Context, m metadata.Movie) discoverPa
 // showDiscover is movieDiscover's TV counterpart.
 func (s *Server) showDiscover(ctx context.Context, sh metadata.Show) discoverPayload {
 	return discoverPayload{
-		TMDBID: sh.TMDBID, MediaType: "tv", Title: sh.Name, Year: sh.Year(), Overview: sh.Overview,
-		PosterURL: metadata.PosterURL(sh.PosterPath), Genres: s.TMDB().ShowGenres(ctx, sh),
+		TMDBID: sh.TMDBID, MediaType: "tv", Title: sh.Name, Year: sh.Year(), ReleaseDate: isoDate(sh.FirstAirDate),
+		Overview: sh.Overview, PosterURL: metadata.PosterURL(sh.PosterPath), Genres: s.TMDB().ShowGenres(ctx, sh),
 		Rating: metadata.RoundRating(sh.VoteAverage), VoteCount: sh.VoteCount,
 	}
 }
@@ -335,8 +362,7 @@ func (s *Server) handlePopular(w http.ResponseWriter, r *http.Request) {
 	s.discoverList(w, r, s.TMDB().PopularMovies)
 }
 
-// handleSimilarMovies powers Discover's "because you added X" rail (PRD
-// §7 Phase 3).
+// handleSimilarMovies powers Discover's "because you added X" rail.
 func (s *Server) handleSimilarMovies(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -392,7 +418,7 @@ func (s *Server) discoverList(w http.ResponseWriter, r *http.Request, fetch func
 const maxImportListItems = 50
 
 // handleImportList resolves a public Trakt list URL into full TMDB movie
-// details for the Discover page (PRD §7 Phase 3 — "curated/public list
+// details for the Discover page ("curated/public list
 // import"). Each Trakt item only carries a tmdb id, so every one is
 // enriched via a real TMDB lookup (poster, overview, etc.) — items TMDB
 // can't resolve are skipped rather than failing the whole import.
@@ -442,8 +468,8 @@ const forYouSeedCount = 5
 // forYouMaxResults caps the aggregate recommendation list returned.
 const forYouMaxResults = 20
 
-// handleForYou powers Discover's "More like your library" rail (PRD §7
-// Phase 3) — distinct from handleSimilarMovies, which is per-title
+// handleForYou powers Discover's "More like your library" rail —
+// distinct from handleSimilarMovies, which is per-title
 // ("because you added X") and only reachable from a single movie's detail
 // page. This aggregates across several library titles at once: samples
 // the most recently added movies as seeds, merges each one's TMDB

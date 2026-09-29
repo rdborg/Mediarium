@@ -1,6 +1,6 @@
-// Package auth implements local accounts, session cookies, and API keys
-// (PRD.md §5.1). No external identity provider — bcrypt-hashed passwords
-// in the same SQLite DB, signed HTTP-only session cookies, and per-user
+// Package auth implements local accounts, session cookies, and API keys.
+// No external identity provider — bcrypt-hashed passwords in the same
+// SQLite DB, signed HTTP-only session cookies, and per-user
 // API keys for headless/programmatic access.
 package auth
 
@@ -34,14 +34,34 @@ type User struct {
 	Email     string
 }
 
+// Roles. is_admin in the users table is the source of truth; Role is the
+// name the API and the docs use for it.
+const (
+	RoleAdmin  = "admin"  // everything, including settings and accounts
+	RoleMember = "member" // browse, add titles and follow downloads; no settings
+)
+
+// Role is RoleAdmin or RoleMember.
+func (u *User) Role() string {
+	if u.IsAdmin {
+		return RoleAdmin
+	}
+	return RoleMember
+}
+
+// Name is "First Last" as stored (either half may be missing, both may be
+// empty), without DisplayName's fallback to the username.
+func (u *User) Name() string {
+	return strings.TrimSpace(strings.TrimSpace(u.FirstName) + " " + strings.TrimSpace(u.LastName))
+}
+
 // DisplayName is "First Last" (either half may be missing), falling back to
 // the username when no name has been set.
 func (u *User) DisplayName() string {
-	name := strings.TrimSpace(strings.TrimSpace(u.FirstName) + " " + strings.TrimSpace(u.LastName))
-	if name == "" {
-		return u.Username
+	if name := u.Name(); name != "" {
+		return name
 	}
-	return name
+	return u.Username
 }
 
 type Service struct {
@@ -52,8 +72,8 @@ func New(db *sql.DB) *Service {
 	return &Service{db: db}
 }
 
-// FirstRunNeeded reports whether no admin account exists yet (PRD §5.2 —
-// the onboarding wizard triggers automatically until this is false).
+// FirstRunNeeded reports whether no admin account exists yet
+// (the onboarding wizard triggers automatically until this is false).
 func (s *Service) FirstRunNeeded() (bool, error) {
 	var count int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count); err != nil {
@@ -63,7 +83,7 @@ func (s *Service) FirstRunNeeded() (bool, error) {
 }
 
 // CreateUser creates a new local account. The very first account created
-// is implicitly admin (PRD §5.1).
+// is implicitly admin.
 func (s *Service) CreateUser(username, password string) (*User, error) {
 	return s.CreateUserWithProfile(username, password, "", "", "")
 }
@@ -148,7 +168,7 @@ func (s *Service) UpdateProfile(userID int64, username, firstName, lastName, ema
 
 // ChangePassword verifies the user's current password before setting a new
 // one, so a hijacked-but-still-open session can't be used to lock the real
-// owner out by itself (PRD §5.1 account management).
+// owner out by itself.
 func (s *Service) ChangePassword(userID int64, currentPassword, newPassword string) error {
 	var hash string
 	if err := s.db.QueryRow(`SELECT password_hash FROM users WHERE id = ?`, userID).Scan(&hash); err != nil {
@@ -253,7 +273,7 @@ func (s *Service) DeleteSession(token string) error {
 }
 
 // CreateAPIKey generates a new API key for userID. The raw key is returned
-// once and never recoverable afterward (PRD §5.1).
+// once and never recoverable afterward.
 func (s *Service) CreateAPIKey(userID int64, name string) (rawKey string, err error) {
 	rawKey, err = randomToken()
 	if err != nil {
@@ -276,7 +296,7 @@ type APIKey struct {
 
 // ListAPIKeys returns userID's API keys, active and revoked alike, newest
 // first — never the raw key itself, which is only ever seen once, at
-// creation (PRD §11: credentials never exposed beyond what's needed).
+// creation (credentials are never exposed beyond what's needed).
 func (s *Service) ListAPIKeys(userID int64) ([]APIKey, error) {
 	rows, err := s.db.Query(`
 		SELECT id, name, created_at, revoked_at FROM api_keys

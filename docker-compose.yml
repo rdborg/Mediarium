@@ -7,7 +7,7 @@
 
 services:
   app:
-    # No published image yet (repo is private — PRD §9), so this builds
+    # No published image yet (repo is private), so this builds
     # locally from the Dockerfile in this directory. `image:` still names
     # what the local build gets tagged, and is what you'd switch to a
     # `ghcr.io/...` reference once one's published, dropping `build:`.
@@ -23,7 +23,14 @@ services:
     container_name: mediarium
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      # Host port on the left (change it with HOST_PORT in .env); the app listens on 8264 inside.
+      - "${HOST_PORT:-8264}:8264"
+      # Optional: the torrent port (TCP and UDP). Torrents work without it, but
+      # with it other peers can connect to you, which finds more peers and lets
+      # you seed properly. Keep both numbers the same; if you change it, change
+      # Settings > Downloads & VPN > Listen port to match.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
     environment:
       - PUID=1000
       - PGID=1000
@@ -33,3 +40,15 @@ services:
       - ./downloads:/downloads
       - ./movies:/movies
       - ./tv:/tv
+
+  # Optional: only needed for torrent sites behind a Cloudflare check
+  # ("checking your browser"). Start it with:
+  #   docker compose --profile cloudflare up -d
+  # then enter http://flaresolverr:8191 in Mediarium under Settings > Indexers.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    profiles: ["cloudflare"]
+    environment:
+      - TZ=Etc/UTC

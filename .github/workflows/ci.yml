@@ -47,6 +47,24 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  # Known security problems in the code we depend on. Kept as its own job so
+  # a new advisory shows up clearly instead of hiding a build failure.
+  vulnerabilities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Go (govulncheck)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Web (npm audit, shipped packages only)
+        working-directory: web
+        run: npm audit --omit=dev --audit-level=high
+
   docs-updated:
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-docs-needed')
     runs-on: ubuntu-latest

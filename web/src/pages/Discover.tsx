@@ -1,62 +1,77 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, type DiscoverMovie } from '../api'
+import { api, ApiError, type DiscoverMovie } from '../api'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
+import DiscoverRail from '../components/DiscoverRail'
+import Dropdown from '../components/Dropdown'
+import PagedGrid from '../components/PagedGrid'
 import Icon from '../components/Icon'
-import PosterCard from '../components/PosterCard'
-import { movieState, seriesState, type ItemStateInput } from '../components/state'
+import { sourceTitle, sourceToQuery, type Kind, type ListName, type Source } from '../discoverSources'
+import { useOwned } from '../useOwned'
 
-type Kind = 'movie' | 'tv'
+type Show = 'all' | Kind
 
-// Discover: things worth adding. Every poster has an Add button that opens the
-// same "add to library" dialog as search (quality, monitoring, where to
-// download from), and titles you already own say so instead of offering Add.
+const LISTS: ListName[] = ['trending', 'popular', 'upcoming']
+const LIST_HINT: Record<ListName, string> = { trending: 'this week', popular: 'all time favourites', upcoming: 'add them now, they download when out' }
+
+// Discover: things worth adding. Movies first, then shows, each with
+// trending, popular and coming soon; filters switch to a browse of everything
+// matching. Every section shows whole rows and has "Show all" for paging
+// through the full list.
 export default function Discover() {
   const navigate = useNavigate()
-  const [trending, setTrending] = useState<DiscoverMovie[] | null>(null)
-  const [popular, setPopular] = useState<DiscoverMovie[]>([])
-  const [forYou, setForYou] = useState<DiscoverMovie[]>([])
-  const [trendingTV, setTrendingTV] = useState<DiscoverMovie[]>([])
-  const [popularTV, setPopularTV] = useState<DiscoverMovie[]>([])
-  const [ownedMovies, setOwnedMovies] = useState<Map<number, ItemStateInput>>(new Map())
-  const [ownedShows, setOwnedShows] = useState<Map<number, ItemStateInput>>(new Map())
-  const [error, setError] = useState('')
+  const owned = useOwned()
   const [adding, setAdding] = useState<AddTarget | null>(null)
+  const [forYou, setForYou] = useState<DiscoverMovie[] | undefined>()
 
+  const [show, setShow] = useState<Show>('all')
+  const [genre, setGenre] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [sort, setSort] = useState('popular')
+  const [genres, setGenres] = useState<{ id: number; name: string }[]>([])
+  const [browseMissing, setBrowseMissing] = useState(false)
+  const filtering = !!(genre || from || to || sort !== 'popular')
+
+  const [showImport, setShowImport] = useState(false)
   const [listUrl, setListUrl] = useState('')
   const [importedFrom, setImportedFrom] = useState('')
-  const [imported, setImported] = useState<DiscoverMovie[] | null>(null)
+  const [imported, setImported] = useState<DiscoverMovie[] | undefined>()
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
-  const [showImport, setShowImport] = useState(false)
-
-  const loadOwned = useCallback(() => {
-    api.listQueue().catch(() => []).then((queue) => {
-      api.listMovies().then((m) => setOwnedMovies(new Map(m.map((x) => [x.tmdbId, { id: x.id, state: movieState(x, queue) }])))).catch(() => undefined)
-      api.listSeries().then((s) => setOwnedShows(new Map(s.map((x) => [x.tmdbId, { id: x.id, state: seriesState(x, queue) }])))).catch(() => undefined)
-    })
-  }, [])
 
   useEffect(() => {
-    loadOwned()
-    Promise.all([api.discoverTrending(), api.discoverPopular(), api.discoverForYou()])
-      .then(([t, p, f]) => {
-        setTrending(t)
-        setPopular(p)
-        setForYou(f)
-      })
+    api.discoverForYou().then(setForYou).catch(() => setForYou([]))
+  }, [])
+
+  // Genres differ between movies and shows, so the genre filter needs one of them.
+  useEffect(() => {
+    setGenre('')
+    if (show === 'all') return setGenres([])
+    api
+      .discoverGenres(show)
+      .then(setGenres)
       .catch((e) => {
-        setTrending([])
-        setError(e instanceof Error ? e.message : String(e))
+        if (e instanceof ApiError && e.status === 404) setBrowseMissing(true)
       })
-    // TV rails load independently so a TV failure never blanks the movie rails.
-    Promise.all([api.discoverTrendingTV(), api.discoverPopularTV()])
-      .then(([t, p]) => {
-        setTrendingTV(t)
-        setPopularTV(p)
-      })
-      .catch(() => undefined)
-  }, [loadOwned])
+  }, [show])
+
+  const kinds: Kind[] = show === 'all' ? ['movie', 'tv'] : [show]
+  const years = useMemo(() => Array.from({ length: new Date().getFullYear() + 2 - 1920 }, (_, i) => String(new Date().getFullYear() + 1 - i)), [])
+
+  const rails = useMemo(() => {
+    const out: { source: Source; title: string; hint?: string }[] = []
+    for (const kind of kinds) {
+      if (filtering) {
+        const src: Source = { kind, list: 'browse', genre: genre || undefined, yearFrom: from || undefined, yearTo: to || undefined, sort }
+        out.push({ source: src, title: sourceTitle(src, genres.find((g) => String(g.id) === genre)?.name) })
+      } else {
+        for (const list of LISTS) out.push({ source: { kind, list }, title: sourceTitle({ kind, list }), hint: LIST_HINT[list] })
+      }
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, filtering, genre, from, to, sort, genres])
 
   async function onImport() {
     setImporting(true)
@@ -71,74 +86,62 @@ export default function Discover() {
     }
   }
 
-  function Rail({ title, hint, list, kind }: { title: string; hint?: string; list: DiscoverMovie[]; kind: Kind }) {
-    if (list.length === 0) return null
-    const owned = kind === 'movie' ? ownedMovies : ownedShows
-    return (
-      <section style={{ marginBottom: 34 }}>
-        <div className="rail-head">
-          <h2>{title}</h2>
-          {hint && <span>{hint}</span>}
-        </div>
-        <div className="poster-grid">
-          {list.map((m) => {
-            const own = owned.get(m.tmdbId)
-            const libraryId = own?.id
-            const path = kind === 'movie' ? `/title/${m.tmdbId}` : libraryId ? `/series/${libraryId}` : `/show/${m.tmdbId}`
-            return (
-              <PosterCard
-                key={m.tmdbId}
-                to={path}
-                poster={m.posterUrl}
-                title={m.title}
-                meta={m.year || undefined}
-                genres={m.genres}
-                rating={m.rating}
-                kind={kind}
-                state={own?.state}
-                footer={
-                  <div className="pcard-footer">
-                    {libraryId ? (
-                      <button className="btn-sm btn-with-icon" onClick={() => navigate(path!)}>
-                        <Icon name="open" size={15} /> Open
-                      </button>
-                    ) : (
-                      <button
-                        className="primary btn-sm btn-with-icon"
-                        onClick={() => setAdding({ kind, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl, overview: m.overview })}
-                      >
-                        <Icon name="plus" size={15} /> Add
-                      </button>
-                    )}
-                  </div>
-                }
-              />
-            )
-          })}
-        </div>
-      </section>
-    )
+  function clear() {
+    setGenre('')
+    setFrom('')
+    setTo('')
+    setSort('popular')
   }
-
-  const nothing = trending !== null && trending.length === 0 && popular.length === 0
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Discover</h1>
+      <div className="toolbar filter-bar">
+        <div className="seg">
+          {(['all', 'movie', 'tv'] as const).map((k) => (
+            <button key={k} className={show === k ? 'active' : ''} onClick={() => setShow(k)}>
+              {k === 'all' ? 'All' : k === 'movie' ? 'Movies' : 'TV shows'}
+            </button>
+          ))}
+        </div>
+        <Dropdown
+          label="Genre"
+          value={genre}
+          onChange={setGenre}
+          disabled={browseMissing || show === 'all'}
+          title={show === 'all' ? 'Pick Movies or TV shows to filter by genre' : undefined}
+          options={[{ value: '', label: show === 'all' ? 'Genre: pick Movies or TV' : 'All genres' }, ...genres.map((g) => ({ value: String(g.id), label: g.name }))]}
+        />
+        <Dropdown label="From year" value={from} onChange={setFrom} disabled={browseMissing} options={[{ value: '', label: 'From any year' }, ...years.map((y) => ({ value: y, label: `From ${y}` }))]} />
+        <Dropdown label="To year" value={to} onChange={setTo} disabled={browseMissing} options={[{ value: '', label: 'To any year' }, ...years.map((y) => ({ value: y, label: `To ${y}` }))]} />
+        <Dropdown
+          label="Order"
+          value={sort}
+          onChange={setSort}
+          disabled={browseMissing}
+          options={[
+            { value: 'popular', label: 'Most popular' },
+            { value: 'rating', label: 'Highest rated' },
+            { value: 'newest', label: 'Newest first' },
+            { value: 'oldest', label: 'Oldest first' },
+          ]}
+        />
+        {filtering && (
+          <button className="btn-sm" onClick={clear}>
+            Clear
+          </button>
+        )}
+        <span className="spacer" />
         <button className="btn-with-icon" onClick={() => setShowImport((v) => !v)}>
           <Icon name="list" size={16} /> {showImport ? 'Close list import' : 'Import a Trakt list'}
         </button>
       </div>
-
-      {error && <p className="error-text">{error}</p>}
 
       {showImport && (
         <section className="card grid-form" style={{ marginBottom: 24 }}>
           <h2>Import a Trakt list</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', margin: 0 }}>
             Paste the address of any public Trakt list to see everything on it here. Trakt is a free site where people keep lists
-            of what they watch. This needs a Trakt client ID under <Link to="/settings/metadata">Settings &gt; Metadata</Link>.
+            of what they watch. See <Link to="/settings/metadata">Settings &gt; Lists &amp; Subtitles</Link>.
           </p>
           <input value={listUrl} onChange={(e) => setListUrl(e.target.value)} placeholder="trakt.tv/users/…/lists/…" />
           <div>
@@ -150,30 +153,19 @@ export default function Discover() {
         </section>
       )}
 
-      {imported !== null && <Rail title={`Imported from ${importedFrom}`} list={imported} kind="movie" />}
+      {imported && <DiscoverRail title={`Imported from ${importedFrom}`} items={imported} kind="movie" owned={owned} onAdd={setAdding} rows={3} />}
 
-      {trending === null && (
-        <div className="poster-grid">
-          {Array.from({ length: 14 }, (_, i) => (
-            <div key={i} className="skeleton" style={{ aspectRatio: '2 / 3.5' }} />
-          ))}
-        </div>
+      {!filtering && show !== 'tv' && forYou && forYou.length > 0 && (
+        <DiscoverRail title="More like your library" hint="based on what you own" items={forYou} kind="movie" owned={owned} onAdd={setAdding} rows={1} />
       )}
 
-      {nothing && (
-        <div className="empty-state">
-          <Icon name="compass" size={44} />
-          <p>
-            Nothing to show yet. Add a TMDB API key under <Link to="/settings/metadata">Settings &gt; Metadata</Link> to switch Discover on.
-          </p>
-        </div>
+      {rails.map((r) =>
+        filtering ? (
+          <PagedGrid key={sourceToQuery(r.source)} title={r.title} source={r.source} kind={r.source.kind} owned={owned} onAdd={setAdding} rows={3} />
+        ) : (
+          <DiscoverRail key={sourceToQuery(r.source)} title={r.title} hint={r.hint} source={r.source} kind={r.source.kind} owned={owned} onAdd={setAdding} rows={2} />
+        ),
       )}
-
-      <Rail title="More like your library" hint="based on what you own" list={forYou} kind="movie" />
-      <Rail title="Trending movies" hint="this week" list={trending ?? []} kind="movie" />
-      <Rail title="Trending shows" hint="this week" list={trendingTV} kind="tv" />
-      <Rail title="Popular movies" list={popular} kind="movie" />
-      <Rail title="Popular shows" list={popularTV} kind="tv" />
 
       {adding && (
         <AddDialog
@@ -182,7 +174,7 @@ export default function Discover() {
           onAdded={(id) => {
             const t = adding
             setAdding(null)
-            loadOwned()
+            owned.reload()
             navigate(t.kind === 'movie' ? `/title/${t.tmdbId}` : `/series/${id}`)
           }}
         />

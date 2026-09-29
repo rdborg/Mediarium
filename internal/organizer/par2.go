@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// Repairer verifies and repairs downloads using PAR2 recovery data (PRD
-// §4.4/§4.8 — "verify (PAR2 repair for Usenet)"). Shells out to the
+// Repairer verifies and repairs downloads using PAR2 recovery data (the
+// "verify (PAR2 repair for Usenet)" step). Shells out to the
 // official par2cmdline `par2` binary rather than a pure-Go implementation
 // (no mature one exists) — decided during the pre-build Q&A.
 type Repairer struct {

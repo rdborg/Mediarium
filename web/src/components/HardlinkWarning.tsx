@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 
-// Surfaces PRD §5.2/§4.8's explicit ask: warn the user up front if their
+// Warns the user up front if their
 // downloads and library paths won't support hardlinking (the #1
 // misconfiguration in this class of app — it silently doubles storage use
 // instead of erroring). Used in both the onboarding wizard and Settings,
-// since PRD says every wizard step should be independently reachable and
+// since every wizard step should be independently reachable and
 // re-checkable later, not a one-time-only choice.
 export default function HardlinkWarning({ pathA, pathB }: { pathA: string; pathB: string }) {
   const [result, setResult] = useState<{ sameFilesystem: boolean; supported: boolean; error?: string } | null>(null)

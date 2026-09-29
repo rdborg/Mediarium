@@ -6,7 +6,7 @@ Container-level settings only. Everything else (indexers, Usenet servers, naming
 
 | Variable | Default |
 |---|---|
-| `APP_PORT` | `8080` |
+| `APP_PORT` | `8264` |
 | `CONFIG_DIR` | `/config` |
 | `DOWNLOADS_DIR` | `/downloads` |
 | `MOVIES_DIR` | `/movies` |

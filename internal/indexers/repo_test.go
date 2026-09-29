@@ -33,7 +33,7 @@ func TestRepoCreateListDelete(t *testing.T) {
 		BaseURL:      "https://fixture.test",
 		APIKey:       "super-secret-key",
 		Enabled:      true,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

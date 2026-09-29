@@ -14,7 +14,8 @@ docker compose up -d
 ```bash
 docker run -d \
   --name mediarium \
-  -p 8080:8080 \
+  -p 8264:8264 \
+  -p 58264:58264/tcp -p 58264:58264/udp \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -v ./config:/config \
   -v ./downloads:/downloads \

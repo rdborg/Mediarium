@@ -1,6 +1,5 @@
-// Package library owns the movies table — the Phase 1 library (PRD.md
-// §7; TV follows the same shape in Phase 2 per the `media_type` column in
-// the schema).
+// Package library owns the movies table — the Phase 1 library (TV follows
+// the same shape in Phase 2 per the `media_type` column in the schema).
 package library
 
 import (
@@ -27,10 +26,16 @@ type Movie struct {
 	Quality     string
 	FilePath    string
 	Monitored   bool
-	ReleaseDate string // "YYYY-MM-DD" from TMDB, empty if unknown — powers the calendar (PRD §7 Phase 3)
+	ReleaseDate string // "YYYY-MM-DD" from TMDB, empty if unknown — powers the calendar
 	ProfileID   int64  // quality profile; 0 = the default profile
 	SourcePref  string // "" = follow Settings; else usenet, torrent or both
+	AddedBy     int64  // account that added it; 0 = unknown
+	// Genres are TMDB genre names. nil means not fetched yet (see
+	// MissingGenres); an empty, non-nil slice means TMDB lists none.
+	Genres []string
 }
+
+const movieColumns = `id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref, COALESCE(added_by, 0), genres`
 
 type Repo struct {
 	db *sql.DB
@@ -38,15 +43,19 @@ type Repo struct {
 
 func NewRepo(db *sql.DB) *Repo { return &Repo{db: db} }
 
-// Add inserts a movie into the library as "missing" (PRD §5.2 step 6 —
-// added via search/Discover, not yet downloaded).
+// Add inserts a movie into the library as "missing"
+// (added via search/Discover, not yet downloaded).
 func (r *Repo) Add(m Movie) (Movie, error) {
 	if m.Status == "" {
 		m.Status = StatusMissing
 	}
+	genres, err := encodeGenres(m.Genres)
+	if err != nil {
+		return Movie{}, err
+	}
 	res, err := r.db.Exec(
-		`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, monitored, release_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		m.TMDBID, m.Title, m.Year, m.Overview, m.PosterPath, string(m.Status), m.Monitored, m.ReleaseDate,
+		`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, monitored, release_date, added_by, genres) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		m.TMDBID, m.Title, m.Year, m.Overview, m.PosterPath, string(m.Status), m.Monitored, m.ReleaseDate, nullID(m.AddedBy), genres,
 	)
 	if err != nil {
 		return Movie{}, fmt.Errorf("insert movie: %w", err)
@@ -61,7 +70,7 @@ func (r *Repo) Add(m Movie) (Movie, error) {
 
 func (r *Repo) Get(id int64) (Movie, error) {
 	return r.scanOne(r.db.QueryRow(
-		`SELECT id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref FROM movies WHERE id = ?`, id))
+		`SELECT `+movieColumns+` FROM movies WHERE id = ?`, id))
 }
 
 // GetByTMDBID looks up a movie by its TMDB id — used by the movie detail
@@ -69,7 +78,7 @@ func (r *Repo) Get(id int64) (Movie, error) {
 // needing its own library id (which doesn't exist until it's added).
 func (r *Repo) GetByTMDBID(tmdbID int) (Movie, bool, error) {
 	m, err := r.scanOne(r.db.QueryRow(
-		`SELECT id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref FROM movies WHERE tmdb_id = ?`, tmdbID))
+		`SELECT `+movieColumns+` FROM movies WHERE tmdb_id = ?`, tmdbID))
 	if err == sql.ErrNoRows {
 		return Movie{}, false, nil
 	}
@@ -81,7 +90,7 @@ func (r *Repo) GetByTMDBID(tmdbID int) (Movie, bool, error) {
 
 func (r *Repo) List() ([]Movie, error) {
 	rows, err := r.db.Query(
-		`SELECT id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref FROM movies ORDER BY added_at DESC`)
+		`SELECT ` + movieColumns + ` FROM movies ORDER BY added_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list movies: %w", err)
 	}
@@ -195,14 +204,16 @@ func (r *Repo) scanRow(scanner rowScanner) (Movie, error) {
 		status   string
 		quality  sql.NullString
 		filePath sql.NullString
+		genres   sql.NullString
 	)
-	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref)
+	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref, &m.AddedBy, &genres)
 	if err == sql.ErrNoRows {
 		return Movie{}, err
 	}
 	if err != nil {
 		return Movie{}, fmt.Errorf("scan movie: %w", err)
 	}
+	m.Genres = decodeGenres(genres)
 	m.Status = Status(status)
 	m.Quality = quality.String
 	m.FilePath = filePath.String

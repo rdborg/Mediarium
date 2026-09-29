@@ -4,7 +4,7 @@ Part of the [master install guide](./INSTALL.md); see it for folder layout, PUID
 
 ## Community Applications template
 
-A template exists at [`docs/unraid/mediarium.xml`](./unraid/mediarium.xml), plus a repository profile at [`docs/unraid/ca_profile.xml`](./unraid/ca_profile.xml). It has **not been submitted to Community Applications** yet: that needs a public repo, a published image and a hosted icon (none exist yet, see `PRD.md` §8/§9), and the current submission process was not verified. The template XML is valid XML but has not been loaded into a real Unraid server.
+A template exists at [`docs/unraid/mediarium.xml`](./unraid/mediarium.xml), plus a repository profile at [`docs/unraid/ca_profile.xml`](./unraid/ca_profile.xml). It has **not been submitted to Community Applications** yet: that needs a public repo, a published image and a hosted icon (none exist yet), and the current submission process was not verified. The template XML is valid XML but has not been loaded into a real Unraid server.
 
 The template maps **two paths**: `/config` and a single `/data` share. `downloads`, `movies` and `tv` are folders inside `/data`, and the `DOWNLOADS_DIR`, `MOVIES_DIR` and `TV_DIR` variables point the app at them. (An earlier version of the template used four separate path mappings; that copies files instead of hardlinking them, because a hardlink cannot cross a container mount point even when the folders share a disk.)
 
@@ -18,7 +18,7 @@ Two ways to use the template in the meantime:
 1. Create a share for your media, for example `data`, containing the folders `downloads`, `movies` and `tv`.
 2. **Docker tab, Add Container.**
 3. **Repository:** `ghcr.io/rdborg/mediarium:latest` (not published yet while the repo is private; build and load the image locally instead, see [INSTALL.md](./INSTALL.md#building-the-image-yourself)).
-4. **Port:** container port `8080` to a host port of your choice (`8080` unless something else uses it).
+4. **Port:** container port `8264` to a host port of your choice (`8264` unless something else uses it).
 5. **Paths**, both **Read/Write**:
    - `/config` to e.g. `/mnt/user/appdata/mediarium`
    - `/data` to e.g. `/mnt/user/data`

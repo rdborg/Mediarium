@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom'
+import { sortProfiles } from './qualityBlurb'
 import { useEffect, useState } from 'react'
 import { api, type DashboardData, type QualityProfile, type SourcePref } from '../api'
 import Icon from './Icon'
@@ -48,7 +50,7 @@ export default function AddDialog({
 
   useEffect(() => {
     api.listProfiles().then((r) => {
-      setProfiles(r.profiles)
+      setProfiles(sortProfiles(r.profiles))
       setDefaultProfileId(r.defaultId)
     }).catch(() => undefined)
     api.getSettings().then((s) => setDefaultSources(s.defaultSources ?? 'both')).catch(() => undefined)
@@ -83,7 +85,7 @@ export default function AddDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={`Add ${target.title}`}>
         <div className="modal-head">
@@ -158,7 +160,7 @@ export default function AddDialog({
           )}
           {dash && dash.indexers > 0 && effectiveSources !== 'torrent' && dash.usenetServers === 0 && (
             <div className="notice notice-warn">
-              Usenet downloads need your provider's login, which isn't added yet (Settings &gt; Downloads).
+              Usenet downloads need your provider's login, which isn't added yet (Settings &gt; Downloads &amp; VPN).
             </div>
           )}
           {error && <p className="error-text">{error}</p>}
@@ -171,6 +173,7 @@ export default function AddDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

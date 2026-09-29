@@ -1,5 +1,5 @@
 // Package crypto encrypts credentials (indexer API keys, download client
-// passwords, VPN configs) at rest in the SQLite DB, per PRD.md §11.
+// passwords, VPN configs) at rest in the SQLite DB.
 //
 // The encryption key lives in a separate file (secret.key, 0600) next to
 // app.db, generated on first run — so the DB file alone is not sufficient

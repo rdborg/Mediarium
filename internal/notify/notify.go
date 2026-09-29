@@ -1,4 +1,4 @@
-// Package notify sends event notifications (PRD.md §4.4 — "Discord/
+// Package notify sends event notifications ("Discord/
 // Telegram/webhook/email on events... generic, not Discord-only") for
 // things happening in the activity feed: grabbed, downloaded/imported,
 // failed.
@@ -136,8 +136,8 @@ func NewTelegramSender(botToken, chatID string) *TelegramSender {
 }
 
 // NewTelegramSenderWithBaseURL is used by tests to point at a local
-// fixture server instead of the real Telegram Bot API (CLAUDE.md: local
-// fixtures, not live network calls, for tests) — same pattern as
+// fixture server instead of the real Telegram Bot API (tests use local
+// fixtures, not live network calls) — same pattern as
 // internal/metadata.NewWithBaseURL.
 func NewTelegramSenderWithBaseURL(botToken, chatID, baseURL string) *TelegramSender {
 	s := NewTelegramSender(botToken, chatID)
@@ -156,7 +156,7 @@ func (s *TelegramSender) Send(ctx context.Context, event Event) error {
 // NotifyAll sends event to every sender, collecting (not stopping on) the
 // first error — one bad notification target shouldn't suppress the
 // others, mirroring the indexer search engine's tolerate-one-failure
-// design (PRD §11).
+// design.
 func NotifyAll(ctx context.Context, senders []Sender, event Event) []error {
 	var errs []error
 	for _, s := range senders {

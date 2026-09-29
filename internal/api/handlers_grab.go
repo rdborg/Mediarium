@@ -19,7 +19,7 @@ type grabRequest struct {
 	ReleaseTitle string `json:"releaseTitle"`
 	DownloadURL  string `json:"downloadUrl"`
 	SizeBytes    int64  `json:"sizeBytes"`
-	Protocol     string `json:"protocol,omitempty"` // "usenet" (default) or "torrent" (PRD §7 Phase 2)
+	Protocol     string `json:"protocol,omitempty"` // "usenet" (default) or "torrent"
 }
 
 func (r grabRequest) protocol() indexers.Protocol {
@@ -29,8 +29,8 @@ func (r grabRequest) protocol() indexers.Protocol {
 	return indexers.ProtocolUsenet
 }
 
-// handleGrab is where "grab" in the Phase 1 exit criteria (PRD §7 —
-// "search, grab, download, and organize a movie start to finish") starts:
+// handleGrab is where "grab" in the Phase 1 exit criteria
+// ("search, grab, download, and organize a movie start to finish") starts:
 // it enqueues the release and kicks off the download/import pipeline in
 // the background, returning immediately so the UI can poll /api/queue.
 func (s *Server) handleGrab(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +58,9 @@ func (s *Server) handleGrab(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "releaseTitle and downloadUrl are required")
 		return
 	}
+	if !s.checkGrabURL(w, r, &req.DownloadURL) {
+		return
+	}
 
 	queueID, err := s.grabRelease(movie, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol())
 	if err != nil {
@@ -69,7 +72,7 @@ func (s *Server) handleGrab(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleSearchGrab is the "grab" action straight from the unified search
-// results (PRD §6 — search has an inline grab action, no separate
+// results (search has an inline grab action, no separate
 // add-to-library step required first). It resolves the release to a TMDB
 // movie automatically (creating the library entry if this is the first
 // time it's been grabbed) and then runs the same pipeline as
@@ -82,6 +85,9 @@ func (s *Server) handleSearchGrab(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.ReleaseTitle == "" || req.DownloadURL == "" {
 		writeError(w, http.StatusBadRequest, "releaseTitle and downloadUrl are required")
+		return
+	}
+	if !s.checkGrabURL(w, r, &req.DownloadURL) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
@@ -109,7 +115,8 @@ func (s *Server) handleSearchGrab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie, err := s.findOrAddMovie(*match)
+	userID, _ := requester(r)
+	movie, err := s.findOrAddMovie(*match, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -129,12 +136,32 @@ func (s *Server) handleSearchGrab(w http.ResponseWriter, r *http.Request) {
 // handleSearchGrab, and internal/api/automation.go's hunt/RSS loops so
 // there's exactly one place that decides what "grabbing something" means.
 func (s *Server) grabRelease(movie library.Movie, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol) (int64, error) {
+	// One download per movie: a grab by hand is refused while another one
+	// for the movie is still running (automation skips it on its own).
+	if err := s.checkMovieNotDownloading(movie.ID); err != nil {
+		return 0, err
+	}
+	return s.grabMovie(movie, releaseTitle, downloadURL, sizeBytes, protocol, false)
+}
+
+// grabMovie is grabRelease with auto set for automation's grabs, which are
+// refused with errAlreadyGrabbed while another download for the movie is
+// still running (a person grabbing by hand is always obeyed).
+func (s *Server) grabMovie(movie library.Movie, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, auto bool) (int64, error) {
 	if protocol == indexers.ProtocolTorrent && !s.torrentsEnabled() {
 		return 0, errTorrentsDisabled
+	}
+	s.grabMu.Lock()
+	if auto {
+		if err := s.claimMovie(movie.ID); err != nil {
+			s.grabMu.Unlock()
+			return 0, err
+		}
 	}
 	queueID, err := s.QueueRepo.Enqueue(queue.Item{
 		MovieID: movie.ID, ReleaseTitle: releaseTitle, NZBURL: downloadURL, SizeBytes: sizeBytes, Protocol: queue.Protocol(protocol),
 	})
+	s.grabMu.Unlock()
 	if err != nil {
 		return 0, err
 	}
@@ -142,11 +169,11 @@ func (s *Server) grabRelease(movie library.Movie, releaseTitle, downloadURL stri
 	_ = s.QueueRepo.LogActivity(movie.ID, "grabbed", grabbedMessage)
 	s.notifyEvent("grabbed", movie.Title, grabbedMessage)
 
-	go func() {
+	s.background(func() {
 		if err := s.runPipeline(queueID, movie.ID, movie.Title, movie.Year, movie.TMDBID, releaseTitle, downloadURL, protocol); err != nil {
 			log.Printf("api: pipeline for queue item %d failed: %v", queueID, err)
 		}
-	}()
+	})
 	return queueID, nil
 }
 
@@ -169,7 +196,10 @@ func bestTMDBMatch(candidates []metadata.Movie, year int) *metadata.Movie {
 	return &candidates[0]
 }
 
-func (s *Server) findOrAddMovie(match metadata.Movie) (library.Movie, error) {
+// findOrAddMovie returns the library movie for match, adding it (as added by
+// userID) when it is not there yet. Its genres are left to the background
+// genre job: a search result only carries genre ids.
+func (s *Server) findOrAddMovie(match metadata.Movie, userID int64) (library.Movie, error) {
 	existing, err := s.MovieRepo.List()
 	if err != nil {
 		return library.Movie{}, err
@@ -181,6 +211,6 @@ func (s *Server) findOrAddMovie(match metadata.Movie) (library.Movie, error) {
 	}
 	return s.MovieRepo.Add(library.Movie{
 		TMDBID: match.TMDBID, Title: match.Title, Year: match.Year(), Overview: match.Overview,
-		PosterPath: match.PosterPath, Monitored: true, ReleaseDate: match.ReleaseDate,
+		PosterPath: match.PosterPath, Monitored: true, ReleaseDate: match.ReleaseDate, AddedBy: userID,
 	})
 }

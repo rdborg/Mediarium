@@ -20,7 +20,7 @@ func TestClassify(t *testing.T) {
 		{"Movie.2024.720p.WEBRip.x264-GROUP", quality.TierWebDL720p},
 		{"Movie.2024.DVDRip.XviD-GROUP", quality.TierDVD},
 		{"Movie.2024.HDTV.x264-GROUP", quality.TierSDTV},
-		{"Movie.2024.CAM-GROUP", quality.TierUnknown},
+		{"Movie.2024.CAM-GROUP", quality.TierPreRelease},
 	}
 	for _, tc := range cases {
 		t.Run(tc.release, func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestRankOrdering(t *testing.T) {
 }
 
 func TestProfileAcceptsAndUpgrade(t *testing.T) {
-	profile := quality.Presets()["any-1080p"]
+	profile := quality.Presets()[quality.Preset1080p]
 
 	webdl1080 := parser.Parse("Movie.2024.1080p.WEB-DL.x264-GROUP")
 	bluray1080 := parser.Parse("Movie.2024.1080p.BluRay.x264-GROUP")
@@ -53,13 +53,13 @@ func TestProfileAcceptsAndUpgrade(t *testing.T) {
 	cam := parser.Parse("Movie.2024.CAM-GROUP")
 
 	if !profile.Accepts(webdl1080) {
-		t.Error("expected any-1080p profile to accept WEB-DL 1080p")
+		t.Error("expected 1080p preset to accept WEB-DL 1080p")
 	}
 	if profile.Accepts(remux2160) {
-		t.Error("expected any-1080p profile to reject a 2160p remux (out of its allow-list)")
+		t.Error("expected 1080p preset to reject a 2160p remux (out of its allow-list)")
 	}
 	if profile.Accepts(cam) {
-		t.Error("expected any-1080p profile to reject an unrecognized CAM release")
+		t.Error("expected 1080p preset to reject an unrecognized CAM release")
 	}
 
 	if !profile.IsUpgrade(webdl1080, bluray1080) {
@@ -74,7 +74,7 @@ func TestProfileAcceptsAndUpgrade(t *testing.T) {
 
 	// Bluray1080p is this profile's cutoff — no more upgrades once reached.
 	if !profile.ReachedCutoff(bluray1080) {
-		t.Error("expected Bluray 1080p to have reached the any-1080p cutoff")
+		t.Error("expected Bluray 1080p to have reached the 1080p cutoff")
 	}
 	if profile.IsUpgrade(bluray1080, bluray1080) {
 		t.Error("did not expect an upgrade once cutoff is reached, even to an equal release")
@@ -85,7 +85,7 @@ func TestProfileAcceptsAndUpgrade(t *testing.T) {
 // hunt loop uses (a stored movie only has a previously-classified Tier on
 // hand, not a fresh parser.Release for "current").
 func TestIsUpgradeOverTier(t *testing.T) {
-	profile := quality.Presets()["any-1080p"]
+	profile := quality.Presets()[quality.Preset1080p]
 	bluray1080 := parser.Parse("Movie.2024.1080p.BluRay.x264-GROUP")
 
 	if !profile.IsUpgradeOverTier(quality.TierWebDL1080p, bluray1080) {
@@ -95,10 +95,10 @@ func TestIsUpgradeOverTier(t *testing.T) {
 		t.Error("did not expect an equal-tier release to register as an upgrade")
 	}
 	if !profile.ReachedCutoffTier(quality.TierBluray1080p) {
-		t.Error("expected the stored Bluray-1080p tier to have reached the any-1080p cutoff")
+		t.Error("expected the stored Bluray-1080p tier to have reached the 1080p cutoff")
 	}
 	if profile.ReachedCutoffTier(quality.TierWebDL1080p) {
-		t.Error("did not expect WEBDL-1080p to have reached the any-1080p cutoff")
+		t.Error("did not expect WEBDL-1080p to have reached the 1080p cutoff")
 	}
 	// A pre-migration movie whose stored quality is just "1080p" (the old
 	// resolution-only format, not a recognized Tier) should be treated as

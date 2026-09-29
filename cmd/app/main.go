@@ -2,8 +2,7 @@
 // that starts the web UI/API and all background workers (indexer engine,
 // download clients, automation loop, etc.) in one process.
 //
-// See PRD.md for the full architecture and phased scope, and CLAUDE.md
-// for project conventions.
+// See docs/ for installation, configuration and the feature overview.
 package main
 
 import (
@@ -25,8 +24,8 @@ import (
 	"github.com/ryanborg/mediarium/internal/store"
 )
 
-// defaultTMDBAPIKey is empty in source control on purpose (CLAUDE.md: "no
-// secrets in the repo") and is meant to be injected at build time by
+// defaultTMDBAPIKey is empty in source control on purpose (no secrets in
+// the repo) and is meant to be injected at build time by
 // whoever produces an official release binary, e.g.:
 //
 //	go build -ldflags="-X main.defaultTMDBAPIKey=xxxxx" ./cmd/app
@@ -52,15 +51,16 @@ var (
 	defaultTraktClientID       string
 )
 
-// version identifies the running build (PRD §8's "version-pinned Docker
-// tags, changelog per release" update policy). Set at release-build time
-// via ldflags, e.g.:
+// version identifies the running build (the "version-pinned Docker tags,
+// changelog per release" update policy). Set at build time via
+// ldflags, e.g.:
 //
-//	go build -ldflags="-X main.version=v0.1.0" ./cmd/app
+//	go build -ldflags="-X main.version=$(cat VERSION)" ./cmd/app
 //
-// The Dockerfile passes this through automatically from the image tag;
-// "dev" is what any from-source build gets, matching "no forced
-// auto-update" — a dev build never claims to be a specific release.
+// The number lives in the VERSION file at the repository root (semantic
+// versioning, no leading "v"; version_test.go checks it parses). The
+// Dockerfile and the release workflow read it and pass it here. A plain
+// `go build`/`go run` without ldflags reports "dev".
 var version = "dev"
 
 func main() {

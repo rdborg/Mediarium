@@ -6,7 +6,7 @@ import Icon, { type IconName } from '../components/Icon'
 import { DOCS_URL, REPO_URL } from '../docs'
 
 const FEATURES: { icon: IconName; title: string; text: string; color: string }[] = [
-  { icon: 'search', title: 'Finds releases', text: 'Searches your indexers, ranks results against your quality profile and picks the best one. Like Radarr, Sonarr and Prowlarr in one place.', color: 'var(--c-discover)' },
+  { icon: 'search', title: 'Finds releases', text: 'Searches your indexers and torrent sites, ranks every result against your quality profile and picks the best one.', color: 'var(--c-discover)' },
   { icon: 'download', title: 'Downloads them itself', text: 'A built-in Usenet downloader (multi-server, PAR2 repair, unpacking) and a built-in torrent client. Nothing else to install or connect.', color: 'var(--c-activity)' },
   { icon: 'folder', title: 'Files it neatly', text: 'Moves finished downloads into your library with the naming you choose. Hardlinks when it can, so no extra disk space. It never overwrites or deletes your files on its own.', color: 'var(--c-library)' },
   { icon: 'chat', title: 'Gets subtitles', text: 'Fetches subtitles in your languages from OpenSubtitles and keeps looking for the ones that are missing.', color: 'var(--c-calendar)' },
@@ -14,16 +14,48 @@ const FEATURES: { icon: IconName; title: string; text: string; color: string }[]
   { icon: 'shield', title: 'Stays private', text: 'Optional built-in WireGuard VPN for torrent traffic with a kill switch, and it needs no special container permissions. Runs entirely on your own machine.', color: 'var(--c-dashboard)' },
 ]
 
-const CREDITS: { name: string; what: string; href: string }[] = [
-  { name: 'OpenSubtitles', what: 'Subtitles', href: 'https://www.opensubtitles.com/' },
-  { name: 'Trakt', what: 'Public list import', href: 'https://trakt.tv/' },
-  { name: 'Sora and IBM Plex', what: 'Fonts (SIL Open Font License)', href: 'https://fonts.google.com/' },
-  { name: 'nwaples/rardecode', what: 'Unpacking RAR archives (BSD-2-Clause)', href: 'https://github.com/nwaples/rardecode' },
-  { name: '7-Zip', what: 'Unpacking 7z archives', href: 'https://www.7-zip.org/' },
-  { name: 'par2cmdline', what: 'Repairing incomplete downloads', href: 'https://github.com/Parchive/par2cmdline' },
-  { name: 'anacrolix/torrent', what: 'The BitTorrent engine (MPL-2.0)', href: 'https://github.com/anacrolix/torrent' },
-  { name: 'wireguard-go', what: 'The userspace VPN tunnel (MIT)', href: 'https://www.wireguard.com/' },
-  { name: 'Radarr, Sonarr, Prowlarr, SABnzbd, Bazarr', what: 'The projects that showed how this should work', href: 'https://wiki.servarr.com/' },
+interface Credit {
+  name: string
+  href: string
+  used: string
+  desc: string
+  licence?: string
+}
+
+// Only things Mediarium really uses: services it talks to, code it is built
+// with or runs, and the fonts and icons you see.
+const CREDITS: { group: string; items: Credit[] }[] = [
+  {
+    group: 'Services',
+    items: [
+      { name: 'The Movie Database (TMDB)', href: 'https://www.themoviedb.org/', used: 'Movie and show information', desc: 'Titles, posters, summaries, ratings, trailers, cast and episode lists. This product uses the TMDB API but is not endorsed or certified by TMDB.' },
+      { name: 'OpenSubtitles', href: 'https://www.opensubtitles.com/', used: 'Subtitles', desc: 'Searching for and downloading subtitles in your languages.' },
+      { name: 'Trakt', href: 'https://trakt.tv/', used: 'List import', desc: 'Reading public Trakt lists so you can add everything on a list at once.' },
+      { name: 'Prowlarr/Indexers', href: 'https://github.com/Prowlarr/Indexers', used: 'Torrent site definitions', desc: 'The community-maintained descriptions of how to search each site, downloaded to your server when you open the site list.' },
+    ],
+  },
+  {
+    group: 'Software',
+    items: [
+      { name: 'anacrolix/torrent', href: 'https://github.com/anacrolix/torrent', used: 'Torrent client', desc: 'The BitTorrent engine inside Mediarium: peers, DHT, magnet links and seeding.', licence: 'MPL-2.0' },
+      { name: 'wireguard-go and gVisor', href: 'https://www.wireguard.com/', used: 'Built-in VPN', desc: 'A WireGuard tunnel that runs inside the app, with no special container permissions.', licence: 'MIT, Apache-2.0' },
+      { name: 'rardecode', href: 'https://github.com/nwaples/rardecode', used: 'Unpacking', desc: 'Opens RAR archives, including multi-part ones, from Usenet downloads.', licence: 'BSD-2-Clause' },
+      { name: '7-Zip', href: 'https://www.7-zip.org/', used: 'Unpacking', desc: 'Opens 7z archives. Included in the Docker image.', licence: 'LGPL' },
+      { name: 'par2cmdline', href: 'https://github.com/Parchive/par2cmdline', used: 'Repair', desc: 'Checks and repairs Usenet downloads that arrive with missing pieces. Included in the Docker image.', licence: 'GPL-2.0' },
+      { name: 'SQLite (modernc.org/sqlite)', href: 'https://gitlab.com/cznic/sqlite', used: 'Database', desc: 'Stores your library, settings and history in one file, without any extra software.', licence: 'BSD-3-Clause' },
+      { name: 'Go x/crypto and x/net', href: 'https://pkg.go.dev/golang.org/x/crypto', used: 'Security and web pages', desc: 'Password hashing, VPN keys, and reading torrent site pages.', licence: 'BSD-3-Clause' },
+      { name: 'go-yaml', href: 'https://github.com/go-yaml/yaml', used: 'Site definitions', desc: 'Reads the torrent site definition files.', licence: 'MIT, Apache-2.0' },
+      { name: 'React and React Router', href: 'https://react.dev/', used: 'Web interface', desc: 'The screens you are looking at.', licence: 'MIT' },
+      { name: 'FlareSolverr', href: 'https://github.com/FlareSolverr/FlareSolverr', used: 'Optional helper', desc: 'Runs next to Mediarium if you add it, to get past Cloudflare checks on some sites.', licence: 'MIT' },
+    ],
+  },
+  {
+    group: 'Fonts and icons',
+    items: [
+      { name: 'Sora and IBM Plex', href: 'https://fonts.google.com/', used: 'Fonts', desc: 'Headings in Sora, text in IBM Plex Sans and Plex Mono.', licence: 'SIL Open Font License' },
+      { name: 'Simple Icons', href: 'https://simpleicons.org/', used: 'Service logos', desc: 'The Discord, Telegram, Slack and ntfy marks on the Notifications page. Logos belong to their owners.', licence: 'CC0-1.0' },
+    ],
+  },
 ]
 
 // What Mediarium is, where it comes from, and the credits and legal wording
@@ -75,42 +107,50 @@ export default function About() {
         ))}
       </div>
 
-      <div className="group-cols" style={{ marginTop: 22 }}>
+      <div className="about-stack" style={{ marginTop: 22 }}>
         <fieldset className="group folders">
           <legend>
-            <Icon name="heart" size={14} /> Credits
+            <Icon name="heart" size={14} /> Credits: what Mediarium is built with
           </legend>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-            <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">
-              <img src={tmdbLogo} alt="The Movie Database (TMDB)" style={{ height: 24 }} />
-            </a>
+          <div className="credit-cols">
+          {CREDITS.map((g) => (
+            <div key={g.group} className="credit-group">
+              <h3>{g.group}</h3>
+              <ul className="credit-list">
+                {g.items.map((c) => (
+                  <li key={c.name}>
+                    <div className="credit-top">
+                      <a href={c.href} target="_blank" rel="noreferrer">
+                        {c.name === 'The Movie Database (TMDB)' && <img src={tmdbLogo} alt="" className="credit-logo" />}
+                        {c.name}
+                      </a>
+                      <span className="badge">{c.used}</span>
+                      {c.licence && <small className="credit-licence">{c.licence}</small>}
+                    </div>
+                    <p>{c.desc}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
           </div>
-          <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>This product uses the TMDB API but is not endorsed or certified by TMDB. All movie and show information and artwork come from TMDB.</p>
-          <ul className="credit-list">
-            {CREDITS.map((c) => (
-              <li key={c.name}>
-                <a href={c.href} target="_blank" rel="noreferrer">
-                  {c.name}
-                </a>
-                <span>{c.what}</span>
-              </li>
-            ))}
-          </ul>
         </fieldset>
 
-        <fieldset className="group alerts">
+        <fieldset className="group alerts legal-row">
           <legend>
             <Icon name="shield" size={14} /> Legal and responsible use
           </legend>
-          <p style={{ marginTop: 0 }}>
+          <div className="legal-cols">
+          <p>
             Mediarium is a general-purpose automation and organising tool, provided for educational and personal use. It does not host, index, link to or supply any content, and it is not affiliated with TMDB, Trakt, OpenSubtitles or any indexer, Usenet or torrent provider.
           </p>
           <p>
             You are solely responsible for what you download and for following the laws of your country and the terms of the services you use. It is intended for material you have the legal right to obtain: your own backups, public-domain and freely licensed works, and content you are licensed to use.
           </p>
-          <p style={{ color: 'var(--text-dim)', marginBottom: 0 }}>
+          <p style={{ color: 'var(--text-dim)' }}>
             Provided as is, with no warranty of any kind, under the AGPL-3.0. Trademarks belong to their owners. This is a plain-language notice, not legal advice.
           </p>
+          </div>
         </fieldset>
       </div>
     </div>

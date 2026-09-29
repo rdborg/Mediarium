@@ -64,7 +64,7 @@ sed "s|__HOME__|$HOME|g" "$HERE/$LABEL.plist" > "$PLIST_DST"
 launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$UID_NUM" "$PLIST_DST"
 
-echo "Mediarium is starting. Open http://localhost:8080"
+echo "Mediarium is starting. Open http://localhost:8264"
 echo "Logs:   ~/Library/Logs/Mediarium/mediarium.log"
 echo "Stop:   launchctl bootout gui/$UID_NUM/$LABEL"
 echo "Remove: sh install.sh uninstall"

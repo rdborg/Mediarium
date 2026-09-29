@@ -1,3 +1,2 @@
-// Package auth is a placeholder for the auth module described in
-// PRD.md §4.4 (core modules table). Not yet implemented.
+// Package auth handles accounts, passwords (bcrypt), sessions and API keys.
 package auth

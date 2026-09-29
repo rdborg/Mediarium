@@ -69,16 +69,18 @@ func TestValidateOrdersAndDedupesTiers(t *testing.T) {
 func TestRepoCRUDAndSeeding(t *testing.T) {
 	repo := newRepo(t)
 
-	seeded, err := repo.SeedPresets()
+	seeded, err := repo.SeedPresets(0)
 	if err != nil || len(seeded) != len(quality.Presets()) {
 		t.Fatalf("seed: %v, %d profiles", err, len(seeded))
 	}
-	again, _ := repo.SeedPresets()
+	again, _ := repo.SeedPresets(0)
 	if len(again) != len(seeded) {
 		t.Fatalf("seeding twice must not duplicate: %d -> %d", len(seeded), len(again))
 	}
-	if seeded[0].Name != "Up to 1080p" || !seeded[0].UpgradeAllowed {
-		t.Fatalf("first seeded profile should be the sensible default, got %+v", seeded[0])
+	for i, want := range []string{"Cinema recordings", "720p", "1080p", "4K & over", "Any"} {
+		if seeded[i].Name != want || !seeded[i].UpgradeAllowed {
+			t.Fatalf("seeded[%d] = %+v, want %q with upgrades on", i, seeded[i], want)
+		}
 	}
 
 	created, err := repo.Create(quality.Profile{Name: "Remux only", Allowed: []quality.Tier{quality.TierRemux2160p}, Cutoff: quality.TierRemux2160p})

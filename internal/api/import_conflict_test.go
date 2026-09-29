@@ -54,6 +54,7 @@ func newImportConflictTestServer(t *testing.T, movieContent []byte) (client *htt
 	if err != nil {
 		t.Fatalf("new api server: %v", err)
 	}
+	t.Cleanup(func() { waitBackground(t, server) })
 
 	httpSrv = httptest.NewServer(server.Routes())
 	t.Cleanup(httpSrv.Close)
@@ -95,6 +96,18 @@ func newImportConflictTestServer(t *testing.T, movieContent []byte) (client *htt
 	return client, httpSrv, movie, existingPath
 }
 
+// conflictWorkDir is the working folder of a parked download (the test
+// server keeps downloads next to the movies folder), checked to exist while
+// the download waits for a decision.
+func conflictWorkDir(t *testing.T, existingPath string, queueID int64, mustExist bool) string {
+	t.Helper()
+	dir := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(existingPath))), "downloads", "incomplete", fmt.Sprintf("queue-%d", queueID))
+	if _, err := os.Stat(dir); mustExist && err != nil {
+		t.Fatalf("a parked download keeps its working folder: %v", err)
+	}
+	return dir
+}
+
 func grabFixtureAndWaitForConflict(t *testing.T, client *http.Client, httpSrv *httptest.Server, movie library.Movie, movieContent []byte) map[string]any {
 	t.Helper()
 	searchResp := getJSON[[]map[string]any](t, client, httpSrv.URL+"/api/search?q=fixture")
@@ -134,7 +147,7 @@ func grabFixtureAndWaitForConflict(t *testing.T, client *http.Client, httpSrv *h
 }
 
 // TestImportConflictAskParksForManualReview proves the "always ask" policy
-// (PRD §4.8) doesn't silently skip a naming collision like the old
+// doesn't silently skip a naming collision like the old
 // hardcoded ConflictSkip behavior did — it parks the queue item with
 // enough state (destPath) for a person to act on, and leaves the existing
 // file completely untouched in the meantime.
@@ -167,10 +180,14 @@ func TestResolveConflictOverwrite(t *testing.T) {
 
 	item := grabFixtureAndWaitForConflict(t, client, httpSrv, movie, movieContent)
 	queueID := int64(item["id"].(float64))
+	workDir := conflictWorkDir(t, existingPath, queueID, true)
 
 	postJSON[map[string]any](t, client, fmt.Sprintf("%s/api/queue/%d/resolve-conflict", httpSrv.URL, queueID), map[string]any{
 		"overwrite": true,
 	}, http.StatusOK)
+	if _, err := os.Stat(workDir); err == nil {
+		t.Fatal("the download's working folder should be removed once the conflict is resolved")
+	}
 
 	deadline := time.Now().Add(5 * time.Second)
 	var status string
@@ -211,10 +228,14 @@ func TestResolveConflictSkip(t *testing.T) {
 
 	item := grabFixtureAndWaitForConflict(t, client, httpSrv, movie, movieContent)
 	queueID := int64(item["id"].(float64))
+	workDir := conflictWorkDir(t, existingPath, queueID, true)
 
 	postJSON[map[string]any](t, client, fmt.Sprintf("%s/api/queue/%d/resolve-conflict", httpSrv.URL, queueID), map[string]any{
 		"overwrite": false,
 	}, http.StatusOK)
+	if _, err := os.Stat(workDir); err == nil {
+		t.Fatal("a skipped download's working folder should be removed")
+	}
 
 	deadline := time.Now().Add(5 * time.Second)
 	var status string

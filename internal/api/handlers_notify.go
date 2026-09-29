@@ -13,7 +13,7 @@ import (
 	"github.com/ryanborg/mediarium/internal/notify"
 )
 
-// notifyEvent fires every configured notification target (PRD §4.4) that
+// notifyEvent fires every configured notification target that
 // subscribed to this kind of event, without blocking the caller — a slow/
 // unreachable webhook shouldn't delay the download/import pipeline.
 func (s *Server) notifyEvent(eventType, title, message string) {

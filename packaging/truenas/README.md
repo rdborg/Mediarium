@@ -45,7 +45,11 @@ services:
     container_name: mediarium
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8264:8264"
+      # Optional torrent port (TCP and UDP): more peers and proper seeding.
+      # Keep it the same as Settings > Downloads & VPN > Listen port.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
     environment:
       PUID: "568"
       PGID: "568"
@@ -59,12 +63,12 @@ services:
 ```
 
 Then in TrueNAS: Apps, choose the option to install a custom app, pick the YAML
-option, paste the above, and deploy. Open `http://<truenas-ip>:8080`.
+option, paste the above, and deploy. Open `http://<truenas-ip>:8264`.
 
 ## Things to check if it does not work
 
 - The container log says a folder "is not writable": fix the dataset owner/ACL or
   change `PUID`/`PGID`. Mediarium never changes ownership of your media folders.
-- Port 8080 may already be used by another app; change the left side of `8080:8080`.
+- Port 8264 may already be used by another app; change the left side of `8264:8264`.
 - If TrueNAS rejects the YAML, remove the `container_name` line first, some
   versions manage names themselves (unverified).

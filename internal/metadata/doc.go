@@ -1,3 +1,3 @@
-// Package metadata is a placeholder for the metadata module described in
-// PRD.md §4.4 (core modules table). Not yet implemented.
+// Package metadata talks to TMDB for movie and show information, artwork,
+// discovery lists and genres.
 package metadata

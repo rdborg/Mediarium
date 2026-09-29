@@ -26,7 +26,12 @@ services:
     container_name: mediarium
     restart: unless-stopped
     ports:
-      - "${WEBUI_PORT:-8080}:8080"
+      - "${WEBUI_PORT:-8264}:8264"
+      # Optional: the torrent port (TCP and UDP). Torrents work without it, but
+      # with it other peers can connect to you (more peers, proper seeding).
+      # Keep both numbers the same as Settings > Downloads & VPN > Listen port.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
     environment:
       PUID: "${PUID:-1000}"
       PGID: "${PGID:-1000}"

@@ -1,6 +1,6 @@
-// Package organizer post-processes completed downloads: naming/renaming
-// (PRD.md §4.8), unpacking, PAR2 verification/repair, and hardlink-first
-// import into the organized library.
+// Package organizer post-processes completed downloads: naming/renaming,
+// unpacking, PAR2 verification/repair, and hardlink-first import into the
+// organized library.
 package organizer
 
 import (
@@ -29,7 +29,7 @@ type NamingContext struct {
 }
 
 // Presets ship a few common naming schemes so most users never need to
-// hand-build a token string (PRD §4.8).
+// hand-build a token string.
 var Presets = map[string]string{
 	"plex":     "{Movie Title} ({Year})",
 	"jellyfin": "{Movie Title} ({Year}) [{Quality}]",
@@ -37,12 +37,12 @@ var Presets = map[string]string{
 	"minimal":  "{Movie Title}",
 }
 
-// TV naming (PRD §4.8 — "Season/episode folder support with the same token
+// TV naming ("Season/episode folder support with the same token
 // system"). The series/season folder structure is fixed (Plex/Jellyfin/
 // Kodi/Emby all agree on it); only the episode filename is configurable,
 // via the same preset names movies use so one "naming preset" setting
-// covers both. The PRD's series folder carries a TVDB id
-// ("[tvdb-{TvdbId}]"); this app's metadata source is TMDB (PRD §4.4), so
+// covers both. Sonarr-style series folders often carry a TVDB id
+// ("[tvdb-{TvdbId}]"); this app's metadata source is TMDB, so
 // there's no TVDB id to put there — the year disambiguates same-titled
 // shows well enough.
 const (
@@ -73,7 +73,7 @@ func Render(format string, ctx NamingContext) string {
 	return collapseWhitespaceAndPunctuation(result)
 }
 
-// tokenValue matches token names case-insensitively — the PRD writes
+// tokenValue matches token names case-insensitively — users may write
 // "{season:00}" while the presets use "{Season:00}", and a user hand-
 // typing a custom format shouldn't have to guess which.
 func tokenValue(name string, ctx NamingContext) string {
@@ -108,7 +108,7 @@ func tokenValue(name string, ctx NamingContext) string {
 		return fmt.Sprintf("%d", ctx.TMDBID)
 	case "custom formats":
 		// No full custom-format matching engine yet (that's a Phase 2/3
-		// quality-profiles feature per PRD §7) — approximated for now as
+		// quality-profiles feature) — approximated for now as
 		// whatever edition/HDR-style tag is known, so the token still
 		// resolves to something meaningful rather than silently vanishing.
 		return ctx.Edition
@@ -117,8 +117,8 @@ func tokenValue(name string, ctx NamingContext) string {
 	}
 }
 
-// applyPad implements the "{Token:00}" zero-pad convention (PRD §4.8,
-// e.g. "Season {season:00}") for numeric token values.
+// applyPad implements the "{Token:00}" zero-pad convention (e.g.
+// "Season {season:00}") for numeric token values.
 func applyPad(value, pad string) string {
 	if pad == "" || value == "" {
 		return value
@@ -151,7 +151,7 @@ func collapseWhitespaceAndPunctuation(s string) string {
 var illegalChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)
 
 // SanitizeMode controls how illegal filesystem characters are handled
-// (PRD §4.8 — "configurable (replace vs. strip)").
+// ("configurable (replace vs. strip)").
 type SanitizeMode int
 
 const (

@@ -8,8 +8,8 @@ import (
 	"github.com/ryanborg/mediarium/internal/queue"
 )
 
-// handleMetrics exposes a Prometheus-format /metrics endpoint (PRD §7 —
-// "cheap to add, useful for NAS users running Grafana"). Written by hand
+// handleMetrics exposes a Prometheus-format /metrics endpoint
+// ("cheap to add, useful for NAS users running Grafana"). Written by hand
 // with plain fmt.Fprintf rather than pulling in the Prometheus client
 // library: the exposition format is simple text and this endpoint has
 // exactly two counters, so a dependency would outweigh the few lines it

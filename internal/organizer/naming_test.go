@@ -118,7 +118,7 @@ func TestRenderTVEmptyEpisodeTitle(t *testing.T) {
 	}
 }
 
-// The PRD writes tokens lowercase ("{season:00}"); presets use title case.
+// Tokens may be written lowercase ("{season:00}"); presets use title case.
 func TestRenderTokensCaseInsensitive(t *testing.T) {
 	ctx := organizer.NamingContext{SeriesTitle: "Show", Season: 4, Episode: 5}
 	if got := organizer.Render("{series title} s{SEASON:00}e{episode:00}", ctx); got != "Show s04e05" {

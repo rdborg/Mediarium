@@ -417,6 +417,7 @@ func (s *Server) registerMovieGroup(ctx context.Context, g libimport.Group, tmdb
 		existing, err = s.MovieRepo.Add(library.Movie{
 			TMDBID: tm.TMDBID, Title: tm.Title, Year: tm.Year(), Overview: tm.Overview,
 			PosterPath: tm.PosterPath, Monitored: true, ReleaseDate: tm.ReleaseDate,
+			Genres: s.TMDB().MovieGenres(ctx, *tm),
 		})
 		if err != nil {
 			res.Error = err.Error()
@@ -444,7 +445,7 @@ func (s *Server) registerSeriesGroup(ctx context.Context, g libimport.Group, tmd
 		return res
 	}
 	if !exists {
-		series, err = s.addSeriesFromTMDB(ctx, tmdbID)
+		series, err = s.addSeriesFromTMDB(ctx, tmdbID, 0)
 		if err != nil {
 			res.Error = "add series from TMDB: " + err.Error()
 			return res

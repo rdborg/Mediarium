@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ryanborg/mediarium/internal/library"
 )
@@ -18,7 +19,9 @@ import (
 type fakeOpenSubtitles struct {
 	srv         *httptest.Server
 	searches    atomic.Int32
-	quota       atomic.Bool
+	quota       atomic.Bool  // refuse every download with 406 and no figures
+	dlLimit     atomic.Int32 // when > 0: allow this many downloads, report the quota, then refuse with figures
+	downloads   atomic.Int32 // downloads allowed so far
 	lastQueries chan map[string]string
 }
 
@@ -51,7 +54,19 @@ func newFakeOpenSubtitles(t *testing.T) *fakeOpenSubtitles {
 			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{"link": "http://" + r.Host + "/file.srt"})
+		resp := map[string]any{"link": "http://" + r.Host + "/file.srt"}
+		if limit := f.dlLimit.Load(); limit > 0 {
+			reset := time.Now().Add(5 * time.Hour).UTC().Format("2006-01-02T15:04:05.000Z")
+			n := f.downloads.Add(1)
+			if n > limit {
+				f.downloads.Add(-1)
+				w.WriteHeader(http.StatusNotAcceptable)
+				json.NewEncoder(w).Encode(map[string]any{"requests": limit, "remaining": 0, "message": "limit reached", "reset_time_utc": reset})
+				return
+			}
+			resp["requests"], resp["remaining"], resp["reset_time_utc"] = n, limit-n, reset
+		}
+		json.NewEncoder(w).Encode(resp)
 	})
 	mux.HandleFunc("/file.srt", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "1\n00:00:01,000 --> 00:00:02,000\nHello\n")
@@ -104,7 +119,9 @@ func TestSubtitleSweepFillsConfiguredLanguagesAndBacksOff(t *testing.T) {
 		t.Fatalf("only Italian should remain wanted: %+v", wanted)
 	}
 
-	// The scheduled sweep remembers the Italian miss and does not ask again.
+	// The scheduled sweep (only active when automatic downloading is on)
+	// remembers the Italian miss and does not ask again.
+	putJSONStatus(t, env.client, env.baseURL+"/api/settings", map[string]any{"subtitleAutoDownload": true}, http.StatusOK)
 	before := os_.searches.Load()
 	env.server.TestSubtitleSweepJob(context.Background())
 	if after := os_.searches.Load(); after != before {

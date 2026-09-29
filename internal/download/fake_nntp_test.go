@@ -10,7 +10,7 @@ import (
 )
 
 // fakeNNTPServer is a minimal in-process NNTP server for tests, so nothing
-// here needs a live Usenet provider (CLAUDE.md: local fixtures, not live
+// here needs a live Usenet provider (tests use local fixtures, not live
 // network calls).
 type fakeNNTPServer struct {
 	listener net.Listener

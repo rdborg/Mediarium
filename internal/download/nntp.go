@@ -12,7 +12,7 @@ import (
 )
 
 // NNTPConn is a single connection to a Usenet server. The engine opens one
-// per configured "connections" slot (PRD.md §5.2 step 4 — connection count
+// per configured "connections" slot (connection count
 // is part of the download client config) so segment fetches run in
 // parallel.
 type NNTPConn struct {

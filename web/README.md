@@ -2,7 +2,7 @@
 
 React + Vite (TypeScript) frontend for the single search bar / library / calendar / settings / onboarding wizard of the Mediarium app.
 
-The compiled Go binary embeds this app's production build (`web/dist/`, via `go:embed` in `web/embed.go`) so the whole app ships as one binary/one port (PRD §4.1/§4.2). `web/dist/index.html` in the repo is a **placeholder** — it exists only so `go build ./...` succeeds on a fresh clone without requiring Node at all. Build the real thing before you actually want to use the UI:
+The compiled Go binary embeds this app's production build (`web/dist/`, via `go:embed` in `web/embed.go`) so the whole app ships as one binary/one port. `web/dist/index.html` in the repo is a **placeholder** — it exists only so `go build ./...` succeeds on a fresh clone without requiring Node at all. Build the real thing before you actually want to use the UI:
 
 ```bash
 cd web

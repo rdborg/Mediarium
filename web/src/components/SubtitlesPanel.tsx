@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, type SubtitleResult } from '../api'
+import { api, type SubtitleQuota, type SubtitleResult } from '../api'
 import { languageName } from '../languages'
+import QuotaNote from './QuotaNote'
 
 // Subtitles for one downloaded movie or episode: which of the configured
 // languages are already next to the file, plus a manual search that lists
@@ -14,6 +15,10 @@ export default function SubtitlesPanel({ kind, id }: { kind: 'movie' | 'episode'
   const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [quota, setQuota] = useState<SubtitleQuota | null>(null)
+  useEffect(() => {
+    api.subtitleQuota().then(setQuota).catch(() => undefined)
+  }, [status])
 
   const loadStatus = useCallback(() => {
     const req = kind === 'movie' ? api.movieSubtitleStatus(id) : api.episodeSubtitleStatus(id)
@@ -57,6 +62,7 @@ export default function SubtitlesPanel({ kind, id }: { kind: 'movie' | 'episode'
 
   return (
     <div>
+      <QuotaNote quota={quota} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         {languages.map((l) => (
           <span key={l} className={`badge ${present.includes(l) ? 'downloaded' : 'missing'}`}>

@@ -13,7 +13,7 @@ type contextKey string
 const userContextKey contextKey = "auth_user"
 
 // SetSessionCookie writes a signed-by-opacity (random, server-side-looked-up)
-// HTTP-only session cookie, per PRD.md §5.1.
+// HTTP-only session cookie.
 func SetSessionCookie(w http.ResponseWriter, token string, expiresAt time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,

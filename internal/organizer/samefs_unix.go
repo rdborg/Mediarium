@@ -8,8 +8,8 @@ import (
 )
 
 // SameFilesystem reports whether a and b live on the same filesystem/
-// device — the actual precondition for os.Link to succeed (PRD.md §4.8/
-// §5.2: "Wizard auto-detects whether downloads and library paths share a
+// device — the actual precondition for os.Link to succeed ("Wizard
+// auto-detects whether downloads and library paths share a
 // filesystem and warns if hardlinking won't work"). Compares the device
 // ID from stat(2), which is how the kernel itself decides whether a link
 // can be hardlinked (cross-device links fail with EXDEV — see

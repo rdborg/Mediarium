@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { api, displayName, type CalendarEntry, type DashboardData, type DashFolder, type HealthItem, type QueueItem } from '../api'
+import { api, displayName, isAdmin, type CalendarEntry, type DashboardData, type DashFolder, type HealthItem, type QueueItem } from '../api'
 import { useAuth } from '../AuthContext'
 import CalendarGrid from '../components/CalendarGrid'
 import Icon, { type IconName } from '../components/Icon'
@@ -44,16 +44,10 @@ function Stat({ icon, label, value, sub, to, color }: { icon: IconName; label: s
 
 const LEVEL_ICON: Record<HealthItem['level'], IconName> = { error: 'warning', warn: 'warning', info: 'info' }
 
-function Health({ items }: { items: HealthItem[] }) {
+function Health({ items, showOptional }: { items: HealthItem[]; showOptional: boolean }) {
   const problems = items.filter((i) => i.level !== 'info')
   const optional = items.filter((i) => i.level === 'info')
-  if (problems.length === 0 && optional.length === 0) {
-    return (
-      <div className="health-ok">
-        <Icon name="check" size={18} /> Everything Mediarium needs is set up and working.
-      </div>
-    )
-  }
+  if (problems.length === 0 && (!showOptional || optional.length === 0)) return null
   const row = (it: HealthItem) => (
     <li key={it.id} className={`health-item level-${it.level}`}>
       <span className="health-icon">
@@ -79,7 +73,7 @@ function Health({ items }: { items: HealthItem[] }) {
         </>
       )}
       {optional.length > 0 && (
-        <details open={problems.length === 0}>
+        <details open={showOptional}>
           <summary>
             {optional.length} optional {optional.length === 1 ? 'thing' : 'things'} you could set up
           </summary>
@@ -102,7 +96,7 @@ function FolderCard({ f }: { f: DashFolder }) {
         </span>
         <div style={{ minWidth: 0 }}>
           <strong>{f.label}</strong>
-          <code title={f.path}>{f.path}</code>
+          {f.path && <code title={f.path}>{f.path}</code>}
         </div>
       </div>
       <div className="folder-badges">
@@ -205,6 +199,7 @@ export default function Dashboard() {
   const [active, setActive] = useState<QueueItem[]>([])
   const [cal, setCal] = useState<CalendarEntry[]>([])
   const [error, setError] = useState('')
+  const [showOptional, setShowOptional] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -214,7 +209,7 @@ export default function Dashboard() {
         .then((d) => !cancelled && setData(d))
         .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)))
     void load()
-    const t = setInterval(load, 20000)
+    const t = setInterval(load, 5000)
     return () => {
       cancelled = true
       clearInterval(t)
@@ -242,6 +237,9 @@ export default function Dashboard() {
   }, [])
 
   const name = displayName(user)
+  // Members get a trimmed dashboard: no setup warnings, no server paths and
+  // no links into settings they cannot open.
+  const admin = isAdmin(user)
 
   if (error) return <p className="error-text">{error}</p>
   if (!data) {
@@ -272,7 +270,9 @@ export default function Dashboard() {
           </h1>
           <p>
             {empty
-              ? 'Welcome to Mediarium. Search for a movie or show in the bar above, or import what you already have.'
+              ? admin
+                ? 'Welcome to Mediarium. Search for a movie or show in the bar above, or import what you already have.'
+                : 'Welcome to Mediarium. Search for a movie or show in the bar above to add it.'
               : active.length > 0
                 ? `${active.length} ${active.length === 1 ? 'download is' : 'downloads are'} in progress right now.`
                 : wanted > 0
@@ -287,21 +287,28 @@ export default function Dashboard() {
           <Link to="/wanted" className="hero-pill" style={{ ['--pc' as string]: 'var(--c-wanted)' }}>
             <Icon name="bookmark" size={15} /> {wanted} wanted
           </Link>
-          {problems > 0 ? (
+          {!admin ? null : problems > 0 ? (
             <a href="#attention" className="hero-pill" style={{ ['--pc' as string]: 'var(--danger)' }}>
               <Icon name="warning" size={15} /> {problems} to fix
             </a>
           ) : (
-            <span className="hero-pill" style={{ ['--pc' as string]: 'var(--success)' }}>
+            <span className="hero-pill" style={{ ['--pc' as string]: 'var(--success)' }} title="Everything Mediarium needs is set up and working.">
               <Icon name="check" size={15} /> All good
             </span>
+          )}
+          {data.health.some((h) => h.level === 'info') && (
+            <button className="hero-pill" style={{ ['--pc' as string]: 'var(--c-settings)' }} onClick={() => setShowOptional((v) => !v)} aria-expanded={showOptional}>
+              <Icon name="sliders" size={15} /> {data.health.filter((h) => h.level === 'info').length} optional
+            </button>
           )}
         </div>
       </section>
 
-      <div id="attention">
-        <Health items={data.health} />
-      </div>
+      {admin && (
+        <div id="attention">
+          <Health items={data.health} showOptional={showOptional} />
+        </div>
+      )}
 
       <div className="stat-grid">
         <Stat icon="film" label="Movies" value={lib.movies.total} sub={`${lib.movies.downloaded} downloaded · ${lib.movies.missing} missing`} to="/library" color="var(--c-movie)" />
@@ -365,7 +372,7 @@ export default function Dashboard() {
           )}
         </Tile>
 
-        <Tile tone="settings" icon="folder" title="Connected folders" link="Change" to="/settings/media">
+        <Tile tone="settings" icon="folder" title="Connected folders" link={admin ? 'Change' : undefined} to={admin ? '/settings/media' : undefined}>
           <div className="folder-list">
             {data.folders.map((f) => (
               <FolderCard key={f.key} f={f} />
@@ -418,9 +425,11 @@ export default function Dashboard() {
               <Icon name="star" size={18} />
             </span>
             <h2>Quality breakdown</h2>
-            <Link className="tile-link" to="/settings/quality">
-              Profiles <Icon name="open" size={13} />
-            </Link>
+            {admin && (
+              <Link className="tile-link" to="/settings/quality">
+                Profiles <Icon name="open" size={13} />
+              </Link>
+            )}
           </div>
           <ul className="quality-bars">
             {lib.qualities.slice(0, 7).map((q) => (

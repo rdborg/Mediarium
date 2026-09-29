@@ -57,7 +57,15 @@ func (s *Server) rebuildSubtitles() {
 	defer s.subsMu.Unlock()
 	next := s.subs.WithKey(key)
 	next.SetCredentials(user, pass)
+	s.instrumentSubtitles(next)
 	s.subs = next
+}
+
+// usingOwnKey reports whether the person saved their own key for a service
+// (setting key), as opposed to running on the key that ships with the app.
+func (s *Server) usingOwnKey(settingKey string) bool {
+	v, _ := s.Settings.Get(settingKey)
+	return v != ""
 }
 
 // SetOpenSubtitlesAccount stores the optional OpenSubtitles.com login.

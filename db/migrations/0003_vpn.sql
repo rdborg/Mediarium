@@ -1,4 +1,4 @@
--- Phase 2: VPN configs (PRD.md §4.7). "Provider" is a display label only —
+-- Phase 2: VPN configs. "Provider" is a display label only —
 -- the tunnel itself is always driven by a generic WireGuard config
 -- (private key, peer public key, endpoint, allowed IPs); the "provider
 -- picker" in the UI is just a friendly way to produce one.

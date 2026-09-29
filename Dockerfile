@@ -25,7 +25,7 @@ RUN npm run build
 # builds of compiled languages (see docker/buildx's own docs), and
 # meaningfully faster for a multi-arch build (linux/amd64 + linux/arm64)
 # than emulating the whole build.
-FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine AS build
 WORKDIR /src
 
 # Cache dependency downloads separately from source changes

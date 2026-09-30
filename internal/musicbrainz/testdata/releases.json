@@ -1,0 +1,46 @@
+{
+  "release-count": 5,
+  "release-offset": 0,
+  "releases": [
+    {
+      "id": "rel-us-cd",
+      "title": "OK Computer",
+      "status": "Official",
+      "country": "US",
+      "date": "1997-07-01",
+      "media": [{"position": 1, "format": "CD", "track-count": 12}]
+    },
+    {
+      "id": "rel-promo",
+      "title": "OK Computer",
+      "status": "Promotion",
+      "country": "GB",
+      "date": "1997-04-01",
+      "media": [{"position": 1, "format": "CD", "track-count": 12}]
+    },
+    {
+      "id": "rel-jp-cd",
+      "title": "OK Computer",
+      "status": "Official",
+      "country": "JP",
+      "date": "1997-05-21",
+      "media": [{"position": 1, "format": "CD", "track-count": 13}]
+    },
+    {
+      "id": "rel-gb-cd",
+      "title": "OK Computer",
+      "status": "Official",
+      "country": "GB",
+      "date": "1997-05-21",
+      "media": [{"position": 1, "format": "CD", "track-count": 12}]
+    },
+    {
+      "id": "rel-gb-vinyl",
+      "title": "OK Computer",
+      "status": "Official",
+      "country": "GB",
+      "date": "2008",
+      "media": [{"position": 1, "format": "12\" Vinyl", "track-count": 6}, {"position": 2, "format": "12\" Vinyl", "track-count": 6}]
+    }
+  ]
+}

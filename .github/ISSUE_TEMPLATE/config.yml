@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/rdborg/Mediarium/security/advisories/new
+    about: Don't open a public issue for security problems.
+  - name: Install help and troubleshooting
+    url: https://github.com/rdborg/Mediarium/blob/main/docs/INSTALL.md#troubleshooting
+    about: Answers to the most common install problems (permissions, ports, hardlinks).
+  - name: Ask a question or share an idea
+    url: https://github.com/rdborg/Mediarium/discussions
+    about: Questions, ideas and show-and-tell go in Discussions. Bugs and specific feature requests go in Issues.

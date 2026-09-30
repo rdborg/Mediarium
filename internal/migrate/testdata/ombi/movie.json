@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1, "title": "Dune: Part Two", "theMovieDbId": "693134", "releaseDate": "2024-02-27T00:00:00",
+    "requestedUser": {"userName": "eve", "alias": "Eve", "userAlias": null},
+    "requestedUserId": "u-1", "approved": true, "denied": false, "available": false
+  },
+  {
+    "id": 2, "title": "Heat", "theMovieDbId": 949, "releaseDate": "1995-12-15T00:00:00",
+    "requestedUser": {"userName": "fay", "alias": null, "userAlias": "Fay"},
+    "requestedUserId": "u-2", "approved": false, "denied": false, "available": false
+  },
+  {
+    "id": 3, "title": "The Matrix", "theMovieDbId": 603, "releaseDate": "1999-03-30T00:00:00",
+    "requestedUser": {"userName": "gus", "alias": null},
+    "requestedUserId": "u-3", "approved": true, "denied": false, "available": true
+  },
+  {
+    "id": 4, "title": "Inception", "theMovieDbId": 27205, "releaseDate": "2010-07-16T00:00:00",
+    "requestedUser": {"userName": "gus", "alias": null},
+    "requestedUserId": "u-3", "approved": false, "denied": true, "available": false
+  }
+]

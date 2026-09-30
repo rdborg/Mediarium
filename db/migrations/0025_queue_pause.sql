@@ -1,0 +1,12 @@
+-- Pausing and stopping downloads.
+--
+-- download_queue.status gains two values (there is no CHECK on the column):
+--   paused   the transfer is stopped, the partly downloaded files and the
+--            title's claim on it are kept, and it stays like that after a
+--            restart until a person presses Resume
+--   stopped  a person cancelled it; the title is free to be searched again
+--
+-- interrupted is 1 for a paused item that nobody paused: Mediarium was
+-- stopped or restarted while it was downloading. It shows as "Partly
+-- downloaded, stopped" instead of "Paused".
+ALTER TABLE download_queue ADD COLUMN interrupted INTEGER NOT NULL DEFAULT 0;

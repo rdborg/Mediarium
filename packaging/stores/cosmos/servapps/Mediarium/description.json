@@ -1,0 +1,9 @@
+{
+  "name": "Mediarium",
+  "description": "Movies and TV, from search to library, in one app: search Usenet and torrent indexers, download with built-in clients, unpack and organise your library.",
+  "longDescription": "<p>Mediarium is an all-in-one media manager for movies and TV. Discover a title and it searches your Usenet and torrent indexers, downloads the best release with its built-in downloaders, unpacks it, names it the way you chose and puts it in your library, ready for Jellyfin, Plex or Emby.</p><p>It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Bazarr in one app, with quality profiles, automatic upgrades, subtitles, notifications, family accounts and a built-in VPN for torrents.</p><p>Mediarium does not provide or host any content. You are responsible for the indexers you add and what you download.</p>",
+  "tags": ["media", "movies", "tv", "download", "usenet", "torrent", "radarr", "sonarr"],
+  "repository": "https://github.com/rdborg/Mediarium",
+  "image": "https://github.com/rdborg/Mediarium/pkgs/container/mediarium",
+  "supported_architectures": ["amd64", "arm64"]
+}

@@ -1,0 +1,33 @@
+# Mediarium on Synology: paste into Container Manager -> Project -> Create ->
+# "Create docker-compose.yml". Create the folders on the left of the colons
+# FIRST (File Station), or Docker stops with "Bind mount failed ... does not
+# exist". Change PUID, PGID, TZ and the /volume1 paths to match your NAS.
+# Full guide: docs/synology.md
+services:
+  mediarium:
+    image: ghcr.io/rdborg/mediarium:latest
+    container_name: mediarium
+    restart: unless-stopped
+    ports:
+      - "8264:8264"
+      # Optional torrent port. Delete these two lines if you only use Usenet.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
+    environment:
+      # CHANGE: the numbers from another container's Environment tab, and your timezone.
+      - PUID=1026
+      - PGID=101
+      - TZ=Europe/London
+      # Where things are inside the Media folder. Match your real folder names.
+      - DOWNLOADS_DIR=/data/downloads
+      - MOVIES_DIR=/data/Movies
+      - TV_DIR=/data/tv
+      # Only if you use music. Delete the line if you don't.
+      - MUSIC_DIR=/data/Music
+      # Ebooks and audiobooks are on the way. Set their folders now if you like:
+      # - EBOOKS_DIR=/data/Ebooks
+      # - AUDIOBOOKS_DIR=/data/Audiobooks
+    volumes:
+      # CHANGE the left side of each line if your folders are somewhere else.
+      - /volume1/docker/mediarium:/config
+      - /volume1/Media:/data

@@ -1,0 +1,9 @@
+[
+  {
+    "path": "/data/media/tv",
+    "accessible": true,
+    "freeSpace": 1934847610880,
+    "unmappedFolders": [{"name": "Old Stuff", "path": "/data/media/tv/Old Stuff", "relativePath": "Old Stuff"}],
+    "id": 1
+  }
+]

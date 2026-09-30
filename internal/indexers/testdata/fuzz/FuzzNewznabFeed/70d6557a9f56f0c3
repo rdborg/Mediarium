@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<error code=\"100\" description=\"Incorrte cuser credentials (key&SECRETKEY1000 ")

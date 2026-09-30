@@ -1,0 +1,36 @@
+manifestVersion: 1
+id: rdborg-mediarium
+category: media
+name: Mediarium
+version: "1.3.0"
+tagline: Movies and TV, from search to library, in one app
+icon: https://raw.githubusercontent.com/rdborg/Mediarium/main/branding/mediarium-icon-512.png
+description: >-
+  Mediarium is an all-in-one media manager for movies and TV. Discover a title and it searches your Usenet and torrent indexers, downloads the best release with its built-in downloaders, unpacks it, names it the way you chose and puts it in your library, ready for Jellyfin or Plex.
+
+
+  It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Bazarr in one app, with quality profiles, automatic upgrades, subtitles, notifications, family accounts and a built-in VPN for torrents.
+
+
+  Your library lives in your Umbrel's Downloads folder (movies and tv), so media servers such as Jellyfin and Plex on your Umbrel can see it. Mediarium has its own login: create your account in the setup wizard the first time you open it.
+
+
+  Mediarium does not provide or host any content. You are responsible for the indexers you add and what you download.
+releaseNotes: ""
+developer: Mediarium
+website: https://github.com/rdborg/Mediarium
+dependencies: []
+repo: https://github.com/rdborg/Mediarium
+support: https://github.com/rdborg/Mediarium/issues
+port: 8264
+gallery:
+  - https://raw.githubusercontent.com/rdborg/Mediarium/main/docs/images/dashboard.png
+  - https://raw.githubusercontent.com/rdborg/Mediarium/main/docs/images/discover.png
+  - https://raw.githubusercontent.com/rdborg/Mediarium/main/docs/images/library.png
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+permissions:
+  - STORAGE_DOWNLOADS
+submitter: rdborg
+submission: https://github.com/rdborg/umbrel-app-store

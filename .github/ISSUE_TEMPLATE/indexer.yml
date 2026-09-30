@@ -1,0 +1,52 @@
+name: Indexer problem or request
+description: An indexer or torrent site that does not work, or one you would like supported
+labels: ["indexer"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Torrent sites are added from the community Cardigann definitions (the same ones Prowlarr uses). If a site is missing or broken there, it may need a fix in [Prowlarr/Indexers](https://github.com/Prowlarr/Indexers) rather than here.
+
+  - type: input
+    id: name
+    attributes:
+      label: Indexer or site name
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Usenet (Newznab)
+        - Torrent (Torznab)
+        - Torrent site from the definition list
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Mediarium version
+      description: Shown under **Settings > System > About and credits**.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happens?
+      description: The message you see when you press **Test** (or **Test connection**) under Settings > Indexers & Search, or when you search, and what you expected. Do not paste your API key or passkey.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Support report or log
+      description: |
+        Press **Copy for support** under Settings > System > Server and backup > Help and support and paste the text here, or paste the lines from the container log about this indexer.
+        **Remove API keys, passkeys, cookies and passwords first.**
+      render: text

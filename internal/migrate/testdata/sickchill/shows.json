@@ -1,0 +1,9 @@
+{
+  "result": "success",
+  "message": "",
+  "data": {
+    "81189": {"air_by_date": 0, "anime": 0, "indexerid": 81189, "language": "en", "network": "AMC", "next_ep_airdate": "", "paused": 0, "quality": "HD", "show_name": "Breaking Bad", "sports": 0, "status": "Ended", "subtitles": 0, "tvdbid": 81189},
+    "12345": {"air_by_date": 0, "anime": 0, "indexerid": 12345, "language": "en", "network": "Fixture TV", "next_ep_airdate": "2026-11-01", "paused": 1, "quality": "SD", "show_name": "Fixture Old Show (2015)", "sports": 0, "status": "Continuing", "subtitles": 0, "tvdbid": 12345},
+    "99999": {"air_by_date": 0, "anime": 0, "indexerid": 99999, "language": "en", "network": "", "next_ep_airdate": "", "paused": 0, "quality": "Any", "show_name": "Unknown To TMDB", "sports": 0, "status": "Continuing", "subtitles": 0, "tvdbid": 99999}
+  }
+}

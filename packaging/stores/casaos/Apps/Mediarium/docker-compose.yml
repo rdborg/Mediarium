@@ -1,0 +1,109 @@
+name: mediarium
+services:
+  mediarium:
+    image: ghcr.io/rdborg/mediarium:1.3.0
+    container_name: mediarium
+    restart: unless-stopped
+    ports:
+      - target: 8264
+        published: "8264"
+        protocol: tcp
+      # Optional torrent port: other peers can connect to you (more peers, proper seeding).
+      - target: 58264
+        published: "58264"
+        protocol: tcp
+      - target: 58264
+        published: "58264"
+        protocol: udp
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+      # One /data mount (the CasaOS media folder) holds downloads and the library
+      # together, so finished downloads are hardlinked, not copied.
+      DOWNLOADS_DIR: /data/Downloads/mediarium
+      MOVIES_DIR: /data/Movies
+      TV_DIR: /data/TV Shows
+      # Optional folders: MUSIC_DIR, EBOOKS_DIR and AUDIOBOOKS_DIR (for example /data/Music).
+      # Music works today; ebooks and audiobooks are on the way. See docs/INSTALL.md.
+    volumes:
+      - type: bind
+        source: /DATA/AppData/$AppID/config
+        target: /config
+      - type: bind
+        source: /DATA/Media
+        target: /data
+    x-casaos:
+      envs:
+        - container: PUID
+          description:
+            en_US: User ID that owns your media files
+        - container: PGID
+          description:
+            en_US: Group ID that owns your media files
+        - container: TZ
+          description:
+            en_US: Timezone, for example Europe/London
+        - container: DOWNLOADS_DIR
+          description:
+            en_US: Mediarium's download folder, inside /data
+        - container: MOVIES_DIR
+          description:
+            en_US: Movie library, inside /data
+        - container: TV_DIR
+          description:
+            en_US: TV library, inside /data
+      ports:
+        - container: "8264"
+          description:
+            en_US: Web interface
+        - container: "58264"
+          description:
+            en_US: Torrent port, TCP and UDP (optional)
+      volumes:
+        - container: /config
+          description:
+            en_US: Mediarium's database and encryption key. Back this up.
+        - container: /data
+          description:
+            en_US: Media folder holding downloads, movies and TV together, so imports are instant hardlinks.
+
+x-casaos:
+  id: io.github.rdborg.mediarium
+  architectures:
+    - amd64
+    - arm64
+  main: mediarium
+  author: rdborg
+  developer: Mediarium
+  category: Media
+  version: "1.3.0"
+  update_at: "2026-09-29"
+  icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Mediarium/icon.svg
+  thumbnail: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Mediarium/thumbnail.png
+  screenshot_link:
+    - https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Mediarium/screenshot-1.png
+    - https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Mediarium/screenshot-2.png
+    - https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Mediarium/screenshot-3.png
+  title:
+    en_US: Mediarium
+  tagline:
+    en_US: Movies and TV, from search to library, in one app
+  description:
+    en_US: |
+      Mediarium is an all-in-one media manager for movies and TV. Discover a title and it searches your Usenet and torrent indexers, downloads the best release with its built-in downloaders, unpacks it, names it the way you chose and puts it in your library, ready for Jellyfin, Plex or Emby.
+
+      It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Bazarr in one app, with quality profiles, automatic upgrades, subtitles, notifications, family accounts and a built-in VPN for torrents.
+
+      Mediarium does not provide or host any content. You are responsible for the indexers you add and what you download.
+  tips:
+    before_install:
+      en_US: |
+        Mediarium uses your CasaOS media folder (/DATA/Media) for downloads and the library, so finished downloads are hardlinked instead of copied. Movies go to /DATA/Media/Movies and TV to /DATA/Media/TV Shows; change MOVIES_DIR and TV_DIR if yours are elsewhere inside /DATA/Media. After installing, open the web page and follow the setup wizard to create your account.
+  index: /
+  port_map: "8264"
+  scheme: http
+  website: https://github.com/rdborg/Mediarium
+  repo: https://github.com/rdborg/Mediarium
+  support: https://github.com/rdborg/Mediarium/issues
+  docs: https://github.com/rdborg/Mediarium/tree/main/docs

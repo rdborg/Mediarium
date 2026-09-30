@@ -1,0 +1,29 @@
+# Mediarium stack for Portainer. Used by templates.json in this folder; the
+# ${...} values are filled in from the template's form (defaults after ":-").
+services:
+  mediarium:
+    image: ghcr.io/rdborg/mediarium:latest
+    container_name: mediarium
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-8264}:8264"
+      # Optional torrent port (TCP and UDP): more peers and proper seeding.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+      - DOWNLOADS_DIR=${DOWNLOADS_DIR:-/data/downloads}
+      - MOVIES_DIR=${MOVIES_DIR:-/data/movies}
+      - TV_DIR=${TV_DIR:-/data/tv}
+      # Optional folders (music today; ebooks and audiobooks are on the way).
+      # Empty means the app's own default (/music, /ebooks, /audiobooks).
+      - MUSIC_DIR=${MUSIC_DIR:-}
+      - EBOOKS_DIR=${EBOOKS_DIR:-}
+      - AUDIOBOOKS_DIR=${AUDIOBOOKS_DIR:-}
+    volumes:
+      # Mediarium's own settings and database.
+      - ${CONFIG_PATH:-/srv/mediarium/config}:/config
+      # ONE folder holding downloads, movies and TV, so imports are hardlinked.
+      - ${DATA_PATH:-/srv/data}:/data

@@ -1,0 +1,62 @@
+/* The new-version notice, the Updates card and the Restart card (Settings > System). */
+
+.update-card {
+  border-left: 4px solid var(--accent);
+  margin-bottom: 22px;
+}
+.update-card > h2 { margin-top: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.update-card .update-sub { color: var(--text-dim); margin: 0 0 12px; }
+
+.update-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.update-head h3 { margin: 0; font-size: 1.05rem; }
+.update-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+
+.update-notes {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.update-steps { margin-top: 10px; display: grid; gap: 8px; }
+.update-steps details { border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; background: var(--surface); }
+.update-steps summary { cursor: pointer; font-weight: 600; }
+.update-steps ol { margin: 8px 0 2px; padding-left: 1.3rem; display: grid; gap: 4px; }
+.update-steps .update-note { color: var(--text-dim); font-size: 0.88rem; margin: 4px 0 0; }
+
+.update-progress { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-weight: 600; }
+.update-progress .spinner-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  animation: update-spin 0.9s linear infinite;
+}
+@keyframes update-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .update-progress .spinner-dot { animation: none; } }
+
+.update-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin: 12px 0;
+  background: var(--surface);
+}
+.update-box p { margin: 0 0 8px; }
+.update-box.warn { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+.update-box.ok { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+
+.control-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.update-switches { display: grid; gap: 12px; margin-top: 14px; }
+
+button.link-button {
+  background: none; border: none; padding: 0; color: var(--text-dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.88rem;
+}
+button.link-button:hover { color: var(--accent); }

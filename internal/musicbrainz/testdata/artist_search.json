@@ -1,0 +1,33 @@
+{
+  "created": "2026-09-29T10:00:00.000Z",
+  "count": 3,
+  "offset": 0,
+  "artists": [
+    {
+      "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+      "type": "Group",
+      "score": 100,
+      "name": "Radiohead",
+      "sort-name": "Radiohead",
+      "country": "GB",
+      "disambiguation": ""
+    },
+    {
+      "id": "8b1b7a1c-0000-4000-8000-000000000001",
+      "type": "Group",
+      "score": 61,
+      "name": "Radiohead Tribute Band",
+      "sort-name": "Radiohead Tribute Band",
+      "country": "US",
+      "disambiguation": "tribute act"
+    },
+    {
+      "id": "8b1b7a1c-0000-4000-8000-000000000002",
+      "type": "Person",
+      "score": 40,
+      "name": "Radio Head",
+      "sort-name": "Head, Radio",
+      "disambiguation": "DJ"
+    }
+  ]
+}

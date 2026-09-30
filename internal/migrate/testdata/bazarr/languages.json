@@ -1,0 +1,9 @@
+[
+  {"name": "Brazilian Portuguese", "code2": "pb", "code3": "pob", "enabled": true},
+  {"name": "Chinese Traditional", "code2": "zt", "code3": "zht", "enabled": true},
+  {"name": "Dutch", "code2": "nl", "code3": "nld", "enabled": true},
+  {"name": "English", "code2": "en", "code3": "eng", "enabled": true},
+  {"name": "French", "code2": "fr", "code3": "fra", "enabled": false},
+  {"name": "German", "code2": "de", "code3": "deu", "enabled": false},
+  {"name": "Tlhingan", "code2": "", "code3": "tlh", "enabled": true}
+]

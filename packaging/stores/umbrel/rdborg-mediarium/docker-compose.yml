@@ -1,0 +1,32 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: rdborg-mediarium_web_1
+      APP_PORT: 8264
+      # Mediarium has its own login and API keys; let API clients through.
+      PROXY_AUTH_WHITELIST: "/api/*"
+
+  web:
+    # Pin by digest before publishing: ghcr.io/rdborg/mediarium:1.3.0@sha256:<index digest>
+    image: ghcr.io/rdborg/mediarium:1.3.0
+    restart: unless-stopped
+    stop_grace_period: 1m
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      # Everything lives in Umbrel's Downloads folder, mounted once as /data, so
+      # finished downloads are hardlinked into the library instead of copied.
+      DOWNLOADS_DIR: /data/mediarium
+      MOVIES_DIR: /data/movies
+      TV_DIR: /data/tv
+      # Optional folders: MUSIC_DIR, EBOOKS_DIR and AUDIOBOOKS_DIR (for example /data/Music).
+      # Music works today; ebooks and audiobooks are on the way. See docs/INSTALL.md.
+    ports:
+      # Optional torrent port (not HTTP, so it is published directly).
+      - 58264:58264
+      - 58264:58264/udp
+    volumes:
+      - ${APP_DATA_DIR}/data/config:/config
+      - ${UMBREL_ROOT}/data/storage/downloads:/data

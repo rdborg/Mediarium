@@ -1,0 +1,444 @@
+/* ---- Setup wizard ------------------------------------------------------
+   One rule for every form: the label, then the box, then the notes. A hint
+   or a message always sits UNDER the box, never between it and its label,
+   so the boxes in a row line up. */
+
+.field-hint {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.wizard-lead {
+  margin: 0;
+  color: var(--text-dim);
+}
+.wizard-small {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* Labels in a form row: same height of text, then the box, so boxes line up. */
+.wizard .form-cols {
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.wizard .form-cols > label,
+.wizard .fbox > label,
+.wizard .ms-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.wizard .form-cols > label > input,
+.wizard .form-cols > label > select,
+.wizard .fbox > label > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+/* A checkbox cell sits level with the boxes beside it. */
+.form-cols > .cell-check {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.cell-check > .cell-label {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+.cell-check > .check-row {
+  min-height: 42px;
+  align-items: center;
+}
+
+/* ---- Media types ----------------------------------------------------- */
+.media-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.media-card {
+  padding: 16px 16px 16px 16px;
+  gap: 8px;
+  min-height: 158px;
+}
+.media-card strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-right: 26px;
+  font-size: 1.05rem;
+}
+.media-card-ico {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.media-card.soon {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.media-card.soon:hover {
+  transform: none;
+  border-color: var(--border);
+}
+.media-card.soon .media-card-ico {
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+.choice-box {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--text-dim);
+  display: grid;
+  place-items: center;
+  color: var(--on-accent, #062a24);
+}
+.media-card.active .choice-box {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.media-card.soon .choice-box {
+  border-style: dashed;
+  opacity: 0.6;
+}
+.media-cards-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--warning);
+  font-size: 0.9rem;
+}
+
+/* ---- Library paths ---------------------------------------------------- */
+.folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 20px 24px;
+  align-items: start;
+}
+.fbox {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+.fbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fbox-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--surface-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.fbox-note,
+.fbox-calm,
+.fbox-warn,
+.fbox-small {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.fbox-warn {
+  color: var(--warning);
+}
+.fbox code,
+.callout code,
+.later-folders code,
+.fbox-fix code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.fbox-status {
+  display: grid;
+  gap: 6px;
+}
+.fbox-fix {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  font-size: 0.88rem;
+}
+.fbox-fix p {
+  margin: 0;
+}
+.fbox-fix > strong {
+  color: var(--text);
+}
+.fbox-later summary,
+.later-folders > summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+.later-folders {
+  display: block;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.later-folders[open] > summary {
+  margin-bottom: 10px;
+}
+.later-folders .folder-grid {
+  margin-top: 12px;
+}
+.link-btn {
+  display: inline;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-btn:hover {
+  background: none;
+  filter: brightness(1.15);
+}
+
+.copy-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  min-width: 0;
+}
+.copy-box code {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.copy-box .btn-sm {
+  flex: 0 0 auto;
+}
+
+.callout {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 0.9rem;
+}
+.callout.info {
+  border-color: color-mix(in srgb, var(--info) 40%, var(--border));
+  background: color-mix(in srgb, var(--info) 7%, var(--surface));
+}
+.callout p,
+.callout ul {
+  margin: 0;
+}
+.callout ul {
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  color: var(--text-dim);
+}
+.callout p {
+  color: var(--text-dim);
+}
+.callout-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+.callout-head svg {
+  color: var(--info);
+  flex: 0 0 auto;
+}
+.callout details summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+.callout details[open] summary {
+  margin-bottom: 8px;
+}
+.callout details > * + * {
+  margin-top: 8px;
+}
+.ok-line {
+  margin: 0;
+  color: var(--success);
+  font-size: 0.88rem;
+}
+
+/* ---- Quality and naming ---------------------------------------------- */
+.player-pick {
+  display: grid;
+  gap: 8px;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  white-space: normal;
+}
+.chip:hover {
+  border-color: var(--accent);
+}
+.chip.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  box-shadow: 0 0 0 1px var(--accent);
+  font-weight: 600;
+}
+
+/* ---- Media server step ----------------------------------------------- */
+.ms-step,
+.ms-form {
+  display: grid;
+  gap: 14px;
+}
+.ms-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 10px;
+}
+.ms-pick-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  height: auto;
+}
+.ms-pick-card.active {
+  border-color: var(--mc, var(--accent));
+  box-shadow: 0 0 0 1px var(--mc, var(--accent));
+  background: color-mix(in srgb, var(--mc, var(--accent)) 10%, var(--surface));
+}
+.ms-connected {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ms-connected li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.ms-connected .ms-found-name {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+/* ---- Connect services: three cards, level with each other ------------ */
+.wizard-services {
+  align-items: stretch;
+}
+.wizard-services > .service-card,
+.wizard-services > .connected-card {
+  height: 100%;
+  margin: 0;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+.wizard-services > .card:first-child {
+  height: auto;
+}
+
+/* ---- Usenet provider form -------------------------------------------- */
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0;
+}
+.form-actions .fa-left,
+.form-actions .fa-mid,
+.form-actions .fa-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+}
+.form-actions .fa-left:empty,
+.form-actions .fa-right:empty {
+  display: none;
+}
+.grid-form > .test-hint {
+  text-align: left;
+}
+
+/* Create your account: identity on the left, password on the right, three rows. */
+@media (min-width: 700px) {
+  .wizard .form-cols.admin-cols {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(3, auto);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The service cards are not buttons. Lifting one on hover made it look a few
+   pixels higher than its neighbours whenever the mouse happened to rest on it. */
+.wizard .connected-card:hover,
+.wizard .service-card:hover {
+  transform: none;
+}
+
+@media (max-width: 560px) {
+  .media-card {
+    min-height: 0;
+  }
+}

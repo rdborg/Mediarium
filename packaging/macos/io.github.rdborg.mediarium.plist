@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd LaunchAgent for Mediarium (runs as YOU, starts when you log in).
+  STATUS: UNTESTED (no Mac was available). Written from launchd.plist(5).
+
+  __HOME__ is replaced with your home folder by install.sh. If you install this
+  file by hand, replace every __HOME__ yourself: launchd does NOT expand ~ or $HOME.
+
+  The Label below is a placeholder derived from the GitHub repo path, not a
+  domain the project owns. Any unique reverse-DNS-style string works.
+
+  PATH is set explicitly because launchd starts agents with a very small PATH
+  that does not include Homebrew. Mediarium finds 7z and par2 by name on PATH,
+  so /opt/homebrew/bin (Apple silicon) and /usr/local/bin (Intel) must be here.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>io.github.rdborg.mediarium</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/.local/share/mediarium/mediarium</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>CONFIG_DIR</key>
+    <string>__HOME__/Mediarium/config</string>
+    <key>DOWNLOADS_DIR</key>
+    <string>__HOME__/Mediarium/downloads</string>
+    <key>MOVIES_DIR</key>
+    <string>__HOME__/Mediarium/movies</string>
+    <key>TV_DIR</key>
+    <string>__HOME__/Mediarium/tv</string>
+    <key>APP_PORT</key>
+    <string>8264</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/Mediarium/mediarium.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/Mediarium/mediarium.log</string>
+</dict>
+</plist>

@@ -1,0 +1,48 @@
+---
+# Minimal cookie-login site definition written for tests (modelled on the
+# Cardigann format; not a real site).
+id: fixturecookie
+name: Fixture Cookie
+description: "A private site that needs the browser cookie"
+language: en-US
+type: private
+encoding: UTF-8
+links:
+  - https://cookie.fixture.test/
+
+caps:
+  categorymappings:
+    - {id: 1, cat: Movies, desc: "Movies"}
+
+settings:
+  - name: cookie
+    type: text
+    label: Cookie
+  - name: info_cookie
+    type: info_cookie
+
+login:
+  method: cookie
+  test:
+    path: index.php
+    selector: a[href="logout.php"]
+
+search:
+  paths:
+    - path: torrents.php
+  inputs:
+    q: "{{ .Keywords }}"
+  rows:
+    selector: tr.t
+  fields:
+    title:
+      selector: td.n
+    download:
+      selector: a.dl
+      attribute: href
+    size:
+      selector: td.s
+    seeders:
+      text: 1
+    leechers:
+      text: 0

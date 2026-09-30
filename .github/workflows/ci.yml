@@ -1,0 +1,98 @@
+# Runs on every push to main and on every pull request.
+#
+# Besides building and testing, it keeps the documentation honest:
+#   * the reference pages in docs/reference are generated from the code, and the
+#     build fails if they are out of date (run `go run ./tools/docgen`)
+#   * a pull request that changes the app but touches neither docs/ nor
+#     CHANGELOG.md fails, unless it carries the "no-docs-needed" label
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing here needs to write to the repository.
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build ./...
+      - name: Format
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test $(go list ./... | grep -v torrentclient)
+      - name: Reference docs are up to date
+        run: go run ./tools/docgen -check
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # Known security problems in the code we depend on. Kept as its own job so
+  # a new advisory shows up clearly instead of hiding a build failure.
+  vulnerabilities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+      - name: Go (govulncheck)
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - name: Web (npm audit, shipped packages only)
+        working-directory: web
+        run: npm audit --omit=dev --audit-level=high
+
+  docs-updated:
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-docs-needed')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The documentation moved with the code
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+          app="$(echo "$changed" | grep -E '^(internal|cmd|db|web/src)/' || true)"
+          docs="$(echo "$changed" | grep -E '^(docs/|CHANGELOG.md|README.md)' || true)"
+          if [ -n "$app" ] && [ -z "$docs" ]; then
+            echo "This pull request changes the app but not the documentation."
+            echo "Update the matching page in docs/ and add a line to CHANGELOG.md,"
+            echo "or add the 'no-docs-needed' label if nothing user-visible changed."
+            exit 1
+          fi

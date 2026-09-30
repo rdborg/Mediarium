@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>Templates for Mediarium, an all-in-one, self-hosted media manager for movies and TV: search, download (built-in Usenet and BitTorrent), unpack and organise into your library from one web interface. Open source under AGPL-3.0. Questions and problems: use the Support link on the app, or open an issue on GitHub.</Profile>
+  <Icon>https://raw.githubusercontent.com/rdborg/Mediarium/main/branding/mediarium-icon-512.png</Icon>
+  <WebPage>https://github.com/rdborg/Mediarium</WebPage>
+</CommunityApplications>

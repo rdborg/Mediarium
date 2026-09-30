@@ -1,0 +1,11 @@
+{
+  "general": {
+    "ip": "*",
+    "port": 6767,
+    "base_url": "",
+    "enabled_providers": ["opensubtitlescom", "podnapisi", "subscene", "embeddedsubtitles"],
+    "serie_default_enabled": true
+  },
+  "opensubtitlescom": {"username": "bazarr-user", "password": "bazarr-provider-secret", "use_hash": true},
+  "auth": {"type": null, "username": "", "password": ""}
+}

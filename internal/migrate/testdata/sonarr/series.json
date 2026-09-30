@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Breaking Bad",
+    "alternateTitles": [],
+    "sortTitle": "breaking bad",
+    "status": "ended",
+    "ended": true,
+    "overview": "Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer...",
+    "network": "AMC",
+    "airTime": "21:00",
+    "images": [{"coverType": "poster", "url": "/MediaCover/1/poster.jpg", "remoteUrl": "https://artworks.thetvdb.com/banners/posters/81189-10.jpg"}],
+    "originalLanguage": {"id": 1, "name": "English"},
+    "seasons": [
+      {"seasonNumber": 0, "monitored": false, "statistics": {"episodeFileCount": 0, "episodeCount": 0, "totalEpisodeCount": 9, "sizeOnDisk": 0, "percentOfEpisodes": 0}},
+      {"seasonNumber": 1, "monitored": true, "statistics": {"episodeFileCount": 2, "episodeCount": 7, "totalEpisodeCount": 7, "sizeOnDisk": 4000000000, "percentOfEpisodes": 28.6}},
+      {"seasonNumber": 2, "monitored": true, "statistics": {"episodeFileCount": 1, "episodeCount": 13, "totalEpisodeCount": 13, "sizeOnDisk": 2000000000, "percentOfEpisodes": 7.7}}
+    ],
+    "year": 2008,
+    "path": "/data/media/tv/Breaking Bad",
+    "qualityProfileId": 6,
+    "seasonFolder": true,
+    "monitored": true,
+    "monitorNewItems": "all",
+    "useSceneNumbering": false,
+    "runtime": 47,
+    "tvdbId": 81189,
+    "tvRageId": 18164,
+    "tvMazeId": 169,
+    "tmdbId": 1396,
+    "firstAired": "2008-01-20T00:00:00Z",
+    "seriesType": "standard",
+    "cleanTitle": "breakingbad",
+    "imdbId": "tt0903747",
+    "titleSlug": "breaking-bad",
+    "rootFolderPath": "/data/media/tv/",
+    "certification": "TV-MA",
+    "genres": ["Crime", "Drama", "Thriller"],
+    "tags": [],
+    "added": "2023-02-01T09:00:00Z",
+    "ratings": {"votes": 30000, "value": 9.4},
+    "statistics": {"seasonCount": 2, "episodeFileCount": 3, "episodeCount": 20, "totalEpisodeCount": 29, "sizeOnDisk": 6000000000, "releaseGroups": ["GRP"], "percentOfEpisodes": 15},
+    "languageProfileId": 1,
+    "id": 1
+  },
+  {
+    "title": "Fixture Old Show",
+    "seasons": [
+      {"seasonNumber": 1, "monitored": true},
+      {"seasonNumber": 2, "monitored": false}
+    ],
+    "year": 2015,
+    "path": "/data/media/tv/Fixture Old Show",
+    "qualityProfileId": 3,
+    "monitored": true,
+    "tvdbId": 12345,
+    "rootFolderPath": "/data/media/tv/",
+    "statistics": {"seasonCount": 2, "episodeFileCount": 0, "episodeCount": 10, "totalEpisodeCount": 10, "sizeOnDisk": 0, "percentOfEpisodes": 0},
+    "id": 2
+  },
+  {
+    "title": "Unknown To TMDB",
+    "seasons": [{"seasonNumber": 1, "monitored": true}],
+    "year": 1999,
+    "path": "/data/media/tv/Unknown To TMDB",
+    "qualityProfileId": 3,
+    "monitored": true,
+    "tvdbId": 99999,
+    "rootFolderPath": "/data/media/tv/",
+    "statistics": {"seasonCount": 1, "episodeFileCount": 0, "episodeCount": 5, "totalEpisodeCount": 5, "sizeOnDisk": 0, "percentOfEpisodes": 0},
+    "id": 3
+  }
+]

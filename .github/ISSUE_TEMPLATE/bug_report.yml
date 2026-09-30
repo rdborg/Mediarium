@@ -1,0 +1,97 @@
+name: Bug report
+description: Something is not working as it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. The more of this you fill in, the quicker it can be fixed.
+        **Security problem?** Don't open an issue. Report it privately as described in [SECURITY.md](https://github.com/rdborg/Mediarium/blob/main/SECURITY.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: Mediarium version
+      description: Shown in Mediarium under **Settings > System > About and credits**.
+      placeholder: "1.3.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Docker Compose
+        - docker run
+        - Synology Container Manager
+        - Unraid
+        - QNAP Container Station
+        - Portainer
+        - TrueNAS SCALE
+        - CasaOS / ZimaOS
+        - Docker Desktop (Windows or Mac)
+        - Built from source
+        - Other (say below)
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Device and system
+      description: For example "Synology DS920+, DSM 7.2.2", "Unraid 7.1", "Ubuntu 24.04 on a Raspberry Pi 5".
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we make it happen ourselves?
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+
+  - type: textarea
+    id: support
+    attributes:
+      label: Support report
+      description: |
+        In Mediarium go to **Settings > System > Server and backup**, find **Help and support**, press **Copy for support** and paste the text here. It has your version, how the database is doing, the setup warnings, the latest problems from **Logs and errors** and the last 500 lines of the log. Passwords, keys and tokens are left out.
+        If the pages do not open, leave this empty and fill in the Log box below instead.
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: |
+        Only needed if you could not copy the support report above. The container log from around the time it happened: `docker compose logs --tail 200 mediarium` (or `docker logs --tail 200 mediarium`, or the Log tab in your NAS's Docker app).
+        **Before pasting, remove API keys, passwords, VPN keys, tokens and anything else private.**
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, your compose file (without secrets), or anything that might help.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I removed API keys, passwords, VPN keys and tokens from everything above.
+          required: true
+        - label: I searched the existing issues and this has not been reported yet.
+          required: false

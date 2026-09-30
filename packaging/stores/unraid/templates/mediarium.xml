@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>mediarium</Name>
+  <Repository>ghcr.io/rdborg/mediarium:latest</Repository>
+  <Registry>https://github.com/rdborg/Mediarium/pkgs/container/mediarium</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/rdborg/Mediarium/issues</Support>
+  <Project>https://github.com/rdborg/Mediarium</Project>
+  <ReadMe>https://github.com/rdborg/Mediarium/blob/main/docs/unraid.md</ReadMe>
+  <Overview>Mediarium is an all-in-one, self-hosted media manager for movies and TV. Discover a title and it searches your Usenet and torrent indexers, downloads the best release with its built-in Usenet and BitTorrent downloaders, repairs and unpacks it, then hardlinks it into your library with the names you chose, ready for Plex, Jellyfin or Emby. It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Bazarr in one container, with quality profiles, automatic upgrades, subtitles, notifications, family accounts and a built-in WireGuard VPN for torrents that needs no extra privileges.[br][br]Keep downloads and your library inside ONE share (for example /mnt/user/data) mapped as /data, so imports are instant hardlinks. Mediarium does not provide or host any content; you are responsible for what you download.</Overview>
+  <Category>Downloaders: MediaApp:Video</Category>
+  <WebUI>http://[IP]:[PORT:8264]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/rdborg/unraid-templates/main/templates/mediarium.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/rdborg/Mediarium/main/branding/mediarium-icon-512.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <License>AGPL-3.0</License>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>A share that holds your downloads, movies and TV together (for example /mnt/user/data), so finished downloads can be hardlinked into the library.</Requires>
+  <Config Name="WebUI Port" Target="8264" Default="8264" Mode="tcp" Description="Port for the web interface." Type="Port" Display="always" Required="true" Mask="false">8264</Config>
+  <Config Name="Torrent port (TCP)" Target="58264" Default="58264" Mode="tcp" Description="Optional. Lets other torrent peers connect to you, for more peers and proper seeding. Keep it the same as the Listen port in Mediarium (Settings &gt; Downloading &gt; Usenet and torrents). Remove it if you only use Usenet." Type="Port" Display="always" Required="false" Mask="false">58264</Config>
+  <Config Name="Torrent port (UDP)" Target="58264" Default="58264" Mode="udp" Description="Optional. The same torrent port over UDP." Type="Port" Display="always" Required="false" Mask="false">58264</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/mediarium" Mode="rw" Description="Mediarium's database and encryption key (app.db and secret.key). Keep it on your cache pool and back it up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/mediarium</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/data" Mode="rw" Description="ONE share that contains your downloads, movies and TV. Keeping them under a single mapping means finished downloads are hardlinked into the library (instant, no extra space)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
+  <Config Name="Downloads folder" Target="DOWNLOADS_DIR" Default="/data/downloads/mediarium" Mode="" Description="Where Mediarium downloads, inside /data. Give it a folder of its own if other download apps use /data/downloads." Type="Variable" Display="always" Required="true" Mask="false">/data/downloads/mediarium</Config>
+  <Config Name="Movies folder" Target="MOVIES_DIR" Default="/data/media/movies" Mode="" Description="Your movie library, inside /data. Created if missing." Type="Variable" Display="always" Required="true" Mask="false">/data/media/movies</Config>
+  <Config Name="TV folder" Target="TV_DIR" Default="/data/media/tv" Mode="" Description="Your TV library, inside /data. Created if missing." Type="Variable" Display="always" Required="true" Mask="false">/data/media/tv</Config>
+  <Config Name="Music folder" Target="MUSIC_DIR" Default="" Mode="" Description="Optional. Your music library, for example /data/media/music (inside /data). Leave empty if you do not use music." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Ebooks folder" Target="EBOOKS_DIR" Default="" Mode="" Description="Optional, for later. Ebooks are not ready yet, but the folder can be set now, for example /data/media/ebooks." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Audiobooks folder" Target="AUDIOBOOKS_DIR" Default="" Mode="" Description="Optional, for later. Audiobooks are not ready yet, but the folder can be set now, for example /data/media/audiobooks." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID that owns your files. 99 is Unraid's usual 'nobody'." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID that owns your files. 100 is Unraid's usual 'users'." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="Etc/UTC" Mode="" Description="Your timezone, for example Europe/London or America/New_York." Type="Variable" Display="advanced" Required="false" Mask="false">Etc/UTC</Config>
+</Container>

@@ -1,0 +1,37 @@
+# Build output
+/bin/
+/dist/
+*.exe
+
+# Local dev data (matches the /config volume mount)
+/config/
+*.db
+*.db-journal
+
+# Env
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+/vendor/
+*.test
+*.out
+
+# Local media and data folders (mounted into the container while developing)
+/downloads/
+/movies/
+/tv/
+
+# Scratch files for local experiments must never be committed
+/tmp_*
+/web/public/tmp-*
+
+# Agent and editor tooling stays out of the repo
+/music/

@@ -1,0 +1,88 @@
+{
+  "version": "3",
+  "templates": [
+    {
+      "id": 1,
+      "type": 3,
+      "title": "Mediarium",
+      "name": "mediarium",
+      "description": "All-in-one media manager for movies and TV: search Usenet and torrent indexers, download with built-in clients, unpack and organise your library.",
+      "note": "Put your downloads, movies and TV inside <b>one</b> data folder so finished downloads are hardlinked. After deploying, open http://&lt;server-ip&gt;:8264 and follow the setup wizard. Guide: <a href=\"https://github.com/rdborg/Mediarium/blob/main/docs/INSTALL.md\" target=\"_blank\">docs/INSTALL.md</a>",
+      "categories": ["Media", "Downloaders"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/rdborg/Mediarium/main/branding/mediarium-icon-512.png",
+      "repository": {
+        "url": "https://github.com/rdborg/Mediarium",
+        "stackfile": "packaging/stores/portainer/docker-compose.yml"
+      },
+      "env": [
+        {
+          "name": "DATA_PATH",
+          "label": "Data folder (host)",
+          "description": "ONE folder on the host that holds downloads, movies and TV. Mounted as /data.",
+          "default": "/srv/data"
+        },
+        {
+          "name": "CONFIG_PATH",
+          "label": "Config folder (host)",
+          "description": "Folder on the host for Mediarium's database and key. Back it up.",
+          "default": "/srv/mediarium/config"
+        },
+        {
+          "name": "PUID",
+          "label": "PUID",
+          "description": "User ID that owns your media folders (run 'id' on the host).",
+          "default": "1000"
+        },
+        {
+          "name": "PGID",
+          "label": "PGID",
+          "description": "Group ID that owns your media folders.",
+          "default": "1000"
+        },
+        {
+          "name": "TZ",
+          "label": "Timezone",
+          "description": "For example Europe/London or America/New_York.",
+          "default": "Etc/UTC"
+        },
+        {
+          "name": "WEBUI_PORT",
+          "label": "Web port",
+          "description": "Port for the web page on the host.",
+          "default": "8264"
+        },
+        {
+          "name": "DOWNLOADS_DIR",
+          "label": "Downloads folder (inside /data)",
+          "default": "/data/downloads"
+        },
+        {
+          "name": "MOVIES_DIR",
+          "label": "Movies folder (inside /data)",
+          "default": "/data/movies"
+        },
+        {
+          "name": "TV_DIR",
+          "label": "TV folder (inside /data)",
+          "default": "/data/tv"
+        },
+        {
+          "name": "MUSIC_DIR",
+          "label": "Music folder (optional, for example /data/music)",
+          "default": ""
+        },
+        {
+          "name": "EBOOKS_DIR",
+          "label": "Ebooks folder (optional, for later)",
+          "default": ""
+        },
+        {
+          "name": "AUDIOBOOKS_DIR",
+          "label": "Audiobooks folder (optional, for later)",
+          "default": ""
+        }
+      ]
+    }
+  ]
+}

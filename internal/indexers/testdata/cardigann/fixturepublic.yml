@@ -1,0 +1,90 @@
+---
+# Minimal public site definition written for tests (modelled on the
+# Cardigann format; not a real site).
+id: fixturepublic
+name: Fixture Public
+description: "A public torrent site used by the tests"
+language: en-US
+type: public
+encoding: UTF-8
+links:
+  - https://public.fixture.test/
+
+caps:
+  categorymappings:
+    - {id: 1, cat: Movies, desc: "Movies"}
+    - {id: 42, cat: Movies/HD, desc: "Movies/HD"}
+    - {id: 5, cat: TV, desc: "TV"}
+    - {id: 22, cat: Audio/MP3, desc: "Music/MP3"}
+  modes:
+    search: [q]
+    movie-search: [q]
+
+settings:
+  - name: sort
+    type: select
+    label: Sort requested from site
+    default: time
+    options:
+      time: created
+      seeders: seeders
+  - name: info_flaresolverr
+    type: info_flaresolverr
+  - name: disablesort
+    type: checkbox
+    label: Disable sorting
+    default: false
+
+download:
+  selectors:
+    - selector: a[href^="magnet:"]
+      attribute: href
+
+search:
+  paths:
+    - path: "{{ if .Keywords }}search/{{ .Keywords }}{{ else }}cat/Movies{{ end }}/{{ if eq .Config.disablesort .False }}{{ .Config.sort }}/{{ end }}1/"
+  keywordsfilters:
+    - name: re_replace
+      args: ["\\bS(20\\d{2})\\b", "$1"]
+  rows:
+    selector: table.results > tbody > tr:has(a[href^="/torrent/"])
+  fields:
+    title_default:
+      selector: td.name a[href^="/torrent/"]
+    title_optional:
+      optional: true
+      selector: td.name a[href^="/torrent/"]:contains("...")
+      attribute: href
+      filters:
+        - name: split
+          args: ["/", 3]
+        - name: replace
+          args: ["-", " "]
+    title:
+      text: "{{ if .Result.title_optional }}{{ .Result.title_optional }}{{ else }}{{ .Result.title_default }}{{ end }}"
+    category:
+      selector: td.name a[href^="/sub/"]
+      attribute: href
+      filters:
+        - name: split
+          args: ["/", 2]
+    details:
+      selector: td.name a[href^="/torrent/"]
+      attribute: href
+    download:
+      selector: td.name a[href^="/torrent/"]
+      attribute: href
+    date:
+      selector: td.date
+      filters:
+        - name: timeago
+    size:
+      selector: td.size
+    seeders:
+      selector: td.seeds
+    leechers:
+      selector: td.leeches
+    downloadvolumefactor:
+      text: 0
+    uploadvolumefactor:
+      text: 1

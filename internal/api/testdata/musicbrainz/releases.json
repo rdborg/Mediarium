@@ -1,0 +1,7 @@
+{
+  "release-count": 2,
+  "releases": [
+    {"id": "rel-first-jp", "title": "First Album", "status": "Official", "country": "JP", "date": "1999-06-01", "media": [{"position": 1, "format": "CD", "track-count": 4}]},
+    {"id": "rel-first", "title": "First Album", "status": "Official", "country": "GB", "date": "1999-03-01", "media": [{"position": 1, "format": "CD", "track-count": 3}]}
+  ]
+}

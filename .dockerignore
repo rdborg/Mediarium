@@ -1,0 +1,25 @@
+# Keeps local files out of the image build. Nothing listed here is needed to build,
+# and several of them are private: .env holds real keys, config/ holds a live
+# database and encryption key, and .git holds history.
+.git
+.github
+.env
+.env.*
+!.env.example
+config/
+downloads/
+movies/
+tv/
+music/
+*.exe
+*.db
+*.db-*
+secret.key
+tmp_*
+web/node_modules
+web/dist
+# Documentation is not part of the image
+*.md
+docs/
+
+website/

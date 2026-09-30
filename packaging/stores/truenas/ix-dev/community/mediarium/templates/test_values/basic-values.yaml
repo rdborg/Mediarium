@@ -1,0 +1,41 @@
+resources:
+  limits:
+    cpus: 2.0
+    memory: 4096
+
+TZ: Etc/UTC
+
+mediarium:
+  downloads_dir: /data/downloads/mediarium
+  movies_dir: /data/media/movies
+  tv_dir: /data/media/tv
+  additional_envs: []
+
+network:
+  host_network: false
+  web_port:
+    bind_mode: published
+    port_number: 8264
+  torrent_port:
+    bind_mode: published
+    port_number: 58264
+
+run_as:
+  user: 568
+  group: 568
+
+ix_volumes:
+  config: /opt/tests/mnt/config
+
+storage:
+  config:
+    type: ix_volume
+    ix_volume_config:
+      dataset_name: config
+      create_host_path: true
+  data:
+    type: host_path
+    host_path_config:
+      path: /opt/tests/mnt/data
+      create_host_path: true
+  additional_storage: []

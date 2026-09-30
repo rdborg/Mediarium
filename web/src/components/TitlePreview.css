@@ -1,0 +1,68 @@
+/* The extra sections on the page of a title that is not in the library yet:
+   who is in it, and (for a show) its seasons. */
+.preview-cast {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 14px 12px;
+  margin-top: 4px;
+}
+.preview-person {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  min-width: 0;
+}
+.preview-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.preview-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.preview-person strong {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.preview-person small {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.preview-seasons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.preview-seasons li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.preview-seasons strong {
+  font-size: 0.92rem;
+}
+.preview-seasons small {
+  color: var(--text-dim);
+}

@@ -1,0 +1,59 @@
+{
+  "pageInfo": {"pages": 1, "pageSize": 100, "results": 9, "page": 1},
+  "results": [
+    {
+      "id": 1, "status": 1, "type": "movie",
+      "media": {"id": 10, "tmdbId": 693134, "tvdbId": null, "status": 2, "mediaType": "movie"},
+      "requestedBy": {"id": 2, "displayName": "Ann", "username": "ann", "email": "ann@example.invalid"},
+      "seasons": []
+    },
+    {
+      "id": 2, "status": 2, "type": "movie",
+      "media": {"id": 10, "tmdbId": 693134, "tvdbId": null, "status": 2, "mediaType": "movie"},
+      "requestedBy": {"id": 3, "displayName": "Bob", "username": "bob", "email": "bob@example.invalid"},
+      "seasons": []
+    },
+    {
+      "id": 3, "status": 2, "type": "movie",
+      "media": {"id": 11, "tmdbId": 949, "tvdbId": null, "status": 3, "mediaType": "movie"},
+      "requestedBy": {"id": 4, "displayName": "Carl", "username": "carl"},
+      "seasons": []
+    },
+    {
+      "id": 4, "status": 2, "type": "movie",
+      "media": {"id": 12, "tmdbId": 550, "tvdbId": null, "status": 5, "mediaType": "movie"},
+      "requestedBy": {"id": 4, "displayName": "Carl", "username": "carl"},
+      "seasons": []
+    },
+    {
+      "id": 5, "status": 2, "type": "movie",
+      "media": {"id": 13, "tmdbId": 603, "tvdbId": null, "status": 2, "mediaType": "movie"},
+      "requestedBy": {"id": 5, "displayName": "", "username": "dana"},
+      "seasons": []
+    },
+    {
+      "id": 6, "status": 2, "type": "tv",
+      "media": {"id": 14, "tmdbId": 5555, "tvdbId": 12345, "status": 2, "mediaType": "tv"},
+      "requestedBy": {"id": 5, "displayName": "", "username": "dana"},
+      "seasons": [{"id": 1, "seasonNumber": 1, "status": 2}]
+    },
+    {
+      "id": 7, "status": 2, "type": "tv",
+      "media": {"id": 15, "tmdbId": 1396, "tvdbId": 81189, "status": 4, "mediaType": "tv"},
+      "requestedBy": {"id": 2, "displayName": "Ann", "username": "ann"},
+      "seasons": [{"id": 2, "seasonNumber": 1, "status": 5}, {"id": 3, "seasonNumber": 2, "status": 2}]
+    },
+    {
+      "id": 8, "status": 3, "type": "movie",
+      "media": {"id": 16, "tmdbId": 27205, "tvdbId": null, "status": 1, "mediaType": "movie"},
+      "requestedBy": {"id": 3, "displayName": "Bob", "username": "bob"},
+      "seasons": []
+    },
+    {
+      "id": 9, "status": 2, "type": "music",
+      "media": {"id": 17, "tmdbId": 0, "tvdbId": null, "status": 2, "mediaType": "music"},
+      "requestedBy": {"id": 3, "displayName": "Bob", "username": "bob"},
+      "seasons": []
+    }
+  ]
+}

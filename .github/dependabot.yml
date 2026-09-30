@@ -1,0 +1,45 @@
+# Dependabot keeps dependencies current and opens a pull request when one of
+# them has a known security problem. Updates are grouped per ecosystem and
+# checked weekly so the pull request list stays short.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      go:
+        patterns: ["*"]
+    commit-message:
+      prefix: "build(deps)"
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      web:
+        patterns: ["*"]
+    commit-message:
+      prefix: "build(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci(deps)"
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(deps)"

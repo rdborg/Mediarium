@@ -1,0 +1,80 @@
+/* Mediarium brand + UI tokens — v1
+ * Dark is the default theme; add data-theme="light" to <html> for light.
+ * All text/fill pairs below meet WCAG AA (4.5:1) on their theme's background.
+ */
+
+:root {
+  /* ── Brand (theme-independent) ─────────────────────────────── */
+  --brand-teal:        #34D1BF;  /* Vitrine teal — the mark on dark */
+  --brand-teal-deep:   #0B7A6F;  /* Deep teal — the mark on light */
+  --brand-glint:       #B8F3EA;  /* Glass glint on dark */
+  --brand-glint-light: #7FE3D6;  /* Glass glint on light */
+  --brand-tile:        #161A21;  /* App-icon tile */
+  --brand-tile-edge:   #2A303B;
+
+  /* ── Type ──────────────────────────────────────────────────── */
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;           /* wordmark, headings, big numbers */
+  --font-body:    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;  /* UI text */
+  --font-mono:    "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; /* paths, logs, hashes, ports */
+
+  /* ── Dark theme (default) ──────────────────────────────────── */
+  --bg:            #0F1115;
+  --surface:       #161A21;
+  --surface-2:     #1C2029;
+  --border:        #262C37;
+  --text:          #E8EAED;
+  --text-muted:    #8B93A1;
+
+  --accent:          #34D1BF;   /* primary buttons, active nav, stat numbers, links */
+  --accent-hover:    #5EDDCF;
+  --accent-pressed:  #22B3A2;
+  --accent-subtle:   rgba(52, 209, 191, 0.12); /* active nav bg, selected rows */
+  --on-accent:       #06201D;   /* text/icons on accent fills */
+  --focus-ring:      rgba(52, 209, 191, 0.45);
+
+  --accent-2:        #A898FF;   /* secondary accent: tags, collections, TV (later) */
+  --accent-2-subtle: rgba(168, 152, 255, 0.14);
+  --on-accent-2:     #150F33;
+
+  --success: #4ADE80;  --success-subtle: rgba(74, 222, 128, 0.12);   /* imported, downloaded */
+  --warning: #F5B544;  --warning-subtle: rgba(245, 181, 68, 0.12);   /* wanted, stalled */
+  --danger:  #F87171;  --danger-subtle:  rgba(248, 113, 113, 0.12);  /* failed, delete */
+  --info:    #60A5FA;  --info-subtle:    rgba(96, 165, 250, 0.12);   /* downloading, queued */
+  --on-status: #0F1115;
+}
+
+:root[data-theme="light"] {
+  --bg:            #F5F6F8;
+  --surface:       #FFFFFF;
+  --surface-2:     #EEF0F3;
+  --border:        #D9DDE3;
+  --text:          #1B1F26;
+  --text-muted:    #5B6270;
+
+  --accent:          #0B7A6F;
+  --accent-hover:    #096B61;
+  --accent-pressed:  #075A52;
+  --accent-subtle:   rgba(11, 122, 111, 0.10);
+  --on-accent:       #FFFFFF;
+  --focus-ring:      rgba(11, 122, 111, 0.40);
+
+  --accent-2:        #6A4FD8;
+  --accent-2-subtle: rgba(106, 79, 216, 0.10);
+  --on-accent-2:     #FFFFFF;
+
+  --success: #15803D;  --success-subtle: rgba(21, 128, 61, 0.10);
+  --warning: #B45309;  --warning-subtle: rgba(180, 83, 9, 0.10);
+  --danger:  #C62828;  --danger-subtle:  rgba(198, 40, 40, 0.10);
+  --info:    #1D4ED8;  --info-subtle:    rgba(29, 78, 216, 0.10);
+  --on-status: #FFFFFF;
+}
+
+/* ── Example usage ─────────────────────────────────────────── */
+.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { background: var(--accent-pressed); }
+.btn-primary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.btn-danger { background: var(--danger); color: var(--on-status); }
+.nav-item[aria-current="page"] { background: var(--accent-subtle); color: var(--accent); }
+.logo-mark { color: var(--accent); } /* with mediarium-mark.svg inlined (fill="currentColor") */

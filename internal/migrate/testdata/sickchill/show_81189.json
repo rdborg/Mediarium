@@ -1,0 +1,14 @@
+{
+  "result": "success",
+  "message": "",
+  "data": {
+    "air_by_date": 0,
+    "anime": 0,
+    "location": "/data/media/tv/Breaking Bad",
+    "paused": 0,
+    "quality": "HD",
+    "season_list": [2, 1],
+    "show_name": "Breaking Bad",
+    "status": "Continuing"
+  }
+}

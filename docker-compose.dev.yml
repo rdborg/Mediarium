@@ -1,0 +1,61 @@
+# For people working on Mediarium itself: builds the image from this folder's
+# source instead of downloading the published one. Everyone else: use
+# docker-compose.yml (see docs/INSTALL.md).
+#
+#   cp .env.example .env        # optional: HOST_PORT, PUID/PGID/TZ, build keys
+#   docker compose -f docker-compose.dev.yml up -d --build
+#
+# Tip: put COMPOSE_FILE=docker-compose.dev.yml in your .env and plain
+# "docker compose up -d --build" uses this file.
+#
+# Folders: ./config, ./downloads, ./movies, ./tv and ./music next to this file (all
+# git-ignored). Separate mounts copy finished downloads instead of hardlinking
+# them, which is fine for development. The public docker-compose.yml maps one
+# /data folder instead, so downloads move into the library instantly.
+
+services:
+  app:
+    build:
+      context: .
+      # Optional app-wide keys for an official build (see the Dockerfile);
+      # leave them out and the app asks for your own in the setup wizard.
+      args:
+        TMDB_API_KEY: ${TMDB_API_KEY:-}
+        OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}
+        TRAKT_CLIENT_ID: ${TRAKT_CLIENT_ID:-}
+    image: mediarium:dev
+    container_name: mediarium
+    restart: unless-stopped
+    ports:
+      # Host port on the left (HOST_PORT in .env); the app listens on 8264 inside.
+      - "${HOST_PORT:-8264}:8264"
+      # Optional torrent port, TCP and UDP. If you change it, change
+      # Settings > Downloading > Usenet and torrents > Listen port to match.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+    volumes:
+      - ./config:/config
+      - ./downloads:/downloads
+      - ./movies:/movies
+      - ./tv:/tv
+      - ./music:/music
+      # Optional folders for the ebooks and audiobooks modules (not built yet).
+      # Take off the # to use one. The names on the right are what EBOOKS_DIR
+      # and AUDIOBOOKS_DIR expect, so no environment line is needed.
+      # - ./ebooks:/ebooks
+      # - ./audiobooks:/audiobooks
+
+  # Optional, for torrent sites behind a Cloudflare check:
+  #   docker compose -f docker-compose.dev.yml --profile cloudflare up -d
+  # then use http://flaresolverr:8191 under Settings > Indexers & Search.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    profiles: ["cloudflare"]
+    environment:
+      - TZ=${TZ:-Etc/UTC}

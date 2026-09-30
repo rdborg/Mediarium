@@ -1,0 +1,103 @@
+/* The log box under a "Send a test" form: dark and monospace in both themes,
+   like a terminal, so it reads the same wherever it appears. */
+.term {
+  margin-top: 12px;
+  border: 1px solid #1f2d2b;
+  border-radius: 10px;
+  background: #0b1412;
+  color: #d5e6e2;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.term-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #101c19;
+  border-bottom: 1px solid #1f2d2b;
+}
+.term-title {
+  color: #8fa9a3;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.term-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border: 1px solid #2c403c;
+  border-radius: 6px;
+  background: transparent;
+  color: #b9d0ca;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.term-copy:hover {
+  background: #17262a;
+  color: #fff;
+}
+.term-body {
+  max-height: 220px;
+  min-height: 44px;
+  overflow: auto;
+  padding: 8px 10px 10px;
+}
+.term-line {
+  display: grid;
+  grid-template-columns: 8.6em 1.2em minmax(0, 1fr);
+  gap: 0 6px;
+  align-items: baseline;
+}
+.term-time {
+  color: #6f8a84;
+  white-space: nowrap;
+}
+.term-mark {
+  color: #34d1bf;
+  text-align: center;
+}
+.term-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.term-line.bad .term-mark,
+.term-line.bad .term-text {
+  color: #ff8f86;
+}
+.term-line.bad .term-text {
+  font-weight: 600;
+}
+.term-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  background: #34d1bf;
+  animation: term-blink 1s steps(2, start) infinite;
+}
+@keyframes term-blink {
+  to {
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-cursor {
+    animation: none;
+  }
+}
+@media (max-width: 520px) {
+  .term-line {
+    grid-template-columns: 1.2em minmax(0, 1fr);
+  }
+  .term-time {
+    display: none;
+  }
+}

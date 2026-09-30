@@ -1,0 +1,43 @@
+{
+  "release-group-count": 5,
+  "release-group-offset": 0,
+  "release-groups": [
+    {
+      "id": "b1392450-e666-3926-a536-22c65f834433",
+      "title": "OK Computer",
+      "primary-type": "Album",
+      "secondary-types": [],
+      "first-release-date": "1997-05-21",
+      "disambiguation": ""
+    },
+    {
+      "id": "1e0eee38-a9f6-49bf-84d0-45d0647799af",
+      "title": "Pablo Honey",
+      "primary-type": "Album",
+      "secondary-types": [],
+      "first-release-date": "1993-02-22",
+      "disambiguation": ""
+    },
+    {
+      "id": "3b8b5e2e-0000-4000-8000-00000000000a",
+      "title": "I Might Be Wrong: Live Recordings",
+      "primary-type": "Album",
+      "secondary-types": ["Live"],
+      "first-release-date": "2001-11-12"
+    },
+    {
+      "id": "3b8b5e2e-0000-4000-8000-00000000000b",
+      "title": "Creep",
+      "primary-type": "Single",
+      "secondary-types": [],
+      "first-release-date": "1992-09-21"
+    },
+    {
+      "id": "3b8b5e2e-0000-4000-8000-00000000000c",
+      "title": "Untitled Future Album",
+      "primary-type": "Album",
+      "secondary-types": [],
+      "first-release-date": ""
+    }
+  ]
+}

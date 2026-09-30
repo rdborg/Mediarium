@@ -1,0 +1,99 @@
+# Mediarium: movies, TV shows and music, from search to your library, in one app.
+#
+# How to use this file
+#   1. Put it in an empty folder, for example "mediarium".
+#   2. Change the lines marked CHANGE. The defaults work for a quick try.
+#   3. In that folder run:   docker compose up -d
+#   4. Open http://<your-server-ip>:8264 and follow the setup steps.
+#
+# On a NAS? Create every folder you map BEFORE you start it, or Docker stops
+# with "Bind mount failed ... does not exist". A Synology example is at the
+# bottom of this file.
+#
+# Full guide: https://github.com/rdborg/Mediarium/blob/main/docs/INSTALL.md
+
+services:
+  mediarium:
+    # For sites behind a Cloudflare check, use ghcr.io/rdborg/mediarium:latest-full
+    # instead (bigger, but has the helper built in). See docs/INSTALL.md.
+    image: ghcr.io/rdborg/mediarium:latest
+    container_name: mediarium
+    restart: unless-stopped
+    # Nothing running in the container can gain more privileges than it starts with.
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # The web page. To use another port, change only the LEFT number,
+      # for example "8300:8264", then open http://<your-server-ip>:8300.
+      - "8264:8264"
+      # Optional: the torrent port (TCP and UDP). Torrents work without it, but
+      # with it you find more peers and can seed. Delete these two lines if you
+      # only use Usenet.
+      - "58264:58264/tcp"
+      - "58264:58264/udp"
+    environment:
+      # CHANGE: the user and group that own your media folders.
+      # On the server, run "id" and use the uid and gid numbers it prints.
+      # (On a Synology, copy them from another container's Environment tab.)
+      - PUID=1000
+      - PGID=1000
+      # CHANGE: your timezone, for example Europe/London or America/New_York.
+      - TZ=Etc/UTC
+      # Where movies, TV and downloads are inside the /data folder mapped
+      # below. Only change them if your folders have other names (capital
+      # letters count).
+      - DOWNLOADS_DIR=/data/downloads
+      - MOVIES_DIR=/data/movies
+      - TV_DIR=/data/tv
+      # OPTIONAL folders. Take off the # to use one. Music works today, ebooks
+      # and audiobooks are on the way. Keep them inside /data and there is
+      # nothing more to map:
+      # - MUSIC_DIR=/data/music
+      # - EBOOKS_DIR=/data/ebooks
+      # - AUDIOBOOKS_DIR=/data/audiobooks
+    volumes:
+      # CHANGE the left side of each line (the right side must stay as it is).
+      # Mediarium's own settings and database. Keep it on a local disk and back it up.
+      - ./config:/config
+      # ONE folder that holds downloads, movies and TV. With a single mapping,
+      # finished downloads move into your library instantly and use no extra
+      # space (hardlinks).
+      - ./data:/data
+      # OPTIONAL: a folder somewhere else gets its own line. Keep the right
+      # side as it is and you don't need a *_DIR line for it.
+      # - /path/to/music:/music
+      # - /path/to/ebooks:/ebooks
+      # - /path/to/audiobooks:/audiobooks
+
+  # Optional: only needed for torrent sites that show a Cloudflare
+  # "checking your browser" page. Start everything with:
+  #   docker compose --profile cloudflare up -d
+  # then enter http://flaresolverr:8191 in Mediarium under Settings > Indexers & Search.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+    profiles: ["cloudflare"]
+    environment:
+      - TZ=Etc/UTC
+
+# -----------------------------------------------------------------------------
+# NAS EXAMPLE (Synology)
+#
+# The shared folder "Media" holds four folders: Movies, tv, Music and
+# downloads. Create them first in File Station, and a "docker/mediarium" folder
+# for Mediarium's settings. Then use these lines in place of the environment
+# and volumes above:
+#
+#     environment:
+#       - PUID=1026
+#       - PGID=101
+#       - TZ=Europe/London
+#       - DOWNLOADS_DIR=/data/downloads
+#       - MOVIES_DIR=/data/Movies
+#       - TV_DIR=/data/tv
+#       - MUSIC_DIR=/data/Music
+#     volumes:
+#       - /volume1/docker/mediarium:/config
+#       - /volume1/Media:/data
+#
+# Step by step: https://github.com/rdborg/Mediarium/blob/main/docs/synology.md

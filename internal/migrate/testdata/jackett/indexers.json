@@ -1,0 +1,55 @@
+[
+  {
+    "id": "1337x",
+    "name": "1337x",
+    "description": "1337x is a Public torrent tracker for Movies, TV, Music and more",
+    "type": "public",
+    "configured": true,
+    "site_link": "https://1337x.to/",
+    "language": "en-US",
+    "last_error": "",
+    "caps": [
+      {"ID": "2000", "Name": "Movies"},
+      {"ID": "2040", "Name": "Movies/HD"},
+      {"ID": "5000", "Name": "TV"}
+    ]
+  },
+  {
+    "id": "privatesite",
+    "name": "PrivateSite",
+    "description": "A private tracker",
+    "type": "private",
+    "configured": true,
+    "site_link": "https://private.example/",
+    "language": "en-US",
+    "last_error": "",
+    "caps": [
+      {"ID": "2000", "Name": "Movies"},
+      {"ID": 5000, "Name": "TV"}
+    ]
+  },
+  {
+    "id": "some new tracker",
+    "name": "Some New Tracker",
+    "description": "Only Jackett has it",
+    "type": "private",
+    "configured": true,
+    "site_link": "https://newtracker.example/",
+    "language": "en-US",
+    "last_error": "The tracker answered 503",
+    "caps": [
+      {"ID": "2000", "Name": "Movies"}
+    ]
+  },
+  {
+    "id": "notsetup",
+    "name": "Not Set Up",
+    "description": "Listed although not configured",
+    "type": "public",
+    "configured": false,
+    "site_link": "https://notsetup.example/",
+    "language": "en-US",
+    "last_error": "",
+    "caps": []
+  }
+]

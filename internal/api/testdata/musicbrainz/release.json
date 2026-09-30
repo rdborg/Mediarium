@@ -1,0 +1,19 @@
+{
+  "id": "rel-first",
+  "title": "First Album",
+  "status": "Official",
+  "country": "GB",
+  "date": "1999-03-01",
+  "media": [
+    {
+      "position": 1,
+      "format": "CD",
+      "track-count": 3,
+      "tracks": [
+        {"id": "t1", "number": "1", "position": 1, "title": "Opening", "length": 180000, "recording": {"id": "r1", "title": "Opening", "length": 180000}},
+        {"id": "t2", "number": "2", "position": 2, "title": "Middle Song", "length": 200000, "recording": {"id": "r2", "title": "Middle Song", "length": 200000}},
+        {"id": "t3", "number": "3", "position": 3, "title": "Closing Time", "length": 240000, "recording": {"id": "r3", "title": "Closing Time", "length": 240000}}
+      ]
+    }
+  ]
+}

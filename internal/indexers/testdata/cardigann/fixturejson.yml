@@ -1,0 +1,63 @@
+---
+# Minimal JSON API site definition written for tests (modelled on the
+# Cardigann format; not a real site).
+id: fixturejson
+name: Fixture JSON
+description: "A tracker with a JSON API used by the tests"
+language: en-US
+type: semi-private
+encoding: UTF-8
+links:
+  - https://json.fixture.test/
+
+caps:
+  categorymappings:
+    - {id: 1, cat: Movies, desc: "Movies"}
+    - {id: 2, cat: TV, desc: "TV"}
+  modes:
+    search: [q]
+
+settings:
+  - name: apikey
+    type: text
+    label: API key
+
+search:
+  paths:
+    - path: api/torrents
+      response:
+        type: json
+  headers:
+    Authorization: ["Bearer {{ .Config.apikey }}"]
+  inputs:
+    q: "{{ .Keywords }}"
+    categories: "{{ join .Categories \",\" }}"
+  rows:
+    selector: data:has(attributes)
+    attribute: attributes
+  fields:
+    _id:
+      selector: ..id
+    title:
+      selector: name
+    category:
+      selector: category_id
+    infohash:
+      selector: info_hash
+    details:
+      text: "{{ .Config.sitelink }}torrents/{{ .Result._id }}"
+    size:
+      selector: size
+    seeders:
+      selector: seeders
+    leechers:
+      selector: leechers
+    date:
+      selector: created_at
+    downloadvolumefactor:
+      selector: freeleech
+      case:
+        "True": 0
+        "*": 1
+    uploadvolumefactor:
+      text: 1

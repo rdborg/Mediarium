@@ -1,0 +1,23 @@
+[
+  {
+    "id": 10, "title": "Fixture Old Show", "tvDbId": 12345, "releaseYear": "2015", "status": "Returning Series",
+    "approved": true, "denied": false, "available": false, "partlyAvailable": false,
+    "requestedUser": null,
+    "childRequests": [
+      {
+        "id": 20, "requestedUser": {"userName": "hal", "alias": "Hal"}, "approved": true, "denied": false, "available": false,
+        "seasonRequests": [{"seasonNumber": 1}]
+      },
+      {
+        "id": 21, "requestedUser": {"userName": "ida", "alias": null}, "approved": false, "denied": false, "available": false,
+        "seasonRequests": [{"seasonNumber": 1}]
+      }
+    ]
+  },
+  {
+    "id": 11, "title": "Unknown To TMDB", "tvDbId": 99999, "releaseYear": "2020",
+    "approved": false, "denied": false, "available": false, "partlyAvailable": false,
+    "requestedUser": {"userName": "hal", "alias": "Hal"},
+    "childRequests": []
+  }
+]

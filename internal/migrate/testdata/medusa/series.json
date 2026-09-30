@@ -1,0 +1,40 @@
+[
+  {
+    "id": {"tvdb": 81189, "slug": "tvdb81189", "imdb": "tt0903747", "tvmaze": 169},
+    "externals": {"imdb": "tt0903747"},
+    "title": "Breaking Bad",
+    "indexer": "tvdb",
+    "network": "AMC",
+    "status": "Ended",
+    "year": {"start": 2008},
+    "config": {"location": "/data/media/tv/Breaking Bad", "rootDir": "/data/media/tv", "locationValid": true, "paused": false, "airByDate": false, "anime": false, "seasonFolders": true}
+  },
+  {
+    "id": {"tmdb": 5555, "slug": "tmdb5555"},
+    "externals": {},
+    "title": "Fixture Old Show",
+    "indexer": "tmdb",
+    "network": "Fixture TV",
+    "status": "Continuing",
+    "year": {"start": 2015},
+    "config": {"location": "/data/media/tv/Fixture Old Show", "rootDir": "/data/media/tv", "locationValid": true, "paused": true, "airByDate": false, "anime": false, "seasonFolders": true}
+  },
+  {
+    "id": {"tvdb": 99999, "slug": "tvdb99999"},
+    "externals": {},
+    "title": "Unknown To TMDB",
+    "indexer": "tvdb",
+    "status": "Continuing",
+    "year": {"start": 2020},
+    "config": {"location": "/data/media/tv/Unknown To TMDB", "locationValid": false, "paused": false}
+  },
+  {
+    "id": {"tvdb": 4242, "slug": "tvdb4242"},
+    "externals": {},
+    "title": "Gone Show",
+    "indexer": "tvdb",
+    "status": "Ended",
+    "year": {"start": 1999},
+    "config": {"location": "/data/media/tv/Gone Show", "locationValid": false, "paused": false}
+  }
+]

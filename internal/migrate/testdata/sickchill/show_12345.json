@@ -1,0 +1,14 @@
+{
+  "result": "success",
+  "message": "",
+  "data": {
+    "air_by_date": 0,
+    "anime": 0,
+    "location": "/data/media/tv/Fixture Old Show",
+    "paused": 1,
+    "quality": "HD",
+    "season_list": [2, 1],
+    "show_name": "Fixture Old Show",
+    "status": "Continuing"
+  }
+}

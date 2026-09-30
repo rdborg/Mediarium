@@ -1,0 +1,100 @@
+---
+# Minimal private (login required) site definition written for tests
+# (modelled on the Cardigann format; not a real site).
+id: fixtureprivate
+name: Fixture Private
+description: "A private tracker used by the tests"
+language: en-US
+type: private
+encoding: UTF-8
+links:
+  - https://private.fixture.test/
+
+caps:
+  categorymappings:
+    - {id: 10, cat: Movies/HD, desc: "Movies HD"}
+    - {id: 11, cat: Movies/UHD, desc: "Movies UHD"}
+    - {id: 20, cat: TV/HD, desc: "TV HD"}
+  modes:
+    search: [q]
+
+settings:
+  - name: username
+    type: text
+    label: Username
+  - name: password
+    type: password
+    label: Password
+  - name: freeleech
+    type: checkbox
+    label: Search freeleech only
+    default: false
+
+login:
+  path: login.php
+  method: form
+  form: form#loginform
+  inputs:
+    username: "{{ .Config.username }}"
+    password: "{{ .Config.password }}"
+    keeplogged: 1
+  selectorinputs:
+    csrf:
+      selector: input[name="csrf"]
+      attribute: value
+  error:
+    - selector: div.error
+  test:
+    path: index.php
+    selector: a[href^="logout.php"]
+
+search:
+  paths:
+    - path: browse.php
+  inputs:
+    $raw: "{{ range .Categories }}c{{.}}=1&{{end}}"
+    search: "{{ .Keywords }}"
+    freeleech: "{{ if .Config.freeleech }}1{{ else }}{{ end }}"
+  rows:
+    selector: table#torrents tr.torrent, table#torrents tr.extra
+    after: 1
+    remove: span.ad
+  fields:
+    category:
+      selector: a[href*="cat="]
+      attribute: href
+      filters:
+        - name: querystring
+          args: cat
+    title:
+      selector: a.title
+    details:
+      selector: a.title
+      attribute: href
+    download:
+      selector: a[href^="download.php"]
+      attribute: href
+    size:
+      selector: td.size
+    seeders:
+      selector: td.seeders
+    leechers:
+      selector: td.leechers
+    grabs:
+      selector: td.snatched
+    date:
+      selector: td.added
+      filters:
+        - name: append
+          args: " +00:00"
+        - name: dateparse
+          args: "yyyy-MM-dd HH:mm zzz"
+    description:
+      selector: td.tags
+      optional: true
+    downloadvolumefactor:
+      case:
+        img.free: 0
+        "*": 1
+    uploadvolumefactor:
+      text: 1

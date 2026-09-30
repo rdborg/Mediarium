@@ -1,0 +1,20 @@
+{
+  "$schema": "../app-info-schema.json",
+  "id": "mediarium",
+  "available": true,
+  "name": "Mediarium",
+  "tipi_version": 1,
+  "version": "1.3.0",
+  "short_desc": "Movies and TV, from search to library, in one app.",
+  "author": "rdborg",
+  "source": "https://github.com/rdborg/Mediarium",
+  "website": "https://github.com/rdborg/Mediarium",
+  "port": 8264,
+  "exposable": true,
+  "categories": ["media"],
+  "description": "All-in-one media manager for movies and TV: searches Usenet and torrent indexers, downloads with built-in clients, unpacks and organises your library.",
+  "supported_architectures": ["amd64", "arm64"],
+  "form_fields": [],
+  "created_at": 1790640000000,
+  "updated_at": 1790640000000
+}

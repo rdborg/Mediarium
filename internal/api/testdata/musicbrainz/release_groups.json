@@ -1,0 +1,11 @@
+{
+  "release-group-count": 5,
+  "release-group-offset": 0,
+  "release-groups": [
+    {"id": "aaaaaaaa-0000-4000-8000-000000000001", "title": "First Album", "primary-type": "Album", "secondary-types": [], "first-release-date": "1999-03-01"},
+    {"id": "aaaaaaaa-0000-4000-8000-000000000002", "title": "Second Album", "primary-type": "Album", "secondary-types": [], "first-release-date": "2005-10-10"},
+    {"id": "aaaaaaaa-0000-4000-8000-000000000003", "title": "A Single", "primary-type": "Single", "secondary-types": [], "first-release-date": "2006"},
+    {"id": "aaaaaaaa-0000-4000-8000-000000000004", "title": "Live Stuff", "primary-type": "Album", "secondary-types": ["Live"], "first-release-date": "2007"},
+    {"id": "aaaaaaaa-0000-4000-8000-000000000005", "title": "Upcoming Album", "primary-type": "Album", "secondary-types": [], "first-release-date": "2099-01-01"}
+  ]
+}

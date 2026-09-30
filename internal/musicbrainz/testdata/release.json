@@ -1,0 +1,29 @@
+{
+  "id": "rel-gb-cd",
+  "title": "OK Computer",
+  "status": "Official",
+  "country": "GB",
+  "date": "1997-05-21",
+  "media": [
+    {
+      "position": 1,
+      "format": "CD",
+      "title": "",
+      "track-count": 3,
+      "tracks": [
+        {"id": "t1", "number": "1", "position": 1, "title": "Airbag", "length": 284000, "recording": {"id": "r1", "title": "Airbag", "length": 284000}},
+        {"id": "t2", "number": "2", "position": 2, "title": "Paranoid Android", "length": 383000, "recording": {"id": "r2", "title": "Paranoid Android", "length": 383000}},
+        {"id": "t3", "number": "3", "position": 3, "title": "", "length": 0, "recording": {"id": "r3", "title": "Subterranean Homesick Alien", "length": 267000}}
+      ]
+    },
+    {
+      "position": 2,
+      "format": "CD",
+      "title": "Bonus",
+      "track-count": 1,
+      "tracks": [
+        {"id": "t4", "number": "1", "position": 1, "title": "Lucky (Live)", "length": 260000, "recording": {"id": "r4", "title": "Lucky", "length": 260000}}
+      ]
+    }
+  ]
+}

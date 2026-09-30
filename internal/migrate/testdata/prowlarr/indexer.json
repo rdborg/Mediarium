@@ -1,0 +1,190 @@
+[
+  {
+    "indexerUrls": ["https://api.nzbgeek.info"],
+    "legacyUrls": [],
+    "definitionName": "NZBgeek",
+    "description": "NZBgeek is a Newznab based indexer",
+    "language": "en-US",
+    "enable": true,
+    "redirect": false,
+    "supportsRss": true,
+    "supportsSearch": true,
+    "supportsRedirect": false,
+    "supportsPagination": false,
+    "appProfileId": 1,
+    "protocol": "usenet",
+    "privacy": "private",
+    "capabilities": {
+      "limitsMax": 100,
+      "limitsDefault": 100,
+      "categories": [
+        {"id": 2000, "name": "Movies", "subCategories": [{"id": 2040, "name": "Movies/HD", "subCategories": []}, {"id": 2045, "name": "Movies/UHD", "subCategories": []}]},
+        {"id": 5000, "name": "TV", "subCategories": [{"id": 5040, "name": "TV/HD", "subCategories": []}]}
+      ],
+      "supportsRawSearch": false,
+      "searchParams": ["q"],
+      "tvSearchParams": ["q", "season", "ep", "imdbId", "tvdbId"],
+      "movieSearchParams": ["q", "imdbId"]
+    },
+    "priority": 25,
+    "downloadClientId": 0,
+    "added": "2023-01-10T09:00:00Z",
+    "sortName": "nzbgeek",
+    "name": "NZBgeek",
+    "fields": [
+      {"order": 0, "name": "baseUrl", "label": "URL", "value": "https://api.nzbgeek.info", "type": "select", "advanced": false, "selectOptionsProviderAction": "getUrls", "privacy": "normal", "isFloat": false},
+      {"order": 1, "name": "apiPath", "label": "API Path", "value": "/api", "type": "textbox", "advanced": true, "privacy": "normal", "isFloat": false},
+      {"order": 2, "name": "apiKey", "label": "API Key", "value": "geek-secret-key", "type": "textbox", "advanced": false, "privacy": "apiKey", "isFloat": false},
+      {"order": 3, "name": "vipExpiration", "label": "VIP Expiration", "value": "", "type": "textbox", "advanced": false, "privacy": "normal", "isFloat": false},
+      {"order": 4, "name": "baseSettings.queryLimit", "label": "Query Limit", "type": "number", "advanced": true, "privacy": "normal", "isFloat": false},
+      {"order": 5, "name": "baseSettings.grabLimit", "label": "Grab Limit", "type": "number", "advanced": true, "privacy": "normal", "isFloat": false},
+      {"order": 6, "name": "baseSettings.limitsUnit", "label": "Limits Unit", "value": 0, "type": "select", "advanced": true, "privacy": "normal", "isFloat": false}
+    ],
+    "implementationName": "Newznab",
+    "implementation": "Newznab",
+    "configContract": "NewznabSettings",
+    "infoLink": "https://wiki.servarr.com/prowlarr/supported-indexers#newznab",
+    "tags": [],
+    "id": 1
+  },
+  {
+    "definitionName": "DrunkenSlug",
+    "enable": true,
+    "protocol": "usenet",
+    "priority": 25,
+    "name": "DrunkenSlug",
+    "fields": [
+      {"name": "baseUrl", "value": "https://drunkenslug.com/"},
+      {"name": "apiPath", "value": "/api"},
+      {"name": "apiKey", "value": "********", "privacy": "apiKey"}
+    ],
+    "implementationName": "Newznab",
+    "implementation": "Newznab",
+    "configContract": "NewznabSettings",
+    "tags": [],
+    "id": 2
+  },
+  {
+    "definitionName": "Torznab",
+    "enable": true,
+    "protocol": "torrent",
+    "priority": 30,
+    "name": "Jackett (all)",
+    "fields": [
+      {"name": "baseUrl", "value": "http://jackett:9117/api/v2.0/indexers/all/results/torznab"},
+      {"name": "apiPath", "value": "/api"},
+      {"name": "apiKey", "value": "jackett-key", "privacy": "apiKey"},
+      {"name": "torrentBaseSettings.seedRatio", "value": null}
+    ],
+    "implementationName": "Torznab",
+    "implementation": "Torznab",
+    "configContract": "TorznabSettings",
+    "tags": [],
+    "id": 3
+  },
+  {
+    "indexerUrls": ["https://1337x.to/", "https://1337x.st/"],
+    "definitionName": "1337x",
+    "description": "1337X is a Public torrent site that offers verified torrent downloads",
+    "language": "en-US",
+    "enable": true,
+    "protocol": "torrent",
+    "privacy": "public",
+    "priority": 25,
+    "name": "1337x",
+    "capabilities": {"categories": [{"id": 2000, "name": "Movies", "subCategories": []}, {"id": 5000, "name": "TV", "subCategories": []}]},
+    "fields": [
+      {"order": 0, "name": "definitionFile", "value": "1337x", "type": "textbox", "hidden": "hidden"},
+      {"order": 1, "name": "baseUrl", "value": "https://1337x.to/", "type": "select"},
+      {"order": 2, "name": "downloadlink", "label": "Download link", "value": 1, "type": "select", "selectOptions": [{"value": 0, "name": "iTorrents.org"}, {"value": 1, "name": "magnet"}]},
+      {"order": 3, "name": "downloadlink2", "label": "If the download link is missing", "value": 0, "type": "select"},
+      {"order": 4, "name": "sort", "label": "Sort requested from site", "value": 2, "type": "select"},
+      {"order": 5, "name": "disablesort", "label": "Disable sort", "value": false, "type": "checkbox"},
+      {"order": 6, "name": "info_flaresolverr", "label": "About FlareSolverr", "type": "info"},
+      {"order": 7, "name": "torrentBaseSettings.seedRatio", "value": null, "type": "number"}
+    ],
+    "implementationName": "Cardigann",
+    "implementation": "Cardigann",
+    "configContract": "CardigannSettings",
+    "tags": [],
+    "id": 4
+  },
+  {
+    "definitionName": "privatesite",
+    "enable": true,
+    "protocol": "torrent",
+    "priority": 25,
+    "name": "PrivateSite",
+    "fields": [
+      {"name": "definitionFile", "value": "privatesite"},
+      {"name": "baseUrl", "value": "https://private.example/"},
+      {"name": "username", "value": "ryan"},
+      {"name": "password", "value": "********", "privacy": "password"}
+    ],
+    "implementationName": "Cardigann",
+    "implementation": "Cardigann",
+    "configContract": "CardigannSettings",
+    "tags": [],
+    "id": 5
+  },
+  {
+    "definitionName": "gone-site",
+    "enable": false,
+    "protocol": "torrent",
+    "priority": 25,
+    "name": "Gone Site",
+    "fields": [{"name": "definitionFile", "value": "gone-site"}, {"name": "baseUrl", "value": "https://gone.example/"}],
+    "implementationName": "Cardigann",
+    "implementation": "Cardigann",
+    "configContract": "CardigannSettings",
+    "tags": [],
+    "id": 6
+  },
+  {
+    "definitionName": "BroadcasTheNet",
+    "enable": true,
+    "protocol": "torrent",
+    "priority": 25,
+    "name": "BroadcasTheNet",
+    "fields": [{"name": "baseUrl", "value": "https://api.broadcasthe.net/"}, {"name": "apiKey", "value": "btn-key"}],
+    "implementationName": "BroadcasTheNet",
+    "implementation": "BroadcastheNet",
+    "configContract": "BroadcastheNetSettings",
+    "tags": [],
+    "id": 7
+  },
+  {
+    "definitionName": "NZBgeek",
+    "enable": true,
+    "protocol": "usenet",
+    "priority": 40,
+    "name": "NZBgeek (second copy)",
+    "fields": [
+      {"name": "baseUrl", "value": "https://api.nzbgeek.info/"},
+      {"name": "apiPath", "value": "/api"},
+      {"name": "apiKey", "value": "geek-secret-key"}
+    ],
+    "implementationName": "Newznab",
+    "implementation": "Newznab",
+    "configContract": "NewznabSettings",
+    "tags": [],
+    "id": 8
+  },
+  {
+    "definitionName": "Newznab",
+    "enable": true,
+    "protocol": "usenet",
+    "priority": 25,
+    "name": "Odd Path",
+    "fields": [
+      {"name": "baseUrl", "value": "https://odd.example"},
+      {"name": "apiPath", "value": "/newznab/rss"},
+      {"name": "apiKey", "value": "odd-key"}
+    ],
+    "implementationName": "Newznab",
+    "implementation": "Newznab",
+    "configContract": "NewznabSettings",
+    "tags": [],
+    "id": 9
+  }
+]

@@ -1,0 +1,27 @@
+services:
+  mediarium:
+    image: ghcr.io/rdborg/mediarium:1.3.0
+    environment:
+      - TZ=${TZ}
+      - PUID=1000
+      - PGID=1000
+      # Runtipi's media folder is mounted once as /data, so downloads and the
+      # library share one mount and finished downloads are hardlinked.
+      - DOWNLOADS_DIR=/data/downloads/mediarium
+      - MOVIES_DIR=/data/movies
+      - TV_DIR=/data/tv
+      # Optional folders: MUSIC_DIR, EBOOKS_DIR and AUDIOBOOKS_DIR (for example /data/music).
+      # Music works today; ebooks and audiobooks are on the way. See docs/INSTALL.md.
+    volumes:
+      - ${APP_DATA_DIR}/data/config:/config
+      - ${RUNTIPI_MEDIA_DIR}:/data
+    ports:
+      # Optional torrent port; the web port is mapped by Runtipi.
+      - 58264:58264/tcp
+      - 58264:58264/udp
+    x-runtipi:
+      is_main: true
+      internal_port: 8264
+
+x-runtipi:
+  schema_version: 2

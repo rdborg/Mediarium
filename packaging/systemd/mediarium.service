@@ -1,0 +1,49 @@
+# Mediarium as a native systemd service (no Docker).
+# STATUS: UNTESTED. Written from the systemd documentation and the app's
+# environment variables (internal/config/config.go); not yet run on a real host.
+#
+# Install (as root), assuming the release archive is unpacked in the current dir:
+#   useradd --system --home-dir /var/lib/mediarium --create-home --shell /usr/sbin/nologin mediarium
+#   install -m 0755 mediarium /usr/local/bin/mediarium
+#   install -d -o mediarium -g mediarium /var/lib/mediarium/config
+#   install -d /etc/mediarium
+#   install -m 0640 -g mediarium mediarium.env.example /etc/mediarium/mediarium.env
+#   install -m 0644 mediarium.service /etc/systemd/system/mediarium.service
+#   # edit /etc/mediarium/mediarium.env (media paths!), then:
+#   systemctl daemon-reload
+#   systemctl enable --now mediarium
+#   journalctl -u mediarium -f
+#
+# The media folders (MOVIES_DIR / TV_DIR / DOWNLOADS_DIR) must be writable by
+# the "mediarium" user. Either chown them, or add the user to the group that
+# owns them and set User=/Group= below accordingly. If you want existing files
+# owned by another account (for example your own login), set User= to that
+# account instead of "mediarium".
+
+[Unit]
+Description=Mediarium media manager
+Documentation=https://github.com/rdborg/mediarium
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mediarium
+Group=mediarium
+EnvironmentFile=/etc/mediarium/mediarium.env
+ExecStart=/usr/local/bin/mediarium
+# "always" (not "on-failure") so that the Restart buttons under
+# Settings > System > Server and backup, which exit cleanly, bring Mediarium back. systemctl stop still stops it for good.
+Restart=always
+RestartSec=5
+# The app shuts down gracefully on SIGTERM (cmd/app/main.go allows 10 s).
+TimeoutStopSec=20
+
+# Light hardening. Deliberately NOT using ProtectSystem=strict or
+# ProtectHome, because they would need a ReadWritePaths= entry for every
+# media folder and the right list differs per install.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

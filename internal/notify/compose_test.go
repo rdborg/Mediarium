@@ -154,7 +154,7 @@ func TestEmailHTMLEscapesAndLoadsNothingElse(t *testing.T) {
 	if strings.Contains(out, `width="1"`) || strings.Contains(out, `height="1"`) {
 		t.Error("looks like a tracking pixel")
 	}
-	for _, want := range []string{"Mediarium</td>", "#34d1bf", "Open in Mediarium", "This message is about: Downloaded", "<table"} {
+	for _, want := range []string{"Mediarium</td>", "#34d1bf", "Open in Mediarium", "You can choose which emails you get", "<table"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -186,7 +186,7 @@ func TestEmailHTMLLeavesOutWhatIsNotThere(t *testing.T) {
 func TestEmailTextAlternative(t *testing.T) {
 	ev := notify.Compose("failed", titanic, notify.Links{Base: "https://m.example.com"}, composeAt)
 	out := notify.RenderEmailText(ev)
-	for _, want := range []string{"Download failed: Titanic (1997)", "Release:", "Open in Mediarium: https://m.example.com/title/597", "This message is about: Failed", "https://m.example.com/settings/notifications"} {
+	for _, want := range []string{"Download failed: Titanic (1997)", "Release:", "Open in Mediarium: https://m.example.com/title/597", "You can choose which emails you get", "https://m.example.com/settings/notifications"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("text missing %q:\n%s", want, out)
 		}

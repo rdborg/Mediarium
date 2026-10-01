@@ -35,7 +35,7 @@ Every kind has a fixed name (a code, such as `usenet.too_many_connections`). The
 - The list shows 50 problems at a time. **Show more** adds 50.
 - The page stays up to date while it's open.
 
-The same problem happening again within 10 minutes is counted on the same row ("14 times, last 2 minutes ago") instead of adding a new one. A different indexer, server or download gets its own row.
+The same problem happening again within 10 minutes is counted on the same row ("14 times, last 2 minutes ago") instead of adding a new one. When it is about a movie, show or album, the same problem for that title is also counted on one row for 24 hours, even when a different download caused it. A different indexer, server or title gets its own row.
 
 ## Where else you see it
 
@@ -55,7 +55,7 @@ Switch on **Tell me when an error happens** at the bottom of the page to get a m
 
 ## How long problems are kept
 
-Problems are kept for **30 days**, and at most 5000 of them. A shorter history time (`historyRetentionDays`, see [History and activity](downloads.md#history-and-activity)) applies here too. The daily [clean-up](downloads.md#clean-up) removes older ones.
+Problems are kept for **30 days**, and at most 2000 of them. A shorter history time (`historyRetentionDays`, see [History and activity](downloads.md#history-and-activity)) applies here too. The daily [clean-up](downloads.md#clean-up) removes older ones.
 
 ## Examples
 

@@ -18,10 +18,15 @@ const (
 	// Window is how long after a problem the same one is folded into its row
 	// instead of getting a new row.
 	Window = 10 * time.Minute
+	// TitleWindow is how long the same problem about the same movie, show or
+	// album is folded into one row, even when it comes from a different
+	// download. A title that keeps failing is one line with a count, not a
+	// page of lines.
+	TitleWindow = 24 * time.Hour
 	// KeepDays is how long problems are kept.
 	KeepDays = 30
 	// MaxRows is the most rows kept, whatever their age.
-	MaxRows = 5000
+	MaxRows = 2000
 
 	maxDetail  = 2000
 	maxMessage = 300
@@ -243,6 +248,11 @@ func (l *Log) save(q queued) {
 	)
 	err = tx.QueryRow(`SELECT id, level FROM problems WHERE code = ? AND subject = ? AND last_at >= ? ORDER BY last_at DESC, id DESC LIMIT 1`,
 		p.Code, p.Subject, at.Add(-Window).Format(timeFormat)).Scan(&id, &prevL)
+	if errors.Is(err, sql.ErrNoRows) && title != "" {
+		// Same problem, same title, another download: fold it into that row.
+		err = tx.QueryRow(`SELECT id, level FROM problems WHERE code = ? AND title = ? AND last_at >= ? ORDER BY last_at DESC, id DESC LIMIT 1`,
+			p.Code, title, at.Add(-TitleWindow).Format(timeFormat)).Scan(&id, &prevL)
+	}
 	switch {
 	case err == nil:
 		if prevL == string(LevelError) {

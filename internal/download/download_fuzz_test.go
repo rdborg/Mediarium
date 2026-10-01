@@ -496,6 +496,10 @@ func TestArticleFarPastTheEndOfItsFileIsMissingNotWritten(t *testing.T) {
 			{Number: 2, Bytes: 50000, MessageID: "b@x"},
 		},
 	}}}
+	par2, par2Article := par2Extra(1 << 20)
+	srv.bodies["p@x"] = par2Article
+	par2.Segments[0].MessageID = "p@x"
+	nzb.Files = append(nzb.Files, par2)
 	cfg := ClientConfig{Host: srv.addr, Port: srv.port, Username: "u", Password: "p", Connections: 1}
 	dir := t.TempDir()
 	res, err := DownloadFromServers(context.Background(), []ClientConfig{cfg}, nzb, dir, nil)

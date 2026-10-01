@@ -35,19 +35,6 @@ func kindAccent(ev Event) string {
 	return brandTeal
 }
 
-// kindLabel names the event the way Settings does, for the footer.
-func kindLabel(ev Event) string {
-	if ev.Type == "test" {
-		return "test message"
-	}
-	for _, k := range EventKinds() {
-		if k.ID == EventKind(ev.Type) {
-			return k.Label
-		}
-	}
-	return ev.Type
-}
-
 // httpsURL returns u when it is a web address safe to put in a page, and ""
 // otherwise (no javascript: or data: addresses).
 func httpsURL(u string) string {
@@ -104,13 +91,14 @@ func RenderEmailHTML(ev Event) string {
 		b.WriteString(`<tr><td style="padding:16px 24px 8px 24px;"><a href="` + e(link) + `" style="display:inline-block;padding:11px 20px;background:` + accent + `;color:` + buttonInk(accent) + `;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px;">Open in Mediarium</a></td></tr>`)
 	}
 
-	// The footer.
-	foot := "This message is about: " + kindLabel(ev) + "."
-	b.WriteString(`<tr><td style="padding:20px 24px 24px 24px;font-size:12px;line-height:1.5;color:` + mailMuted + `;">` + e(foot) + ` To change which messages you get, open Settings &gt; Connections &gt; Notifications in Mediarium`)
+	// The footer: only says where to change what gets sent.
+	b.WriteString(`<tr><td style="padding:20px 24px 24px 24px;font-size:12px;line-height:1.5;color:` + mailMuted + `;">`)
 	if s := httpsURL(ev.SettingsURL); s != "" {
-		b.WriteString(` (<a href="` + e(s) + `" style="color:` + mailMuted + `;">open it</a>)`)
+		b.WriteString(`You can choose which emails you get in <a href="` + e(s) + `" style="color:` + mailMuted + `;">Notification settings</a>.`)
+	} else {
+		b.WriteString(`You can choose which emails you get in Mediarium, under Settings &gt; Connections &gt; Notifications.`)
 	}
-	b.WriteString(`.</td></tr>`)
+	b.WriteString(`</td></tr>`)
 
 	b.WriteString(`</table></td></tr></table></body></html>`)
 	return b.String()
@@ -141,7 +129,7 @@ func RenderEmailText(ev Event) string {
 	if link := httpsURL(ev.LinkURL); link != "" {
 		b.WriteString("\nOpen in Mediarium: " + link + "\n")
 	}
-	b.WriteString("\n-- \nThis message is about: " + kindLabel(ev) + ".\nTo change which messages you get, open Settings > Connections > Notifications in Mediarium")
+	b.WriteString("\n-- \nYou can choose which emails you get in Mediarium, under Settings > Connections > Notifications")
 	if s := httpsURL(ev.SettingsURL); s != "" {
 		b.WriteString(": " + s)
 	}

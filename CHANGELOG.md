@@ -8,6 +8,14 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-01
+
+### Fixed
+- A release that can never be completed no longer wastes a whole download. If articles are missing on every Usenet server and the release has too few PAR2 repair files to rebuild them (or none at all), Mediarium stops straight away, blocklists that release and moves on to the next one. Before, it downloaded everything and only then found out it could not be repaired.
+- Logs and errors groups the same problem for the same movie, show or album on one line for 24 hours, even when different downloads caused it. A title that keeps failing is one line with a count, not a page of lines. The log keeps at most 2000 problems now (it was 5000).
+- Emails no longer end with "This message is about...". They end with one plain line that says where to choose which emails you get.
+- On Discover and on a title's page, the rows of posters no longer leave a big empty gap before "Load more".
+
 ## [1.3.0] - 2026-09-30
 
 First public release.

@@ -134,7 +134,7 @@ export default function LogsSettings() {
   return (
     <div className="pl-page">
       <p className="pl-intro">
-        Things that went wrong, with what to try. Repeats within a few minutes count on one line, and problems are kept for {data?.keepDays ?? 30} days.
+        Things that went wrong, with what to try. The same problem, and the same problem for one title, count on one line, and problems are kept for {data?.keepDays ?? 30} days.
       </p>
 
       <div className="pl-cards">

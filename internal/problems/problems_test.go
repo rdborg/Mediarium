@@ -281,6 +281,36 @@ func TestRepeatsFoldOnlyForTheSameSubjectAndWithinTheWindow(t *testing.T) {
 	}
 }
 
+func TestTheSameProblemForOneTitleFoldsAcrossDownloads(t *testing.T) {
+	cases := []struct {
+		name  string
+		other problems.Problem
+		wait  time.Duration
+		rows  int
+	}{
+		{"another download of the same title", problems.Problem{Code: problems.CodeUsenetTooMany, Subject: "Download 19", Title: "Passenger"}, time.Hour, 1},
+		{"a different title stays separate", problems.Problem{Code: problems.CodeUsenetTooMany, Subject: "Download 19", Title: "Other"}, time.Hour, 2},
+		{"a day later starts a new row", problems.Problem{Code: problems.CodeUsenetTooMany, Subject: "Download 19", Title: "Passenger"}, problems.TitleWindow + time.Hour, 2},
+		{"a different problem stays separate", problems.Problem{Code: problems.CodeIndexerRateLimited, Subject: "Download 19", Title: "Passenger"}, time.Hour, 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l, c := newLog(t)
+			l.Record(problems.Problem{Code: problems.CodeUsenetTooMany, Subject: "Download 20", Title: "Passenger"})
+			l.Flush()
+			c.advance(tc.wait)
+			l.Record(tc.other)
+			got := list(t, l, problems.Filter{})
+			if len(got) != tc.rows {
+				t.Fatalf("rows = %d, want %d: %+v", len(got), tc.rows, got)
+			}
+			if tc.rows == 1 && got[0].Count != 2 {
+				t.Errorf("count = %d, want 2", got[0].Count)
+			}
+		})
+	}
+}
+
 func TestARepeatBecomesUnreadAndKeepsTheHigherLevel(t *testing.T) {
 	l, c := newLog(t)
 	l.Record(problems.Problem{Code: problems.CodeUsenetTooMany, Level: problems.LevelError})
@@ -484,9 +514,9 @@ func TestPruneKeepsThirtyDaysAtMost(t *testing.T) {
 	}
 }
 
-func TestTheLogIsCappedAtFiveThousandRows(t *testing.T) {
+func TestTheLogIsCapped(t *testing.T) {
 	l, c, db := newLogDB(t)
-	// Fill the table directly: 5000 rows would take a while to record one by one.
+	// Fill the table directly: thousands of rows would take a while to record one by one.
 	tx, err := db.Begin()
 	if err != nil {
 		t.Fatal(err)

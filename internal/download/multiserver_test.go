@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -112,22 +113,68 @@ func TestAllServersDownIsNotAReleaseFault(t *testing.T) {
 	}
 }
 
-// Articles no server has are counted, not fatal: the caller can still try
-// PAR2 repair.
-func TestMissingEverywhereIsCountedNotFatal(t *testing.T) {
+// par2Extra is a repair file for an NZB: one article that the server has, and a
+// declared size that says how much damage it could repair.
+func par2Extra(declared int64) (NZBFile, []byte) {
+	data := []byte("pretend recovery data")
+	return NZBFile{
+		Subject: `[2/2] "movie.vol0+1.par2" yEnc (1/1)`,
+		Groups:  []string{"alt.binaries.test"},
+		Segments: []NZBSegment{
+			{Number: 1, Bytes: declared, MessageID: "par2@example"},
+		},
+	}, buildMultipartYenc("movie.vol0+1.par2", data, 1, len(data))
+}
+
+// Articles no server has are counted, not fatal, as long as the PAR2 files in
+// the release could rebuild that much: the caller can still try repair.
+func TestMissingEverywhereIsCountedWhenPar2CouldRepairIt(t *testing.T) {
 	seg1, _, mid := multiArticles()
-	a := newFakeNNTPServer(t, map[string][]byte{"seg1@example": seg1})
-	b := newFakeNNTPServer(t, map[string][]byte{"seg1@example": seg1})
+	par2, par2Article := par2Extra(1 << 20)
+	a := newFakeNNTPServer(t, map[string][]byte{"seg1@example": seg1, "par2@example": par2Article})
+	b := newFakeNNTPServer(t, map[string][]byte{"seg1@example": seg1, "par2@example": par2Article})
+	nzb := twoSegmentNZB(mid, len(multiFixture))
+	nzb.Files = append(nzb.Files, par2)
 
 	res, err := DownloadFromServers(context.Background(), []ClientConfig{
 		{Host: a.addr, Port: a.port, Connections: 1},
 		{Host: b.addr, Port: b.port, Connections: 1},
-	}, twoSegmentNZB(mid, len(multiFixture)), t.TempDir(), nil)
+	}, nzb, t.TempDir(), nil)
 	if err != nil {
 		t.Fatalf("missing articles should not be a hard error: %v", err)
 	}
-	if res.MissingSegments != 1 || res.TotalSegments != 2 {
-		t.Fatalf("expected 1 of 2 missing, got %+v", res)
+	if res.MissingSegments != 1 || res.TotalSegments != 3 {
+		t.Fatalf("expected 1 of 3 missing, got %+v", res)
+	}
+}
+
+// A release with no PAR2 files can't be repaired, so the first article no
+// server has ends the download at once, as the release's fault.
+func TestMissingArticleWithoutPar2StopsAtOnce(t *testing.T) {
+	seg1, _, mid := multiArticles()
+	a := newFakeNNTPServer(t, map[string][]byte{"seg1@example": seg1})
+	_, err := DownloadFromServers(context.Background(), []ClientConfig{{Host: a.addr, Port: a.port, Connections: 1}},
+		twoSegmentNZB(mid, len(multiFixture)), t.TempDir(), nil)
+	var re *ReleaseError
+	if !errors.As(err, &re) {
+		t.Fatalf("want a ReleaseError, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "couldn't be found on your Usenet servers") || !strings.Contains(err.Error(), "no PAR2") {
+		t.Fatalf("unexpected message: %v", err)
+	}
+}
+
+// More is gone than the PAR2 files could ever rebuild: also stopped at once.
+func TestMissingMoreThanPar2CouldRepairStopsAtOnce(t *testing.T) {
+	seg1, _, mid := multiArticles()
+	par2, par2Article := par2Extra(3) // tiny recovery data
+	a := newFakeNNTPServer(t, map[string][]byte{"seg1@example": seg1, "par2@example": par2Article})
+	nzb := twoSegmentNZB(mid, len(multiFixture))
+	nzb.Files = append(nzb.Files, par2)
+	_, err := DownloadFromServers(context.Background(), []ClientConfig{{Host: a.addr, Port: a.port, Connections: 1}}, nzb, t.TempDir(), nil)
+	var re *ReleaseError
+	if !errors.As(err, &re) || !strings.Contains(err.Error(), "can't repair that much") {
+		t.Fatalf("want a ReleaseError about too little repair data, got %v", err)
 	}
 }
 

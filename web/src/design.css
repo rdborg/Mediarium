@@ -2558,6 +2558,8 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); opacity: 1
 html { scrollbar-gutter: stable; }
 .content .poster-grid { min-height: 60vh; align-content: start; animation: lib-fade 0.18s ease-out; }
 .content .empty-state { min-height: 40vh; animation: lib-fade 0.18s ease-out; }
+/* Rails (Discover, similar titles, albums) only take the room their posters need */
+.content .discover-rail .poster-grid, .content .album-section .poster-grid, .content .rail-head + .poster-grid { min-height: 0; }
 @keyframes lib-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .content .poster-grid, .content .empty-state { animation: none; } }
 

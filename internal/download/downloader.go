@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -143,7 +144,7 @@ func DownloadFromServers(ctx context.Context, servers []ClientConfig, nzb *NZB, 
 	for i, f := range nzb.Files {
 		limits[i] = fileSizeLimit(f)
 	}
-	st := &dlState{files: files, limits: limits, total: nzb.TotalBytes(), onProgress: onProgress, resume: resume, abort: cancel}
+	st := &dlState{files: files, limits: limits, total: nzb.TotalBytes(), onProgress: onProgress, resume: resume, abort: cancel, nzb: nzb, repairable: par2Bytes(nzb)}
 	st.done = resume.savedBytes()
 	if st.done > 0 && onProgress != nil {
 		onProgress(st.done, st.total)
@@ -241,6 +242,9 @@ type dlState struct {
 	total      int64
 	done       int64
 	missing    int64
+	nzb        *NZB
+	repairable int64 // bytes of articles PAR2 files in this release could rebuild, at most
+	lostBytes  int64 // bytes of articles no server has
 	onProgress ProgressFunc
 	resume     *resumeState
 	abort      context.CancelFunc // stops the download once a fatal error is recorded
@@ -259,6 +263,29 @@ func (s *dlState) keepProgress() {
 		}
 	}
 	s.resume.save()
+}
+
+// segmentBytes is the declared size of the article job j fetches.
+func (s *dlState) segmentBytes(j job) int64 {
+	if s.nzb == nil || j.fileIndex >= len(s.nzb.Files) || j.segmentIndex >= len(s.nzb.Files[j.fileIndex].Segments) {
+		return 0
+	}
+	return s.nzb.Files[j.fileIndex].Segments[j.segmentIndex].Bytes
+}
+
+// par2Bytes adds up the size of the PAR2 files in the release. Recovery data
+// can rebuild about that much and no more, so a release that has lost more
+// than this is beyond repair.
+func par2Bytes(nzb *NZB) int64 {
+	var n int64
+	for i, name := range outputFileNames(nzb.Files) {
+		if strings.HasSuffix(strings.ToLower(name), ".par2") {
+			for _, seg := range nzb.Files[i].Segments {
+				n += seg.Bytes
+			}
+		}
+	}
+	return n
 }
 
 func (s *dlState) recordFatal(err error) {
@@ -292,7 +319,17 @@ func forward(ctx context.Context, st *dlState, chans []chan job, i int, j job, o
 	}
 	switch o.kind {
 	case failNotFound, failDecode:
-		atomic.AddInt64(&st.missing, 1)
+		n := atomic.AddInt64(&st.missing, 1)
+		lost := atomic.AddInt64(&st.lostBytes, st.segmentBytes(j))
+		if lost > st.repairable {
+			// More is gone than the repair files could ever rebuild, so the
+			// release can't be saved. Stop now instead of fetching the rest.
+			reason := "and the release has no PAR2 files to repair it"
+			if st.repairable > 0 {
+				reason = "and the PAR2 files in the release can't repair that much"
+			}
+			st.recordFatal(&ReleaseError{fmt.Errorf("%d articles couldn't be found on your Usenet servers %s", n, reason)})
+		}
 	default:
 		st.recordFatal(o.err)
 	}

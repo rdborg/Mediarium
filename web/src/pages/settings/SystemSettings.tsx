@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Settings } from '../../api'
+import BackupCard from '../../components/BackupCard'
 import CleanupCard from '../../components/CleanupCard'
 import ServerStatsCard from '../../components/ServerStats'
 import SupportCard from '../../components/SupportCard'
@@ -84,17 +85,7 @@ export default function SystemSettings() {
       <PushCard />
       <CleanupCard />
       <SupportCard />
-      <fieldset className="group folders">
-        <legend>
-          <Icon name="hard" size={14} /> Backup
-        </legend>
-        <p style={{ marginTop: 0 }}>
-          One file with your library, accounts, indexers, provider logins and settings, but not your media files. It also holds the key to your saved passwords, so keep it private.
-        </p>
-        <a className="btn-link primary-look" href="/api/system/backup" download>
-          <Icon name="download" size={16} /> Download a backup
-        </a>
-      </fieldset>
+      <BackupCard />
 
       <fieldset className="group alerts">
         <legend>

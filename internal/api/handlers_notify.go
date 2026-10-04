@@ -23,6 +23,15 @@ func (s *Server) notifyEvent(eventType, title, message string) {
 
 // sendNotification sends a composed event to the targets that listen for it.
 func (s *Server) sendNotification(event notify.Event) {
+	if !s.cfg.PauseAutomation && s.holdForQuietHours(event, time.Now()) {
+		return
+	}
+	s.deliverNotification(event)
+}
+
+// deliverNotification sends event to every target that wants it, in the
+// background.
+func (s *Server) deliverNotification(event notify.Event) {
 	go func() {
 		senders, err := s.NotifyRepo.SendersFor(notify.EventKind(event.Type))
 		if err != nil {
@@ -374,7 +383,19 @@ func (s *Server) handleTestNotifyTarget(w http.ResponseWriter, r *http.Request) 
 	}
 	steps := notify.NewSteps(secrets...)
 	ctx = notify.WithSteps(ctx, steps)
-	err = sender.Send(ctx, notify.ComposeText("test", "", "", s.publicLinks(), time.Now()))
+	testEvent := notify.ComposeText("test", "", "", s.publicLinks(), time.Now())
+	if typ == "email" {
+		// An email test shows the real design, using a title from the library.
+		if movies, lerr := s.MovieRepo.List(); lerr == nil {
+			for _, m := range movies {
+				if m.PosterPath != "" {
+					testEvent = notify.ComposeTestEmail(movieItem(m), s.publicLinks(), time.Now())
+					break
+				}
+			}
+		}
+	}
+	err = sender.Send(ctx, testEvent)
 	if err != nil {
 		failedAlready := false
 		for _, st := range steps.List() {

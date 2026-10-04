@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, type TitleResult } from '../api'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import Icon from '../components/Icon'
@@ -97,6 +97,9 @@ export default function Search() {
     <div>
       <div className="page-header">
         <h1>Search</h1>
+        <Link className="btn-link" to="/search/releases">
+          <Icon name="list" size={15} /> Search your indexers for a release
+        </Link>
       </div>
 
       <div className="toolbar">

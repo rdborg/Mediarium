@@ -16,14 +16,19 @@ export function diskSummary(u: DiskUsage | null): string {
 // is ticked.
 export function removeOption(noun: string, u: DiskUsage | null): NonNullable<ConfirmOptions['option']> {
   const what = noun === 'artist' ? "The artist's albums in your music folder" : 'The files in your library'
+  const days = u?.trashDays ?? 0
+  const after = days > 0 ? `They wait in the recycle bin for ${days} ${days === 1 ? 'day' : 'days'} first.` : 'This cannot be undone.'
   let hint: string
   if (u && u.files === 0) hint = `There are no files in your library for this ${noun}.`
-  else if (u) hint = `${what}: ${diskSummary(u)}. This cannot be undone.`
-  else hint = `${what}. This cannot be undone.`
+  else if (u) hint = `${what}: ${diskSummary(u)}. ${after}`
+  else hint = `${what}. ${after}`
   return {
     label: 'Also delete everything on disk',
     hint,
     defaultChecked: false,
-    warning: `The files of this ${noun} will be deleted for good. There is no undo.`,
+    warning:
+      days > 0
+        ? `The files of this ${noun} go to the recycle bin (Activity > Recycle bin) and are deleted for good after ${days} ${days === 1 ? 'day' : 'days'}.`
+        : `The files of this ${noun} will be deleted for good. There is no undo.`,
   }
 }

@@ -91,6 +91,7 @@ type Server struct {
 	importWork       importState // the worker that fills in details after an import (import_worker.go)
 
 	migrator *migrate.Importer // moving over from Radarr/Sonarr/Prowlarr/SABnzbd (handlers_migrate.go)
+	held     heldNotices       // messages waiting for the quiet hours to end
 
 	torrents torrentRegistry // live torrent clients, so the on/off switch can stop them
 
@@ -270,6 +271,8 @@ func (s *Server) Routes() http.Handler {
 	public.HandleFunc("POST /api/onboarding/admin", s.handleCreateAdmin)
 	public.HandleFunc("POST /api/auth/login", s.handleLogin)
 	public.HandleFunc("POST /api/auth/logout", s.handleLogout)
+	// Calendar apps read the feed without signing in; the secret address is the key.
+	public.HandleFunc("GET /api/calendar/feed/{file}", s.handleCalendarFeed)
 
 	public.Handle("/api/", s.Auth.Middleware(s.protectedRoutes()))
 
@@ -306,6 +309,13 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/health", s.handleHealth)
 	member.HandleFunc("GET /api/dashboard", s.handleDashboard)
 	member.HandleFunc("GET /api/calendar", s.handleCalendar)
+	member.HandleFunc("GET /api/stats/library", s.handleLibraryStats)
+	member.HandleFunc("GET /api/exclusions", s.handleListExclusions)
+	member.HandleFunc("POST /api/exclusions", s.handleAddExclusion)
+	member.HandleFunc("DELETE /api/exclusions/{kind}/{tmdbId}", s.handleRemoveExclusion)
+	member.HandleFunc("GET /api/calendar/feed", s.handleGetCalendarFeed)
+	member.HandleFunc("POST /api/calendar/feed", s.handleNewCalendarFeed)
+	member.HandleFunc("DELETE /api/calendar/feed", s.handleRemoveCalendarFeed)
 	member.HandleFunc("GET /api/wanted", s.handleWanted)
 	member.HandleFunc("GET /api/activity", s.handleListActivity)
 	member.HandleFunc("GET /api/modules", s.handleModules)
@@ -423,6 +433,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("POST /api/indexers/test", s.handleTestIndexerConfig)
 	admin.HandleFunc("POST /api/indexers/{id}/test", s.handleTestIndexer)
 	admin.HandleFunc("PUT /api/indexers/{id}/enabled", s.handleSetIndexerEnabled)
+	admin.HandleFunc("PUT /api/indexers/{id}/priority", s.handleSetIndexerPriority)
 	admin.HandleFunc("GET /api/usenet-servers", s.handleListUsenetServers)
 	admin.HandleFunc("POST /api/usenet-servers", s.handleCreateUsenetServer)
 	admin.HandleFunc("PUT /api/usenet-servers/{id}", s.handleUpdateUsenetServer)
@@ -469,6 +480,17 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("GET /api/music/import/scan/{id}", s.handleMusicImportResults)
 
 	// Moving over from Radarr, Sonarr, Prowlarr and SABnzbd (read-only on their side).
+	admin.HandleFunc("GET /api/system/backups", s.handleListSavedBackups)
+	admin.HandleFunc("POST /api/system/backups", s.handleSaveBackupNow)
+	admin.HandleFunc("GET /api/system/backups/{name}", s.handleDownloadSavedBackup)
+	admin.HandleFunc("GET /api/rename", s.handleRenamePreview)
+	admin.HandleFunc("POST /api/rename", s.handleRename)
+	admin.HandleFunc("GET /api/manual-import", s.handleManualImportList)
+	admin.HandleFunc("POST /api/manual-import", s.handleManualImport)
+	admin.HandleFunc("GET /api/trash", s.handleListTrash)
+	admin.HandleFunc("POST /api/trash/{kind}/{id}/restore", s.handleRestoreTrash)
+	admin.HandleFunc("DELETE /api/trash/{kind}/{id}", s.handleDeleteTrash)
+	admin.HandleFunc("DELETE /api/trash", s.handleEmptyTrash)
 	admin.HandleFunc("POST /api/migrate/preview", s.handleMigratePreview)
 	admin.HandleFunc("POST /api/migrate/run", s.handleMigrateRun)
 	admin.HandleFunc("GET /api/migrate/status", s.handleMigrateStatus)

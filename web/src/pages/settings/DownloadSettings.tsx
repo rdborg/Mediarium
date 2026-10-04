@@ -80,6 +80,12 @@ export default function DownloadSettings() {
         </legend>
         <DownloadsAtOnceCard />
       </fieldset>
+      <fieldset className="group folders">
+        <legend>
+          <Icon name="download" size={14} /> Speed and space
+        </legend>
+        <SpeedAndSpaceCard />
+      </fieldset>
       </div>
 
       <div className="half-cols span-all">
@@ -233,6 +239,85 @@ function DownloadsAtOnceCard() {
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+const SPEEDS = [0, 1, 2, 5, 10, 20, 50, 100]
+const FREE = [0, 2, 5, 10, 20, 50]
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
+
+// A download speed limit (all day, or only between two hours) and how much
+// free space to keep. Each change saves by itself.
+function SpeedAndSpaceCard() {
+  const limit = useAutosaveSetting<number>(
+    (s) => s.speedLimitMB ?? 0,
+    (v) => ({ speedLimitMB: v }),
+    (v) => (v === 0 ? 'Saved: no speed limit.' : `Saved: downloads are limited to ${v} MB/s.`),
+    0,
+  )
+  const hours = useAutosaveSetting<string>(
+    (s) => s.speedLimitHours ?? '',
+    (v) => ({ speedLimitHours: v }),
+    (v) => (v === '' ? 'Saved: the limit applies all day.' : `Saved: the limit applies from ${v.split('-')[0]}:00 to ${v.split('-')[1]}:00.`),
+    '',
+  )
+  const free = useAutosaveSetting<number>(
+    (s) => s.minFreeGB ?? 5,
+    (v) => ({ minFreeGB: v }),
+    (v) => (v === 0 ? 'Saved: downloads start whatever the free space.' : `Saved: no new download starts with less than ${v} GB free.`),
+    5,
+  )
+  const [from, to] = hours.value ? hours.value.split('-').map(Number) : [8, 23]
+  const busy = !limit.loaded || limit.saving || hours.saving || free.saving
+  return (
+    <div>
+      <label className="inline-field">
+        Limit download speed to
+        <select value={limit.value} disabled={busy} onChange={(e) => void limit.change(Number(e.target.value))}>
+          {SPEEDS.map((n) => (
+            <option key={n} value={n}>
+              {n === 0 ? 'no limit' : `${n} MB/s`}
+            </option>
+          ))}
+        </select>
+      </label>
+      {limit.value > 0 && (
+        <div className="inline-field" style={{ marginTop: 10 }}>
+          <label className="inline-field">
+            <input type="checkbox" checked={hours.value !== ''} disabled={busy} onChange={(e) => void hours.change(e.target.checked ? '8-23' : '')} />
+            Only from
+          </label>
+          <select aria-label="From" value={from} disabled={busy || hours.value === ''} onChange={(e) => void hours.change(`${e.target.value}-${to === Number(e.target.value) ? (to + 1) % 24 : to}`)}>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}:00
+              </option>
+            ))}
+          </select>
+          to
+          <select aria-label="To" value={to} disabled={busy || hours.value === ''} onChange={(e) => void hours.change(`${from === Number(e.target.value) ? (from + 23) % 24 : from}-${e.target.value}`)}>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}:00
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      <p className="field-hint">Usenet and torrents share the limit. Outside the hours you choose, downloads run at full speed.</p>
+      <label className="inline-field" style={{ marginTop: 14 }}>
+        Keep at least
+        <select value={free.value} disabled={busy} onChange={(e) => void free.change(Number(e.target.value))}>
+          {FREE.map((n) => (
+            <option key={n} value={n}>
+              {n === 0 ? 'no minimum' : `${n} GB`}
+            </option>
+          ))}
+        </select>
+        free in the downloads folder
+      </label>
+      <p className="field-hint">With less free space than this, no new download starts. They wait and start by themselves once there is room.</p>
     </div>
   )
 }

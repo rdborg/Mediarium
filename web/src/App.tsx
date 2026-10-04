@@ -33,6 +33,10 @@ import MediaSettings from './pages/settings/MediaSettings'
 import ModulesSettings from './pages/settings/ModulesSettings'
 import MetadataSettings from './pages/settings/MetadataSettings'
 import MediaServerSettings from './pages/settings/MediaServerSettings'
+import NotFound from './pages/NotFound'
+import Statistics from './pages/Statistics'
+import ManualImport from './pages/ManualImport'
+import ReleaseSearch from './pages/ReleaseSearch'
 import MigrateSettings from './pages/settings/MigrateSettings'
 import NotificationSettings from './pages/settings/NotificationSettings'
 import QualitySettings from './pages/settings/QualitySettings'
@@ -78,6 +82,9 @@ function Gate() {
       <Route element={<AppShell />}>
         <Route index element={<Dashboard />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/search/releases" element={<ReleaseSearch />} />
+        <Route path="/stats" element={<Statistics />} />
+        <Route path="/import/manual" element={<AdminOnly><ManualImport /></AdminOnly>} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/discover/all" element={<DiscoverAll />} />
         <Route path="/discover/music" element={<MusicDiscoverAll />} />
@@ -113,7 +120,7 @@ function Gate() {
         </Route>
         <Route path="/profile" element={<Navigate to="/settings/profile" replace />} />
         <Route path="/about" element={<Navigate to="/settings/about" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )

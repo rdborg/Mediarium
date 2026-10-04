@@ -8,6 +8,41 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-04
+
+A big release about control and safety, with everything kept simple: a recycle bin, nightly backups, speed and space limits, more ways to find and import titles, and many everyday pages reworked.
+
+### Added
+- **More than one library folder**: add extra movie and TV folders in Settings > Library, and choose which one a title goes in when you add it.
+- **Rename existing files** (Settings > Library) renames files already in the library to match the naming preset, after showing every change.
+- A **Statistics** page: library size, titles per quality, and downloads per month.
+- Discover has **Select** to pick many titles and add them all at once, and **Not interested** (the x on a poster) to never see a title there again, with a list to undo it.
+- **Quiet hours** for notifications: everyday messages wait until the morning; problems are still sent at once.
+- **Search releases** (from the Search page) asks all your indexers for a release by name and downloads the one you pick; the movie or show is added to your library if needed.
+- **Import a file by hand** (from Activity) lists the video files in the downloads folder with a guess of what each is, and puts the one you choose into your library as a movie or an episode.
+- The series page folds its seasons (the one that needs attention stays open), has a row of season buttons to jump around, a **Missing episodes only** switch, and shows the next episode and when it airs.
+- The Wanted page folds episodes of the same show into one line, has a search box, **Search all**, and shows 50 at a time.
+- The calendar can be filtered (movies, TV, music, not downloaded yet), and **Add to your calendar app** gives a private address to subscribe to in Google, Apple or Outlook calendars.
+- The History tab has a search box, **Show older lines**, and links each line to its title.
+- The Library has a button to reverse the sort order, and remembers the sort.
+- Indexers have a priority (Preferred, Normal, Last resort): between two equally good releases the preferred indexer wins. Each card shows how its last test went, and **Test all** tests them all at once.
+- Releases far too small for the quality they claim (fakes and samples) are skipped by automatic searches, and a quality profile can set the **Largest download** in GB. Profiles can be duplicated.
+- A torrent that gets no data for 2 hours is treated as stalled: it is stopped, blocklisted, and another release is tried.
+- A download speed limit for Usenet and torrents together, optionally only between two hours (for example full speed at night), and a free-space floor: with less than 5 GB free in the downloads folder no new download starts until there is room. Both are in the new **Speed and space** box under Settings > Downloading.
+- Automatic backups. Every night, and before every update, Mediarium saves a backup in `/config/backups` and keeps the newest 7. Settings > System > Backup lists them with a Download button, has **Back up now**, and lets you switch the nightly backup off or keep more.
+- A recycle bin. Removing a title with its files now moves them to a hidden folder in the same library folder for 7 days. **Activity > Recycle bin** shows them, with **Put back** and **Delete now**. The number of days is under Settings > System > Clean up (0 deletes straight away, as before).
+
+### Changed
+- Notification emails have a new look: wider, with the full Mediarium logo on top, a big poster on one side, and the facts stacked on the other with bold titles. The logo travels inside the email, so nothing is loaded from the web except the poster, which is now sharper.
+- You can delete an API key after you have revoked it. Revoked keys no longer pile up in the list.
+- The test button on an email notification sends a real-looking email, using a title from your library, so you see the design you will get.
+- When the update check fails, the Updates box now says why (for example that GitHub is limiting requests).
+- An address that does not exist in the app shows a "That page doesn't exist" page with links, instead of jumping to the dashboard.
+- Mediarium can be added to a phone's home screen and opens like an app.
+- Finished library imports have a "Dismiss all" button when there is more than one.
+- The Audiobooks and Ebooks tiles are gone from the dashboard until they are ready.
+- The dashboard numbers no longer count up when your system asks for reduced motion.
+
 ## [1.3.1] - 2026-10-01
 
 ### Fixed

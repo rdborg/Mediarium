@@ -239,7 +239,7 @@ func (s *Server) removeMovie(id int64, deleteFiles bool) (string, error) {
 	}
 	var deleted removedFiles
 	if deleteFiles {
-		if err := checkRemovable(s.moviesRoot(), []string{m.FilePath}); err != nil {
+		if err := checkRemovable(s.movieFileRoot(m.FilePath), []string{m.FilePath}); err != nil {
 			return m.Title, &removeProblem{http.StatusConflict, err.Error()}
 		}
 	}
@@ -253,7 +253,7 @@ func (s *Server) removeMovie(id int64, deleteFiles bool) (string, error) {
 		m = now
 		if wantFiles && m.FilePath != "" {
 			deleteFiles, tracked = true, 1
-			if err := checkRemovable(s.moviesRoot(), []string{m.FilePath}); err != nil {
+			if err := checkRemovable(s.movieFileRoot(m.FilePath), []string{m.FilePath}); err != nil {
 				return m.Title, &removeProblem{http.StatusConflict, err.Error()}
 			}
 		}
@@ -285,6 +285,9 @@ type addMovieRequest struct {
 	// swapped for a better version later. On when left out: better versions
 	// are something the person asks for.
 	NoUpgrade *bool `json:"noUpgrade"`
+	// RootPath is the library folder to keep it in, when more than one is
+	// set up ("" = the main movies folder).
+	RootPath string `json:"rootPath"`
 }
 
 // handleAddMovie adds a movie to the library as missing, from a search result
@@ -309,6 +312,10 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.checkProfileChoice(req.ProfileID); err != nil {
 		writeProfileError(w, err)
+		return
+	}
+	if req.RootPath != "" && !isRoot(s.movieRoots(), req.RootPath) {
+		writeError(w, http.StatusBadRequest, "Choose one of the movie folders set up in Settings > Library.")
 		return
 	}
 	if existing, ok, err := s.MovieRepo.GetByTMDBID(req.TMDBID); err != nil {
@@ -342,6 +349,11 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	if req.Sources != "" {
 		if err := s.MovieRepo.SetSourcePref(created.ID, req.Sources); err == nil {
 			created.SourcePref = req.Sources
+		}
+	}
+	if req.RootPath != "" && req.RootPath != s.moviesRoot() {
+		if err := s.MovieRepo.SetRootPath(created.ID, req.RootPath); err == nil {
+			created.RootPath = req.RootPath
 		}
 	}
 	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library"+byline)

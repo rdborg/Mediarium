@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, isAdmin, type Movie, type MusicWanted, type Series, type SubtitleQuota, type SubtitleWanted, type WantedItem } from '../api'
 import { useAuth } from '../AuthContext'
+import { useConfirm } from '../components/ConfirmProvider'
 import Cover from '../components/Cover'
 import Icon, { type IconName } from '../components/Icon'
 import Loading from '../components/Loading'
@@ -14,6 +15,36 @@ import { languageName } from '../languages'
 import { useLive } from '../useLive'
 
 type Kind = 'missing' | 'cutoff' | 'subtitles'
+
+// Rows shown before "Show more".
+const PAGE = 50
+// Above this many titles, "Search all" asks first: indexers often limit how
+// many searches you may make.
+const ASK_ABOVE = 25
+
+// A row of the Missing and Upgrades lists: one movie, or one show with its
+// episodes folded together.
+type Row = { type: 'item'; item: WantedItem } | { type: 'show'; seriesId: number; title: string; items: WantedItem[] }
+
+function groupRows(items: WantedItem[]): Row[] {
+  const rows: Row[] = []
+  const shows = new Map<number, Extract<Row, { type: 'show' }>>()
+  for (const i of items) {
+    if (i.kind === 'episode' && i.seriesId) {
+      let g = shows.get(i.seriesId)
+      if (!g) {
+        g = { type: 'show', seriesId: i.seriesId, title: i.title, items: [] }
+        shows.set(i.seriesId, g)
+        rows.push(g)
+      }
+      g.items.push(i)
+    } else {
+      rows.push({ type: 'item', item: i })
+    }
+  }
+  // A show with one episode reads better as that episode.
+  return rows.map((r) => (r.type === 'show' && r.items.length === 1 ? { type: 'item', item: r.items[0] } : r))
+}
 
 const KIND_ICON: Record<MediaKind, IconName> = { movie: 'film', tv: 'tv', music: 'music' }
 
@@ -47,6 +78,13 @@ export default function Wanted() {
   const [media, setMedia] = useState<'all' | MediaKind>('all')
   const [music, setMusic] = useState<MusicWanted[] | null>(null)
   const [musicCounts, setMusicCounts] = useState<{ missing?: number; cutoff?: number }>({})
+  // The search box, how many rows are shown, which shows are unfolded, and
+  // the progress of "Search all".
+  const [query, setQuery] = useState('')
+  const [limit, setLimit] = useState(PAGE)
+  const [unfolded, setUnfolded] = useState<Set<number>>(new Set())
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null)
+  const confirm = useConfirm()
 
   useEffect(() => {
     api.listMovies().then(setMovies).catch(() => undefined)
@@ -180,6 +218,82 @@ export default function Wanted() {
     }
   }
 
+  // Searches every title in the list now, one after another: one search per
+  // movie and one per show (which covers all its missing episodes).
+  async function searchAll(rows: Row[]) {
+    if (rows.length > ASK_ABOVE) {
+      const ok = await confirm({
+        title: `Search for ${rows.length} titles now?`,
+        body: <p>Each title is one search on every indexer. Many indexers allow only so many searches a day, so this may use up today&apos;s limit. The automatic searches go on as usual either way.</p>,
+        confirmLabel: `Search ${rows.length} titles`,
+      })
+      if (!ok) return
+    }
+    setBulk({ done: 0, total: rows.length })
+    let grabbed = 0
+    for (let n = 0; n < rows.length; n++) {
+      const r = rows[n]
+      try {
+        const res = r.type === 'show' ? await api.searchNowSeries(r.seriesId, {}) : r.item.kind === 'movie' ? await api.searchNowMovie(r.item.movieId ?? r.item.id) : await api.searchNowSeries(r.item.seriesId!, { season: r.item.season, episode: r.item.episode })
+        grabbed += res.grabbed
+      } catch {
+        // one failed search does not stop the rest
+      }
+      setBulk({ done: n + 1, total: rows.length })
+    }
+    setBulk(null)
+    toast.info(grabbed > 0 ? `Searched ${rows.length} titles and found ${grabbed} ${grabbed === 1 ? 'download' : 'downloads'}.` : `Searched ${rows.length} titles. Nothing suitable was found right now.`)
+    if (grabbed > 0) load()
+  }
+
+  async function searchShow(seriesId: number, title: string) {
+    setBusy(`show-${seriesId}`)
+    try {
+      const res = await api.searchNowSeries(seriesId, {})
+      toast.info(`${title}: ${res.message}`)
+      if (res.grabbed > 0) load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const itemRow = (i: WantedItem) => (
+            <div key={keyOf(i)} className={`wrow kind-${i.kind === 'movie' ? 'movie' : 'tv'}`}>
+              <div className="qthumb">{posterOf(i) ? <img src={posterOf(i)} alt="" loading="lazy" /> : <PosterFallback />}</div>
+              <div className="wmain">
+                <Link to={link(i)}>
+                  <strong>
+                    <Icon name={i.kind === 'movie' ? 'film' : 'tv'} size={13} /> {i.title}
+                  </strong>
+                </Link>
+                {i.subtitle && <small>{i.subtitle}</small>}
+              </div>
+              <div className="wmeta">
+                {kind === 'missing' ? (
+                  <span className={`state-tag st-${missingState.key}`} title={missingState.hint}>
+                    <Icon name={missingState.icon} size={12} /> {missingState.label}
+                  </span>
+                ) : (
+                  <span className="state-tag st-partial" title="Downloaded, but below the quality you asked for">
+                    <Icon name="star" size={12} /> {i.quality} → {i.cutoff}
+                  </span>
+                )}
+                {kind === 'missing' && i.date && <small>{i.date}</small>}
+                {i.profileName && <span className="badge">{i.profileName}</span>}
+              </div>
+              <div className="row-actions">
+                <button className="primary btn-sm btn-with-icon" disabled={busy === keyOf(i)} onClick={() => void searchNow(i)}>
+                  <Icon name="search" size={14} /> {busy === keyOf(i) ? 'Searching…' : 'Search now'}
+                </button>
+                <Link className="icon-btn" to={link(i)} title="Open" aria-label="Open">
+                  <Icon name="open" size={17} />
+                </Link>
+              </div>
+            </div>
+  )
+
   const total = (k: Kind) => (counts[k] === undefined ? undefined : counts[k]! + (k === 'subtitles' ? 0 : (musicCounts[k] ?? 0)))
   const tab = (k: Kind, label: string) => (
     <button className={kind === k ? 'active' : ''} onClick={() => setKind(k)}>
@@ -189,8 +303,13 @@ export default function Wanted() {
 
   // Which kinds of media to list, when more than one is switched on.
   const sel = media === 'all' || kinds.includes(media) ? media : 'all'
-  const shownItems = (items ?? []).filter((i) => sel === 'all' || (sel === 'movie' && i.kind === 'movie') || (sel === 'tv' && i.kind === 'episode'))
-  const shownMusic = sel === 'all' || sel === 'music' ? (music ?? []) : []
+  const q = query.trim().toLowerCase()
+  const matches = (text: string) => q === '' || text.toLowerCase().includes(q)
+  const shownItems = (items ?? []).filter((i) => (sel === 'all' || (sel === 'movie' && i.kind === 'movie') || (sel === 'tv' && i.kind === 'episode')) && matches(i.title))
+  const shownMusic = (sel === 'all' || sel === 'music' ? (music ?? []) : []).filter((a) => matches(`${a.artistName} ${a.title}`))
+  const rows = groupRows(shownItems)
+  const pagedRows = rows.slice(0, limit)
+  const musicRoom = Math.max(0, limit - rows.length)
   const loadingList = items === null || (musicOn && music === null)
   const kindChips = kinds.length > 1 && kind !== 'subtitles' && (
     <div className="chip-row" style={{ marginBottom: 16, alignItems: 'center' }}>
@@ -220,6 +339,17 @@ export default function Wanted() {
 
       {error && <p className="error-text">{error}</p>}
       {kindChips}
+      {kind !== 'subtitles' && (items?.length ?? 0) + (music?.length ?? 0) > 0 && (
+        <div className="toolbar">
+          <input className="wanted-search" type="search" placeholder="Find a title" aria-label="Find a title in this list" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE) }} />
+          <span className="spacer" />
+          {rows.length > 0 && (
+            <button className="btn-with-icon" disabled={bulk !== null} onClick={() => void searchAll(rows)}>
+              <Icon name="search" size={15} /> {bulk ? `Searching ${bulk.done} of ${bulk.total}…` : `Search all ${rows.length}`}
+            </button>
+          )}
+        </div>
+      )}
 
       {kind === 'subtitles' ? (
         subs === null ? (
@@ -304,41 +434,38 @@ export default function Wanted() {
         </div>
       ) : (
         <div className="wlist">
-          {shownItems.map((i) => (
-            <div key={keyOf(i)} className={`wrow kind-${i.kind === 'movie' ? 'movie' : 'tv'}`}>
-              <div className="qthumb">{posterOf(i) ? <img src={posterOf(i)} alt="" loading="lazy" /> : <PosterFallback />}</div>
-              <div className="wmain">
-                <Link to={link(i)}>
-                  <strong>
-                    <Icon name={i.kind === 'movie' ? 'film' : 'tv'} size={13} /> {i.title}
-                  </strong>
-                </Link>
-                {i.subtitle && <small>{i.subtitle}</small>}
+          {pagedRows.map((r) =>
+            r.type === 'item' ? (
+              itemRow(r.item)
+            ) : (
+              <div key={`show-${r.seriesId}`} className="wgroup">
+                <div className="wrow kind-tv">
+                  <div className="qthumb">{posterOf(r.items[0]) ? <img src={posterOf(r.items[0])} alt="" loading="lazy" /> : <PosterFallback />}</div>
+                  <div className="wmain">
+                    <Link to={link(r.items[0])}>
+                      <strong>
+                        <Icon name="tv" size={13} /> {r.title}
+                      </strong>
+                    </Link>
+                    <small>
+                      {r.items.length} episodes {kind === 'missing' ? 'missing' : 'below the quality you asked for'}
+                    </small>
+                  </div>
+                  <div className="wmeta">{r.items[0].profileName && <span className="badge">{r.items[0].profileName}</span>}</div>
+                  <div className="row-actions">
+                    <button className="btn-sm" aria-expanded={unfolded.has(r.seriesId)} onClick={() => setUnfolded((u) => { const n = new Set(u); if (n.has(r.seriesId)) n.delete(r.seriesId); else n.add(r.seriesId); return n })}>
+                      {unfolded.has(r.seriesId) ? 'Hide episodes' : 'Show episodes'}
+                    </button>
+                    <button className="primary btn-sm btn-with-icon" disabled={busy === `show-${r.seriesId}`} onClick={() => void searchShow(r.seriesId, r.title)}>
+                      <Icon name="search" size={14} /> {busy === `show-${r.seriesId}` ? 'Searching…' : 'Search show'}
+                    </button>
+                  </div>
+                </div>
+                {unfolded.has(r.seriesId) && <div className="wgroup-items">{r.items.map((i) => itemRow(i))}</div>}
               </div>
-              <div className="wmeta">
-                {kind === 'missing' ? (
-                  <span className={`state-tag st-${missingState.key}`} title={missingState.hint}>
-                    <Icon name={missingState.icon} size={12} /> {missingState.label}
-                  </span>
-                ) : (
-                  <span className="state-tag st-partial" title="Downloaded, but below the quality you asked for">
-                    <Icon name="star" size={12} /> {i.quality} → {i.cutoff}
-                  </span>
-                )}
-                {kind === 'missing' && i.date && <small>{i.date}</small>}
-                {i.profileName && <span className="badge">{i.profileName}</span>}
-              </div>
-              <div className="row-actions">
-                <button className="primary btn-sm btn-with-icon" disabled={busy === keyOf(i)} onClick={() => void searchNow(i)}>
-                  <Icon name="search" size={14} /> {busy === keyOf(i) ? 'Searching…' : 'Search now'}
-                </button>
-                <Link className="icon-btn" to={link(i)} title="Open" aria-label="Open">
-                  <Icon name="open" size={17} />
-                </Link>
-              </div>
-            </div>
-          ))}
-          {shownMusic.map((a) => {
+            ),
+          )}
+          {shownMusic.slice(0, musicRoom).map((a) => {
             const to = `/music/artist/${a.artistId}#album-${a.id}`
             return (
               <div key={`music-${a.id}`} className="wrow kind-music">
@@ -376,6 +503,13 @@ export default function Wanted() {
               </div>
             )
           })}
+        </div>
+      )}
+      {kind !== 'subtitles' && rows.length + shownMusic.length > limit && (
+        <div className="rail-foot">
+          <button className="btn-sm" onClick={() => setLimit((l) => l + PAGE)}>
+            Show more ({rows.length + shownMusic.length - limit} left)
+          </button>
         </div>
       )}
     </div>

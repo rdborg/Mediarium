@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/settings"
 	"github.com/rdborg/mediarium/internal/updatecheck"
 )
@@ -30,6 +31,15 @@ const (
 
 	couldNotCheck = "Couldn't check just now."
 )
+
+// couldNotCheckBecause is the line the Updates box shows after a failed check:
+// that it failed, and why, in plain words.
+func couldNotCheckBecause(err error) string {
+	if errors.Is(err, updatecheck.ErrRateLimited) {
+		return couldNotCheck + " GitHub is limiting requests for now. Mediarium tries again later."
+	}
+	return couldNotCheck + " " + plainerror.Message(err)
+}
 
 // latestPayload is the newest release as the page shows it.
 type latestPayload struct {
@@ -134,7 +144,7 @@ func (s *Server) runUpdateCheck(ctx context.Context, force bool) {
 	rel, ok, err := u.checker.Latest(ctx, s.version)
 	if err != nil {
 		u.mu.Lock()
-		u.lastErr = couldNotCheck
+		u.lastErr = couldNotCheckBecause(err)
 		u.mu.Unlock()
 		if errors.Is(err, updatecheck.ErrRateLimited) {
 			slog.Info("update: GitHub is limiting requests; will try again later")

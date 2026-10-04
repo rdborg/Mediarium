@@ -90,7 +90,11 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 		return fail(badRelease(fmt.Errorf("couldn't find the movie file in the finished download: %w", err)))
 	}
 
-	destPath, err := s.buildDestPath(movieTitle, movieYear, tmdbID, releaseTitle, videoFile)
+	home := ""
+	if m, err := s.MovieRepo.Get(movieID); err == nil {
+		home = s.movieHome(m)
+	}
+	destPath, err := s.buildDestPath(home, movieTitle, movieYear, tmdbID, releaseTitle, videoFile)
 	if err != nil {
 		return fail(err)
 	}
@@ -138,7 +142,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	}
 	if replaceEarlier {
 		// The new file has another name than the one it replaces: the old one goes.
-		s.removeReplacedFile(s.moviesRoot(), earlierFile, result.DestPath, movieID, 0, movieTitle)
+		s.removeReplacedFile(s.movieFileRoot(earlierFile), earlierFile, result.DestPath, movieID, 0, movieTitle)
 	}
 	// Subtitles that came with the release go next to the movie before any
 	// download is considered, so they count as already there.
@@ -302,6 +306,10 @@ func (s *Server) downloadTorrent(ctx context.Context, queueID int64, downloadURL
 		s.torrents.stop(job)
 		if !s.torrentsEnabled() {
 			return errTorrentsDisabled
+		}
+		if errors.Is(err, torrentclient.ErrStalled) {
+			// No one is sharing it: blocklist it and try another release.
+			return badRelease(err)
 		}
 		return err
 	}
@@ -677,8 +685,11 @@ func (s *Server) downloadsIncompleteDir() string {
 
 // buildDestPath renders the configured naming preset/format into a final
 // library path.
-func (s *Server) buildDestPath(movieTitle string, year, tmdbID int, releaseTitle, videoFile string) (string, error) {
-	moviesPath := s.moviesRoot()
+func (s *Server) buildDestPath(root, movieTitle string, year, tmdbID int, releaseTitle, videoFile string) (string, error) {
+	moviesPath := root
+	if moviesPath == "" {
+		moviesPath = s.moviesRoot()
+	}
 	if moviesPath == "" {
 		return "", fmt.Errorf("the movies folder isn't set. Choose one in Settings > Library > Folders and file names")
 	}

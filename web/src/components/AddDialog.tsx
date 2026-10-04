@@ -66,6 +66,9 @@ export default function AddDialog({
   const [monitor, setMonitor] = useState<'all' | 'future' | 'none'>('all')
   const [sources, setSources] = useState<SourcePref>('')
   const [searchNow, setSearchNow] = useState(true)
+  // The library folders to choose from, when more than one is set up.
+  const [folders, setFolders] = useState<{ main: string; extra: string[] }>({ main: '', extra: [] })
+  const [rootPath, setRootPath] = useState('')
   const [keepBetter, setKeepBetter] = useState(savedBetter)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -77,7 +80,14 @@ export default function AddDialog({
       setProfiles(sortProfiles(r.profiles))
       setDefaultProfileId(r.defaultId)
     }).catch(() => undefined)
-    api.getSettings().then((s) => setDefaultSources(s.defaultSources ?? 'both')).catch(() => undefined)
+    api
+      .getSettings()
+      .then((s) => {
+        setDefaultSources(s.defaultSources ?? 'both')
+        const movie = target.kind === 'movie'
+        setFolders({ main: (movie ? s.moviesPath : s.tvPath) ?? '', extra: (movie ? s.moviesExtraPaths : s.tvExtraPaths) ?? [] })
+      })
+      .catch(() => undefined)
     api.dashboard().then((d) => setDash(d.setup)).catch(() => undefined)
   }, [])
   useEffect(() => {
@@ -96,10 +106,10 @@ export default function AddDialog({
     try {
       let libraryId: number
       if (isMovie) {
-        const m = await api.addMovie(target.tmdbId, { profileId: profileId || undefined, monitored, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
+        const m = await api.addMovie(target.tmdbId, { profileId: profileId || undefined, monitored, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter, rootPath: rootPath || undefined })
         libraryId = m.id
       } else {
-        const s = await api.addSeries(target.tmdbId, { profileId: profileId || undefined, monitor, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
+        const s = await api.addSeries(target.tmdbId, { profileId: profileId || undefined, monitor, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter, rootPath: rootPath || undefined })
         libraryId = s.id
       }
       toast.success(`${target.title} added.${searchNow && !cannotSearch ? ' Searching for a release now.' : ''}`)
@@ -144,6 +154,20 @@ export default function AddDialog({
               ))}
             </select>
           </label>
+
+          {folders.extra.length > 0 && (
+            <label>
+              Keep it in
+              <select value={rootPath} onChange={(e) => setRootPath(e.target.value)}>
+                <option value="">{folders.main || 'The main folder'} (main)</option>
+                {folders.extra.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {isMovie ? (
             <label>

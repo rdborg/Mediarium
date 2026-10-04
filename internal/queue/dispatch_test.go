@@ -21,6 +21,7 @@ type lineHarness struct {
 	d      *queue.Dispatcher
 	limit  atomic.Int64
 	manual atomic.Bool
+	hold   atomic.Bool
 
 	mu        sync.Mutex
 	started   []int64
@@ -38,6 +39,7 @@ func newLineHarness(t *testing.T, limit int) *lineHarness {
 	h.d = queue.NewDispatcher(h.repo, queue.DispatchConfig{
 		Limit:      func() int { return int(h.limit.Load()) },
 		ManualOnly: h.manual.Load,
+		Hold:       h.hold.Load,
 		Start: func(it queue.Item, done func()) error {
 			h.mu.Lock()
 			defer h.mu.Unlock()
@@ -599,5 +601,28 @@ func TestPositionsAndCounts(t *testing.T) {
 	}
 	if ok, _ := repo.Claim(a); ok {
 		t.Fatal("a second claim of the same download must not work")
+	}
+}
+
+// While the line is held (the disk is nearly full) nothing new starts, and
+// what is waiting starts as soon as the hold ends.
+func TestHeldLineStartsNothingNewUntilTheHoldEnds(t *testing.T) {
+	h := newLineHarness(t, 1)
+	h.hold.Store(true)
+	h.add(queue.PriorityManual)
+	h.d.Kick()
+	h.mu.Lock()
+	n := len(h.started)
+	h.mu.Unlock()
+	if n != 0 {
+		t.Fatalf("started %d while held", n)
+	}
+	h.hold.Store(false)
+	h.d.Kick()
+	h.mu.Lock()
+	n = len(h.started)
+	h.mu.Unlock()
+	if n != 1 {
+		t.Fatalf("started %d after the hold, want 1", n)
 	}
 }

@@ -35,7 +35,7 @@ func newTVIndexerWith(t *testing.T, titles []string) *httptest.Server {
 		var b strings.Builder
 		b.WriteString(`<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>`)
 		for i, title := range titles {
-			fmt.Fprintf(&b, `<item><title>%s</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="1000" type="application/x-nzb"/><newznab:attr name="size" value="1000"/><newznab:attr name="category" value="5000"/></item>`,
+			fmt.Fprintf(&b, `<item><title>%s</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="21474836480" type="application/x-nzb"/><newznab:attr name="size" value="21474836480"/><newznab:attr name="category" value="5000"/></item>`,
 				title, i, r.Host, i)
 		}
 		b.WriteString(`</channel></rss>`)

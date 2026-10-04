@@ -19,6 +19,8 @@ import (
 type diskUsagePayload struct {
 	Files int   `json:"files"`
 	Bytes int64 `json:"bytes"`
+	// TrashDays is how long removed files wait in the recycle bin (0: none).
+	TrashDays int `json:"trashDays"`
 }
 
 // add counts one file.
@@ -82,13 +84,14 @@ func (s *Server) handleMovieDiskUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	var u diskUsagePayload
 	if m.FilePath != "" {
-		root, folder := s.moviesRoot(), filepath.Dir(m.FilePath)
+		root, folder := s.movieFileRoot(m.FilePath), filepath.Dir(m.FilePath)
 		if s.isTitleFolder(root, folder, []string{m.FilePath}, func(name string) bool { return matchesMovie(name, m) }) {
 			u.addFolder(folder)
 		} else {
 			u.addWithSidecars(m.FilePath, map[string]bool{})
 		}
 	}
+	u.TrashDays = s.trashDays()
 	writeJSON(w, http.StatusOK, u)
 }
 
@@ -120,7 +123,7 @@ func (s *Server) handleSeriesDiskUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	var u diskUsagePayload
 	if len(files) > 0 {
-		root := s.tvRoot()
+		root := s.tvFileRoot(files[0])
 		folder := commonDir(files)
 		if seasonFolderName.MatchString(filepath.Base(folder)) {
 			folder = filepath.Dir(folder)
@@ -134,6 +137,7 @@ func (s *Server) handleSeriesDiskUsage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	u.TrashDays = s.trashDays()
 	writeJSON(w, http.StatusOK, u)
 }
 
@@ -164,5 +168,6 @@ func (s *Server) handleArtistDiskUsage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	u.TrashDays = s.trashDays()
 	writeJSON(w, http.StatusOK, u)
 }

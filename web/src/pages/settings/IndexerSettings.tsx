@@ -14,6 +14,27 @@ import { url as urlCheck } from '../../validate'
 export default function IndexerSettings() {
   const confirm = useConfirm()
   const toast = useToast()
+  const [testingAll, setTestingAll] = useState(false)
+
+  // Tests every enabled indexer, one after another, then says how many passed.
+  async function testAll() {
+    if (!list) return
+    setTestingAll(true)
+    const on = list.filter((i) => i.enabled)
+    const failed: string[] = []
+    for (const i of on) {
+      try {
+        const r = await api.testIndexer(i.id)
+        if (!r.ok) failed.push(i.name)
+      } catch {
+        failed.push(i.name)
+      }
+    }
+    setTestingAll(false)
+    reload()
+    if (failed.length === 0) toast.success(on.length === 1 ? 'The indexer answered.' : `All ${on.length} indexers answered.`)
+    else toast.error(`${failed.length} of ${on.length} did not answer: ${failed.join(', ')}.`)
+  }
   const [list, setList] = useState<IndexerConfig[] | null>(null)
   const [torrentOn, setTorrentOn] = useState(true)
   const [flare, setFlare] = useState('')
@@ -95,6 +116,13 @@ export default function IndexerSettings() {
           <Icon name="list" size={14} /> Your indexers {list && <small>({list.length})</small>}
         </legend>
         {list && list.length === 0 && <p style={{ margin: 0, color: 'var(--text-dim)' }}>None yet. Pick a site from the list on the left, or paste a link.</p>}
+        {list && list.length > 1 && (
+          <p style={{ margin: '0 0 12px' }}>
+            <button className="btn-sm" disabled={testingAll} onClick={() => void testAll()}>
+              {testingAll ? 'Testing…' : 'Test all'}
+            </button>
+          </p>
+        )}
         {list && list.length > 0 && (
           <div className="indexer-cards">
             {list.map((i) => (

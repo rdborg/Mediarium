@@ -36,6 +36,9 @@ func tree(t *testing.T, dir string) string {
 	_ = filepath.Walk(dir, func(p string, _ os.FileInfo, err error) error {
 		if err == nil && p != dir {
 			r, _ := filepath.Rel(dir, p)
+			if strings.HasPrefix(filepath.ToSlash(r), ".mediarium-trash") {
+				return nil // the recycle bin is not part of the library
+			}
 			out = append(out, filepath.ToSlash(r))
 		}
 		return nil
@@ -229,5 +232,52 @@ func TestDeleteSeriesRemovesItsWholeFolder(t *testing.T) {
 	}
 	if list := getJSON[[]map[string]any](t, env.client, env.baseURL+"/api/queue"); len(list) != 0 {
 		t.Fatalf("the show's downloads should be gone from the queue: %+v", list)
+	}
+}
+
+func TestRemovedFilesGoToTheRecycleBinAndComeBack(t *testing.T) {
+	server, base, client := loginNewServer(t)
+	movies := server.TestMoviesRoot()
+	folder := filepath.Join(movies, "Heat (1995)")
+	putFile(t, filepath.Join(folder, "Heat (1995).mkv"), "video")
+	id := seedMovie(t, server.MovieRepo, 949, "Heat", 1995, filepath.Join(folder, "Heat (1995).mkv"))
+	if code := deleteReq(t, client, base+"/api/movies/"+strconv.FormatInt(id, 10)+"?deleteFiles=true"); code != http.StatusOK {
+		t.Fatalf("delete status %d", code)
+	}
+	if exists(folder) {
+		t.Fatal("the folder should have left the library")
+	}
+
+	type bin struct {
+		Days  int `json:"days"`
+		Items []struct {
+			Kind, ID, Label string
+			Files           int
+		} `json:"items"`
+	}
+	got := getJSON[bin](t, client, base+"/api/trash")
+	if got.Days != 7 || len(got.Items) != 1 || got.Items[0].Label != "Heat (1995)" || got.Items[0].Kind != "movies" || got.Items[0].Files != 1 {
+		t.Fatalf("recycle bin: %+v", got)
+	}
+
+	_ = postJSON[map[string]any](t, client, base+"/api/trash/movies/"+got.Items[0].ID+"/restore", nil, http.StatusOK)
+	if !exists(filepath.Join(folder, "Heat (1995).mkv")) {
+		t.Fatal("restore should put the file back")
+	}
+	if left := getJSON[bin](t, client, base+"/api/trash"); len(left.Items) != 0 {
+		t.Fatalf("the bin should be empty after a restore: %+v", left)
+	}
+	if code := deleteReq(t, client, base+"/api/trash/movies/../../x"); code != http.StatusNotFound {
+		t.Fatalf("a made-up entry must be refused, got %d", code)
+	}
+
+	// With the bin switched off, files are deleted straight away.
+	putJSONStatus(t, client, base+"/api/settings", map[string]any{"trashDays": 0}, http.StatusOK)
+	id = seedMovie(t, server.MovieRepo, 950, "Heat", 1995, filepath.Join(folder, "Heat (1995).mkv"))
+	if code := deleteReq(t, client, base+"/api/movies/"+strconv.FormatInt(id, 10)+"?deleteFiles=true"); code != http.StatusOK {
+		t.Fatalf("delete status %d", code)
+	}
+	if left := getJSON[bin](t, client, base+"/api/trash"); exists(folder) || len(left.Items) != 0 {
+		t.Fatalf("with the bin off nothing should be kept: %+v", left)
 	}
 }

@@ -12,6 +12,7 @@ To do the same thing to many titles at once, use **Select**.
 
 - **Status words.** Each title says where it is: **Downloaded**, **Downloading**, **Pending** (waiting its turn in the download line), **Waiting for a release** (monitored, and Mediarium checks regularly for one), **Partial** (some episodes are downloaded), **Not monitored** (in your library, but nothing is downloaded on its own) and **Failed**. The chips under the toolbar filter by these words and show how many titles each holds.
 - **Clear filters.** When a search, chip, genre or year is narrowing the list, a **Clear filters** button appears beside the chips, and in the "Nothing matches these filters" message when nothing is left. It puts them all back.
+- **Sort direction.** The button with the up-and-down arrows next to **Sort** reverses the order (oldest first, Z to A). The sort and its direction are remembered in this browser.
 - **Press `/`** anywhere (except while you type in a box) to jump to the search box at the top, and **Esc** to leave it.
 
 ## Selecting many titles
@@ -50,9 +51,26 @@ Every action says how it went. When all went well you get a short message such a
 
 Removing shows a question with the names of the titles and the number. Downloads running for them are cancelled and their working files in the downloads folder are deleted, whatever you choose.
 
-**Files in your library are only deleted if you tick "Also delete the files of all N from the disk".** That goes for one title or many. When you remove a single title, the box shows how many files and how much space they take in your library (for example "3 files, 11.0 GB"). There's no undo and no trash folder. When you tick it, a red line repeats how many titles are affected. A title whose files lie outside your library folder is never touched. It's left in place, and the note says why. The others carry on.
+**Files in your library are only deleted if you tick "Also delete the files of all N from the disk".** That goes for one title or many. When you remove a single title, the box shows how many files and how much space they take in your library (for example "3 files, 11.0 GB"). They go to the recycle bin first (**Activity > Recycle bin**) and are deleted for good after 7 days, so a slip can be undone with **Put back** (see [Removing a movie or show](downloads.md#the-recycle-bin)). When you tick it, a red line repeats how many titles are affected. A title whose files lie outside your library folder is never touched. It's left in place, and the note says why. The others carry on.
 
 Every removal writes a line to **Activity** that says what happened to the files, for one title and for many alike: "Inception removed from library. Its files were deleted (4 files, 1 folder)." or "Inception removed from library. Its files were kept (1 file)." A title with no file on disk says "It had no files on disk."
+
+## More than one library folder
+
+**Settings > Library > Folders and file names** has **More movie folders** and **More TV folders**: extra folders besides the main ones, one per line (another disk, a "Kids" folder, a 4K folder). Each must already exist and, with Docker, be mapped into the container. Up to 10 of each.
+
+- When there are extra folders, the add dialog asks **Keep it in**: the main folder (the default) or one of the extra ones. New downloads for that title go there.
+- A movie whose files are already in an extra folder (for example after an import) keeps getting its new files there.
+- Everything that protects your files works the same in every folder: removing a title, the recycle bin (each folder has its own, shown in Activity > Recycle bin), renaming, and importing by hand never touch anything outside these folders.
+- Stored as `library.movies_extra_paths` and `library.tv_extra_paths`; scripts use `moviesExtraPaths` and `tvExtraPaths` (lists) in `PUT /api/settings`, and `rootPath` when adding a movie or show.
+
+## Renaming existing files
+
+Files keep the name they had when they arrived. After you change the naming preset (Settings > Library > Folders and file names), **Rename existing files** on the same page lists every movie and episode whose name would change, as "old name → new name". Untick any you want to leave alone and press **Rename**. Subtitles, `.nfo` and artwork named after a video move with it, empty folders left behind are removed, and your media server is told. A file is never moved outside the library folder or onto another file; those are listed as not renamed. Scripts: `GET /api/rename?kind=movie|tv` (the preview) and `POST /api/rename` with `{"items": [{"kind": "movie", "id": 12}]}`.
+
+## Statistics
+
+**See statistics** under the dashboard's cards opens the Statistics page: how many movies, shows, episodes and albums you have and how many are downloaded, how much space the library takes, the number of titles at each quality (with their size), and how many downloads finished or failed each month, with how much came from Usenet. The months go back as far as the history is kept (90 days unless changed). Scripts: `GET /api/stats/library`.
 
 ## Music
 

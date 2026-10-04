@@ -155,6 +155,8 @@ type addSeriesRequest struct {
 	// NoUpgrade leaves the episodes alone once they are downloaded. On when
 	// left out: better versions are something the person asks for.
 	NoUpgrade *bool `json:"noUpgrade"`
+	// RootPath is the library folder to keep it in ("" = the main TV folder).
+	RootPath string `json:"rootPath"`
 }
 
 // handleAddSeries adds a show and its complete episode list (every real
@@ -193,6 +195,10 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
+	if req.RootPath != "" && !isRoot(s.tvRoots(), req.RootPath) {
+		writeError(w, http.StatusBadRequest, "Choose one of the TV folders set up in Settings > Library.")
+		return
+	}
 
 	userID, byline := requester(r)
 	created, err := s.addSeriesFromTMDB(r.Context(), req.TMDBID, userID, boolOr(req.NoUpgrade, true))
@@ -214,6 +220,11 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 	if req.Sources != "" {
 		if err := s.MovieRepo.SetSeriesSourcePref(created.ID, req.Sources); err == nil {
 			created.SourcePref = req.Sources
+		}
+	}
+	if req.RootPath != "" && req.RootPath != s.tvRoot() {
+		if err := s.MovieRepo.SetSeriesRootPath(created.ID, req.RootPath); err == nil {
+			created.RootPath = req.RootPath
 		}
 	}
 	_ = s.QueueRepo.LogSeriesActivity(created.ID, "added", created.Title+" (series) added to library"+byline)
@@ -370,7 +381,7 @@ func (s *Server) removeSeries(id int64, deleteFiles bool) (string, error) {
 		return series.Title, &removeProblem{http.StatusInternalServerError, err.Error()}
 	}
 	if deleteFiles {
-		if err := checkRemovable(s.tvRoot(), files); err != nil {
+		if err := checkRemovable(s.tvFileRoot(firstOf(files)), files); err != nil {
 			return series.Title, &removeProblem{http.StatusConflict, err.Error()}
 		}
 	}
@@ -384,7 +395,7 @@ func (s *Server) removeSeries(id int64, deleteFiles bool) (string, error) {
 	if now, err := s.seriesFiles(id); err == nil && !slices.Equal(now, files) {
 		files = now
 		if deleteFiles {
-			if err := checkRemovable(s.tvRoot(), files); err != nil {
+			if err := checkRemovable(s.tvFileRoot(firstOf(files)), files); err != nil {
 				return series.Title, &removeProblem{http.StatusConflict, err.Error()}
 			}
 		}

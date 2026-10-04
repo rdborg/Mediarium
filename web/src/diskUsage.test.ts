@@ -26,3 +26,9 @@ test('the hint shows the size and says it cannot be undone', () => {
   assert.equal(removeOption('artist', null).hint, "The artist's albums in your music folder. This cannot be undone.")
   assert.equal(removeOption('show', { files: 0, bytes: 0 }).hint, 'There are no files in your library for this show.')
 })
+
+test('with the recycle bin on, the hint says the files wait there first', () => {
+  const o = removeOption('movie', { files: 1, bytes: 1024, trashDays: 7 })
+  assert.equal(o.hint, 'The files in your library: 1 file, 1.0 KB. They wait in the recycle bin for 7 days first.')
+  assert.match(o.warning ?? '', /recycle bin/)
+})

@@ -79,6 +79,67 @@ const put = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined })
 const del = <T>(path: string) => request<T>(path, { method: 'DELETE' })
 
+// One removal in the recycle bin (Activity > Recycle bin).
+export interface TrashItem {
+  // movies, tv or music, with -2, -3 for extra library folders
+  kind: string
+  id: string
+  label: string
+  deletedAt: string
+  expiresAt?: string
+  size: number
+  files: number
+  paths: string[]
+}
+
+export interface SavedBackups {
+  auto: boolean
+  keep: number
+  folder: string
+  items: { name: string; size: number; createdAt: string }[]
+}
+
+// A video file in the downloads folder that can be imported by hand.
+export interface ManualFile {
+  path: string
+  size: number
+  modified: string
+  title?: string
+  year?: number
+  season?: number
+  episode?: number
+  quality?: string
+}
+
+export interface LibraryStats {
+  movies: number
+  moviesHave: number
+  shows: number
+  episodes: number
+  episodesHave: number
+  albums: number
+  albumsHave: number
+  movieBytes: number
+  episodeBytes: number
+  quality: { label: string; count: number; bytes?: number }[]
+  months: { month: string; completed: number; failed: number; bytes: number }[]
+  usenetShare: number
+  historyKeptDays: number
+}
+
+export interface RenameItem {
+  kind: 'movie' | 'episode'
+  id: number
+  title: string
+  from: string
+  to: string
+}
+
+export interface TrashList {
+  days: number
+  items: TrashItem[]
+}
+
 export interface OnboardingStatus {
   firstRunNeeded: boolean
   // True when the visitor is not on the home network, so creating the first
@@ -193,6 +254,15 @@ export interface Settings {
   flareSolverrBundled?: boolean
   cleanupAuto?: boolean
   historyRetentionDays?: number
+  trashDays?: number
+  moviesExtraPaths?: string[]
+  tvExtraPaths?: string[]
+  backupAuto?: boolean
+  backupKeep?: number
+  speedLimitMB?: number
+  speedLimitHours?: string
+  minFreeGB?: number
+  notifyQuietHours?: string
   // How often, in minutes, the connection watch checks your providers and indexers; 0 is off.
   monitorIntervalMinutes?: number
   publicUrl?: string // the address Mediarium is opened at; links in notification messages use it
@@ -229,6 +299,8 @@ export interface IndexerConfig {
   kind?: 'torznab' | 'newznab' | 'cardigann'
   lastTestError?: string
   lastTestAt?: string
+  // 1 preferred, 2 normal, 3 last resort
+  priority?: number
 }
 
 export interface IndexerDefinitionSetting {
@@ -341,6 +413,8 @@ export interface QualityProfileInput {
   preferred: PreferredTerm[]
   // Profiles to try, in order, when this one finds nothing acceptable.
   fallback?: number[]
+  // The largest release accepted, in GB (0 = no limit).
+  maxSizeGB?: number
 }
 
 export interface QualityProfile extends QualityProfileInput {
@@ -371,6 +445,8 @@ export interface AddMovieOptions {
   searchNow?: boolean
   // Leave it alone once it is downloaded. The server treats a missing value as true.
   noUpgrade?: boolean
+  // The library folder to keep it in, when there is more than one.
+  rootPath?: string
 }
 
 export interface AddSeriesOptions {
@@ -379,6 +455,7 @@ export interface AddSeriesOptions {
   sources?: SourcePref
   searchNow?: boolean
   noUpgrade?: boolean
+  rootPath?: string
 }
 
 export interface Series {
@@ -490,6 +567,8 @@ export interface ActivityEntry {
   eventType: string
   message: string
   createdAt: string
+  // The page of the title the line is about, when there is one.
+  link?: string
 }
 
 export interface DiscoverMovie {
@@ -691,6 +770,7 @@ export interface CleanupReport {
   auto: boolean
   // How many days finished downloads and activity are kept; 0 keeps them forever.
   historyRetentionDays?: number
+  trashDays?: number
 }
 
 // One entry in a title's activity log.
@@ -1072,6 +1152,7 @@ export interface HealthItem {
 export interface DiskUsage {
   files: number
   bytes: number
+  trashDays?: number
 }
 
 export interface DashFolder extends FolderCheck {
@@ -1428,6 +1509,7 @@ export const api = {
   listAPIKeys: () => get<APIKey[]>('/auth/api-keys'),
   createAPIKey: (name: string) => post<APIKey>('/auth/api-keys', { name }),
   revokeAPIKey: (id: number) => del<null>(`/auth/api-keys/${id}`),
+  deleteAPIKey: (id: number) => del<null>(`/auth/api-keys/${id}?remove=true`),
 
   // Accounts (administrators only).
   listAccounts: () => get<Account[]>('/users'),
@@ -1531,7 +1613,25 @@ export const api = {
   listBlocklist: () => get<BlocklistEntry[]>('/blocklist'),
   removeBlocklistEntry: (id: number) => del<null>(`/blocklist/${id}`),
   clearBlocklist: () => del<null>('/blocklist'),
-  listActivity: () => get<ActivityEntry[]>('/activity'),
+  savedBackups: () => get<SavedBackups>('/system/backups'),
+  saveBackupNow: () => post<{ name: string; size: number }>('/system/backups'),
+  setIndexerPriority: (id: number, priority: number) => put<null>(`/indexers/${id}/priority`, { priority }),
+  calendarFeed: () => get<{ on: boolean; path?: string }>('/calendar/feed'),
+  newCalendarFeed: () => post<{ on: boolean; path?: string }>('/calendar/feed'),
+  removeCalendarFeed: () => del<{ on: boolean; path?: string }>('/calendar/feed'),
+  manualImportList: () => get<{ folder: string; files: ManualFile[]; more?: boolean }>('/manual-import'),
+  manualImport: (body: { path: string; movieId?: number; seriesId?: number; season?: number; episode?: number }) => post<{ path: string }>('/manual-import', body),
+  listExclusions: () => get<{ kind: 'movie' | 'tv'; tmdbId: number; title: string; year?: number }[]>('/exclusions'),
+  addExclusion: (e: { kind: 'movie' | 'tv'; tmdbId: number; title: string; year?: number }) => post<null>('/exclusions', e),
+  removeExclusion: (kind: string, tmdbId: number) => del<null>(`/exclusions/${kind}/${tmdbId}`),
+  libraryStats: () => get<LibraryStats>('/stats/library'),
+  renamePreview: () => get<RenameItem[]>('/rename'),
+  rename: (items: { kind: string; id: number }[]) => post<{ renamed: number; failed: string[] }>('/rename', { items }),
+  listTrash: () => get<TrashList>('/trash'),
+  restoreTrash: (kind: string, id: string) => post<{ label: string; folder: string }>(`/trash/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/restore`),
+  deleteTrash: (kind: string, id: string) => del<null>(`/trash/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`),
+  emptyTrash: () => del<{ removed: number; freed: number }>('/trash'),
+  listActivity: (opts: { limit?: number; q?: string } = {}) => get<ActivityEntry[]>(`/activity?limit=${opts.limit ?? 100}${opts.q ? `&q=${encodeURIComponent(opts.q)}` : ''}`),
 
   // Music (only answers while the music module is on).
   musicSearch: (q: string, signal?: AbortSignal) => request<MusicArtistResult[]>(`/music/search?q=${encodeURIComponent(q)}`, { signal }),

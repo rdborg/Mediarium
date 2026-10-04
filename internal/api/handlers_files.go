@@ -18,7 +18,7 @@ import (
 
 // libraryRoots are the folders a title's files may be read from.
 func (s *Server) libraryRoots() []string {
-	return []string{s.moviesRoot(), s.tvRoot()}
+	return append(s.movieRoots(), s.tvRoots()...)
 }
 
 // fileEntry is one file in a title's folder.

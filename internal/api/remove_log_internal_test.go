@@ -15,6 +15,7 @@ func TestRemovedLogLine(t *testing.T) {
 		{"one file and one folder", "Heat", true, removedFiles{Files: 1, Folders: 1}, 1, "Heat removed from library. Its files were deleted (1 file, 1 folder)."},
 		{"loose files, no folder", "Loose", true, removedFiles{Files: 3}, 1, "Loose removed from library. Its files were deleted (3 files)."},
 		{"deleted but nothing was counted", "Odd", true, removedFiles{}, 1, "Odd removed from library. Its files were deleted."},
+		{"moved to the recycle bin", "Heat", true, removedFiles{Files: 2, Folders: 1, Trashed: true}, 1, "Heat removed from library. Its files were moved to the recycle bin (2 files, 1 folder)."},
 		{"files kept", "Alien", false, removedFiles{}, 1, "Alien removed from library. Its files were kept (1 file)."},
 		{"show files kept", "Lost (series)", false, removedFiles{}, 24, "Lost (series) removed from library. Its files were kept (24 files)."},
 		{"nothing on disk", "Wanted", false, removedFiles{}, 0, "Wanted removed from library. It had no files on disk."},

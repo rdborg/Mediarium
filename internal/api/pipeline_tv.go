@@ -240,7 +240,7 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 			// The new file has another name than the ones it replaces: they go,
 			// unless another episode still uses one of them.
 			for _, old := range earlierFiles {
-				s.removeReplacedFile(s.tvRoot(), old, result.DestPath, 0, series.ID, fmt.Sprintf("%s S%02dE%02d", series.Title, eps[0].Season, eps[0].Episode))
+				s.removeReplacedFile(s.tvFileRoot(old), old, result.DestPath, 0, series.ID, fmt.Sprintf("%s S%02dE%02d", series.Title, eps[0].Season, eps[0].Episode))
 			}
 		}
 		// Subtitles that came with the release go next to this episode. In a
@@ -378,7 +378,7 @@ func (s *Server) tvRoot() string {
 // buildTVDestPath renders "<tv root>/Series (Year)/Season NN/<episode file>"
 // using the same naming preset and illegal-character handling as movies.
 func (s *Server) buildTVDestPath(series library.Series, ep library.Episode, release parser.Release, videoFile string) (string, error) {
-	root := s.tvRoot()
+	root := s.seriesHome(series)
 	if root == "" {
 		return "", fmt.Errorf("the TV folder isn't set. Choose one in Settings > Library > Folders and file names")
 	}

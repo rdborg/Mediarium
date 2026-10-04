@@ -60,10 +60,26 @@ func filterSources(results []indexers.Result, sources string) []indexers.Result 
 }
 
 // preferUsenet reports whether candidate should replace best when the two are
-// otherwise equal: a Usenet release wins over a torrent (no seeding, no swarm
+// otherwise equal: one from a more preferred indexer wins, then a Usenet
+// release wins over a torrent (no seeding, no swarm
 // to depend on, no IP exposure).
 func preferUsenet(best, candidate *indexers.Result) bool {
-	return best != nil && candidate.Protocol == indexers.ProtocolUsenet && best.Protocol != indexers.ProtocolUsenet
+	if best == nil {
+		return false
+	}
+	// A more preferred indexer wins first (Settings > Indexers & Search).
+	if pb, pc := indexerRank(best.Priority), indexerRank(candidate.Priority); pb != pc {
+		return pc < pb
+	}
+	return candidate.Protocol == indexers.ProtocolUsenet && best.Protocol != indexers.ProtocolUsenet
+}
+
+// indexerRank is an indexer's priority, with "not set" counting as normal.
+func indexerRank(p int) int {
+	if p < indexers.PriorityPreferred || p > indexers.PriorityLast {
+		return indexers.PriorityNormal
+	}
+	return p
 }
 
 // unreleased reports whether a release date is still in the future, so there

@@ -37,15 +37,15 @@ func newTwoQualityIndexerServer(t *testing.T) *httptest.Server {
 <item>
 <title>The.Fixture.Movie.1999.1080p.WEB-DL.x264-FIXTURE</title>
 <guid>fixture-guid-webdl</guid>
-<enclosure url="%[1]s/nzb/webdl.nzb" length="1000" type="application/x-nzb" />
-<newznab:attr name="size" value="1000"/>
+<enclosure url="%[1]s/nzb/webdl.nzb" length="21474836480" type="application/x-nzb" />
+<newznab:attr name="size" value="21474836480"/>
 <newznab:attr name="category" value="2000"/>
 </item>
 <item>
 <title>The.Fixture.Movie.1999.1080p.BluRay.x264-FIXTURE</title>
 <guid>fixture-guid-bluray</guid>
-<enclosure url="%[1]s/nzb/bluray.nzb" length="2000" type="application/x-nzb" />
-<newznab:attr name="size" value="2000"/>
+<enclosure url="%[1]s/nzb/bluray.nzb" length="22548578304" type="application/x-nzb" />
+<newznab:attr name="size" value="22548578304"/>
 <newznab:attr name="category" value="2000"/>
 </item>
 </channel>

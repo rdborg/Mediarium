@@ -10,10 +10,15 @@ The keys the app stores in its settings table. You normally change these from th
 | `automation.enabled` | "0" disables; anything else (including unset) enables |
 | `automation.hunt_interval_hours` | hours between searches for missing items and better versions: 1 to 168; unset = 6 |
 | `automation.release_check_minutes` | minutes between checks of each indexer's newest releases: 5 to 1440; unset = 15 |
+| `backup.auto` | "0" turns the nightly backup into /config/backups off; anything else (including unset) leaves it on |
+| `backup.keep` | how many saved backups are kept in /config/backups; unset = 7 |
 | `cleanup.auto` | "0" turns the daily automatic clean-up off; anything else (including unset) leaves it on |
 | `cleanup.history_retention_days` | days finished downloads and activity are kept; unset = 90, "0" = forever |
 | `cleanup.last_run_at` | when clean-up last ran (RFC 3339; set by the app, not user-editable) |
 | `downloads.concurrent` | how many downloads run at the same time, Usenet and torrents together: 1 to 5; unset = 1 |
+| `downloads.min_free_gb` | no new download starts while the downloads folder has less free space than this many GB; unset = 5, "0" = off |
+| `downloads.speed_limit_hours` | when the speed limit applies, "8-23" (from 8:00 to 23:00, server time); unset = all day |
+| `downloads.speed_limit_mb` | download speed limit in MB/s for Usenet and torrents together; unset or "0" = no limit |
 | `ebooks.path` | ebooks library folder; falls back to the EBOOKS_DIR env default (/ebooks) when unset |
 | `flaresolverr.url` | e.g. http://flaresolverr:8191; unset = none |
 | `legal.acknowledged_at` |  |
@@ -27,10 +32,13 @@ The keys the app stores in its settings table. You normally change these from th
 | `library.import_added_backfill` | "1" once it has run (set by the app, not user-editable) |
 | `library.import_conflict_policy` | "skip" \| "overwrite" \| "overwrite_if_better" \| "ask" |
 | `library.movie_name_format` | token string, used when preset=custom |
+| `library.movies_extra_paths` | more movie folders besides the main one, one per line; unset = none |
 | `library.movies_path` |  |
 | `library.naming_preset` | plex\|jellyfin\|kodi\|minimal\|custom |
 | `library.presets_version` | revision of the built-in quality presets last applied; unset means never (set at start, not user-editable) |
 | `library.quality_profile` | legacy: an old preset key (any-1080p, ultra-hd, any); only read once to pick the initial default profile |
+| `library.trash_days` | days removed titles' files stay in the recycle bin (.mediarium-trash in the library folder); unset = 7, "0" = delete straight away |
+| `library.tv_extra_paths` | more TV folders besides the main one, one per line; unset = none |
 | `library.tv_path` | falls back to the TV_DIR env default when unset |
 | `mediaservers.client_id` | set by the app, not user-editable |
 | `metadata.tmdb_api_key` | encrypted |
@@ -45,6 +53,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `music.enabled` | older name of modules.music; still honoured while modules.music is unset, and kept in step with it |
 | `music.path` | music library folder; falls back to the MUSIC_DIR env default (/music) when unset |
 | `notify.on_problems` | "1" sends a notification (to the targets that listen for Health) when a new error is added to the problem log; unset or "0" sends none |
+| `notify.quiet_hours` | hours when everyday messages wait, "23-7" (server time); unset = none. Problems are always sent at once |
 | `onboarding.done` | "1" once the first-run wizard completes |
 | `quality.language` | the audio language wanted, as a name like "English" (the default when unset); a release clearly in another language only is not picked automatically |
 | `server.public_url` | the address you open Mediarium at from your own devices (like https://mediarium.example.com); links in notification messages use it; unset = no links |

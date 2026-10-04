@@ -180,8 +180,8 @@ func newFakeIndexerServer(t *testing.T) *httptest.Server {
 <title>The.Fixture.Movie.1999.1080p.WEB-DL.x264-FIXTURE</title>
 <guid>fixture-guid</guid>
 <comments>%s/details/fixture</comments>
-<enclosure url="%s/nzb/fixture.nzb" length="1000" type="application/x-nzb" />
-<newznab:attr name="size" value="1000"/>
+<enclosure url="%s/nzb/fixture.nzb" length="21474836480" type="application/x-nzb" />
+<newznab:attr name="size" value="21474836480"/>
 <newznab:attr name="category" value="2000"/>
 </item>
 </channel>

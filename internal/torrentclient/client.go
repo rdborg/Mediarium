@@ -8,6 +8,7 @@ package torrentclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/storage"
+
+	"github.com/rdborg/mediarium/internal/speed"
 )
 
 // DefaultListenPort is the port the engine listens on for incoming peer
@@ -89,6 +92,8 @@ func New(cfg Config) (*Client, error) {
 		PieceCompletion: storage.NewMapPieceCompletion(),
 	})
 	tcfg.ListenPort = cfg.ListenPort
+	// The download speed limit set in Settings, shared with Usenet.
+	tcfg.DownloadRateLimiter = speed.Limiter()
 	tcfg.Seed = true
 	if cfg.Tunnel != nil {
 		tcfg.DisableTCP = true
@@ -263,6 +268,7 @@ func Download(ctx context.Context, t *torrent.Torrent, onProgress ProgressFunc) 
 
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
+	last, lastMoved := t.BytesCompleted(), time.Now()
 	for {
 		select {
 		case <-ctx.Done():
@@ -273,12 +279,26 @@ func Download(ctx context.Context, t *torrent.Torrent, onProgress ProgressFunc) 
 			}
 			return nil
 		case <-ticker.C:
+			done := t.BytesCompleted()
 			if onProgress != nil {
-				onProgress(t.BytesCompleted(), total)
+				onProgress(done, total)
+			}
+			if done > last {
+				last, lastMoved = done, time.Now()
+			} else if StallAfter > 0 && time.Since(lastMoved) >= StallAfter {
+				return ErrStalled
 			}
 		}
 	}
 }
+
+// StallAfter is how long a torrent may go without receiving a single byte
+// before it counts as stalled (no one is sharing it). A variable so tests can
+// shorten it.
+var StallAfter = 2 * time.Hour
+
+// ErrStalled is returned by Download for a torrent that stopped getting data.
+var ErrStalled = errors.New("the torrent got no data for 2 hours: no one seems to be sharing it")
 
 // SeedGoal is when seeding a finished torrent may stop:
 // once it has uploaded Ratio times its size, or after Time of seeding,

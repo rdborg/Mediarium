@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -131,6 +132,25 @@ type settingsPayload struct {
 	// the setting alone.
 	CleanupAuto          *bool `json:"cleanupAuto,omitempty"`
 	HistoryRetentionDays *int  `json:"historyRetentionDays,omitempty"`
+	// MoviesExtraPaths and TVExtraPaths are more library folders besides the
+	// main ones (each must exist). Sending a list replaces it.
+	MoviesExtraPaths *[]string `json:"moviesExtraPaths,omitempty"`
+	TVExtraPaths     *[]string `json:"tvExtraPaths,omitempty"`
+	// TrashDays is how many days removed titles' files stay in the recycle
+	// bin (7 by default, 0 = delete straight away).
+	TrashDays *int `json:"trashDays,omitempty"`
+	// BackupAuto is the nightly backup into /config/backups (on by default);
+	// BackupKeep how many of them are kept (7 by default).
+	BackupAuto *bool `json:"backupAuto,omitempty"`
+	BackupKeep *int  `json:"backupKeep,omitempty"`
+	// SpeedLimitMB is the download speed limit in MB/s (0 = none);
+	// SpeedLimitHours when it applies ("8-23", "" = all day); MinFreeGB the
+	// free space below which no new download starts (5 by default, 0 = off).
+	SpeedLimitMB    *int    `json:"speedLimitMB,omitempty"`
+	SpeedLimitHours *string `json:"speedLimitHours,omitempty"`
+	MinFreeGB       *int    `json:"minFreeGB,omitempty"`
+	// NotifyQuietHours is when everyday messages wait ("23-7", "" = never).
+	NotifyQuietHours *string `json:"notifyQuietHours,omitempty"`
 
 	// DownloadsAtOnce is how many downloads may run at the same time, Usenet
 	// and torrents together (1 to 5, one by default). The rest wait in line. A
@@ -211,6 +231,23 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	publicURL := s.publicLinks().Base
 	cleanupAuto := s.cleanupAutoEnabled()
 	retentionDays := s.historyRetentionDays()
+	trashDays := s.trashDays()
+	movieExtras, tvExtras := s.extraPaths(settings.KeyMoviesExtraPaths), s.extraPaths(settings.KeyTVExtraPaths)
+	if movieExtras == nil {
+		movieExtras = []string{}
+	}
+	if tvExtras == nil {
+		tvExtras = []string{}
+	}
+	backupAuto, backupKeep := s.backupAutoEnabled(), s.backupKeep()
+	speedMB, minFree := s.speedLimitMB(), s.minFreeGB()
+	speedHours, quiet := "", ""
+	if from, to, ok := s.quietHours(); ok {
+		quiet = quietHoursText(from, to)
+	}
+	if from, to, ok := s.speedLimitHours(); ok {
+		speedHours = strconv.Itoa(from) + "-" + strconv.Itoa(to)
+	}
 	musicEnabled := s.musicEnabled()
 	downloadsAtOnce := s.downloadsAtOnce()
 	huntHours, releaseMinutes := s.huntHours(), s.releaseCheckMinutes()
@@ -257,6 +294,15 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		FlareSolverrBundled:      s.cfg.BundledFlareSolverr,
 		CleanupAuto:              &cleanupAuto,
 		HistoryRetentionDays:     &retentionDays,
+		TrashDays:                &trashDays,
+		MoviesExtraPaths:         &movieExtras,
+		TVExtraPaths:             &tvExtras,
+		BackupAuto:               &backupAuto,
+		BackupKeep:               &backupKeep,
+		SpeedLimitMB:             &speedMB,
+		SpeedLimitHours:          &speedHours,
+		MinFreeGB:                &minFree,
+		NotifyQuietHours:         &quiet,
 		DownloadsAtOnce:          &downloadsAtOnce,
 		MusicEnabled:             &musicEnabled,
 		MusicPath:                s.musicRoot(),
@@ -477,6 +523,115 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			value = "0"
 		}
 		if err := s.Settings.Set(settings.KeyCleanupAuto, value, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if req.SpeedLimitMB != nil || req.SpeedLimitHours != nil {
+		if req.SpeedLimitMB != nil {
+			if *req.SpeedLimitMB < 0 || *req.SpeedLimitMB > 10000 {
+				writeError(w, http.StatusBadRequest, "The speed limit is 0 (no limit) to 10000 MB/s.")
+				return
+			}
+			if err := s.Settings.Set(settings.KeySpeedLimitMB, strconv.Itoa(*req.SpeedLimitMB), false); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		if req.SpeedLimitHours != nil {
+			h := strings.TrimSpace(*req.SpeedLimitHours)
+			if _, _, ok := parseHours(h); h != "" && !ok {
+				writeError(w, http.StatusBadRequest, `Give the hours as "from-to", for example "8-23", or leave it empty for all day.`)
+				return
+			}
+			if err := s.Settings.Set(settings.KeySpeedLimitHours, h, false); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		s.applySpeedLimit(time.Now())
+	}
+	if req.NotifyQuietHours != nil {
+		h := strings.TrimSpace(*req.NotifyQuietHours)
+		if _, _, ok := parseHours(h); h != "" && !ok {
+			writeError(w, http.StatusBadRequest, `Give the quiet hours as "from-to", for example "23-7", or leave it empty for none.`)
+			return
+		}
+		if err := s.Settings.Set(settings.KeyNotifyQuietHours, h, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if req.MinFreeGB != nil {
+		if *req.MinFreeGB < 0 || *req.MinFreeGB > 10000 {
+			writeError(w, http.StatusBadRequest, "Keep 0 (off) to 10000 GB free.")
+			return
+		}
+		if err := s.Settings.Set(settings.KeyMinFreeGB, strconv.Itoa(*req.MinFreeGB), false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		s.dispatch.Kick()
+	}
+	if req.BackupAuto != nil {
+		v := "1"
+		if !*req.BackupAuto {
+			v = "0"
+		}
+		if err := s.Settings.Set(settings.KeyBackupAuto, v, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if req.BackupKeep != nil {
+		if *req.BackupKeep < 1 || *req.BackupKeep > 60 {
+			writeError(w, http.StatusBadRequest, "Keep between 1 and 60 backups.")
+			return
+		}
+		if err := s.Settings.Set(settings.KeyBackupKeep, strconv.Itoa(*req.BackupKeep), false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	for _, extra := range []struct {
+		list *[]string
+		key  string
+		what string
+	}{{req.MoviesExtraPaths, settings.KeyMoviesExtraPaths, "movie"}, {req.TVExtraPaths, settings.KeyTVExtraPaths, "TV"}} {
+		if extra.list == nil {
+			continue
+		}
+		var clean []string
+		for _, p := range *extra.list {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			if !filepath.IsAbs(p) {
+				writeError(w, http.StatusBadRequest, fmt.Sprintf("%q is not a full path. Write it from the top, like /data/Movies2.", p))
+				return
+			}
+			if info, err := os.Stat(p); err != nil || !info.IsDir() {
+				writeError(w, http.StatusBadRequest, fmt.Sprintf("%s isn't a folder Mediarium can see. If you use Docker, map it into the container first.", p))
+				return
+			}
+			clean = append(clean, filepath.Clean(p))
+		}
+		if len(clean) > 10 {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("Add at most 10 extra %s folders.", extra.what))
+			return
+		}
+		if err := s.Settings.Set(extra.key, strings.Join(clean, "\n"), false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if req.TrashDays != nil {
+		if *req.TrashDays < 0 || *req.TrashDays > 365 {
+			writeError(w, http.StatusBadRequest, "Keep removed files for 0 to 365 days.")
+			return
+		}
+		if err := s.Settings.Set(settings.KeyTrashDays, strconv.Itoa(*req.TrashDays), false); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

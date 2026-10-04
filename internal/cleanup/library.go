@@ -99,24 +99,12 @@ func RemoveFileWithSidecars(root, file string) ([]string, error) {
 		return nil, err
 	}
 	dir := filepath.Dir(abs)
-	name := filepath.Base(abs)
-	stem := strings.TrimSuffix(name, filepath.Ext(name))
-
-	entries, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
+	files, err := fileAndSidecars(abs)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", dir, err)
+		return nil, err
 	}
 	var removed []string
-	for _, e := range entries {
-		n := e.Name()
-		ours := n == name || (strings.HasPrefix(n, stem+".") && sidecarRest.MatchString(n[len(stem)+1:]))
-		if !ours || e.IsDir() {
-			continue
-		}
-		p := filepath.Join(dir, n)
+	for _, p := range files {
 		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return removed, fmt.Errorf("remove %s: %w", p, err)
 		}
@@ -124,6 +112,41 @@ func RemoveFileWithSidecars(root, file string) ([]string, error) {
 	}
 	PruneEmptyFolders(absRoot, dir)
 	return removed, nil
+}
+
+// FileAndSidecars is fileAndSidecars for other packages: a video file and
+// the subtitle, .nfo and artwork files named after it.
+func FileAndSidecars(path string) ([]string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	return fileAndSidecars(abs)
+}
+
+// fileAndSidecars lists a video file and the files beside it that belong with
+// it: the same name with a subtitle, .nfo or artwork extension. A missing
+// folder is an empty list.
+func fileAndSidecars(abs string) ([]string, error) {
+	dir := filepath.Dir(abs)
+	name := filepath.Base(abs)
+	stem := strings.TrimSuffix(name, filepath.Ext(name))
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", dir, err)
+	}
+	var out []string
+	for _, e := range entries {
+		n := e.Name()
+		ours := n == name || (strings.HasPrefix(n, stem+".") && sidecarRest.MatchString(n[len(stem)+1:]))
+		if ours && !e.IsDir() {
+			out = append(out, filepath.Join(dir, n))
+		}
+	}
+	return out, nil
 }
 
 // PruneEmptyFolders removes dir if it is empty, then its parent, and so on

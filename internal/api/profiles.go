@@ -126,6 +126,8 @@ type profilePayload struct {
 	// when nothing is acceptable to this profile ([] = none).
 	Fallback []int64 `json:"fallback"`
 	InUse    int     `json:"inUse"`
+	// MaxSizeGB is the largest release the profile accepts (0 = no limit).
+	MaxSizeGB float64 `json:"maxSizeGB"`
 }
 
 type preferredPayload struct {
@@ -160,7 +162,7 @@ func toProfilePayload(p quality.Profile, inUse int) profilePayload {
 		fallback = []int64{}
 	}
 	return profilePayload{ID: p.ID, Name: p.Name, Allowed: allowed, Cutoff: string(p.Cutoff), UpgradeAllowed: p.UpgradeAllowed,
-		MustContain: must, MustNotContain: mustNot, Preferred: prefs, Fallback: fallback, InUse: inUse}
+		MustContain: must, MustNotContain: mustNot, Preferred: prefs, Fallback: fallback, InUse: inUse, MaxSizeGB: p.MaxSizeGB}
 }
 
 type profileRequest struct {
@@ -175,6 +177,9 @@ type profileRequest struct {
 	// update keeps the saved one. Ids that do not exist, or the profile's
 	// own id, are ignored.
 	Fallback []int64 `json:"fallback"`
+	// MaxSizeGB is the largest release the profile accepts, in GB (0 = no
+	// limit); left out, an update keeps the saved one.
+	MaxSizeGB *float64 `json:"maxSizeGB"`
 }
 
 func (req profileRequest) toProfile(id int64) quality.Profile {
@@ -186,10 +191,14 @@ func (req profileRequest) toProfile(id int64) quality.Profile {
 	for i, pr := range req.Preferred {
 		prefs[i] = quality.Preferred{Term: pr.Term, Score: pr.Score}
 	}
-	return quality.Profile{
+	p := quality.Profile{
 		ID: id, Name: req.Name, Allowed: allowed, Cutoff: quality.Tier(req.Cutoff), UpgradeAllowed: req.UpgradeAllowed,
 		MustContain: req.MustContain, MustNotContain: req.MustNotContain, Preferred: prefs, Fallback: req.Fallback,
 	}
+	if req.MaxSizeGB != nil {
+		p.MaxSizeGB = *req.MaxSizeGB
+	}
+	return p
 }
 
 func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
@@ -245,13 +254,18 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := req.toProfile(id)
-	if req.Fallback == nil {
+	if req.Fallback == nil || req.MaxSizeGB == nil {
 		saved, err := s.QualityRepo.Get(id)
 		if err != nil {
 			writeProfileError(w, err)
 			return
 		}
-		p.Fallback = saved.Fallback
+		if req.Fallback == nil {
+			p.Fallback = saved.Fallback
+		}
+		if req.MaxSizeGB == nil {
+			p.MaxSizeGB = saved.MaxSizeGB
+		}
 	}
 	updated, err := s.QualityRepo.Update(p)
 	if err != nil {

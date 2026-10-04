@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/problems"
+	"github.com/rdborg/mediarium/internal/speed"
 )
 
 // ClientConfig is one configured Usenet server (a news server account from
@@ -496,6 +497,7 @@ func runWorker(ctx context.Context, st *dlState, nzb *NZB, cfg ClientConfig, job
 				}
 				st.resume.mark(j.fileIndex, j.segmentIndex, int64(len(part.Data)))
 				st.reportBytes(int64(len(part.Data)))
+				_ = speed.Wait(ctx, len(part.Data)) // the speed limit, when one is set
 				last = outcome{kind: failNone}
 				break
 			}

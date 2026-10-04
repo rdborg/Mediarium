@@ -35,6 +35,10 @@ func frontendHandler() http.Handler {
 		} else {
 			w.Header().Set("Cache-Control", "no-cache")
 		}
+		if strings.HasSuffix(r.URL.Path, ".webmanifest") {
+			// What browsers expect for "Add to home screen".
+			w.Header().Set("Content-Type", "application/manifest+json")
+		}
 		fileServer.ServeHTTP(w, r)
 	})
 }

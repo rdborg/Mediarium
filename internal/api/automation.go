@@ -26,6 +26,7 @@ const (
 // internal/automation. Called once from cmd/app/main.go after the server
 // is constructed.
 func (s *Server) StartAutomation() *automation.Scheduler {
+	s.applySpeedLimit(time.Now())
 	if s.cfg.PauseAutomation {
 		log.Print("Safe mode: MEDIARIUM_PAUSE_AUTOMATION is set, so automatic searching, downloading and refreshing are switched off until you remove it.")
 		return automation.NewScheduler()
@@ -39,6 +40,9 @@ func (s *Server) StartAutomation() *automation.Scheduler {
 		automation.Job{Name: "subtitle-sweep", Interval: subtitleSweepInterval, Run: s.subtitleSweepJob},
 		automation.Job{Name: "genre-backfill", Interval: genreBackfillInterval, Run: s.backfillGenres},
 		automation.Job{Name: "cleanup", Interval: cleanupCheckInterval, Run: s.cleanupJob},
+		automation.Job{Name: "backup", Interval: backupCheck, Run: s.backupJob},
+		automation.Job{Name: "speed-limit", Interval: speedCheck, Run: s.speedJob},
+		automation.Job{Name: "quiet-hours", Interval: speedCheck, Run: s.quietHoursJob},
 		automation.Job{Name: "import-details", Interval: importDetailsInterval, Run: s.importDetailsJob},
 		automation.Job{Name: "episode-quality", Interval: 24 * time.Hour, Run: func(context.Context) { s.backfillEpisodeQuality() }},
 		automation.Job{Name: "import-added-dates", Interval: 24 * time.Hour, Run: func(context.Context) { s.backfillImportedAddedDates() }},
@@ -303,6 +307,9 @@ func pickBestFor(results []indexers.Result, profile quality.Profile, wantYear in
 		if wantYear != 0 && release.Year != 0 && release.Year != wantYear {
 			continue
 		}
+		if !quality.SizePlausible(quality.Classify(release), results[i].SizeBytes, 0) || !profile.SizeAllowed(results[i].SizeBytes) {
+			continue
+		}
 		key := pickKey{profile.LanguageRank(release), quality.Rank(quality.Classify(release)), profile.Score(results[i].Title)}
 		if best == nil || key.above(bestKey) || (key == bestKey && preferUsenet(best, &results[i])) {
 			bestKey = key
@@ -329,6 +336,9 @@ func pickUpgradeResult(results []indexers.Result, profile quality.Profile, curre
 			continue
 		}
 		if wantYear != 0 && release.Year != 0 && release.Year != wantYear {
+			continue
+		}
+		if !quality.SizePlausible(quality.Classify(release), results[i].SizeBytes, 0) || !profile.SizeAllowed(results[i].SizeBytes) {
 			continue
 		}
 		key := pickKey{profile.LanguageRank(release), quality.Rank(quality.Classify(release)), profile.Score(results[i].Title)}

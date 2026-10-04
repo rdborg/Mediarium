@@ -12,6 +12,16 @@ Indexers are the sites Mediarium asks when it looks for releases. You'll find th
 
 *Settings > Indexers & Search: add an indexer on the left, your indexers in the middle (with Test, Edit, Disable and Remove) and the optional Cloudflare helper (FlareSolverr) card on the right. The addresses shown are examples.*
 
+## Searching for a release by name
+
+**Search > Search your indexers for a release** asks every indexer for a release name, the way you would on the indexer's own site (for example "Heat 1995 1080p"). The results list the quality, indexer, size and seeders; blocklisted releases are hidden unless you untick **Hide blocklisted releases**. **Download** works out the movie or show from the release name, adds it to your library if it isn't there yet, and downloads it as usual. Scripts: `GET /api/search?q=...` and `POST /api/search/grab`.
+
+## Priority, health and Test all
+
+Each indexer card has a **Priority**: **Preferred**, **Normal** (the default) or **Last resort**. Quality always comes first. Between two releases that are equally good, the one from the more preferred indexer is picked, then a Usenet release over a torrent. Scripts: `PUT /api/indexers/{id}/priority` with `{"priority": 1}` (1 preferred, 2 normal, 3 last resort).
+
+Under the address, each card says how its last test went ("Last test passed 2 hours ago", or why it failed). **Test all** above the list tests every enabled indexer, one after another, and says which did not answer.
+
 ## Usenet or torrent?
 
 - **Usenet**: you pay a Usenet provider for access and use an indexer to find NZBs. Downloads are a direct, encrypted connection to your provider. Nobody else sees what you fetch.

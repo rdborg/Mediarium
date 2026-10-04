@@ -9,7 +9,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| GET | `/api/activity` | any account |  |
+| GET | `/api/activity` | any account | lists the newest activity lines: 100 unless ?limit= asks for more (up to 2000), narrowed by ?q= to lines containing that text. |
 
 ## auth
 
@@ -37,6 +37,10 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/calendar` | any account | is the unified calendar (releases and episode airs in one list). |
+| DELETE | `/api/calendar/feed` | any account |  |
+| GET | `/api/calendar/feed` | any account |  |
+| POST | `/api/calendar/feed` | any account |  |
+| GET | `/api/calendar/feed/{file}` | **public** | serves the .ics file. |
 
 ## dashboard
 
@@ -74,6 +78,14 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/episodes/{id}/subtitles/download` | any account |  |
 | GET | `/api/episodes/{id}/subtitles/status` | any account |  |
 
+## exclusions
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/exclusions` | any account |  |
+| POST | `/api/exclusions` | any account |  |
+| DELETE | `/api/exclusions/{kind}/{tmdbId}` | any account |  |
+
 ## files
 
 | Method | Path | Access | What it does |
@@ -108,6 +120,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | DELETE | `/api/indexers/{id}` | admin |  |
 | PUT | `/api/indexers/{id}` | admin | edits a saved indexer. |
 | PUT | `/api/indexers/{id}/enabled` | admin |  |
+| PUT | `/api/indexers/{id}/priority` | admin | sets how much an indexer is preferred: 1 preferred, 2 normal, 3 last resort. |
 | POST | `/api/indexers/{id}/test` | admin | tests a saved indexer with its stored credentials. |
 
 ## library
@@ -127,6 +140,13 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/library/import/batches/{id}/watch` | admin | switches monitoring on for exactly the titles an import added, once it has finished, so the person can start it with one click on the report. |
 | POST | `/api/library/scan` | admin | starts a scan of an existing folder. |
 | GET | `/api/library/scan/{id}` | admin |  |
+
+## manual-import
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/manual-import` | admin | lists the video files in the downloads folder, biggest first, with what each file's name suggests. |
+| POST | `/api/manual-import` | admin | moves one file from the downloads folder into the library as the movie or episode chosen. |
 
 ## media-servers
 
@@ -278,6 +298,13 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/queue/{id}/retry` | any account | grabs the same release again after it failed or was stopped. |
 | POST | `/api/queue/{id}/stop` | admin | cancels a running or paused download, and with deleteFiles deletes its partly downloaded files from the downloads folder. |
 
+## rename
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/rename` | admin |  |
+| POST | `/api/rename` | admin | renames the chosen files, working out the new name again so it matches the preview. |
+
 ## search
 
 | Method | Path | Access | What it does |
@@ -317,6 +344,12 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/settings/naming-preview` | admin | shows a naming preset or custom format applied to a fixed sample release, so the page can display the exact file name while someone edits the tokens. |
 | POST | `/api/settings/test-service` | admin | checks a key for an outside service without saving it, so the setup wizard and Settings can say whether it works before the person moves on. |
 
+## stats
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/stats/library` | any account |  |
+
 ## subtitles
 
 | Method | Path | Access | What it does |
@@ -333,6 +366,9 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/system/backup` | admin | streams a backup zip (app.db snapshot, secret.key, manifest). |
+| GET | `/api/system/backups` | admin |  |
+| POST | `/api/system/backups` | admin | makes a backup in the folder straight away. |
+| GET | `/api/system/backups/{name}` | admin | sends one saved backup. |
 | GET | `/api/system/cleanup` | admin | lists what clean-up would remove from the downloads working folder right now (never the library), with the space it frees, when it last ran and whether it ru... |
 | POST | `/api/system/cleanup` | admin | runs the clean-up now and reports what it removed and how much history it pruned. |
 | GET | `/api/system/diagnostics` | admin | returns what a person needs to send with a support request: version and platform, how the database is doing, the setup warnings and the recent log. |
@@ -363,6 +399,15 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/tmdb/movies/{tmdbId}/similar` | any account | lists movies like a given one from its TMDB id alone. |
 | GET | `/api/tmdb/search` | any account | is a plain TMDB title search for either kind, used by the import review to fix a wrong or missing automatic match. |
 | GET | `/api/tmdb/tv/{tmdbId}` | any account | gives everything the TV page shows from a TMDB id alone, plus library membership if the show has been added. |
+
+## trash
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| DELETE | `/api/trash` | admin |  |
+| GET | `/api/trash` | admin |  |
+| DELETE | `/api/trash/{kind}/{id}` | admin |  |
+| POST | `/api/trash/{kind}/{id}/restore` | admin |  |
 
 ## tv
 
@@ -420,4 +465,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 |---|---|---|---|
 | GET | `/api/wanted` | any account | lists what automation is still looking for: "missing" (monitored, nothing downloaded; episodes only once aired) or "cutoff" (downloaded but below the profile... |
 
-225 routes.
+245 routes.

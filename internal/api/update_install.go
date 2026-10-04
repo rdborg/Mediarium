@@ -78,6 +78,11 @@ func (s *Server) commitProgram(ctx context.Context, tmp, sum, wantVersion string
 			return "", &updateError{status: http.StatusConflict, msg: "Mediarium can't tell whether that version is newer. Add ?force=true if you are sure.", err: err}
 		}
 	}
+	// A backup first, so the database can be put back if the new version
+	// changes it in a way you don't want. A failure here doesn't stop the update.
+	if _, err := s.saveBackup(ctx, "before updating to "+probe.Version); err != nil {
+		slog.Warn("backup: could not save one before the update", "err", err)
+	}
 	if err := selfupdate.Install(s.updateDir(), tmp, probe.Version, sum); err != nil {
 		return "", failed("Couldn't put the new program in place. Your current version has not been changed.", err)
 	}

@@ -48,7 +48,7 @@ interface Item {
 // The most titles one "search now" for a selection looks up (the server enforces it).
 const BULK_SEARCH_LIMIT = 25
 
-const STORAGE = { kind: 'mediarium-library-tab', view: 'mediarium-library-view' }
+const STORAGE = { kind: 'mediarium-library-tab', view: 'mediarium-library-view', sort: 'mediarium-library-sort', reverse: 'mediarium-library-reverse' }
 const remember = (k: string, v: string) => {
   try {
     localStorage.setItem(k, v)
@@ -129,7 +129,17 @@ export default function Library() {
   const [error, setError] = useState('')
   const [text, setText] = useState('')
   const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState<Sort>('added')
+  // The sort and its direction are remembered in this browser.
+  const [sort, setSortState] = useState<Sort>(() => (['added', 'title', 'year', 'status'].includes(recall(STORAGE.sort) ?? '') ? (recall(STORAGE.sort) as Sort) : 'added'))
+  const [reverse, setReverseState] = useState(() => recall(STORAGE.reverse) === '1')
+  const setSort = (s: Sort) => {
+    setSortState(s)
+    remember(STORAGE.sort, s)
+  }
+  const setReverse = (r: boolean) => {
+    setReverseState(r)
+    remember(STORAGE.reverse, r ? '1' : '0')
+  }
   const [genre, setGenre] = useState('')
   const [decade, setDecade] = useState('')
   const [selecting, setSelecting] = useState(false)
@@ -176,8 +186,9 @@ export default function Library() {
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
     else if (sort === 'year') list.sort((a, b) => b.year - a.year)
     else if (sort === 'status') list.sort((a, b) => a.state.key.localeCompare(b.state.key) || a.title.localeCompare(b.title))
+    if (reverse) list.reverse()
     return list
-  }, [items, kind, filter, text, sort, genre, decade])
+  }, [items, kind, filter, text, sort, reverse, genre, decade])
   // Everything that narrows the list (sorting does not), and the way back.
   const filtersActive = text.trim() !== '' || filter !== 'all' || genre !== '' || decade !== ''
   function clearFilters() {
@@ -412,6 +423,9 @@ export default function Library() {
             { value: 'status', label: 'Status' },
           ]}
         />
+        <button className="icon-btn" onClick={() => setReverse(!reverse)} aria-pressed={reverse} title={reverse ? 'Reversed order. Click for the normal order.' : 'Reverse the order'} aria-label="Reverse the order">
+          <Icon name="sort" size={16} />
+        </button>
         <span className="spacer" />
         {admin && (
           <button className={`btn-with-icon${selecting ? ' primary' : ''}`} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>

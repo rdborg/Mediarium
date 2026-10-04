@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, type IndexerConfig } from '../api'
+import { timeAgo } from '../format'
 import Icon from './Icon'
 import { friendlyIndexerError } from './IndexerForm'
 import { useToast } from './Toast'
@@ -41,6 +42,16 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
     }
   }
 
+  async function setPriority(priority: number) {
+    try {
+      await api.setIndexerPriority(i.id, priority)
+      toast.success(priority === 1 ? `${i.name} is preferred now.` : priority === 3 ? `${i.name} is only used as a last resort now.` : `${i.name} is back to normal.`)
+      onChanged()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   async function save() {
     if (!v.attempt()) return
     setSaving(true)
@@ -73,7 +84,20 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
           <small className="indexer-url" title={i.baseUrl}>
             {i.baseUrl}
           </small>
+          {!result && i.lastTestAt && (
+            <small className={`indexer-health ${i.lastTestError ? 'bad' : 'ok'}`}>
+              {i.lastTestError ? `Last test failed ${timeAgo(i.lastTestAt)}: ${friendlyIndexerError(i.lastTestError)}` : `Last test passed ${timeAgo(i.lastTestAt)}`}
+            </small>
+          )}
         </div>
+        <label className="indexer-priority" title="Between two equally good releases, the one from a preferred indexer wins.">
+          <span>Priority</span>
+          <select value={i.priority ?? 2} onChange={(e) => void setPriority(Number(e.target.value))}>
+            <option value={1}>Preferred</option>
+            <option value={2}>Normal</option>
+            <option value={3}>Last resort</option>
+          </select>
+        </label>
       </div>
 
       <div className="indexer-actions">

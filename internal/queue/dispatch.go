@@ -37,6 +37,10 @@ type DispatchConfig struct {
 	// OnStartError is told about an item Start refused; the item is not
 	// waiting any more, so it should be put right (marked failed).
 	OnStartError func(item Item, err error)
+	// Hold, when it returns true, starts nothing new for now (the disk is
+	// nearly full, say). Running downloads carry on, and the line is looked
+	// at again on the next Kick.
+	Hold func() bool
 }
 
 // NewDispatcher returns a dispatcher over repo. Nothing runs until Kick.
@@ -95,6 +99,9 @@ func (d *Dispatcher) Kick() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.holds > 0 {
+		return
+	}
+	if d.cfg.Hold != nil && len(d.active) < d.Limit() && d.cfg.Hold() {
 		return
 	}
 	skipped := map[int64]bool{}

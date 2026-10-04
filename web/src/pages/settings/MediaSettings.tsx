@@ -1,3 +1,5 @@
+import ExtraFolders from '../../components/ExtraFolders'
+import RenameCard from '../../components/RenameCard'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/Toast'
@@ -165,20 +167,8 @@ function LibrarySection() {
             </label>
             <FolderStatus path={downloadsPath} />
           </div>
-          <div className="path-col path-off">
-            <label>
-              Ebooks folder
-              <input value={settings.ebooksPath ?? ''} disabled placeholder="/ebooks" readOnly />
-            </label>
-            <small className="path-note">Coming soon. Set with EBOOKS_DIR in your compose file.</small>
-          </div>
-          <div className="path-col path-off">
-            <label>
-              Audiobooks folder
-              <input value={settings.audiobooksPath ?? ''} disabled placeholder="/audiobooks" readOnly />
-            </label>
-            <small className="path-note">Coming soon. Set with AUDIOBOOKS_DIR in your compose file.</small>
-          </div>
+          <ExtraFolders kind="movies" />
+          <ExtraFolders kind="tv" />
         </div>
         <HardlinkWarning
           libraries={[
@@ -260,6 +250,7 @@ export default function MediaSettings() {
   return (
     <div className="settings-stack">
       <LibrarySection />
+      <RenameCard />
     </div>
   )
 }

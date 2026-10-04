@@ -184,6 +184,17 @@ function APIKeys() {
     }
   }
 
+  async function remove(k: APIKey) {
+    if (!(await confirm({ title: `Delete "${k.name}"?`, body: <p>It is already revoked and does nothing. This takes it off the list for good.</p>, confirmLabel: 'Delete key', danger: true }))) return
+    try {
+      await api.deleteAPIKey(k.id)
+      toast.success('Key deleted.')
+      reload()
+    } catch (e) {
+      toast.error(errorText(e))
+    }
+  }
+
   return (
     <fieldset className="group torrent">
       <legend>
@@ -217,7 +228,7 @@ function APIKeys() {
                 <td>
                   <span className={`badge ${k.revokedAt ? 'missing' : 'downloaded'}`}>{k.revokedAt ? 'revoked' : 'active'}</span>
                 </td>
-                <td>{!k.revokedAt && <button onClick={() => void revoke(k)}>Revoke</button>}</td>
+                <td>{k.revokedAt ? <button onClick={() => void remove(k)}>Delete</button> : <button onClick={() => void revoke(k)}>Revoke</button>}</td>
               </tr>
             ))}
           </tbody>

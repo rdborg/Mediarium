@@ -6,6 +6,7 @@ import { useGridColumns } from '../useGridColumns'
 import { useHideOwned } from '../useHideOwned'
 import type { Owned } from '../useOwned'
 import type { AddTarget } from './AddDialog'
+import { pickKey, usePicks } from '../discoverPicks'
 import Icon from './Icon'
 import PosterCard from './PosterCard'
 
@@ -13,10 +14,11 @@ import PosterCard from './PosterCard'
 // their page; the rest offer Add, which opens the usual add dialog.
 export function DiscoverCards({ items, kind, owned, onAdd }: { items: DiscoverMovie[]; kind: Kind; owned: Owned; onAdd: (t: AddTarget) => void }) {
   const navigate = useNavigate()
+  const picks = usePicks()
   const map = kind === 'movie' ? owned.movies : owned.shows
   return (
     <>
-      {items.map((m) => {
+      {items.filter((m) => !picks?.excluded.has(pickKey({ kind, tmdbId: m.tmdbId }))).map((m) => {
         const own = map.get(m.tmdbId)
         const libraryId = own?.id
         const path = kind === 'movie' ? `/title/${m.tmdbId}` : libraryId ? `/series/${libraryId}` : `/show/${m.tmdbId}`
@@ -38,10 +40,25 @@ export function DiscoverCards({ items, kind, owned, onAdd }: { items: DiscoverMo
                   <button className="btn-sm btn-with-icon" onClick={() => navigate(path)}>
                     <Icon name="open" size={15} /> Open
                   </button>
-                ) : (
-                  <button className="primary btn-sm btn-with-icon" onClick={() => onAdd({ kind, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl, overview: m.overview })}>
-                    <Icon name="plus" size={15} /> {coming ? 'Add early' : 'Add'}
+                ) : picks?.selecting ? (
+                  <button
+                    className={`btn-sm btn-with-icon${picks.picked.has(pickKey({ kind, tmdbId: m.tmdbId })) ? ' primary' : ''}`}
+                    aria-pressed={picks.picked.has(pickKey({ kind, tmdbId: m.tmdbId }))}
+                    onClick={() => picks.toggle({ kind, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl, overview: m.overview })}
+                  >
+                    <Icon name="check" size={15} /> {picks.picked.has(pickKey({ kind, tmdbId: m.tmdbId })) ? 'Picked' : 'Pick'}
                   </button>
+                ) : (
+                  <>
+                    <button className="primary btn-sm btn-with-icon" onClick={() => onAdd({ kind, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl, overview: m.overview })}>
+                      <Icon name="plus" size={15} /> {coming ? 'Add early' : 'Add'}
+                    </button>
+                    {picks && (
+                      <button className="icon-btn not-interested" title="Not interested: don't show it again" aria-label={`Not interested in ${m.title}`} onClick={() => picks.notInterested({ kind, tmdbId: m.tmdbId, title: m.title, year: m.year })}>
+                        <Icon name="x" size={14} />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             }

@@ -144,17 +144,17 @@ func TestEmailHTMLEscapesAndLoadsNothingElse(t *testing.T) {
 	srcs := regexp.MustCompile(`(?i)\b(?:src|background|href)="([^"]*)"`).FindAllStringSubmatch(out, -1)
 	for _, m := range srcs {
 		u := m[1]
-		if u != titanic.PosterURL && u != "https://m.example.com/title/597" && u != "https://m.example.com/settings/notifications" {
+		if u != "cid:mediarium-logo@mediarium" && u != titanic.PosterURL && u != "https://m.example.com/title/597" && u != "https://m.example.com/settings/notifications" {
 			t.Errorf("unexpected address in the page: %s", u)
 		}
 	}
-	if n := strings.Count(out, "<img"); n != 1 {
-		t.Errorf("%d images, want only the poster", n)
+	if n := strings.Count(out, "<img"); n != 2 {
+		t.Errorf("%d images, want the logo and the poster", n)
 	}
 	if strings.Contains(out, `width="1"`) || strings.Contains(out, `height="1"`) {
 		t.Error("looks like a tracking pixel")
 	}
-	for _, want := range []string{"Mediarium</td>", "#34d1bf", "Open in Mediarium", "You can choose which emails you get", "<table"} {
+	for _, want := range []string{`alt="Mediarium"`, "#34d1bf", "Open in Mediarium", "You can choose which emails you get", "<table"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -165,14 +165,14 @@ func TestEmailHTMLLeavesOutWhatIsNotThere(t *testing.T) {
 	plain := titanic
 	plain.PosterURL, plain.LinkPath = "", ""
 	out := notify.RenderEmailHTML(notify.Compose("imported", plain, notify.Links{}, composeAt))
-	if strings.Contains(out, "<img") || strings.Contains(out, "Open in Mediarium") || strings.Contains(out, "open it") {
+	if strings.Count(out, "<img") != 1 || strings.Contains(out, "Open in Mediarium") || strings.Contains(out, "open it") {
 		t.Errorf("poster or links present without an address: %s", out)
 	}
 
 	unsafe := titanic
 	unsafe.PosterURL = "javascript:alert(1)"
 	out = notify.RenderEmailHTML(notify.Compose("imported", unsafe, notify.Links{}, composeAt))
-	if strings.Contains(out, "javascript:") || strings.Contains(out, "<img") {
+	if strings.Contains(out, "javascript:") || strings.Count(out, "<img") != 1 {
 		t.Errorf("an unsafe poster address got in: %s", out)
 	}
 
@@ -226,16 +226,33 @@ func TestEmailIsMultipartWithBothParts(t *testing.T) {
 	}
 	mr := multipart.NewReader(strings.NewReader(body), params["boundary"])
 	got := map[string]string{}
-	for {
-		p, err := mr.NextPart()
-		if err == io.EOF {
-			break
+	var readParts func(mr *multipart.Reader)
+	readParts = func(mr *multipart.Reader) {
+		for {
+			p, err := mr.NextPart()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			kind, pp, _ := mime.ParseMediaType(p.Header.Get("Content-Type"))
+			switch {
+			case kind == "multipart/related":
+				readParts(multipart.NewReader(p, pp["boundary"]))
+			case kind == "image/png":
+				raw, _ := io.ReadAll(p)
+				got["image/png"] = string(raw)
+				got["cid"] = p.Header.Get("Content-ID")
+			default:
+				b, _ := io.ReadAll(quotedprintable.NewReader(p))
+				got[kind] = string(b)
+			}
 		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, _ := io.ReadAll(quotedprintable.NewReader(p))
-		got[strings.SplitN(p.Header.Get("Content-Type"), ";", 2)[0]] = string(b)
+	}
+	readParts(mr)
+	if got["cid"] != "<mediarium-logo@mediarium>" || !strings.Contains(got["image/png"], "iVBOR") {
+		t.Errorf("the logo is not attached: cid %q", got["cid"])
 	}
 	if !strings.Contains(got["text/plain"], "Saved to:") || strings.Contains(got["text/plain"], "<table") {
 		t.Errorf("plain part wrong: %q", got["text/plain"])
@@ -345,4 +362,23 @@ func TestRichPayloadsPerChannel(t *testing.T) {
 			t.Errorf("webhook body %v", got)
 		}
 	})
+}
+
+func TestTestEmailLooksLikeARealOneAndSaysNothingWasDownloaded(t *testing.T) {
+	ev := notify.ComposeTestEmail(titanic, notify.Links{Base: "https://m.example.com"}, composeAt)
+	if ev.Type != "test" || ev.Title != "Mediarium test email" {
+		t.Fatalf("title/type: %q %q", ev.Title, ev.Type)
+	}
+	if !strings.Contains(ev.Lead, "Titanic (1997)") || !strings.Contains(ev.Lead, "Nothing was downloaded") {
+		t.Errorf("lead: %q", ev.Lead)
+	}
+	out := notify.RenderEmailHTML(ev)
+	if !strings.Contains(out, titanic.PosterURL) || !strings.Contains(out, "Sent") {
+		t.Errorf("poster or details missing: %s", out)
+	}
+	for _, d := range ev.Details {
+		if d.Label == "Quality" || d.Label == "Size" || d.Label == "Saved to" {
+			t.Errorf("a test email must not invent %q", d.Label)
+		}
+	}
 }

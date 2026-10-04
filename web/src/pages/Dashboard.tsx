@@ -23,6 +23,11 @@ function useCountUp(target: number, ms = 700): number {
   const [value, setValue] = useState(0)
   const from = useRef(0)
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      from.current = target
+      setValue(target)
+      return
+    }
     const start = performance.now()
     const begin = from.current
     let raf = 0
@@ -435,10 +440,11 @@ export default function Dashboard() {
           color="var(--c-music)"
           off={!on('music')}
         />
-        <ModuleCard icon="headphones" label="Audiobooks" to="/library" color="var(--c-rose)" soon />
-        <ModuleCard icon="book" label="Ebooks" to="/library" color="var(--c-wanted)" soon />
         <ServerInfoCard stats={server.stats} denied={server.denied} to={admin ? '/settings/system' : undefined} />
       </div>
+      <p className="dash-more">
+        <Link to="/stats">See statistics: quality, space and downloads by month</Link>
+      </p>
 
       {!empty && data.recentlyAdded.length > 0 && (
         <section className="rail">

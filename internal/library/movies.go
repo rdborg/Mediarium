@@ -163,15 +163,30 @@ type RecentItem struct {
 	Year       int
 	PosterPath string
 	AddedAt    string
+	// State is where the title stands: "downloaded", "downloading",
+	// "partial" (a show with some episodes), "missing" (monitored, waiting
+	// for a release) or "unmonitored".
+	State string
 }
 
 // RecentlyAdded returns the newest movies and series together, newest first.
 func (r *Repo) RecentlyAdded(limit int) ([]RecentItem, error) {
 	rows, err := r.db.Query(
-		`SELECT kind, id, tmdb_id, title, year, poster, added_at FROM (
-			SELECT 'movie' AS kind, id, tmdb_id, title, COALESCE(year, 0) AS year, COALESCE(poster_path, '') AS poster, added_at FROM movies
+		`SELECT kind, id, tmdb_id, title, year, poster, added_at, state FROM (
+			SELECT 'movie' AS kind, id, tmdb_id, title, COALESCE(year, 0) AS year, COALESCE(poster_path, '') AS poster, added_at,
+				CASE WHEN status IN ('downloaded', 'downloading') THEN status WHEN monitored = 0 THEN 'unmonitored' ELSE 'missing' END AS state
+			FROM movies
 			UNION ALL
-			SELECT 'series', id, tmdb_id, title, COALESCE(year, 0), COALESCE(poster_path, ''), added_at FROM series
+			SELECT 'series', s.id, s.tmdb_id, s.title, COALESCE(s.year, 0), COALESCE(s.poster_path, ''), s.added_at,
+				CASE
+					WHEN EXISTS (SELECT 1 FROM episodes e WHERE e.series_id = s.id AND e.status = 'downloading') THEN 'downloading'
+					WHEN (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id AND e.status = 'downloaded') > 0
+						AND NOT EXISTS (SELECT 1 FROM episodes e WHERE e.series_id = s.id AND e.season > 0 AND e.monitored = 1 AND e.status = 'missing') THEN 'downloaded'
+					WHEN (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id AND e.status = 'downloaded') > 0 THEN 'partial'
+					WHEN s.monitored = 0 THEN 'unmonitored'
+					ELSE 'missing'
+				END
+			FROM series s
 		) ORDER BY added_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list recently added: %w", err)
@@ -180,7 +195,7 @@ func (r *Repo) RecentlyAdded(limit int) ([]RecentItem, error) {
 	var out []RecentItem
 	for rows.Next() {
 		var it RecentItem
-		if err := rows.Scan(&it.Kind, &it.ID, &it.TMDBID, &it.Title, &it.Year, &it.PosterPath, &it.AddedAt); err != nil {
+		if err := rows.Scan(&it.Kind, &it.ID, &it.TMDBID, &it.Title, &it.Year, &it.PosterPath, &it.AddedAt, &it.State); err != nil {
 			return nil, fmt.Errorf("scan recently added: %w", err)
 		}
 		out = append(out, it)

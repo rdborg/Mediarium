@@ -1189,6 +1189,8 @@ export interface DashRecent {
   quality?: string
   sizeBytes?: number
   at: string
+  // Recently added only: downloaded, downloading, partial, missing or unmonitored.
+  state?: 'downloaded' | 'downloading' | 'partial' | 'missing' | 'unmonitored'
 }
 
 export interface DashboardData {

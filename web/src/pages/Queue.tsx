@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast'
 import { formatBytes, timeAgo } from '../format'
 import { useConfirm } from '../components/ConfirmProvider'
 import RecycleBin from '../components/RecycleBin'
+import { failureHelp } from '../failureHelp'
 import { useModules } from '../ModulesContext'
 import { bulkState, groupQueue, RUNNING, stateNote, statusLabel, stillWaiting } from '../queueView'
 import { useLive } from '../useLive'
@@ -58,6 +59,28 @@ interface RowProps {
 // One download. A separate component (not one made inside the page) so a
 // refresh every few seconds updates the row in place instead of building it
 // again, which is what made rows flicker and jump.
+// Why a download failed and what to try, folded away until asked for.
+function FailureTips({ q, link }: { q: QueueItem; link?: string | null }) {
+  const help = failureHelp(q.error, q.protocol)
+  if (!help) return null
+  return (
+    <details className="qhelp">
+      <summary>Why did this happen, and what can I do?</summary>
+      <p>{help.why}</p>
+      <ul>
+        {help.tips.map((t) => (
+          <li key={t}>{t}</li>
+        ))}
+      </ul>
+      {link && (
+        <p>
+          <Link to={link}>Open the title</Link> to choose another release yourself or change its quality profile.
+        </p>
+      )}
+    </details>
+  )
+}
+
 function QueueRow({ q, admin, busy, act, stop, remove }: RowProps) {
   const link = itemLink(q)
   const running = RUNNING.has(q.status)
@@ -91,6 +114,7 @@ function QueueRow({ q, admin, busy, act, stop, remove }: RowProps) {
         )}
         {note && <div className="qnote">{note}</div>}
         {q.error && <div className="error-text qerror">{q.error}</div>}
+        {q.status === 'failed' && <FailureTips q={q} link={link} />}
         {q.status === 'conflict' && q.destPath && <div className="qrelease">A file already exists at {q.destPath}</div>}
         {(q.status === 'completed' || q.status === 'failed' || q.status === 'stopped') && (
           <small className="qwhen">

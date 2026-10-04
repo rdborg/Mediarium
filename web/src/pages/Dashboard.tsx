@@ -238,6 +238,15 @@ function recentLink(r: DashRecent): string {
 
 // One row of posters that shows as many as fit the width, never a sideways
 // scrollbar: the row is a grid of equal columns and only the first row is kept.
+// Where a recently added title stands, on its poster.
+const RECENT_STATE: Record<NonNullable<DashRecent['state']>, string> = {
+  downloaded: 'In library',
+  downloading: 'Downloading',
+  partial: 'Some episodes',
+  missing: 'Waiting for a release',
+  unmonitored: 'Not monitored',
+}
+
 function RecentRow({ items }: { items: DashRecent[] }) {
   const row = useRef<HTMLDivElement>(null)
   const cols = useGridColumns(row, 6)
@@ -246,6 +255,7 @@ function RecentRow({ items }: { items: DashRecent[] }) {
       {items.slice(0, cols).map((r) => (
         <Link key={`${r.kind}-${r.id}`} className={`mini-poster kind-${r.kind === 'movie' ? 'movie' : r.kind === 'album' ? 'music' : 'tv'}`} to={recentLink(r)}>
           <span className="mini-art">{r.kind === 'album' ? <Cover src={r.posterUrl} /> : r.posterUrl ? <img src={r.posterUrl} alt="" loading="lazy" /> : <PosterFallback />}</span>
+          {r.state && <span className={`recent-state st-${r.state}`}>{RECENT_STATE[r.state]}</span>}
           <strong>{r.title}</strong>
           <small>
             {r.year || ''} {r.kind === 'series' ? '· TV' : r.kind === 'album' ? '· Music' : ''}
@@ -398,6 +408,12 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {!server.denied && (
+        <div className="server-strip">
+          <ServerInfoCard stats={server.stats} denied={server.denied} to={admin ? '/settings/system' : undefined} />
+        </div>
+      )}
+
       {admin && <DashboardUpdate />}
 
       {admin && !startedClosed && startedGaps.length > 0 && (
@@ -427,7 +443,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className={`dash-cards${server.denied ? ' no-server' : ''}`}>
+      <div className="dash-cards">
         <ModuleCard icon="film" label="Movies" value={lib.movies.total} sub={`${lib.movies.downloaded} downloaded · ${lib.movies.missing} missing`} to="/library?kind=movie" color="var(--c-movie)" off={!on('movies')} />
         <ModuleCard icon="tv" label="TV shows" value={lib.series.total} sub={`${lib.series.episodesDownloaded} of ${lib.series.episodes} episodes`} to="/library?kind=tv" color="var(--c-tv)" off={!on('tv')} />
         <ModuleCard
@@ -440,7 +456,6 @@ export default function Dashboard() {
           color="var(--c-music)"
           off={!on('music')}
         />
-        <ServerInfoCard stats={server.stats} denied={server.denied} to={admin ? '/settings/system' : undefined} />
       </div>
       <p className="dash-more">
         <Link to="/stats">See statistics: quality, space and downloads by month</Link>
@@ -507,6 +522,7 @@ export default function Dashboard() {
             <ul className="mini-list compact">
               {data.upcoming.map((e) => (
                 <li key={`${e.kind}-${e.id}`}>
+                  <Link className="mini-link" to={e.kind === 'movie' ? `/title/${e.tmdbId}` : e.kind === 'episode' ? `/series/${e.seriesId}` : `/music/artist/${e.artistId}`}>
                   <span className="date-chip">
                     <b>{new Date(`${e.releaseDate}T00:00:00`).getDate()}</b>
                     {new Date(`${e.releaseDate}T00:00:00`).toLocaleString(undefined, { month: 'short' })}
@@ -517,6 +533,7 @@ export default function Dashboard() {
                     {e.subtitle && <small className="qwhen">{e.subtitle.split(' · ')[0]}</small>}
                   </div>
                   <span className={`badge ${e.status}`}>{e.status === 'missing' ? 'Waiting' : e.status === 'downloaded' ? 'Have it' : e.status === 'downloading' ? 'Downloading' : e.status}</span>
+                  </Link>
                 </li>
               ))}
             </ul>

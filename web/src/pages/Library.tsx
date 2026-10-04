@@ -426,28 +426,29 @@ export default function Library() {
         <button className="icon-btn" onClick={() => setReverse(!reverse)} aria-pressed={reverse} title={reverse ? 'Reversed order. Click for the normal order.' : 'Reverse the order'} aria-label="Reverse the order">
           <Icon name="sort" size={16} />
         </button>
-        <span className="spacer" />
-        {admin && (
-          <button className={`btn-with-icon${selecting ? ' primary' : ''}`} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-            <Icon name="check" size={16} /> Select
-          </button>
-        )}
-        <div className="seg">
-          <button className={view === 'grid' ? 'active' : ''} onClick={() => chooseView('grid')} aria-label="Grid view">
-            <Icon name="grid" size={16} />
-          </button>
-          <button className={view === 'list' ? 'active' : ''} onClick={() => chooseView('list')} aria-label="List view">
-            <Icon name="list" size={16} />
+        <div className="toolbar-end">
+          {admin && (
+            <button className={`btn-with-icon${selecting ? ' primary' : ''}`} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+              <Icon name="check" size={16} /> Select
+            </button>
+          )}
+          <div className="seg">
+            <button className={view === 'grid' ? 'active' : ''} onClick={() => chooseView('grid')} aria-label="Grid view">
+              <Icon name="grid" size={16} />
+            </button>
+            <button className={view === 'list' ? 'active' : ''} onClick={() => chooseView('list')} aria-label="List view">
+              <Icon name="list" size={16} />
+            </button>
+          </div>
+          {admin && (
+            <button className="btn-with-icon" onClick={() => navigate(`/import?kind=${kind}`)}>
+              <Icon name="folder" size={16} /> Import
+            </button>
+          )}
+          <button className="primary btn-with-icon" onClick={() => navigate('/search')}>
+            <Icon name="plus" size={16} /> Add
           </button>
         </div>
-        {admin && (
-          <button className="btn-with-icon" onClick={() => navigate(`/import?kind=${kind}`)}>
-            <Icon name="folder" size={16} /> Import existing
-          </button>
-        )}
-        <button className="primary btn-with-icon" onClick={() => navigate('/search')}>
-          <Icon name="plus" size={16} /> Add new
-        </button>
       </div>
 
       <div className="chip-row" style={{ marginBottom: 18, alignItems: 'center' }}>

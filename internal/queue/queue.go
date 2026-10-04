@@ -417,6 +417,46 @@ func (r *Repo) Delete(id int64) error {
 	return nil
 }
 
+// ClearFailedForMovie removes the failed entries of a movie, other than
+// keep, once the movie has been downloaded another way: they no longer need
+// anyone's attention. It returns how many.
+func (r *Repo) ClearFailedForMovie(movieID, keep int64) (int64, error) {
+	res, err := r.db.Exec(`DELETE FROM download_queue WHERE movie_id = ? AND id <> ? AND status = 'failed'`, movieID, keep)
+	if err != nil {
+		return 0, fmt.Errorf("clear failed downloads of movie %d: %w", movieID, err)
+	}
+	return res.RowsAffected()
+}
+
+// ClearFailedForEpisodes removes the failed entries of a show, other than
+// keep, that were for one of the given episodes of season (a single-episode
+// download), once those episodes have been downloaded another way.
+func (r *Repo) ClearFailedForEpisodes(seriesID int64, season int, episodes []int, keep int64) (int64, error) {
+	var n int64
+	for _, ep := range episodes {
+		res, err := r.db.Exec(`DELETE FROM download_queue WHERE series_id = ? AND season = ? AND episode = ? AND id <> ? AND status = 'failed'`, seriesID, season, ep, keep)
+		if err != nil {
+			return n, fmt.Errorf("clear failed downloads of series %d: %w", seriesID, err)
+		}
+		c, _ := res.RowsAffected()
+		n += c
+	}
+	return n, nil
+}
+
+// ClearSettledFailures removes failed entries of a movie that a later
+// download of the same movie completed, so old failures that no longer need
+// attention leave the queue. It returns how many.
+func (r *Repo) ClearSettledFailures() (int64, error) {
+	res, err := r.db.Exec(`DELETE FROM download_queue WHERE status = 'failed' AND movie_id IS NOT NULL AND EXISTS (
+		SELECT 1 FROM download_queue c WHERE c.movie_id = download_queue.movie_id AND c.status = 'completed'
+		AND c.completed_at IS NOT NULL AND c.completed_at > COALESCE(download_queue.completed_at, download_queue.added_at))`)
+	if err != nil {
+		return 0, fmt.Errorf("clear settled failures: %w", err)
+	}
+	return res.RowsAffected()
+}
+
 // ClearFinished removes every completed, failed and stopped entry and returns
 // how many.
 func (r *Repo) ClearFinished() (int64, error) {

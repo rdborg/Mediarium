@@ -2652,3 +2652,38 @@ tr.is-default > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .rename-list { display: grid; gap: 6px; max-height: 420px; overflow: auto; margin-top: 10px; }
 .rename-row { display: flex; gap: 10px; align-items: flex-start; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
 .rename-row small { display: block; color: var(--text-dim); word-break: break-all; }
+
+/* Dashboard "Coming up": each line opens its title */
+.mini-list .mini-link { display: flex; align-items: center; gap: inherit; flex: 1; min-width: 0; color: inherit; text-decoration: none; border-radius: 10px; }
+.mini-list .mini-link:hover strong { color: var(--accent); }
+
+/* Library: Select, view, Import and Add stay together at the end of the row */
+.toolbar-end { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: nowrap; }
+@media (max-width: 700px) { .toolbar-end { margin-left: 0; flex-wrap: wrap; } }
+
+/* Activity: why a download failed, and what to try */
+.qhelp { margin-top: 6px; font-size: 0.88rem; }
+.qhelp summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.qhelp p, .qhelp ul { margin: 6px 0; color: var(--text); }
+.qhelp ul { padding-left: 1.3em; }
+.qhelp li { margin-bottom: 4px; }
+
+/* Dashboard: the server card is a full-width strip under the greeting, with
+   a fixed height so changing numbers never make the page jump; the module
+   cards get the whole row. */
+.server-strip { margin: 0 0 18px; }
+.server-strip .info-card { min-height: 0; }
+.server-strip .info-summary { display: flex; align-items: center; gap: 18px 28px; flex-wrap: wrap; min-height: 64px; }
+.server-strip .info-head { margin: 0; flex: none; }
+.server-strip .info-rows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 28px; flex: 1 1 520px; min-width: 0; }
+.server-strip .info-row { min-width: 0; }
+.server-strip .info-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.dash-cards { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+@media (max-width: 760px) { .server-strip .info-rows { grid-template-columns: 1fr; } }
+/* Recently added: where each title stands */
+.mini-poster { position: relative; }
+.recent-state { position: absolute; top: 6px; left: 6px; right: 6px; z-index: 1; padding: 2px 7px; border-radius: 99px; font-size: 0.68rem; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(10, 12, 16, 0.82); color: #e8ecf1; border: 1px solid rgba(255, 255, 255, 0.18); }
+.recent-state.st-downloaded { background: rgba(22, 101, 52, 0.9); border-color: #22c55e; }
+.recent-state.st-downloading { background: rgba(30, 64, 175, 0.9); border-color: #60a5fa; }
+.recent-state.st-partial { background: rgba(14, 116, 144, 0.9); border-color: #22d3ee; }
+.recent-state.st-missing { background: rgba(146, 64, 14, 0.9); border-color: #f59e0b; }

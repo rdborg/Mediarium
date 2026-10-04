@@ -274,6 +274,14 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		return fail(err)
 	}
 	s.cleanupWorkDir(dir, protocol)
+	// Earlier failed tries for the episodes this delivered are settled now.
+	bySeason := map[int][]int{}
+	for _, ep := range importedEps {
+		bySeason[ep.Season] = append(bySeason[ep.Season], ep.Episode)
+	}
+	for sn, eps := range bySeason {
+		_, _ = s.QueueRepo.ClearFailedForEpisodes(series.ID, sn, eps, queueID)
+	}
 	s.autoSubtitlesFor(subtitleItems...)
 	message := fmt.Sprintf("%s: imported %s from %s", series.Title, plural(imported, "episode"), releaseTitle)
 	_ = s.QueueRepo.LogSeriesActivity(series.ID, "imported", message)

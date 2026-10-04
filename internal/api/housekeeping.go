@@ -230,6 +230,7 @@ func (s *Server) runCleanup(now time.Time) cleanupResult {
 	}
 
 	s.pruneProblems(now)
+	_, _ = s.QueueRepo.ClearSettledFailures()
 
 	if n, freed, errs := s.purgeTrash(now); n > 0 || len(errs) > 0 {
 		res.Errors = append(res.Errors, errs...)

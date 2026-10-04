@@ -86,13 +86,10 @@ func TestBadReleaseIsBlocklistedAndNextBestIsTried(t *testing.T) {
 	server.TestHunt(context.Background())
 
 	// The Bluray dud fails, gets blocklisted, and the WEB-DL is tried next.
-	queueItems := waitForQueue(t, client, httpSrv.URL, 2)
-	statuses := map[string]string{}
-	for _, it := range queueItems {
-		statuses[it["releaseTitle"].(string)] = it["status"].(string)
-	}
-	if statuses[badRelease] != "failed" || statuses[goodRelease] != "completed" {
-		t.Fatalf("expected the dud to fail and the next-best to complete, got %v", statuses)
+	// Once the WEB-DL is in, the dud's failed entry is settled and leaves the queue.
+	queueItems := waitForQueue(t, client, httpSrv.URL, 1)
+	if len(queueItems) != 1 || queueItems[0]["releaseTitle"] != goodRelease || queueItems[0]["status"] != "completed" {
+		t.Fatalf("expected only the next-best, completed, got %v", queueItems)
 	}
 	movies := getJSON[[]map[string]any](t, client, httpSrv.URL+"/api/movies")
 	if len(movies) != 1 || movies[0]["status"] != "downloaded" || movies[0]["quality"] != "WEBDL-1080p" {

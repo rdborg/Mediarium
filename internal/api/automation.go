@@ -27,6 +27,7 @@ const (
 // is constructed.
 func (s *Server) StartAutomation() *automation.Scheduler {
 	s.applySpeedLimit(time.Now())
+	_, _ = s.QueueRepo.ClearSettledFailures()
 	if s.cfg.PauseAutomation {
 		log.Print("Safe mode: MEDIARIUM_PAUSE_AUTOMATION is set, so automatic searching, downloading and refreshing are switched off until you remove it.")
 		return automation.NewScheduler()

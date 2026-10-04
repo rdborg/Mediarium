@@ -1,5 +1,9 @@
 # Activity per title, pausing downloads, one download at a time, retries
 
+## When a download fails
+
+A failed download stays in the Queue tab with the reason. **Why did this happen, and what can I do?** under it explains the reason in plain words and lists what to try. For a release that is no longer complete on your Usenet provider (the most common failure), that is: **Blocklist & search again** to try the next release (automatic searching does this by itself), a quality profile that accepts more qualities so there are more releases to pick from, and a second Usenet provider from a different company. Once the movie or episode has been downloaded another way, its earlier failed tries are removed from the list by themselves.
+
 ## Import a file by hand
 
 **Activity > Import a file by hand** (administrators) lists the video files in the downloads folder, biggest first, with what each file's name suggests ("looks like Heat (1995)", the quality). For each one, choose **Movie** or **Episode**, pick the title from your library (the best guess is already chosen when the name matches), and for an episode the season and episode number, then press **Import**. Mediarium names the file and puts it in your library as it does for a download, marks the title as downloaded and tells your media server. The title must already be in your library. A file already at the destination is never overwritten. The copy left in the downloads folder is removed by the daily clean-up. Files smaller than 20 MB (samples, extras) and hidden folders are not listed. Scripts: `GET /api/manual-import` and `POST /api/manual-import` with `{"path": "...", "movieId": 12}` or `{"path": "...", "seriesId": 4, "season": 2, "episode": 5}` (the path is relative to the downloads folder).

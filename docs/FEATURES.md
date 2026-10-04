@@ -2,7 +2,7 @@
 
 A plain comparison of what Mediarium does **today** against the apps it can replace or sit beside, written from the source code.
 
-- **Snapshot:** 2026-10-04, version 1.4.0 (database migrations up to `0033`; see the [changelog](../CHANGELOG.md)). Read every "No" as "not found when this was written". If it matters to you, look in `internal/` and `web/src/pages`.
+- **Snapshot:** 2026-10-04, version 1.4.1 (database migrations up to `0033`; see the [changelog](../CHANGELOG.md)). Read every "No" as "not found when this was written". If it matters to you, look in `internal/` and `web/src/pages`.
 - **How each row was judged:** Yes = implemented and reachable in the UI or API. Partial = something real exists but it is narrower than the reference app. No = not found. The evidence is a package, file or endpoint you can open.
 - **Reference apps** are described from general knowledge of those projects and may be out of date for their newest versions. Uncertain claims are worded loosely or left out.
 - Abbreviations: **Rad** Radarr, **Son** Sonarr, **Lid** Lidarr, **Pro** Prowlarr, **Sab** SABnzbd, **qB** qBittorrent, **Baz** Bazarr.

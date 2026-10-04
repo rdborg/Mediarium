@@ -1,7 +1,7 @@
 // Run with: npm test
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, mock, test } from 'node:test'
-import { isBusy, noteBusy, noteFine, resetBusy, SLOW_MS, startRead, subscribe } from './busyState.ts'
+import { isBusy, markHidden, noteBusy, noteFine, resetBusy, SLOW_MS, startRead, subscribe } from './busyState.ts'
 
 beforeEach(() => {
   resetBusy()
@@ -64,4 +64,13 @@ test('a normal answer changes nothing when the app was not busy', () => {
   noteFine()
   off()
   assert.equal(calls, 0)
+})
+
+test('a read that waited while the page was out of sight does not count as slow', () => {
+  const end = startRead()
+  mock.timers.tick(1000)
+  markHidden()
+  mock.timers.tick(SLOW_MS)
+  assert.equal(isBusy(), false)
+  end()
 })

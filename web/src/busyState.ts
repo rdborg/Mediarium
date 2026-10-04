@@ -28,10 +28,34 @@ export function isBusy(now: number = Date.now()): boolean {
   return slowReads > 0 || now < busyUntil
 }
 
+// When the page was last hidden (another tab, a phone screen going off). A
+// read that was waiting while the page was hidden is not "slow": the browser
+// may simply have paused it.
+let lastHidden = -1
+
+// The page went out of sight now (exported for tests).
+export function markHidden(now: number = Date.now()) {
+  lastHidden = now
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') markHidden()
+  })
+}
+
+function pageWasAway(since: number, now: number): boolean {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return true
+  // A timer that fires far too late means the device was asleep.
+  return lastHidden >= since || now - since > SLOW_MS * 2
+}
+
 // Call when a read starts; call the returned function when it ends, however it ends.
 export function startRead(): () => void {
   let slow = false
+  const started = Date.now()
   const timer = setTimeout(() => {
+    if (pageWasAway(started, Date.now())) return
     slow = true
     slowReads++
     emit()
@@ -65,6 +89,7 @@ export function noteFine() {
 // For tests: forget everything.
 export function resetBusy() {
   slowReads = 0
+  lastHidden = -1
   busyUntil = 0
   clearTimeout(expiry)
   listeners.clear()

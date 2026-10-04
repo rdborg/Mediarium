@@ -152,6 +152,8 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 		return fail(err)
 	}
 	s.cleanupWorkDir(incompleteDir, protocol)
+	// Earlier failed tries for this movie are settled now.
+	_, _ = s.QueueRepo.ClearFailedForMovie(movieID, queueID)
 	importedMessage := fmt.Sprintf("%s imported to %s", movieTitle, result.DestPath)
 	_ = s.QueueRepo.LogActivity(movieID, "imported", importedMessage)
 	importedItem := s.movieItemByID(movieID, movieTitle, movieYear, tmdbID)

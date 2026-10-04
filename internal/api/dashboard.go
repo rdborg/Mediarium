@@ -133,6 +133,8 @@ type dashRecent struct {
 	Quality   string `json:"quality,omitempty"`
 	SizeBytes int64  `json:"sizeBytes,omitempty"`
 	At        string `json:"at"`
+	// State (recently added only): downloaded, downloading, partial, missing or unmonitored.
+	State string `json:"state,omitempty"`
 }
 
 type dashQuality struct {
@@ -310,7 +312,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	out.RecentlyAdded = []dashRecent{}
 	if recent, err := s.MovieRepo.RecentlyAdded(12); err == nil {
 		for _, it := range recent {
-			d := dashRecent{Kind: it.Kind, ID: it.ID, Title: it.Title, Year: it.Year, PosterURL: metadata.PosterURL(it.PosterPath), At: it.AddedAt}
+			d := dashRecent{Kind: it.Kind, ID: it.ID, Title: it.Title, Year: it.Year, PosterURL: metadata.PosterURL(it.PosterPath), At: it.AddedAt, State: it.State}
 			if it.Kind == "movie" {
 				d.TMDBID = it.TMDBID
 			} else {

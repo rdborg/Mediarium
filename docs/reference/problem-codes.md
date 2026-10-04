@@ -59,6 +59,7 @@ Every problem on Settings > System > Logs and errors has one of these codes. The
 | `disk.full` | error | **The disk is full.** There isn't enough free space. | Free up some space, or run Clean up in Settings > System. Then retry in Activity. | `/settings/system` |
 | `folder.permission_denied` | error | **Mediarium may not write to a folder.** The system refused access to a folder. | Give the PUID and PGID user read and write access to the folder. On a Synology, check the shared folder's permissions. | `/settings/media` |
 | `folder.missing` | error | **A folder is missing.** A folder Mediarium needs isn't there. | Create the folder, or check its drive is connected and mounted. | `/settings/media` |
+| `disk.low` | warning | **Downloads are waiting: the disk is nearly full.** The downloads folder has less free space than the limit you set, so no new download starts. | Free some space, or lower "Keep at least this much free" in Settings > Downloading. Waiting downloads start by themselves once there is room. | `/settings/downloads` |
 
 ## Database
 
@@ -91,4 +92,5 @@ Every problem on Settings > System > Logs and errors has one of these codes. The
 
 | Code | Level | What it means | What to try | Where |
 |---|---|---|---|---|
+| `backup.failed` | error | **The nightly backup was not saved.** Mediarium couldn't save its automatic backup in the backups folder. | Check that the config folder has free space, then press Back up now in Settings > System. | `/settings/system` |
 | `app.restarted_itself` | warning | **Mediarium restarted itself.** It stopped answering for a few minutes. | If it repeats, copy the report for support. Check the settings folder is on a local disk and the NAS has memory to spare. | `/settings/system` |

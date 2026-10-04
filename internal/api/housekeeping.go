@@ -47,7 +47,7 @@ func (s *Server) downloadsArea() cleanup.Area {
 	return cleanup.Area{
 		Base:      s.downloadsRoot(),
 		Work:      s.downloadsIncompleteDir(),
-		Protected: []string{s.moviesRoot(), s.tvRoot(), s.musicRoot()},
+		Protected: append(append(s.movieRoots(), s.tvRoots()...), s.musicRoot()),
 	}
 }
 
@@ -231,6 +231,13 @@ func (s *Server) runCleanup(now time.Time) cleanupResult {
 
 	s.pruneProblems(now)
 
+	if n, freed, errs := s.purgeTrash(now); n > 0 || len(errs) > 0 {
+		res.Errors = append(res.Errors, errs...)
+		if n > 0 {
+			_ = s.QueueRepo.LogActivity(0, "cleanup", fmt.Sprintf("Emptied %s from the recycle bin (older than %d days) and freed %s", plural(n, "item"), s.trashDays(), humanBytes(freed)))
+		}
+	}
+
 	_ = s.Settings.Set(settings.KeyCleanupLastRunAt, now.UTC().Format(time.RFC3339), false)
 	if len(removed) > 0 {
 		_ = s.QueueRepo.LogActivity(0, "cleanup", fmt.Sprintf("Clean-up removed %s from the downloads folder and freed %s", plural(len(removed), "item"), humanBytes(res.RemovedBytes)))
@@ -273,6 +280,7 @@ type cleanupStatusPayload struct {
 	LastRunAt            string               `json:"lastRunAt,omitempty"`
 	Auto                 bool                 `json:"auto"`
 	HistoryRetentionDays int                  `json:"historyRetentionDays"`
+	TrashDays            int                  `json:"trashDays"`
 }
 
 // handleCleanupStatus lists what clean-up would remove from the downloads
@@ -284,7 +292,7 @@ func (s *Server) handleCleanupStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	out := cleanupStatusPayload{Items: toCleanupItems(items), Auto: s.cleanupAutoEnabled(), HistoryRetentionDays: s.historyRetentionDays()}
+	out := cleanupStatusPayload{Items: toCleanupItems(items), Auto: s.cleanupAutoEnabled(), HistoryRetentionDays: s.historyRetentionDays(), TrashDays: s.trashDays()}
 	for _, it := range items {
 		out.ReclaimableBytes += it.SizeBytes
 	}

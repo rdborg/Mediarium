@@ -468,7 +468,7 @@ func (s *Server) removeArtist(id int64, deleteFiles bool) (string, error) {
 		return artist.Name, &removeProblem{http.StatusInternalServerError, err.Error()}
 	}
 	for _, f := range folders {
-		if _, err := cleanup.RemoveFolder(root, f); err != nil {
+		if _, err := s.discardFolder(root, f, artist.Name+" - "+filepath.Base(f)); err != nil {
 			return artist.Name, &removeProblem{http.StatusInternalServerError, err.Error()}
 		}
 		cleanup.PruneEmptyFolders(root, filepath.Dir(f)) // the artist folder, once empty

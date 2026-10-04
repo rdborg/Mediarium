@@ -36,7 +36,7 @@ func newBudgetIndexer(t *testing.T, movies int) (srv *httptest.Server, release f
 		var b strings.Builder
 		b.WriteString(`<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>`)
 		for i := 1; i <= movies; i++ {
-			fmt.Fprintf(&b, `<item><title>Budget.Movie.%03d.2000.1080p.WEB-DL.x264-GRP</title><guid>b%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="1000" type="application/x-nzb"/><newznab:attr name="size" value="1000"/><newznab:attr name="category" value="2000"/></item>`, i, i, r.Host, i)
+			fmt.Fprintf(&b, `<item><title>Budget.Movie.%03d.2000.1080p.WEB-DL.x264-GRP</title><guid>b%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="21474836480" type="application/x-nzb"/><newznab:attr name="size" value="21474836480"/><newznab:attr name="category" value="2000"/></item>`, i, i, r.Host, i)
 		}
 		b.WriteString(`</channel></rss>`)
 		fmt.Fprint(w, b.String())

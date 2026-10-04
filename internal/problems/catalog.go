@@ -105,6 +105,8 @@ const (
 	CodeUpdateInstallFailed  = "update.install_failed"
 	CodeAppRestartedItself   = "app.restarted_itself"
 	CodeSubtitlesRateLimited = "subtitles.rate_limited"
+	CodeBackupFailed         = "backup.failed"
+	CodeDiskLow              = "disk.low"
 )
 
 // Help is the plain-language help for one code.
@@ -288,6 +290,16 @@ var catalog = []Help{
 		"A message couldn't be delivered to one of your notification targets.",
 		"Press Test on the target in Settings > Connections > Notifications.",
 		"Open notifications", pathNotify},
+	{CodeDiskLow, LevelWarning, AreaDisk,
+		"Downloads are waiting: the disk is nearly full",
+		"The downloads folder has less free space than the limit you set, so no new download starts.",
+		"Free some space, or lower \"Keep at least this much free\" in Settings > Downloading. Waiting downloads start by themselves once there is room.",
+		"Open Downloading settings", pathDownloads},
+	{CodeBackupFailed, LevelError, AreaSystem,
+		"The nightly backup was not saved",
+		"Mediarium couldn't save its automatic backup in the backups folder.",
+		"Check that the config folder has free space, then press Back up now in Settings > System.",
+		"Open System settings", pathSystem},
 	{CodeUpdateCheckFailed, LevelWarning, AreaUpdates,
 		"Could not check for updates",
 		"Mediarium couldn't check for a new version.",

@@ -149,6 +149,13 @@ func pickTVResultFor(results []indexers.Result, series library.Series, season, e
 		} else if !profile.IsUpgradeOverTier(*current, rel) {
 			continue
 		}
+		eps := len(rel.Episodes)
+		if eps == 0 {
+			eps = quality.SeasonPack
+		}
+		if !quality.SizePlausible(quality.Classify(rel), results[i].SizeBytes, eps) || !profile.SizeAllowed(results[i].SizeBytes) {
+			continue
+		}
 		key := pickKey{profile.LanguageRank(rel), quality.Rank(quality.Classify(rel)), profile.Score(results[i].Title)}
 		if best == nil || key.above(bestKey) || (key == bestKey && preferUsenet(best, &results[i])) {
 			bestKey = key

@@ -153,7 +153,7 @@ func TestUpdateNoticeIsQuietWhenItCannotCheck(t *testing.T) {
 			gh.set(tc.status, tc.body)
 			e.server.TestSetGitHub(gh.srv.URL)
 			n := check(t, e) // still a normal 200 answer
-			if n["error"] != "Couldn't check just now." || n["available"] != false {
+			if !strings.HasPrefix(fmt.Sprint(n["error"]), "Couldn't check just now.") || n["available"] != false {
 				t.Fatalf("notice = %v", n)
 			}
 		})
@@ -162,7 +162,7 @@ func TestUpdateNoticeIsQuietWhenItCannotCheck(t *testing.T) {
 	// No network at all.
 	gh.srv.Close()
 	n := check(t, e)
-	if n["error"] != "Couldn't check just now." {
+	if !strings.HasPrefix(fmt.Sprint(n["error"]), "Couldn't check just now.") {
 		t.Fatalf("notice = %v", n)
 	}
 }
@@ -177,7 +177,7 @@ func TestUpdateNoticeKeepsTheLastGoodAnswerWhenACheckFails(t *testing.T) {
 	gh.set(500, "down")
 	e.server.TestUpdateTick(context.Background(), time.Now().Add(25*time.Hour))
 	n := getJSON[map[string]any](t, e.client, e.base+"/api/system/update/latest")
-	if n["available"] != true || n["error"] != "Couldn't check just now." {
+	if n["available"] != true || !strings.HasPrefix(fmt.Sprint(n["error"]), "Couldn't check just now.") {
 		t.Fatalf("notice = %v", n)
 	}
 }

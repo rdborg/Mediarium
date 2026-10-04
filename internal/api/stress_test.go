@@ -103,7 +103,7 @@ func newStressIndexer(t *testing.T, releases int) *httptest.Server {
 		var b strings.Builder
 		b.WriteString(`<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>`)
 		for i := 0; i < releases; i++ {
-			fmt.Fprintf(&b, `<item><title>Grab.Movie.%03d.2000.1080p.WEB-DL.x264-GRP</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="1000" type="application/x-nzb"/><newznab:attr name="size" value="1000"/><newznab:attr name="category" value="2000"/></item>`,
+			fmt.Fprintf(&b, `<item><title>Grab.Movie.%03d.2000.1080p.WEB-DL.x264-GRP</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="21474836480" type="application/x-nzb"/><newznab:attr name="size" value="21474836480"/><newznab:attr name="category" value="2000"/></item>`,
 				i+1, i, r.Host, i)
 		}
 		b.WriteString(`</channel></rss>`)

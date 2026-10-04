@@ -59,6 +59,10 @@ function SeriesPage() {
   const [grabbing, setGrabbing] = useState<string | null>(null)
   const [searchingNow, setSearchingNow] = useState(false)
   const [subsOpen, setSubsOpen] = useState<number | null>(null)
+  // Which seasons are open (unset: only the one that needs attention), and the
+  // "Missing episodes only" switch.
+  const [openSeasons, setOpenSeasons] = useState<Record<number, boolean>>({})
+  const [missingOnly, setMissingOnly] = useState(false)
   const toast = useToast()
 
   const load = useCallback(() => {
@@ -205,6 +209,15 @@ function SeriesPage() {
   if (!series) return loadError || error ? <p className="error-text">{loadError || error}</p> : <p>Loading…</p>
 
   const today = new Date().toISOString().slice(0, 10)
+  const isMissing = (e: { status: string; airDate?: string }) => e.status === 'missing' && !!e.airDate && e.airDate <= today
+  // The next episode still to air, for the facts at the top.
+  const next = series.episodes.filter((e) => e.airDate && e.airDate >= today).sort((a, b) => (a.airDate! < b.airDate! ? -1 : 1))[0]
+  const nextText = next ? `S${String(next.season).padStart(2, '0')}E${String(next.episode).padStart(2, '0')} on ${new Date(next.airDate + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''
+  // Seasons start folded, except the one that needs attention: the latest with
+  // missing episodes, or else the latest season.
+  const attention = [...seasons].reverse().find(([, eps]) => eps.some(isMissing))?.[0] ?? seasons[seasons.length - 1]?.[0]
+  const isOpen = (season: number) => openSeasons[season] ?? season === attention
+  const shownSeasons = missingOnly ? seasons.filter(([, eps]) => eps.some(isMissing)) : seasons
 
   return (
     <div>
@@ -217,7 +230,11 @@ function SeriesPage() {
           posterUrl: series.posterUrl,
           overview: series.overview,
           certification: tv?.contentRating,
-          facts: [{ label: 'Episodes', value: `${series.downloadedCount} of ${series.episodeCount} downloaded` }, ...(tv?.networks?.length ? [{ label: 'Network', value: tv.networks.join(', ') }] : [])],
+          facts: [
+            { label: 'Episodes', value: `${series.downloadedCount} of ${series.episodeCount} downloaded` },
+            ...(nextText ? [{ label: 'Next episode', value: nextText }] : []),
+            ...(tv?.networks?.length ? [{ label: 'Network', value: tv.networks.join(', ') }] : []),
+          ],
         }}
         actions={
           <>
@@ -256,26 +273,64 @@ function SeriesPage() {
         </section>
       )}
 
-      {seasons.map(([season, eps]) => {
-        const done = eps.filter((e) => e.status === 'downloaded').length
+      {seasons.length > 0 && (
+        <div className="season-bar">
+          <div className="chip-row" role="group" aria-label="Seasons">
+            {seasons.map(([season, eps]) => (
+              <button
+                key={season}
+                className={`chip${isOpen(season) ? ' active' : ''}`}
+                onClick={() => {
+                  setOpenSeasons((o) => ({ ...o, [season]: true }))
+                  requestAnimationFrame(() => document.getElementById(`season-${season}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+                }}
+              >
+                {season === 0 ? 'Specials' : `Season ${season}`}
+                {eps.some(isMissing) && <span className="dot-missing" aria-label="has missing episodes" />}
+              </button>
+            ))}
+          </div>
+          <div className="season-bar-actions">
+            <label className="inline-field">
+              <input type="checkbox" checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)} />
+              Missing episodes only
+            </label>
+            <button className="btn-sm" onClick={() => setOpenSeasons(Object.fromEntries(seasons.map(([s]) => [s, true])))}>
+              Open all
+            </button>
+            <button className="btn-sm" onClick={() => setOpenSeasons(Object.fromEntries(seasons.map(([s]) => [s, false])))}>
+              Close all
+            </button>
+          </div>
+        </div>
+      )}
+      {missingOnly && shownSeasons.length === 0 && <p style={{ color: 'var(--text-dim)' }}>No episodes that have aired are missing.</p>}
+
+      {shownSeasons.map(([season, allEps]) => {
+        const eps = missingOnly ? allEps.filter(isMissing) : allEps
+        const done = allEps.filter((e) => e.status === 'downloaded').length
+        const open = missingOnly || isOpen(season)
         return (
-          <section key={season} style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <h2 style={{ margin: 0 }}>Season {season}</h2>
-              <span className={`badge ${done === eps.length ? 'downloaded' : 'missing'}`}>
-                {done} / {eps.length}
+          <section key={season} id={`season-${season}`} style={{ marginBottom: open ? 28 : 12, scrollMarginTop: 80 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button className="season-toggle" aria-expanded={open} onClick={() => setOpenSeasons((o) => ({ ...o, [season]: !open }))}>
+                <Icon name={open ? 'chevron-down' : 'chevron-right'} size={18} />
+                <h2 style={{ margin: 0 }}>{season === 0 ? 'Specials' : `Season ${season}`}</h2>
+              </button>
+              <span className={`badge ${done === allEps.length ? 'downloaded' : 'missing'}`}>
+                {done} / {allEps.length}
               </span>
               <button onClick={() => runSearch({ season, label: `Season ${season} (packs)` })}>Search season</button>
               <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
                 <input
                   type="checkbox"
-                  checked={eps.every((e) => e.monitored)}
+                  checked={allEps.every((e) => e.monitored)}
                   onChange={(e) => toggleSeason(season, e.target.checked)}
                 />
                 Monitored
               </label>
             </div>
-            <table style={{ marginTop: 8 }}>
+            {open && <table style={{ marginTop: 8 }}>
               <thead>
                 <tr>
                   <th style={{ width: 32 }}></th>
@@ -336,7 +391,7 @@ function SeriesPage() {
                 })}
 
               </tbody>
-            </table>
+            </table>}
           </section>
         )
       })}

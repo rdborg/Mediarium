@@ -52,7 +52,7 @@ func TestRemovalLineSaysWhatHappenedToTheFiles(t *testing.T) {
 	if code := deleteReq(t, client, movieURL(goneID)+"?deleteFiles=true"); code != http.StatusOK {
 		t.Fatalf("delete status %d", code)
 	}
-	if got, want := removalLine(t, server, "Gone"), "Gone removed from library. Its files were deleted (3 files, 1 folder)."; got != want {
+	if got, want := removalLine(t, server, "Gone"), "Gone removed from library. Its files were moved to the recycle bin (3 files, 1 folder)."; got != want {
 		t.Errorf("deleted: %q, want %q", got, want)
 	}
 
@@ -81,7 +81,7 @@ func TestRemovalLineSaysWhatHappenedToTheFiles(t *testing.T) {
 	}
 	postJSON[map[string]any](t, client, base+"/api/library/bulk/remove", map[string]any{"items": items(bulkID), "deleteFiles": true}, http.StatusOK)
 	postJSON[map[string]any](t, client, base+"/api/library/bulk/remove", map[string]any{"items": items(bulkKeepID)}, http.StatusOK)
-	if got, want := removalLine(t, server, "Bulk"), "Bulk removed from library. Its files were deleted (1 file, 1 folder)."; got != want {
+	if got, want := removalLine(t, server, "Bulk"), "Bulk removed from library. Its files were moved to the recycle bin (1 file, 1 folder)."; got != want {
 		t.Errorf("bulk deleted: %q, want %q", got, want)
 	}
 	if got, want := removalLine(t, server, "Bulk Keep"), "Bulk Keep removed from library. Its files were kept (1 file)."; got != want {

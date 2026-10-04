@@ -2,6 +2,7 @@ package notify
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html"
 	"mime"
@@ -61,38 +62,35 @@ func RenderEmailHTML(ev Event) string {
 	// The preview line some clients show next to the subject.
 	b.WriteString(`<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">` + e(ev.Lead) + `</div>`)
 	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:` + mailPaper + `;"><tr><td align="center" style="padding:24px 12px;">`)
-	b.WriteString(`<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#ffffff;border:1px solid ` + mailBorder + `;border-radius:10px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:` + mailInk + `;">`)
+	b.WriteString(`<table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:100%;max-width:680px;background:#ffffff;border:1px solid ` + mailBorder + `;border-radius:12px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:` + mailInk + `;">`)
 
-	// Header: the wordmark on the brand teal.
-	b.WriteString(`<tr><td style="background:` + brandTeal + `;padding:16px 24px;font-size:20px;font-weight:700;letter-spacing:.2px;color:` + brandDark + `;">Mediarium</td></tr>`)
-	b.WriteString(`<tr><td style="height:3px;line-height:3px;font-size:0;background:` + accent + `;">&nbsp;</td></tr>`)
+	// Header: the full Mediarium logo (sent inside the email, so nothing is
+	// fetched from anywhere) over a stripe in the colour of the message.
+	b.WriteString(`<tr><td style="padding:22px 32px 18px 32px;background:#ffffff;"><img src="cid:` + logoCID + `" width="200" alt="Mediarium" style="display:block;width:200px;height:auto;border:0;"></td></tr>`)
+	b.WriteString(`<tr><td style="height:4px;line-height:4px;font-size:0;background:` + accent + `;">&nbsp;</td></tr>`)
 
-	// Subject, poster and sentence.
-	b.WriteString(`<tr><td style="padding:24px 24px 8px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>`)
-	if poster := httpsURL(ev.PosterURL); poster != "" {
-		b.WriteString(`<td width="96" valign="top" style="padding-right:16px;width:96px;"><img src="` + e(poster) + `" width="96" alt="" style="display:block;width:96px;height:auto;border-radius:6px;border:0;"></td>`)
+	// Body: the poster on one half, the words and the facts stacked on the other.
+	b.WriteString(`<tr><td style="padding:28px 32px 8px 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>`)
+	poster := httpsURL(ev.PosterURL)
+	if poster != "" {
+		b.WriteString(`<td width="300" valign="top" style="width:300px;padding-right:28px;"><img src="` + e(poster) + `" width="300" alt="" style="display:block;width:100%;max-width:300px;height:auto;border-radius:10px;border:0;"></td>`)
 	}
-	b.WriteString(`<td valign="top"><h1 style="margin:0 0 8px 0;font-size:20px;line-height:1.3;font-weight:700;color:` + mailInk + `;">` + e(ev.Title) + `</h1>`)
-	b.WriteString(`<p style="margin:0;font-size:15px;line-height:1.5;color:` + mailInk + `;">` + e(ev.Lead) + `</p></td>`)
-	b.WriteString(`</tr></table></td></tr>`)
-
-	// The details table.
-	if len(ev.Details) > 0 {
-		b.WriteString(`<tr><td style="padding:12px 24px 8px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ` + mailBorder + `;">`)
-		for _, d := range ev.Details {
-			b.WriteString(`<tr><td valign="top" style="padding:8px 12px 8px 0;width:110px;font-size:13px;color:` + mailMuted + `;border-bottom:1px solid ` + mailBorder + `;">` + e(d.Label) + `</td>`)
-			b.WriteString(`<td valign="top" style="padding:8px 0;font-size:14px;color:` + mailInk + `;border-bottom:1px solid ` + mailBorder + `;word-break:break-word;">` + e(d.Value) + `</td></tr>`)
-		}
-		b.WriteString(`</table></td></tr>`)
+	b.WriteString(`<td valign="top">`)
+	b.WriteString(`<h1 style="margin:0 0 10px 0;font-size:24px;line-height:1.25;font-weight:700;color:` + mailInk + `;">` + e(ev.Title) + `</h1>`)
+	b.WriteString(`<p style="margin:0 0 18px 0;font-size:16px;line-height:1.5;color:` + mailInk + `;">` + e(ev.Lead) + `</p>`)
+	for _, d := range ev.Details {
+		b.WriteString(`<div style="padding:10px 0;border-top:1px solid ` + mailBorder + `;"><div style="font-size:12px;font-weight:700;letter-spacing:.3px;color:` + mailMuted + `;margin-bottom:3px;">` + e(d.Label) + `</div>`)
+		b.WriteString(`<div style="font-size:15px;line-height:1.45;color:` + mailInk + `;word-break:break-word;">` + e(d.Value) + `</div></div>`)
 	}
+	b.WriteString(`</td></tr></table></td></tr>`)
 
 	// The button.
 	if link := httpsURL(ev.LinkURL); link != "" {
-		b.WriteString(`<tr><td style="padding:16px 24px 8px 24px;"><a href="` + e(link) + `" style="display:inline-block;padding:11px 20px;background:` + accent + `;color:` + buttonInk(accent) + `;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px;">Open in Mediarium</a></td></tr>`)
+		b.WriteString(`<tr><td style="padding:18px 32px 8px 32px;"><a href="` + e(link) + `" style="display:inline-block;padding:13px 26px;background:` + accent + `;color:` + buttonInk(accent) + `;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">Open in Mediarium</a></td></tr>`)
 	}
 
 	// The footer: only says where to change what gets sent.
-	b.WriteString(`<tr><td style="padding:20px 24px 24px 24px;font-size:12px;line-height:1.5;color:` + mailMuted + `;">`)
+	b.WriteString(`<tr><td style="padding:22px 32px 28px 32px;font-size:12px;line-height:1.5;color:` + mailMuted + `;">`)
 	if s := httpsURL(ev.SettingsURL); s != "" {
 		b.WriteString(`You can choose which emails you get in <a href="` + e(s) + `" style="color:` + mailMuted + `;">Notification settings</a>.`)
 	} else {
@@ -140,7 +138,11 @@ func RenderEmailText(ev Event) string {
 // buildRichMessage renders the RFC 5322 message for a composed event: plain
 // text and HTML alternatives, both quoted-printable, CRLF line endings.
 func buildRichMessage(from string, to []string, ev Event) []byte {
-	const boundary = "=_mediarium_alt_5b1f" // a quoted-printable body can never hold "=_" at a line start
+	// Boundaries: a quoted-printable body can never hold "=_" at a line start.
+	const (
+		altBoundary = "=_mediarium_alt_5b1f"
+		relBoundary = "=_mediarium_rel_5b1f"
+	)
 	var b bytes.Buffer
 	h := func(k, v string) { b.WriteString(k + ": " + v + "\r\n") }
 	h("From", oneLine(from))
@@ -152,10 +154,9 @@ func buildRichMessage(from string, to []string, ev Event) []byte {
 	}
 	h("Date", ts.Format(time.RFC1123Z))
 	h("MIME-Version", "1.0")
-	h("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
+	h("Content-Type", `multipart/alternative; boundary="`+altBoundary+`"`)
 	b.WriteString("\r\n")
-	part := func(contentType, body string) {
-		b.WriteString("--" + boundary + "\r\n")
+	text := func(contentType, body string) {
 		b.WriteString("Content-Type: " + contentType + "; charset=\"utf-8\"\r\n")
 		b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
 		qp := quotedprintable.NewWriter(&b)
@@ -163,9 +164,27 @@ func buildRichMessage(from string, to []string, ev Event) []byte {
 		_ = qp.Close()
 		b.WriteString("\r\n")
 	}
-	part("text/plain", RenderEmailText(ev))
-	part("text/html", RenderEmailHTML(ev))
-	b.WriteString("--" + boundary + "--\r\n")
+	b.WriteString("--" + altBoundary + "\r\n")
+	text("text/plain", RenderEmailText(ev))
+	// The HTML page travels with its logo, so the email loads nothing from the
+	// web but the poster.
+	b.WriteString("--" + altBoundary + "\r\n")
+	b.WriteString(`Content-Type: multipart/related; type="text/html"; boundary="` + relBoundary + `"` + "\r\n\r\n")
+	b.WriteString("--" + relBoundary + "\r\n")
+	text("text/html", RenderEmailHTML(ev))
+	b.WriteString("--" + relBoundary + "\r\n")
+	b.WriteString("Content-Type: image/png; name=\"mediarium-logo.png\"\r\n")
+	b.WriteString("Content-Transfer-Encoding: base64\r\n")
+	b.WriteString("Content-ID: <" + logoCID + ">\r\n")
+	b.WriteString("Content-Disposition: inline; filename=\"mediarium-logo.png\"\r\n\r\n")
+	enc := base64.StdEncoding.EncodeToString(logoPNG)
+	for len(enc) > 76 {
+		b.WriteString(enc[:76] + "\r\n")
+		enc = enc[76:]
+	}
+	b.WriteString(enc + "\r\n")
+	b.WriteString("--" + relBoundary + "--\r\n")
+	b.WriteString("--" + altBoundary + "--\r\n")
 	return b.Bytes()
 }
 

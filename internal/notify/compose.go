@@ -117,6 +117,23 @@ func Compose(eventType string, it Item, links Links, at time.Time) Event {
 	return ev
 }
 
+// ComposeTestEmail is the test message for an email notification: it looks like
+// a real "ready to watch" email, using a title from the library, so the person
+// sees the design they will get. Nothing was downloaded, and it says so.
+func ComposeTestEmail(it Item, links Links, at time.Time) Event {
+	ev := Compose(string(EventImported), it, links, at)
+	ev.Type = "test"
+	ev.Title = "Mediarium test email"
+	ev.Lead = fmt.Sprintf("If you can read this, emails from Mediarium are working. A real one looks like this, shown here with %s. Nothing was downloaded.", it.Name())
+	year := ""
+	if it.Year > 0 {
+		year = fmt.Sprint(it.Year)
+	}
+	ev.Details = keepFilled([]Detail{{"Title", it.Title}, {"Year", year}, {"Sent", formatWhen(at)}})
+	ev.Message = plainBody(ev)
+	return ev
+}
+
 // ComposeText builds the event for the ones that carry no title of their own
 // (a broken connection, a new version, a test): a subject, a sentence and no
 // table.

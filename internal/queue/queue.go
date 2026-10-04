@@ -471,10 +471,28 @@ type ActivityEntry struct {
 	EventType string
 	Message   string
 	CreatedAt string
+	// Filled in by ListActivityFor, for a link to the title's page: the
+	// movie's TMDB id, the show's id or the album's artist id (0 = none).
+	MovieTMDBID int64
+	SeriesID    int64
+	ArtistID    int64
 }
 
 func (r *Repo) ListActivity(limit int) ([]ActivityEntry, error) {
-	rows, err := r.db.Query(`SELECT id, movie_id, event_type, message, created_at FROM activity WHERE item_only = 0 ORDER BY created_at DESC LIMIT ?`, limit)
+	return r.ListActivityFor(limit, "")
+}
+
+// ListActivityFor is ListActivity narrowed to lines whose text contains
+// query (case-insensitive; "" = all), with what is needed to link each line
+// to its title.
+func (r *Repo) ListActivityFor(limit int, query string) ([]ActivityEntry, error) {
+	rows, err := r.db.Query(`SELECT a.id, a.movie_id, a.event_type, a.message, a.created_at,
+			COALESCE(m.tmdb_id, 0), COALESCE(a.series_id, 0), COALESCE(al.artist_id, 0)
+		FROM activity a
+		LEFT JOIN movies m ON m.id = a.movie_id
+		LEFT JOIN albums al ON al.id = a.album_id
+		WHERE a.item_only = 0 AND (? = '' OR a.message LIKE '%' || ? || '%')
+		ORDER BY a.created_at DESC LIMIT ?`, query, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list activity: %w", err)
 	}
@@ -483,7 +501,7 @@ func (r *Repo) ListActivity(limit int) ([]ActivityEntry, error) {
 	var out []ActivityEntry
 	for rows.Next() {
 		var e ActivityEntry
-		if err := rows.Scan(&e.ID, &e.MovieID, &e.EventType, &e.Message, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.MovieID, &e.EventType, &e.Message, &e.CreatedAt, &e.MovieTMDBID, &e.SeriesID, &e.ArtistID); err != nil {
 			return nil, fmt.Errorf("scan activity entry: %w", err)
 		}
 		out = append(out, e)

@@ -158,6 +158,10 @@ type Profile struct {
 	// of the same quality tier the highest total score wins.
 	Preferred []Preferred
 
+	// MaxSizeGB is the largest release this profile accepts, in GB (0 = no
+	// limit). See SizeAllowed.
+	MaxSizeGB float64
+
 	// Fallback lists other profiles (by id) that an automatic search tries,
 	// in this order, when nothing it found is acceptable to this profile.
 	// Only this profile's own list is used (a fallback's fallbacks are not

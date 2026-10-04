@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, ApiError, type DiscoverMovie, type MusicType } from '../api'
+import { PicksProvider, pickKey, usePicks } from '../discoverPicks'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import type { AddMusicTarget } from '../components/AddMusicDialog'
 import DiscoverRail from '../components/DiscoverRail'
@@ -11,6 +12,7 @@ import Dropdown from '../components/Dropdown'
 import PagedGrid from '../components/PagedGrid'
 import Icon from '../components/Icon'
 import Switch from '../components/Switch'
+import { useToast } from '../components/Toast'
 import { DISCOVER_KINDS, SHARED_ORDERS } from '../discoverKinds'
 import { sourceTitle, sourceToQuery, type Kind, type ListName, type Source } from '../discoverSources'
 import { useOwned, type Owned } from '../useOwned'
@@ -106,7 +108,105 @@ function Section({ kind, children }: { kind: MediaKind; children: ReactNode }) {
 // kind. The same filter row serves every tab; picking a filter switches to a
 // browse of everything matching. Every rail shows whole rows and has a
 // "Browse all" for paging through the full list.
+function SelectToggle() {
+  const picks = usePicks()
+  if (!picks) return null
+  return (
+    <button className={`btn-with-icon${picks.selecting ? ' primary' : ''}`} aria-pressed={picks.selecting} onClick={() => picks.setSelecting(!picks.selecting)}>
+      <Icon name="check" size={16} /> Select
+    </button>
+  )
+}
+
 export default function Discover() {
+  return (
+    <PicksProvider>
+      <DiscoverPage />
+    </PicksProvider>
+  )
+}
+
+// Discover's Select mode bar: add every picked title at once, with the usual
+// defaults (monitored, the default quality profile, and a search right away).
+function PickBar({ onAdded }: { onAdded: () => void }) {
+  const picks = usePicks()
+  const toast = useToast()
+  const [busy, setBusy] = useState<{ done: number; total: number } | null>(null)
+  if (!picks?.selecting) return null
+  const list = [...picks.picked.values()]
+  async function addAll() {
+    setBusy({ done: 0, total: list.length })
+    let failed = 0
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i]
+      try {
+        if (t.kind === 'movie') await api.addMovie(t.tmdbId, { searchNow: true })
+        else await api.addSeries(t.tmdbId, { searchNow: true })
+      } catch {
+        failed++
+      }
+      setBusy({ done: i + 1, total: list.length })
+    }
+    setBusy(null)
+    if (failed === 0) toast.success(`Added ${list.length} ${list.length === 1 ? 'title' : 'titles'}. Mediarium is looking for them now.`)
+    else toast.error(`${failed} of ${list.length} could not be added.`)
+    picks?.setSelecting(false)
+    onAdded()
+  }
+  return (
+    <div className="pick-bar" role="region" aria-label="Picked titles">
+      <span>{list.length === 0 ? 'Pick the titles you want, then add them all at once.' : `${list.length} picked`}</span>
+      <span className="spacer" />
+      <button className="btn-sm" disabled={list.length === 0 || busy !== null} onClick={() => {
+          list.forEach((t) => picks.notInterested(t))
+          picks.clear()
+        }}>
+        Not interested
+      </button>
+      <button className="primary btn-sm" disabled={list.length === 0 || busy !== null} onClick={() => void addAll()}>
+        {busy ? `Adding ${busy.done} of ${busy.total}…` : `Add ${list.length || ''} ${list.length === 1 ? 'title' : 'titles'}`.replace('  ', ' ')}
+      </button>
+      <button className="btn-sm" onClick={() => picks.setSelecting(false)}>
+        Done
+      </button>
+    </div>
+  )
+}
+
+// The "Not interested" list, to show a title again.
+function NotInterestedList() {
+  const picks = usePicks()
+  const [open, setOpen] = useState(false)
+  const [list, setList] = useState<{ kind: 'movie' | 'tv'; tmdbId: number; title: string; year?: number }[] | null>(null)
+  useEffect(() => {
+    if (open) api.listExclusions().then(setList).catch(() => setList([]))
+  }, [open])
+  if (!picks || picks.excluded.size === 0) return null
+  return (
+    <>
+      <button className="btn-sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        Not interested ({picks.excluded.size})
+      </button>
+      {open && list && (
+        <div className="card not-interested-list">
+          {list.filter((e) => picks.excluded.has(pickKey(e))).map((e) => (
+            <div key={pickKey(e)} className="row-actions">
+              <span>
+                {e.title}
+                {e.year ? ` (${e.year})` : ''} <small style={{ color: 'var(--text-dim)' }}>{e.kind === 'tv' ? 'show' : 'movie'}</small>
+              </span>
+              <button className="btn-sm" onClick={() => picks.showAgain(e.kind, e.tmdbId)}>
+                Show again
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function DiscoverPage() {
   const owned = useOwned()
   const [includeOlder, setIncludeOlder] = useIncludeOlder()
   const [hideOwned, setHideOwned] = useHideOwned()
@@ -238,6 +338,8 @@ export default function Discover() {
         )}
         <Switch checked={hideOwned} onChange={setHideOwned} label="Hide what I have" />
         <span className="spacer" />
+        <NotInterestedList />
+        {show !== 'music' && <SelectToggle />}
         {trakt && (
           <button className="btn-with-icon" onClick={() => setShowImport((v) => !v)}>
             <Icon name="list" size={16} /> {showImport ? 'Close list import' : 'Import a Trakt list'}
@@ -268,6 +370,8 @@ export default function Discover() {
           {importError && <p className="error-text" style={{ margin: 0 }}>{importError}</p>}
         </section>
       )}
+
+      <PickBar onAdded={() => owned.reload()} />
 
       {trakt && imported && <DiscoverRail title={`Imported from ${importedFrom}`} items={imported} kind="movie" owned={owned} onAdd={setAdding} rows={3} />}
 

@@ -152,7 +152,7 @@ func (r *Repo) Update(inst Instance, secret Secrets) error {
 	return nil
 }
 
-const indexerColumns = `id, name, definition_id, base_url, api_key_encrypted, protocol, enabled, kind, settings_json, secrets_encrypted, last_test_error, last_test_at`
+const indexerColumns = `id, name, definition_id, base_url, api_key_encrypted, protocol, enabled, kind, settings_json, secrets_encrypted, last_test_error, last_test_at, priority`
 
 // List returns every configured indexer instance, secrets decrypted.
 func (r *Repo) List() ([]Instance, error) {
@@ -193,7 +193,7 @@ func (r *Repo) scan(sc scanner) (Instance, error) {
 		settingsJSON, testAt  string
 	)
 	if err := sc.Scan(&inst.ID, &inst.Name, &inst.DefinitionID, &inst.BaseURL, &encAPIKey, &protocol, &inst.Enabled,
-		&kind, &settingsJSON, &encSecrets, &inst.LastTestError, &testAt); err != nil {
+		&kind, &settingsJSON, &encSecrets, &inst.LastTestError, &testAt, &inst.Priority); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Instance{}, err
 		}
@@ -235,6 +235,22 @@ func (r *Repo) scan(sc scanner) (Instance, error) {
 		inst.Cardigann = r.cardigann
 	}
 	return inst, nil
+}
+
+// SetPriority sets how much an indexer is preferred: 1 preferred, 2 normal,
+// 3 last resort.
+func (r *Repo) SetPriority(id int64, priority int) error {
+	if priority < PriorityPreferred || priority > PriorityLast {
+		return fmt.Errorf("priority %d is not 1, 2 or 3", priority)
+	}
+	res, err := r.db.Exec(`UPDATE indexers SET priority = ? WHERE id = ?`, priority, id)
+	if err != nil {
+		return fmt.Errorf("set indexer priority: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // Delete removes an indexer instance.

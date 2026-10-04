@@ -59,6 +59,18 @@ function Banners() {
       {batches.map((b) => (
         <BatchBanner key={b.id} batch={b} onDismissed={load} />
       ))}
+      {batches.filter((b) => !b.running).length > 1 && (
+        <div className="import-banners-all">
+          <button
+            className="btn-sm"
+            onClick={() =>
+              void Promise.all(batches.filter((b) => !b.running).map((b) => api.dismissImportBatch(b.id).catch(() => undefined))).then(load)
+            }
+          >
+            Dismiss all
+          </button>
+        </div>
+      )}
     </div>
   )
 }

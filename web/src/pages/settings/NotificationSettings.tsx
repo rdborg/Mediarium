@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, type MonitorStatus, type NotificationTarget, type NotifyField, type NotifyTestStep, type NotifyType } from '../../api'
 import Icon from '../../components/Icon'
 import PublicAddress from '../../components/PublicAddress'
+import QuietHours from '../../components/QuietHours'
 import ServiceIcon from '../../components/ServiceIcon'
 import TerminalLog from '../../components/TerminalLog'
 import { useToast } from '../../components/Toast'
@@ -672,6 +673,8 @@ export default function NotificationSettings() {
           </div>
         )}
       </fieldset>
+
+      <QuietHours />
 
       <PublicAddress />
 

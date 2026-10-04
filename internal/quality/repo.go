@@ -57,6 +57,9 @@ func Validate(p Profile) (Profile, error) {
 	if !seen[p.Cutoff] {
 		return p, fmt.Errorf("%w: the cutoff must be one of the allowed qualities", ErrInvalid)
 	}
+	if p.MaxSizeGB < 0 || p.MaxSizeGB > 1000 {
+		return p, fmt.Errorf("%w: the largest size must be 0 (no limit) to 1000 GB", ErrInvalid)
+	}
 	p.Allowed = nil
 	for _, t := range AllTiers() {
 		if seen[t] {
@@ -233,7 +236,7 @@ func decodeTiers(s string) []Tier {
 	return out
 }
 
-const selectProfile = `SELECT id, name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred, fallback FROM quality_profiles`
+const selectProfile = `SELECT id, name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred, fallback, max_size_gb FROM quality_profiles`
 
 func scanProfile(scan func(dest ...any) error) (Profile, error) {
 	var (
@@ -242,7 +245,7 @@ func scanProfile(scan func(dest ...any) error) (Profile, error) {
 		mustContain, mustNot, preferred string
 		fallback                        string
 	)
-	if err := scan(&p.ID, &p.Name, &allowed, &cutoff, &p.UpgradeAllowed, &mustContain, &mustNot, &preferred, &fallback); err != nil {
+	if err := scan(&p.ID, &p.Name, &allowed, &cutoff, &p.UpgradeAllowed, &mustContain, &mustNot, &preferred, &fallback, &p.MaxSizeGB); err != nil {
 		return Profile{}, err
 	}
 	p.Allowed = decodeTiers(allowed)
@@ -292,9 +295,9 @@ func (r *Repo) Create(p Profile) (Profile, error) {
 		return Profile{}, err
 	}
 	res, err := r.db.Exec(
-		`INSERT INTO quality_profiles (name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred, fallback) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO quality_profiles (name, allowed_tiers, cutoff, upgrade_allowed, must_contain, must_not_contain, preferred, fallback, max_size_gb) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.Name, encodeTiers(p.Allowed), string(p.Cutoff), p.UpgradeAllowed,
-		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), encodeFallback(p.Fallback),
+		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), encodeFallback(p.Fallback), p.MaxSizeGB,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
@@ -315,9 +318,9 @@ func (r *Repo) Update(p Profile) (Profile, error) {
 		return Profile{}, err
 	}
 	res, err := r.db.Exec(
-		`UPDATE quality_profiles SET name = ?, allowed_tiers = ?, cutoff = ?, upgrade_allowed = ?, must_contain = ?, must_not_contain = ?, preferred = ?, fallback = ? WHERE id = ?`,
+		`UPDATE quality_profiles SET name = ?, allowed_tiers = ?, cutoff = ?, upgrade_allowed = ?, must_contain = ?, must_not_contain = ?, preferred = ?, fallback = ?, max_size_gb = ? WHERE id = ?`,
 		p.Name, encodeTiers(p.Allowed), string(p.Cutoff), p.UpgradeAllowed,
-		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), encodeFallback(p.Fallback), p.ID,
+		encodeLines(p.MustContain), encodeLines(p.MustNotContain), encodePreferred(p.Preferred), encodeFallback(p.Fallback), p.MaxSizeGB, p.ID,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {

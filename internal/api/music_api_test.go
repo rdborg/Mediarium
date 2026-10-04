@@ -104,7 +104,7 @@ func newMusicIndexer(t *testing.T, titles []string, nzb string) *musicIndexer {
 		w.Header().Set("Content-Type", "application/xml")
 		var items strings.Builder
 		for i, title := range titles {
-			fmt.Fprintf(&items, `<item><title>%s</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="1000" type="application/x-nzb" /><newznab:attr name="size" value="1000"/><newznab:attr name="category" value="3040"/></item>`,
+			fmt.Fprintf(&items, `<item><title>%s</title><guid>g%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="21474836480" type="application/x-nzb" /><newznab:attr name="size" value="21474836480"/><newznab:attr name="category" value="3040"/></item>`,
 				title, i, r.Host, i)
 		}
 		fmt.Fprintf(w, `<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>%s</channel></rss>`, items.String())

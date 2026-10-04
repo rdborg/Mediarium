@@ -366,6 +366,18 @@ func (s *Server) handleRevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "That API key doesn't exist.")
 		return
 	}
+	if r.URL.Query().Get("remove") == "true" {
+		removed, err := s.Auth.DeleteRevokedAPIKey(user.ID, id)
+		switch {
+		case err != nil:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		case !removed:
+			writeError(w, http.StatusConflict, "Only a key that has been revoked can be deleted. Revoke it first.")
+		default:
+			writeJSON(w, http.StatusOK, nil)
+		}
+		return
+	}
 	if err := s.Auth.RevokeAPIKey(user.ID, id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

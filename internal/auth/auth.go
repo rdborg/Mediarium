@@ -471,6 +471,21 @@ func (s *Service) RevokeAPIKey(userID, id int64) error {
 	return nil
 }
 
+// DeleteRevokedAPIKey removes a key that was already revoked from the list.
+// An active key is never removed this way: it must be revoked first. It
+// reports whether a key was removed.
+func (s *Service) DeleteRevokedAPIKey(userID, id int64) (bool, error) {
+	res, err := s.db.Exec(`DELETE FROM api_keys WHERE id = ? AND user_id = ? AND revoked_at IS NOT NULL`, id, userID)
+	if err != nil {
+		return false, fmt.Errorf("delete api key: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("delete api key: %w", err)
+	}
+	return n > 0, nil
+}
+
 // UserForAPIKey resolves a raw API key header value to its user.
 func (s *Service) UserForAPIKey(rawKey string) (*User, error) {
 	var (

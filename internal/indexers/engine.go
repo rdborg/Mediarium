@@ -52,7 +52,18 @@ type Instance struct {
 	// never tested); LastTestAt is when it ran.
 	LastTestError string
 	LastTestAt    time.Time
+	// Priority is how much this indexer is preferred: PriorityPreferred,
+	// PriorityNormal (the default) or PriorityLast.
+	Priority int
 }
+
+// Indexer priorities. Between two equally good releases the one from the
+// more preferred indexer is picked.
+const (
+	PriorityPreferred = 1
+	PriorityNormal    = 2
+	PriorityLast      = 3
+)
 
 // IsCardigann reports whether the instance is a definition-based site.
 func (inst Instance) IsCardigann() bool { return inst.Kind == KindCardigann }
@@ -108,6 +119,7 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 			}
 			for j := range results {
 				results[j].Protocol = inst.Protocol
+				results[j].Priority = inst.Priority
 			}
 			outcomes[i] = Outcome{IndexerName: inst.Name, Results: results, Err: err}
 		}(i, inst)

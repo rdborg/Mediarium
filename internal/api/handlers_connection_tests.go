@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -133,6 +134,35 @@ func (s *Server) handleTestIndexer(w http.ResponseWriter, r *http.Request) {
 
 type enabledRequest struct {
 	Enabled bool `json:"enabled"`
+}
+
+// handleSetIndexerPriority sets how much an indexer is preferred: 1
+// preferred, 2 normal, 3 last resort.
+func (s *Server) handleSetIndexerPriority(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "That isn't a valid indexer ID.")
+		return
+	}
+	var req struct {
+		Priority int `json:"priority"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "Couldn't read that request. Reload the page and try again.")
+		return
+	}
+	if req.Priority < indexers.PriorityPreferred || req.Priority > indexers.PriorityLast {
+		writeError(w, http.StatusBadRequest, "Choose 1 (preferred), 2 (normal) or 3 (last resort).")
+		return
+	}
+	if err := s.IndexerRepo.SetPriority(id, req.Priority); errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "That indexer no longer exists.")
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, nil)
 }
 
 func (s *Server) handleSetIndexerEnabled(w http.ResponseWriter, r *http.Request) {

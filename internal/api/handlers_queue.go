@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
@@ -349,10 +350,22 @@ type activityEntryPayload struct {
 	EventType string `json:"eventType"`
 	Message   string `json:"message"`
 	CreatedAt string `json:"createdAt"`
+	// Link is the page of the title the line is about, when there is one.
+	Link string `json:"link,omitempty"`
 }
 
+// handleListActivity lists the newest activity lines: 100 unless ?limit=
+// asks for more (up to 2000), narrowed by ?q= to lines containing that text.
 func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
-	entries, err := s.QueueRepo.ListActivity(100)
+	limit := 100
+	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 {
+		limit = min(n, 2000)
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(q) > 100 {
+		q = q[:100]
+	}
+	entries, err := s.QueueRepo.ListActivityFor(limit, q)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -365,7 +378,16 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 		if e.EventType == "update" && !admin {
 			continue
 		}
-		out = append(out, activityEntryPayload{ID: e.ID, EventType: e.EventType, Message: plainFailure(e.EventType, e.Message), CreatedAt: e.CreatedAt})
+		p := activityEntryPayload{ID: e.ID, EventType: e.EventType, Message: plainFailure(e.EventType, e.Message), CreatedAt: e.CreatedAt}
+		switch {
+		case e.MovieTMDBID > 0:
+			p.Link = fmt.Sprintf("/title/%d", e.MovieTMDBID)
+		case e.SeriesID > 0:
+			p.Link = fmt.Sprintf("/series/%d", e.SeriesID)
+		case e.ArtistID > 0:
+			p.Link = fmt.Sprintf("/music/artist/%d", e.ArtistID)
+		}
+		out = append(out, p)
 	}
 	writeJSON(w, http.StatusOK, out)
 }

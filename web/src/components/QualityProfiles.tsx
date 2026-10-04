@@ -20,6 +20,8 @@ interface Draft {
   mustNotContain: string
   preferred: string
   fallback: number[]
+  // The largest release, in GB, as typed ("" = no limit).
+  maxSize: string
 }
 
 const linesOf = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -74,6 +76,7 @@ const draftFrom = (p: QualityProfile): Draft => ({
   mustNotContain: p.mustNotContain.join('\n'),
   preferred: p.preferred.map((x) => `${x.term} = ${x.score}`).join('\n'),
   fallback: p.fallback ?? [],
+  maxSize: p.maxSizeGB ? String(p.maxSizeGB) : '',
 })
 
 const blankDraft = (tiers: string[]): Draft => ({
@@ -85,7 +88,16 @@ const blankDraft = (tiers: string[]): Draft => ({
   mustNotContain: '',
   preferred: '',
   fallback: [],
+  maxSize: '',
 })
+
+// "1080p copy", or "1080p copy 2" when that name is taken.
+function copyName(name: string, profiles: QualityProfile[]): string {
+  const taken = new Set(profiles.map((p) => p.name.toLowerCase()))
+  let n = `${name} copy`.slice(0, 60)
+  for (let i = 2; taken.has(n.toLowerCase()); i++) n = `${name} copy ${i}`.slice(0, 60)
+  return n
+}
 
 const tierLabel = (t: string) => (t === 'Unknown' ? 'Unknown (untagged releases)' : t)
 
@@ -109,6 +121,7 @@ export default function QualityProfilesSection() {
     mustContain: termLines(draft?.mustContain ?? '', 'required term'),
     mustNotContain: termLines(draft?.mustNotContain ?? '', 'excluded term'),
     preferred: preferredLines(draft?.preferred ?? ''),
+    maxSize: draft && draft.maxSize.trim() !== '' && !(Number(draft.maxSize) > 0 && Number(draft.maxSize) <= 1000) ? 'Write a size from 0.1 to 1000 GB, or leave it empty for no limit.' : null,
   }
   const v = useValidation(errors)
   // Counts the times a form has been opened, so it can be scrolled into view
@@ -147,6 +160,7 @@ export default function QualityProfilesSection() {
         mustNotContain: linesOf(draft.mustNotContain),
         preferred: parsePreferred(draft.preferred),
         fallback: draft.fallback,
+        maxSizeGB: draft.maxSize.trim() === '' ? 0 : Number(draft.maxSize),
       }
       if (draft.id) await api.updateProfile(draft.id, body)
       else await api.createProfile(body)
@@ -223,6 +237,12 @@ export default function QualityProfilesSection() {
             ))}
           </select>
           <FieldError v={v} name="cutoff" />
+        </label>
+        <label>
+          Largest download (GB)
+          <input inputMode="decimal" value={draft.maxSize} placeholder="no limit" style={{ maxWidth: 140 }} onChange={(e) => setDraft({ ...draft, maxSize: e.target.value })} {...v.bind('maxSize', draft.maxSize, (maxSize) => setDraft({ ...draft, maxSize }))} />
+          <small style={{ color: 'var(--text-dim)' }}>Bigger releases are skipped. Leave empty for no limit. Fakes that are far too small are always skipped.</small>
+          <FieldError v={v} name="maxSize" />
         </label>
         <label className="check-hint">
           <input type="checkbox" checked={draft.upgradeAllowed} onChange={(e) => setDraft({ ...draft, upgradeAllowed: e.target.checked })} />
@@ -317,6 +337,7 @@ export default function QualityProfilesSection() {
               <td>{p.upgradeAllowed ? 'on' : 'off'}</td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <button onClick={() => openDraft(draftFrom(p))}>Edit</button>{' '}
+                <button onClick={() => openDraft({ ...draftFrom(p), id: undefined, name: copyName(p.name, profiles) })}>Duplicate</button>{' '}
                 {p.id !== defaultId && <button onClick={() => makeDefault(p.id)}>Make default</button>}{' '}
                 {p.id !== defaultId && <button onClick={() => remove(p)}>Delete</button>}
               </td>

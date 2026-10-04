@@ -83,24 +83,33 @@ func (s *Server) removeMovieFiles(m library.Movie) (removedFiles, error) {
 	if m.FilePath == "" {
 		return removedFiles{}, nil
 	}
-	root := s.moviesRoot()
+	root := s.movieFileRoot(m.FilePath)
 	own := []string{m.FilePath}
 	folder := filepath.Dir(m.FilePath)
 	if s.isTitleFolder(root, folder, own, func(name string) bool { return matchesMovie(name, m) }) {
-		return removeTitleFolder(root, folder)
+		return s.removeTitleFolder(root, folder, movieLabel(m))
 	}
-	gone, err := cleanup.RemoveFileWithSidecars(root, m.FilePath)
-	return removedFiles{Files: len(gone)}, err
+	n, trashed, err := s.discardFileWithSidecars(root, m.FilePath, movieLabel(m))
+	return removedFiles{Files: n, Trashed: trashed}, err
+}
+
+func movieLabel(m library.Movie) string {
+	if m.Year > 0 {
+		return fmt.Sprintf("%s (%d)", m.Title, m.Year)
+	}
+	return m.Title
 }
 
 // removedFiles counts what removing a title's files deleted.
 type removedFiles struct {
 	Files   int
 	Folders int
+	Trashed bool // moved to the recycle bin rather than deleted
 }
 
-// removeTitleFolder deletes a title's own folder and counts what was in it.
-func removeTitleFolder(root, folder string) (removedFiles, error) {
+// removeTitleFolder deletes a title's own folder (or moves it to the recycle
+// bin) and counts what was in it.
+func (s *Server) removeTitleFolder(root, folder, label string) (removedFiles, error) {
 	var n removedFiles
 	_ = filepath.WalkDir(folder, func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -113,9 +122,11 @@ func removeTitleFolder(root, folder string) (removedFiles, error) {
 		}
 		return nil
 	})
-	if _, err := cleanup.RemoveFolder(root, folder); err != nil {
+	trashed, err := s.discardFolder(root, folder, label)
+	if err != nil {
 		return removedFiles{}, err
 	}
+	n.Trashed = trashed
 	return n, nil
 }
 
@@ -126,6 +137,8 @@ func removeTitleFolder(root, folder string) (removedFiles, error) {
 func removedLogLine(name string, filesDeleted bool, deleted removedFiles, tracked int) string {
 	line := name + " removed from library."
 	switch {
+	case filesDeleted && deleted.Trashed:
+		return line + " Its files were moved to the recycle bin" + removedCounts(deleted.Files, deleted.Folders) + "."
 	case filesDeleted:
 		return line + " Its files were deleted" + removedCounts(deleted.Files, deleted.Folders) + "."
 	case tracked > 0:
@@ -161,23 +174,31 @@ func (s *Server) removeSeriesFiles(series library.Series, files []string) (remov
 	if len(files) == 0 {
 		return removedFiles{}, nil
 	}
-	root := s.tvRoot()
+	root := s.tvFileRoot(files[0])
 	folder := commonDir(files)
 	if seasonFolderName.MatchString(filepath.Base(folder)) {
 		folder = filepath.Dir(folder)
 	}
 	if s.isTitleFolder(root, folder, files, func(name string) bool { return matchesShow(name, series) }) {
-		return removeTitleFolder(root, folder)
+		return s.removeTitleFolder(root, folder, seriesLabel(series))
 	}
 	var n removedFiles
 	for _, f := range files {
-		gone, err := cleanup.RemoveFileWithSidecars(root, f)
-		n.Files += len(gone)
+		gone, trashed, err := s.discardFileWithSidecars(root, f, seriesLabel(series))
+		n.Files += gone
+		n.Trashed = n.Trashed || trashed
 		if err != nil {
 			return n, err
 		}
 	}
 	return n, nil
+}
+
+func seriesLabel(sr library.Series) string {
+	if sr.Year > 0 {
+		return fmt.Sprintf("%s (%d)", sr.Title, sr.Year)
+	}
+	return sr.Title
 }
 
 // extrasFolder matches the folders media servers use for a title's extras.

@@ -49,6 +49,8 @@ The [HTTP API reference](./reference/api.md) marks every route as **public**, **
 
 Admins manage accounts in **Settings > Accounts** (the profile menu has a shortcut). The page shows your own details and Change password side by side, then the **Accounts** list, then **Add an account**, and your API keys at the bottom. Each account has a card with its name and username, an **Admin** or **Basic user** badge, its email address and when it last signed in ("Signed in 3 days ago", "Never signed in"). Your own card is marked **You**.
 
+**Revoke** stops an API key working straight away. A revoked key stays in the list, so you can see it was there. Press **Delete** next to a revoked key to take it off the list for good. Scripts: `DELETE /api/auth/api-keys/{id}` revokes, and `DELETE /api/auth/api-keys/{id}?remove=true` deletes a key that is already revoked (an active key answers 409).
+
 ## Adding a family account
 
 1. Sign in as an admin.

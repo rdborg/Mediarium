@@ -25,12 +25,13 @@ func (s *Server) notifyItem(eventType string, it notify.Item) {
 	s.sendNotification(notify.Compose(eventType, it, s.publicLinks(), time.Now()))
 }
 
-// smallPoster is the poster at the size an email or a phone message needs.
+// smallPoster is the poster at the size an email or a phone message needs:
+// big enough to look sharp when an email shows it large.
 func smallPoster(posterPath string) string {
 	if posterPath == "" {
 		return ""
 	}
-	return strings.Replace(metadata.PosterURL(posterPath), "/w500", "/w185", 1)
+	return strings.Replace(metadata.PosterURL(posterPath), "/w500", "/w342", 1)
 }
 
 // movieItem starts an Item for a movie: its name, poster and page.

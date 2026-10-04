@@ -9,11 +9,12 @@ import { PosterFallback } from '../components/PosterCard'
 import { useToast } from '../components/Toast'
 import { formatBytes, timeAgo } from '../format'
 import { useConfirm } from '../components/ConfirmProvider'
+import RecycleBin from '../components/RecycleBin'
 import { useModules } from '../ModulesContext'
 import { bulkState, groupQueue, RUNNING, stateNote, statusLabel, stillWaiting } from '../queueView'
 import { useLive } from '../useLive'
 
-type Tab = 'queue' | 'history' | 'blocklist'
+type Tab = 'queue' | 'history' | 'blocklist' | 'bin'
 
 const EVENT: Record<string, { icon: IconName; tone: string; group: string }> = {
   grabbed: { icon: 'download', tone: 'info', group: 'Downloads' },
@@ -166,6 +167,9 @@ export default function Queue() {
   const [tab, setTab] = useState<Tab>('queue')
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [activity, setActivity] = useState<ActivityEntry[]>([])
+  // History: how many lines to show, and the words to look for.
+  const [actLimit, setActLimit] = useState(100)
+  const [actQuery, setActQuery] = useState('')
   const [blocklist, setBlocklist] = useState<BlocklistEntry[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
@@ -206,7 +210,7 @@ export default function Queue() {
 
   const load = useCallback(async () => {
     try {
-      const [q, a, b] = await Promise.all([api.listQueue(), api.listActivity(), admin ? api.listBlocklist() : Promise.resolve([])])
+      const [q, a, b] = await Promise.all([api.listQueue(), api.listActivity({ limit: actLimit, q: actQuery.trim() }), admin ? api.listBlocklist() : Promise.resolve([])])
       setQueue(q)
       setActivity(a)
       setBlocklist(b)
@@ -216,7 +220,7 @@ export default function Queue() {
     } finally {
       setLoaded(true)
     }
-  }, [admin])
+  }, [admin, actLimit, actQuery])
 
   useEffect(() => {
     void load()
@@ -338,6 +342,11 @@ export default function Queue() {
     <div>
       <div className="page-header">
         <h1>Activity</h1>
+        {admin && (
+          <Link className="btn-link" to="/import/manual">
+            <Icon name="folder" size={15} /> Import a file by hand
+          </Link>
+        )}
         <div className="seg">
           <button className={tab === 'queue' ? 'active' : ''} onClick={() => setTab('queue')}>
             Queue <small>({needsAttention})</small>
@@ -348,6 +357,11 @@ export default function Queue() {
           {admin && (
             <button className={tab === 'blocklist' ? 'active' : ''} onClick={() => setTab('blocklist')}>
               Blocklist <small>({blocklist.length})</small>
+            </button>
+          )}
+          {admin && (
+            <button className={tab === 'bin' ? 'active' : ''} onClick={() => setTab('bin')}>
+              Recycle bin
             </button>
           )}
         </div>
@@ -470,10 +484,13 @@ export default function Queue() {
               </button>
             ))}
           </div>
+          <div className="toolbar">
+            <input type="search" className="wanted-search" placeholder="Find in the history" aria-label="Find in the history" value={actQuery} onChange={(e) => { setActQuery(e.target.value); setActLimit(100) }} />
+          </div>
           {shownActivity.length === 0 ? (
             <div className="empty-state">
               <Icon name="activity" size={44} />
-              <p>No activity yet.</p>
+              <p>{actQuery.trim() ? 'Nothing in the history matches that.' : 'No activity yet.'}</p>
             </div>
           ) : (
             <ul className="timeline">
@@ -484,7 +501,7 @@ export default function Queue() {
                     <span className={`tl-icon tone-${e.tone}`}>
                       <Icon name={e.icon} size={16} />
                     </span>
-                    <span className="tl-msg">{a.message}</span>
+                    <span className="tl-msg">{a.link ? <Link to={a.link}>{a.message}</Link> : a.message}</span>
                     <time className="tl-time" title={new Date(a.createdAt).toLocaleString()}>
                       {timeAgo(a.createdAt)}
                     </time>
@@ -493,8 +510,17 @@ export default function Queue() {
               })}
             </ul>
           )}
+          {activity.length >= actLimit && (
+            <div className="rail-foot">
+              <button className="btn-sm" onClick={() => setActLimit((n) => n + 200)}>
+                Show older lines
+              </button>
+            </div>
+          )}
         </>
       )}
+
+      {tab === 'bin' && admin && <RecycleBin />}
 
       {tab === 'blocklist' && admin && (
         <>

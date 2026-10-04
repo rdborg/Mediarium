@@ -29,6 +29,7 @@ type Result struct {
 	Seeders     int    // torrent-only (Torznab attr), 0 for usenet results
 	Peers       int    // torrent-only (Torznab attr), 0 for usenet results
 	InfoHash    string // torrent-only, when the indexer reports it
+	Priority    int    // the indexer's priority (1 preferred, 2 normal, 3 last resort); set by the engine
 }
 
 // NewznabClient talks to a single Newznab/Torznab-compatible API endpoint.

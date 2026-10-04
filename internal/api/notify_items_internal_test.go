@@ -19,7 +19,7 @@ import (
 
 func TestNotifyItemBuilders(t *testing.T) {
 	m := movieItem(library.Movie{TMDBID: 597, Title: "Titanic", Year: 1997, PosterPath: "/abc.jpg"})
-	if m.Title != "Titanic" || m.LinkPath != "/title/597" || m.PosterURL != "https://image.tmdb.org/t/p/w185/abc.jpg" {
+	if m.Title != "Titanic" || m.LinkPath != "/title/597" || m.PosterURL != "https://image.tmdb.org/t/p/w342/abc.jpg" {
 		t.Errorf("movie item %+v", m)
 	}
 	if movieItem(library.Movie{}).PosterURL != "" {

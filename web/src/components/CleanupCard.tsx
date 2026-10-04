@@ -15,23 +15,22 @@ const REASON: Record<string, string> = {
   'empty-folder': 'Empty folder',
 }
 
-// How long finished downloads and activity are kept. Saved with its own
-// button, because a typo in a number box should not save halfway through.
-function RetentionField({ days, onSaved }: { days: number; onSaved: () => void }) {
+// A number of days, saved with its own button, because a typo in a number
+// box should not save halfway through. Used for how long history is kept and
+// how long the recycle bin keeps removed files.
+function DaysField({ days, label, hint, max, zeroText, save: store, onSaved }: { days: number; label: string; hint: string; max: number; zeroText: string; save: (n: number) => Promise<string>; onSaved: () => void }) {
   const toast = useToast()
   const [text, setText] = useState(String(days))
   const [saving, setSaving] = useState(false)
   useEffect(() => setText(String(days)), [days])
-  const error = firstError(text.trim() === '' && 'Enter a number of days, or 0 to keep everything.', numberRange(text, 'The number of days', { min: 0, max: 36500 }))
+  const error = firstError(text.trim() === '' && `Enter a number of days, or 0 ${zeroText}.`, numberRange(text, 'The number of days', { min: 0, max }))
   const changed = text.trim() !== String(days)
 
   async function save() {
     if (error) return
     setSaving(true)
     try {
-      const saved = await api.putSettings({ historyRetentionDays: Number(text) })
-      const n = saved.historyRetentionDays ?? Number(text)
-      toast.success(n === 0 ? 'Saved: finished downloads and activity are kept forever.' : `Saved: finished downloads and activity are kept for ${n} days.`)
+      toast.success(await store(Number(text)))
       onSaved()
     } catch (e) {
       toast.error(`Not saved: ${e instanceof Error ? e.message : String(e)}`)
@@ -43,7 +42,7 @@ function RetentionField({ days, onSaved }: { days: number; onSaved: () => void }
   return (
     <div style={{ marginTop: 12 }}>
       <label style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        Keep finished downloads and activity for
+        {label}
         <input
           inputMode="numeric"
           value={text}
@@ -57,7 +56,7 @@ function RetentionField({ days, onSaved }: { days: number; onSaved: () => void }
           {saving ? 'Saving…' : 'Save'}
         </button>
       </label>
-      <small style={{ color: error ? 'var(--danger)' : 'var(--text-dim)' }}>{error ?? 'Use 0 to keep everything. Older entries are removed by the daily clean-up.'}</small>
+      <small style={{ color: error ? 'var(--danger)' : 'var(--text-dim)' }}>{error ?? hint}</small>
     </div>
   )
 }
@@ -153,7 +152,32 @@ export default function CleanupCard() {
               ))}
             </ul>
           )}
-          <RetentionField days={report.historyRetentionDays ?? 90} onSaved={load} />
+          <DaysField
+            days={report.historyRetentionDays ?? 90}
+            label="Keep finished downloads and activity for"
+            hint="Use 0 to keep everything. Older entries are removed by the daily clean-up."
+            max={36500}
+            zeroText="to keep everything"
+            save={async (n) => {
+              const saved = await api.putSettings({ historyRetentionDays: n })
+              const d = saved.historyRetentionDays ?? n
+              return d === 0 ? 'Saved: finished downloads and activity are kept forever.' : `Saved: finished downloads and activity are kept for ${d} days.`
+            }}
+            onSaved={load}
+          />
+          <DaysField
+            days={report.trashDays ?? 7}
+            label="Keep removed titles' files in the recycle bin for"
+            hint="When you remove a title with its files, they wait in Activity > Recycle bin this long. Use 0 to delete them straight away."
+            max={365}
+            zeroText="to delete them straight away"
+            save={async (n) => {
+              const saved = await api.putSettings({ trashDays: n })
+              const d = saved.trashDays ?? n
+              return d === 0 ? 'Saved: removed files are deleted straight away.' : `Saved: removed files stay in the recycle bin for ${d} days.`
+            }}
+            onSaved={load}
+          />
           <div style={{ marginTop: 12 }}>
             <Switch checked={report.auto} onChange={(v) => void setAuto(v)} label="Clean up automatically once a day" description="Removes leftovers like the ones above and skips anything still downloading or seeding." showState />
           </div>

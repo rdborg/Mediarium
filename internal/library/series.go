@@ -27,6 +27,8 @@ type Series struct {
 	// DetailsState and DetailsNote work as on Movie.
 	DetailsState string
 	DetailsNote  string
+	// RootPath is the library folder the show is kept in ("" = the main TV folder).
+	RootPath string
 
 	// Populated by GetSeries/ListSeries only, for the library views.
 	EpisodeCount    int
@@ -54,7 +56,7 @@ const seriesSelect = `
 	       COALESCE(s.first_air_date, ''), s.monitored,
 	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id),
 	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id AND e.status = 'downloaded'),
-	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres, s.no_upgrade, s.details_state, s.details_note
+	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres, s.no_upgrade, s.details_state, s.details_note, s.root_path
 	FROM series s`
 
 func scanSeries(scan func(dest ...any) error) (Series, error) {
@@ -62,7 +64,7 @@ func scanSeries(scan func(dest ...any) error) (Series, error) {
 		s      Series
 		genres sql.NullString
 	)
-	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote); err != nil {
+	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote, &s.RootPath); err != nil {
 		return Series{}, fmt.Errorf("scan series: %w", err)
 	}
 	s.Genres = decodeGenres(genres)
@@ -291,6 +293,24 @@ func (r *Repo) ListEpisodes(seriesID int64) ([]Episode, error) {
 // GetEpisodeByID returns one episode by its own id.
 func (r *Repo) GetEpisodeByID(id int64) (Episode, error) {
 	return scanEpisode(r.db.QueryRow(episodeSelect+` WHERE id = ?`, id).Scan)
+}
+
+// SetSeriesRootPath chooses the library folder a show is kept in ("" = the
+// main TV folder). It only affects where new files go.
+func (r *Repo) SetSeriesRootPath(id int64, root string) error {
+	if _, err := r.db.Exec(`UPDATE series SET root_path = ? WHERE id = ?`, root, id); err != nil {
+		return fmt.Errorf("set show folder: %w", err)
+	}
+	return nil
+}
+
+// MoveEpisodeFile points every episode whose file is from at to instead
+// (after the file was renamed on disk).
+func (r *Repo) MoveEpisodeFile(from, to string) error {
+	if _, err := r.db.Exec(`UPDATE episodes SET file_path = ? WHERE file_path = ?`, to, from); err != nil {
+		return fmt.Errorf("update episode file: %w", err)
+	}
+	return nil
 }
 
 func (r *Repo) GetEpisode(seriesID int64, season, episode int) (Episode, error) {

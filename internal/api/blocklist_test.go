@@ -27,8 +27,8 @@ func newBlocklistIndexer(t *testing.T, good map[string]nntpArticle) *httptest.Se
 	mux.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		fmt.Fprintf(w, `<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>
-<item><title>%s</title><guid>g-bad</guid><enclosure url="http://%s/nzb/bad.nzb" length="1000" type="application/x-nzb"/><newznab:attr name="size" value="2000"/><newznab:attr name="category" value="2000"/></item>
-<item><title>%s</title><guid>g-good</guid><enclosure url="http://%s/nzb/good.nzb" length="1000" type="application/x-nzb"/><newznab:attr name="size" value="1000"/><newznab:attr name="category" value="2000"/></item>
+<item><title>%s</title><guid>g-bad</guid><enclosure url="http://%s/nzb/bad.nzb" length="21474836480" type="application/x-nzb"/><newznab:attr name="size" value="22548578304"/><newznab:attr name="category" value="2000"/></item>
+<item><title>%s</title><guid>g-good</guid><enclosure url="http://%s/nzb/good.nzb" length="21474836480" type="application/x-nzb"/><newznab:attr name="size" value="21474836480"/><newznab:attr name="category" value="2000"/></item>
 </channel></rss>`, badRelease, r.Host, goodRelease, r.Host)
 	})
 	mux.HandleFunc("/nzb/bad.nzb", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, nzbFor(bad)) })

@@ -33,6 +33,7 @@ type indexerPayload struct {
 	StoredSecrets []string       `json:"storedSecrets,omitempty"`
 	LastTestError string         `json:"lastTestError,omitempty"`
 	LastTestAt    string         `json:"lastTestAt,omitempty"`
+	Priority      int            `json:"priority"` // 1 preferred, 2 normal, 3 last resort
 }
 
 // isCardigann reports whether a create/test request is for a
@@ -46,7 +47,7 @@ func (s *Server) toIndexerPayload(inst indexers.Instance) indexerPayload {
 	p := indexerPayload{
 		ID: inst.ID, Name: inst.Name, Kind: string(inst.Kind), DefinitionID: inst.DefinitionID, BaseURL: inst.BaseURL,
 		Protocol: string(inst.Protocol), Enabled: inst.Enabled, LastTestError: inst.LastTestError,
-		HasAPIKey: inst.APIKey != "",
+		HasAPIKey: inst.APIKey != "", Priority: indexerRank(inst.Priority),
 	}
 	if !inst.LastTestAt.IsZero() {
 		p.LastTestAt = inst.LastTestAt.UTC().Format(time.RFC3339)

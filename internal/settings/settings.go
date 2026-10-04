@@ -96,7 +96,16 @@ const (
 	KeyFlareSolverrURL = "flaresolverr.url" // e.g. http://flaresolverr:8191; unset = none
 
 	// Clean-up of the downloads working folder and of old history.
+	KeySpeedLimitMB         = "downloads.speed_limit_mb"       // download speed limit in MB/s for Usenet and torrents together; unset or "0" = no limit
+	KeySpeedLimitHours      = "downloads.speed_limit_hours"    // when the speed limit applies, "8-23" (from 8:00 to 23:00, server time); unset = all day
+	KeyMinFreeGB            = "downloads.min_free_gb"          // no new download starts while the downloads folder has less free space than this many GB; unset = 5, "0" = off
+	KeyNotifyQuietHours     = "notify.quiet_hours"             // hours when everyday messages wait, "23-7" (server time); unset = none. Problems are always sent at once
+	KeyMoviesExtraPaths     = "library.movies_extra_paths"     // more movie folders besides the main one, one per line; unset = none
+	KeyTVExtraPaths         = "library.tv_extra_paths"         // more TV folders besides the main one, one per line; unset = none
+	KeyBackupAuto           = "backup.auto"                    // "0" turns the nightly backup into /config/backups off; anything else (including unset) leaves it on
+	KeyBackupKeep           = "backup.keep"                    // how many saved backups are kept in /config/backups; unset = 7
 	KeyCleanupAuto          = "cleanup.auto"                   // "0" turns the daily automatic clean-up off; anything else (including unset) leaves it on
+	KeyTrashDays            = "library.trash_days"             // days removed titles' files stay in the recycle bin (.mediarium-trash in the library folder); unset = 7, "0" = delete straight away
 	KeyHistoryRetentionDays = "cleanup.history_retention_days" // days finished downloads and activity are kept; unset = 90, "0" = forever
 	KeyCleanupLastRunAt     = "cleanup.last_run_at"            // when clean-up last ran (RFC 3339; set by the app, not user-editable)
 

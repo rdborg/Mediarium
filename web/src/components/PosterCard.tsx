@@ -30,6 +30,15 @@ export interface CardAction {
   active?: boolean
   danger?: boolean
   disabled?: boolean
+  // The main thing to do with the card (Add): shown with its label, and lit
+  // up while the pointer is over the card.
+  primary?: boolean
+}
+
+// A banner across the corner of the picture ("eBook + Audio").
+export interface CardRibbon {
+  label: string
+  tone: string // a class suffix: ebook, audio, both
 }
 
 // One poster in a grid: the picture and title open the item, a status pill sits
@@ -51,6 +60,7 @@ export default function PosterCard({
   rating,
   kind,
   progress,
+  ribbon,
 }: {
   to?: string
   poster?: string
@@ -68,6 +78,7 @@ export default function PosterCard({
   genres?: string[]
   rating?: number
   kind?: 'movie' | 'tv' | 'music'
+  ribbon?: CardRibbon
   progress?: { pct: number; label?: string }
 }) {
   const [broken, setBroken] = useState(false)
@@ -101,13 +112,18 @@ export default function PosterCard({
             <Icon name="star" size={11} /> {rating.toFixed(1)}
           </span>
         ) : null}
+        {ribbon && (
+          <span className={`pcard-ribbon tone-${ribbon.tone}`} aria-label={ribbon.label}>
+            {ribbon.label}
+          </span>
+        )}
         {kind && <span className={`pcard-kind kind-${kind}`} title={kind === 'movie' ? 'Movie' : kind === 'music' ? 'Music' : 'TV show'} />}
         {actions && actions.length > 0 && !selection && (
           <div className="pcard-actions">
             {actions.map((a) => (
               <button
                 key={a.label}
-                className={`icon-btn${a.active ? ' on' : ''}${a.danger ? ' danger' : ''}`}
+                className={`icon-btn${a.active ? ' on' : ''}${a.danger ? ' danger' : ''}${a.primary ? ' primary-act' : ''}`}
                 title={a.label}
                 aria-label={a.label}
                 aria-pressed={a.active === undefined ? undefined : a.active}
@@ -115,6 +131,7 @@ export default function PosterCard({
                 onClick={a.onClick}
               >
                 <Icon name={a.icon} size={17} />
+                {a.primary && <span>{a.label}</span>}
               </button>
             ))}
           </div>

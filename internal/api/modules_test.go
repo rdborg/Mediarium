@@ -24,7 +24,7 @@ func TestModulesDefaultsAndShape(t *testing.T) {
 	mods := getJSON[map[string]any](t, client, base+"/api/modules")
 	want := map[string][2]bool{
 		"movies": {true, true}, "tv": {true, true}, "music": {false, true},
-		"audiobooks": {false, false}, "ebooks": {false, false},
+		"audiobooks": {false, true}, "ebooks": {false, true},
 	}
 	for name, w := range want {
 		if en, av := moduleEnabled(t, mods, name); en != w[0] || av != w[1] {
@@ -49,9 +49,9 @@ func TestModulesRules(t *testing.T) {
 		{"movies and tv off is fine with music on", []map[string]any{{"music": true}, {"movies": false, "tv": false}}, 200, "", map[string]bool{"movies": false, "tv": false, "music": true}},
 		{"turning the last one off is refused", []map[string]any{{"music": true}, {"movies": false, "tv": false}, {"music": false}}, 400, lastOne, nil},
 		{"swapping is allowed in one request", []map[string]any{{"movies": false}, {"tv": false, "music": true}}, 200, "", map[string]bool{"movies": false, "tv": false, "music": true}},
-		{"audiobooks are coming soon", []map[string]any{{"audiobooks": true}}, 400, "Coming soon", nil},
-		{"ebooks are coming soon", []map[string]any{{"ebooks": true}}, 400, "Coming soon", nil},
-		{"switching a coming-soon module off is harmless", []map[string]any{{"audiobooks": false}}, 200, "", map[string]bool{"movies": true, "tv": true, "music": false}},
+		{"audiobooks on", []map[string]any{{"audiobooks": true}}, 200, "", map[string]bool{"movies": true, "audiobooks": true, "ebooks": false}},
+		{"ebooks on", []map[string]any{{"ebooks": true}}, 200, "", map[string]bool{"movies": true, "audiobooks": false, "ebooks": true}},
+		{"ebooks alone is enough", []map[string]any{{"ebooks": true}, {"movies": false, "tv": false}}, 200, "", map[string]bool{"movies": false, "tv": false, "ebooks": true}},
 		{"an empty change keeps everything", []map[string]any{{}}, 200, "", map[string]bool{"movies": true, "tv": true, "music": false}},
 	}
 	for _, tc := range cases {
@@ -88,7 +88,7 @@ func TestModulesRules(t *testing.T) {
 func TestRefusedModuleChangeChangesNothing(t *testing.T) {
 	_, base, client := loginNewServer(t)
 	doJSONStatus(t, client, http.MethodPut, base+"/api/modules", map[string]any{"movies": false})
-	if status, _ := doJSONStatus(t, client, http.MethodPut, base+"/api/modules", map[string]any{"tv": false, "audiobooks": true}); status != http.StatusBadRequest {
+	if status, _ := doJSONStatus(t, client, http.MethodPut, base+"/api/modules", map[string]any{"tv": false, "audiobooks": false}); status != http.StatusBadRequest {
 		t.Fatalf("status %d", status)
 	}
 	mods := getJSON[map[string]any](t, client, base+"/api/modules")

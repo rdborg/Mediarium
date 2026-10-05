@@ -8,6 +8,44 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-05
+
+Version 2 adds ebooks and audiobooks, with a reader and player built in, and tags for movies and shows.
+
+### Upgrading
+
+- **More movie and TV folders are gone.** If you added extra folders under Settings > Library, the titles in them stay in your library, but Mediarium no longer renames, replaces or deletes their files there. Move them into your main movies or TV folder and use Import to pick them up. Tags (for example Kids or 4K) are the way to keep them apart now.
+- For scripts using the API: adding a movie or show no longer takes a `rootPath`, and the settings `library.movies_extra_paths` and `library.tv_extra_paths` are removed.
+- Nothing else needs doing. The database updates itself on the first start, and your compose file keeps working. To use books, switch them on under Settings > Media types; Mediarium suggests a folder inside the one you already map and can create it.
+
+### Added
+- Ebooks and audiobooks. Switch them on under Settings > Media types, find a book by title or author (book details come from Open Library), pick ebook, audiobook or both, and Mediarium searches your indexers, downloads the best release (EPUB first for ebooks, M4B first for audiobooks) and files it as Author/Title (Year).
+- Discover's eBooks & Audiobooks tab: trending and popular books from Open Library, the most read classics, fantasy, science fiction and mysteries, and a browse by genre, year and order. A banner on each cover says whether an eBook, an audiobook or both have been published, and Add lights up when you point at a book.
+- Every book has an info page (description, subjects, editions, Add, more by the author), also from the search box.
+- Import the ebooks and audiobooks you already have: Mediarium reads the folder, recognises Author/Title folders (and Calibre's and Audiobookshelf's layouts), and adds them where they are.
+- Mediarium Books: a built-in reader and audiobook player that opens in its own window and installs as an app of its own. Read EPUBs a page at a time (contents, text size, light, sepia and dark pages, swipe and keys), open PDFs, and listen with chapters, 30-second skips, speed, a sleep timer and lock-screen controls. Your place is saved and carries on across devices.
+- A book's page shows more by its author, and you can follow an author so their new books are added by themselves.
+- Connect Audiobookshelf and Kavita under Media servers: new books show up there straight away, and a book's page links to it ("Listen in Audiobookshelf", "Read in Kavita").
+- The search box at the top finds books, and Upcoming > Wanted lists the books still missing, with Search now.
+- Tags on movies and shows (Kids, 4K, anything): set them on a title's page, when adding, or on a whole selection; filter the Library by tag; and every tag shows up as a collection on Plex, Jellyfin and Emby. A tidy way to keep kids' films or 4K apart in one folder.
+- A library folder that doesn't exist yet can be created from Settings and from the setup wizard, and when your other folders share one mapped folder (like /data) Mediarium offers to use and create /data/Ebooks, /data/Audiobooks or /data/Music for you, so no compose change is needed.
+
+### Changed
+- The header holds the small links that were at the bottom of the sidebar: the eBooks/Audiobooks Player, your media servers (named Plex, Jellyfin and so on) and, for administrators, the support heart. The search box sits next to the page title. On narrower screens the links show as icons.
+- Settings > Media types has bigger cards, each with a short list of what that kind of media does.
+- The dashboard's server details now sit in a slim panel inside the greeting card (the greeting takes a third, the server two thirds), instead of a separate strip.
+
+### Removed
+- More movie and TV folders. Each kind of media has one folder again, and tags sort it instead (see Upgrading above).
+- The Windows and macOS programs. Releases now carry the Linux program only, next to the Docker image. On a Windows PC or a Mac, run Mediarium in Docker Desktop.
+
+### Fixed
+- The "Mediarium is slow to answer" notice no longer appears when the wait is for an outside service (TMDB, Open Library, MusicBrainz, your indexers). Those lists show their own loading placeholders, and a service that doesn't answer is named in the message.
+- A book with a short title is no longer matched to a longer one that contains it ("It" picked up "If It Bleeds"): the title has to stand on its own in the release name.
+- Once a book has downloaded, its earlier failed tries leave the queue, as they already did for movies.
+- Ebook and Audiobook in the add-book window show a tick when chosen.
+- The reader and the audiobook player no longer leave an empty strip down the right edge of the window, and the search box hint is shorter so it fits next to long page titles.
+
 ## [1.4.1] - 2026-10-04
 
 ### Fixed

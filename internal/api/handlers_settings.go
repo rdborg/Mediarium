@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -132,10 +131,6 @@ type settingsPayload struct {
 	// the setting alone.
 	CleanupAuto          *bool `json:"cleanupAuto,omitempty"`
 	HistoryRetentionDays *int  `json:"historyRetentionDays,omitempty"`
-	// MoviesExtraPaths and TVExtraPaths are more library folders besides the
-	// main ones (each must exist). Sending a list replaces it.
-	MoviesExtraPaths *[]string `json:"moviesExtraPaths,omitempty"`
-	TVExtraPaths     *[]string `json:"tvExtraPaths,omitempty"`
 	// TrashDays is how many days removed titles' files stay in the recycle
 	// bin (7 by default, 0 = delete straight away).
 	TrashDays *int `json:"trashDays,omitempty"`
@@ -165,8 +160,7 @@ type settingsPayload struct {
 	// of their own use (a music profile id; unset or 0 leaves it as it is).
 	MusicDefaultProfileID int64 `json:"musicDefaultProfileId,omitempty"`
 
-	// Ebooks and audiobooks folders. Those modules are not built yet, so the
-	// folders are only remembered (and shown greyed in Settings).
+	// Ebooks and audiobooks library folders.
 	EbooksPath     string `json:"ebooksPath,omitempty"`
 	AudiobooksPath string `json:"audiobooksPath,omitempty"`
 
@@ -232,13 +226,6 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	cleanupAuto := s.cleanupAutoEnabled()
 	retentionDays := s.historyRetentionDays()
 	trashDays := s.trashDays()
-	movieExtras, tvExtras := s.extraPaths(settings.KeyMoviesExtraPaths), s.extraPaths(settings.KeyTVExtraPaths)
-	if movieExtras == nil {
-		movieExtras = []string{}
-	}
-	if tvExtras == nil {
-		tvExtras = []string{}
-	}
 	backupAuto, backupKeep := s.backupAutoEnabled(), s.backupKeep()
 	speedMB, minFree := s.speedLimitMB(), s.minFreeGB()
 	speedHours, quiet := "", ""
@@ -295,8 +282,6 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		CleanupAuto:              &cleanupAuto,
 		HistoryRetentionDays:     &retentionDays,
 		TrashDays:                &trashDays,
-		MoviesExtraPaths:         &movieExtras,
-		TVExtraPaths:             &tvExtras,
 		BackupAuto:               &backupAuto,
 		BackupKeep:               &backupKeep,
 		SpeedLimitMB:             &speedMB,
@@ -589,39 +574,6 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := s.Settings.Set(settings.KeyBackupKeep, strconv.Itoa(*req.BackupKeep), false); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-	}
-	for _, extra := range []struct {
-		list *[]string
-		key  string
-		what string
-	}{{req.MoviesExtraPaths, settings.KeyMoviesExtraPaths, "movie"}, {req.TVExtraPaths, settings.KeyTVExtraPaths, "TV"}} {
-		if extra.list == nil {
-			continue
-		}
-		var clean []string
-		for _, p := range *extra.list {
-			p = strings.TrimSpace(p)
-			if p == "" {
-				continue
-			}
-			if !filepath.IsAbs(p) {
-				writeError(w, http.StatusBadRequest, fmt.Sprintf("%q is not a full path. Write it from the top, like /data/Movies2.", p))
-				return
-			}
-			if info, err := os.Stat(p); err != nil || !info.IsDir() {
-				writeError(w, http.StatusBadRequest, fmt.Sprintf("%s isn't a folder Mediarium can see. If you use Docker, map it into the container first.", p))
-				return
-			}
-			clean = append(clean, filepath.Clean(p))
-		}
-		if len(clean) > 10 {
-			writeError(w, http.StatusBadRequest, fmt.Sprintf("Add at most 10 extra %s folders.", extra.what))
-			return
-		}
-		if err := s.Settings.Set(extra.key, strings.Join(clean, "\n"), false); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

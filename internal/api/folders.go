@@ -1,7 +1,11 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/rdborg/mediarium/internal/fsinfo"
@@ -25,8 +29,8 @@ func (s *Server) downloadsRoot() string {
 	return s.cfg.DownloadsDir
 }
 
-// ebooksRoot and audiobooksRoot are the folders kept for those modules (not
-// built yet): the Settings value, falling back to EBOOKS_DIR / AUDIOBOOKS_DIR.
+// ebooksRoot and audiobooksRoot are the ebooks and audiobooks libraries: the
+// Settings value, falling back to EBOOKS_DIR / AUDIOBOOKS_DIR.
 func (s *Server) ebooksRoot() string {
 	if v, _ := s.Settings.Get(settings.KeyEbooksPath); v != "" {
 		return v
@@ -53,6 +57,10 @@ type folderPayload struct {
 	// "map this folder in your compose file" make sense.
 	InDocker bool     `json:"inDocker"`
 	Warnings []string `json:"warnings"`
+	// CanCreate is true for a folder that doesn't exist yet but can be made
+	// safely: its parent exists, can be written, and is mapped to the device
+	// (so it isn't lost when the container is updated).
+	CanCreate bool `json:"canCreate,omitempty"`
 }
 
 func toFolderPayload(f fsinfo.Folder) folderPayload {
@@ -79,5 +87,84 @@ func (s *Server) handleFolderCheck(w http.ResponseWriter, r *http.Request) {
 	) {
 		return
 	}
-	writeJSON(w, http.StatusOK, toFolderPayload(fsinfo.Inspect(path)))
+	writeJSON(w, http.StatusOK, s.folderPayloadFor(path))
+}
+
+// folderPayloadFor is toFolderPayload plus whether a missing folder can be created.
+func (s *Server) folderPayloadFor(path string) folderPayload {
+	p := toFolderPayload(fsinfo.Inspect(path))
+	if !p.Exists {
+		if parent, ok := creatableParent(path); ok {
+			p.CanCreate = true
+			p.Warnings = []string{fmt.Sprintf("This folder doesn't exist yet. Mediarium can create it inside %s, which is mapped to your device.", parent)}
+		}
+	}
+	return p
+}
+
+// creatableParent reports whether path can be created safely: one level
+// below a folder that exists, is writable and (in Docker) is mapped from the
+// host. A folder made anywhere else would live inside the container and
+// disappear with the next update.
+func creatableParent(path string) (string, bool) {
+	clean := filepath.Clean(path)
+	parent := filepath.Dir(clean)
+	if !filepath.IsAbs(clean) || parent == clean || parent == "/" || parent == "." {
+		return parent, false
+	}
+	f := fsinfo.Inspect(parent)
+	if !f.Exists || !f.IsDir || !f.Writable {
+		return parent, false
+	}
+	if f.MountKnown && !f.Mounted && !insideMount(parent) {
+		return parent, false
+	}
+	return parent, true
+}
+
+// insideMount reports whether dir is below a folder mapped from the device
+// (a mapped /data makes /data/Media/Books safe too).
+func insideMount(dir string) bool {
+	for d := filepath.Dir(dir); d != "/" && d != "." && d != filepath.Dir(d); d = filepath.Dir(d) {
+		if f := fsinfo.Inspect(d); f.MountKnown && f.Mounted {
+			return true
+		}
+	}
+	return false
+}
+
+type createFolderRequest struct {
+	Path string `json:"path"`
+}
+
+// handleCreateFolder makes a missing library folder (administrators), only
+// where creatableParent allows. It answers with the folder's new check.
+func (s *Server) handleCreateFolder(w http.ResponseWriter, r *http.Request) {
+	var req createFolderRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "Send the folder to create.")
+		return
+	}
+	path := strings.TrimSpace(req.Path)
+	if rejectBad(w,
+		checkRequired(path, "Enter the folder to create, for example /data/Ebooks."),
+		checkAbsPath(path, "/data/Ebooks"),
+		checkMaxLen(path, "The folder path", maxPathLen),
+	) {
+		return
+	}
+	if _, err := os.Stat(path); err == nil {
+		writeJSON(w, http.StatusOK, s.folderPayloadFor(path))
+		return
+	}
+	parent, ok := creatableParent(path)
+	if !ok {
+		writeError(w, http.StatusConflict, fmt.Sprintf("Mediarium can only create a folder inside one that is mapped to your device and writable, and %s isn't. Map a folder for it in your compose file instead.", parent))
+		return
+	}
+	if err := os.Mkdir(filepath.Clean(path), 0o775); err != nil && !errors.Is(err, os.ErrExist) {
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("Couldn't create %s: %v", path, err))
+		return
+	}
+	writeJSON(w, http.StatusOK, s.folderPayloadFor(path))
 }

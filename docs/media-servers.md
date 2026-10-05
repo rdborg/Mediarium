@@ -1,11 +1,11 @@
-# Media servers (Plex, Jellyfin, Emby)
+# Media servers (Plex, Jellyfin, Emby, Audiobookshelf, Kavita)
 
 Mediarium downloads and organises your movies and shows; you watch them in Plex, Jellyfin or Emby. Connecting your media server lets the two work together:
 
 - **New downloads show up straight away.** After each import, Mediarium asks the media server to scan the folder the new file went into, so you don't wait for its next scheduled scan.
 - **Refresh now.** A button that asks the server to scan all of its libraries.
 - **Watch in Plex / Jellyfin / Emby.** A title's page links straight to the same title on your media server (found by its TMDB id).
-- **Open Plex / Jellyfin / Emby.** A link in the sidebar to your server's own web app.
+- **Open Plex / Jellyfin / Emby.** A small link at the top right of every page, named after the kind of server (Plex, Jellyfin, Emby, Audiobookshelf, Kavita), opens its own web app.
 
 Mediarium doesn't convert video, and its only player is the simple in-browser one on a title's Files card. Your media server is still the place to watch.
 
@@ -111,6 +111,26 @@ Treat the token like a password: it gives full access to your Plex server.
 2. Choose **New API Key**, name it `Mediarium` and save.
 3. Copy the key.
 
+## Audiobookshelf and Kavita (books)
+
+While ebooks or audiobooks are switched on, the list of servers also offers **Audiobookshelf** (for listening to audiobooks, with phone apps) and **Kavita** (for reading ebooks and comics in the browser). Both are free and run in their own container next to Mediarium. Mediarium doesn't play or show books itself: these apps do that, and Mediarium keeps them filled.
+
+To connect one, pick it, type its address and paste a key:
+
+- **Audiobookshelf**: an API token. In Audiobookshelf open **Settings > API Keys** and add one (older versions: **Settings > Users**, your user, **API Token**). The usual address is `http://<server>:13378`.
+- **Kavita**: your API key. In Kavita open your user settings (your name, top right), then **3rd Party Clients**, and copy the key. The usual address is `http://<server>:5000`. Mediarium swaps the key for a short sign-in token and keeps it for half an hour.
+
+Press **Test**, then **Add**. What you get:
+
+- **New books show up straight away.** After a book is downloaded, the library that holds its folder is scanned. Only libraries whose folder contains the book are scanned; a book folder outside all of them is left alone (an Audiobookshelf with audiobooks only is never asked about ebooks). Podcast libraries are never scanned.
+- **Read in Kavita / Listen in Audiobookshelf** on the book's page, when the server has the book (looked up by title).
+- **Refresh now** scans all of the server's book libraries.
+- Movies, shows and music are never sent to these two.
+
+If the server sees your books under another path (for example Mediarium's `/audiobooks` is `/data/audiobooks` there), add a folder mapping, the same as below.
+
+Plex, Jellyfin and Emby are told about a new book only when one of their libraries holds its folder. They don't get a whole-library scan for it.
+
 ## Path mapping
 
 Mediarium tells the media server *which folder* changed, using the folder's name as Mediarium sees it. If your media server sees the same files under a different name, it won't recognise the folder. Path mapping (called **Folder mapping** in the app) translates the name.
@@ -135,6 +155,15 @@ If Plex can't match the folder to any library, Mediarium scans all of Plex's mov
 - If a server's last test or refresh failed, the dashboard shows it ("Plex (Plex) isn't working") with the reason, until a test or refresh works again. A failed refresh is also listed under **Settings > System > Logs and errors** ([logs-and-errors.md](./logs-and-errors.md)).
 - Servers that are switched off, or have **Refresh after every download** off, are left alone.
 - **Music** works the same way once the music module is on ([music.md](./music.md)): after an album is imported, its folder (`<Artist>/<Album (Year)>`) is scanned. Plex scans it in the library that contains it, which must be a Plex *music* library (type "Music"); if none contains the folder, all music libraries are scanned, never your movie or TV ones. Jellyfin and Emby are told the album folder like any other. Add a path-mapping row for the music folder too (for example `/data/music` to `/music`).
+
+## Tags as collections
+
+Tags you put on movies and shows in Mediarium (see [library.md](./library.md#tags)) are passed on to every enabled Plex, Jellyfin and Emby server:
+
+- **Plex**: the tag is added to the title's **Collection** field, so Plex shows a collection of that name in the library.
+- **Jellyfin and Emby**: the title is put in a collection (box set) named after the tag, created when it doesn't exist yet.
+
+Taking a tag off takes the title out of that collection. Only tags changed in Mediarium are touched: collections you made yourself on the server stay as they are. A title the server doesn't have yet gets its tags a few minutes after it's downloaded (once the server has scanned it). Audiobookshelf and Kavita don't get tags.
 
 ## Watch in and Open links
 

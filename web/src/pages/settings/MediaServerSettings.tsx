@@ -11,19 +11,27 @@ import { timeAgo } from '../../format'
 import { FieldError, FormProblem, useValidation, type Validation } from '../../useValidation'
 import { firstError, folderPath, required, apiKey as apiKeyCheck, url as urlCheck } from '../../validate'
 import { useLive } from '../../useLive'
+import { useModules } from '../../ModulesContext'
 
 const KINDS: MediaServerKind[] = ['plex', 'jellyfin', 'emby']
+// The apps for reading and listening, offered while ebooks or audiobooks are on.
+const BOOK_KINDS: MediaServerKind[] = ['audiobookshelf', 'kavita']
+const isBookKind = (k: MediaServerKind) => BOOK_KINDS.includes(k)
 
 const TOKEN_HELP: Record<MediaServerKind, string> = {
   plex: 'Your Plex token. In Plex Web, open any movie, choose ⋯ → Get Info → View XML; the token is the X-Plex-Token part of the address that opens.',
   jellyfin: 'An API key. In Jellyfin: Dashboard → API Keys → + (name it Mediarium).',
   emby: 'An API key. In Emby: Settings → Advanced → API Keys → New API Key (name it Mediarium).',
+  audiobookshelf: 'An API token. In Audiobookshelf: Settings → API Keys → Add API Key (older versions: Settings → Users → your user → API Token).',
+  kavita: 'Your API key. In Kavita: open your user settings (your name, top right) → 3rd Party Clients, and copy the API key.',
 }
 
 const ADDRESS_HINT: Record<MediaServerKind, string> = {
   plex: 'http://192.168.1.10:32400',
   jellyfin: 'http://192.168.1.10:8096',
   emby: 'http://192.168.1.10:8096',
+  audiobookshelf: 'http://192.168.1.10:13378',
+  kavita: 'http://192.168.1.10:5000',
 }
 
 function TestResult({ r }: { r: MediaServerTest }) {
@@ -100,6 +108,8 @@ const KIND_HINT: Record<MediaServerKind, string> = {
   plex: 'Sign in with your Plex account. No token to find or copy.',
   jellyfin: 'Quick Connect, or an administrator login. No key to copy.',
   emby: 'An administrator login, or an API key.',
+  audiobookshelf: 'Listen to your audiobooks, with apps for phones. Needs an API token.',
+  kavita: 'Read your ebooks and comics in the browser. Needs an API key.',
 }
 
 // The form for one kind of media server. All three stay mounted while you
@@ -214,7 +224,9 @@ function KindPanel({
             Address you open in your browser (optional)
             <input value={publicUrl} onChange={(e) => setPublicUrl(e.target.value)} placeholder="https://jellyfin.example.com" {...v.bind('publicUrl', publicUrl, setPublicUrl)} />
             <FieldError v={v} name="publicUrl" />
-            <small className="field-help">Used for the &quot;Watch in {brand.label}&quot; buttons when it differs from the address above.</small>
+            <small className="field-help">
+              Used for the {isBookKind(kind) ? 'links on book pages' : <>&quot;Watch in {brand.label}&quot; buttons</>} when it differs from the address above.
+            </small>
           </label>
           <div>
             <strong style={{ fontSize: '0.9rem' }}>Folder mapping (optional)</strong>
@@ -257,10 +269,15 @@ function KindPanel({
             </div>
           </details>
         </>
+      ) : isBookKind(kind) ? (
+        <>
+          {address}
+          {manual}
+        </>
       ) : (
         <>
           {address}
-          <JellyfinEmbySignIn kind={kind} baseUrl={baseUrl} checkAddress={() => va.attempt()} onAdded={onAdded} />
+          <JellyfinEmbySignIn kind={kind as 'jellyfin' | 'emby'} baseUrl={baseUrl} checkAddress={() => va.attempt()} onAdded={onAdded} />
           <details className="how-details">
             <summary>Or enter an API key by hand</summary>
             <div className="grid-form" style={{ marginTop: 10 }}>
@@ -279,7 +296,9 @@ type Pick = MediaServerKind | 'find'
 // you picked on the right.
 function AddForm({ onAdded }: { onAdded: () => void }) {
   const [pick, setPick] = useState<Pick>('find')
-  const [addr, setAddr] = useState<Record<MediaServerKind, string>>({ plex: '', jellyfin: '', emby: '' })
+  const [addr, setAddr] = useState<Record<MediaServerKind, string>>({ plex: '', jellyfin: '', emby: '', audiobookshelf: '', kavita: '' })
+  const { on } = useModules()
+  const kinds = on('ebooks') || on('audiobooks') ? [...KINDS, ...BOOK_KINDS] : KINDS
   const color = pick === 'find' ? '#f2c14e' : MEDIA_SERVER_BRAND[pick].color
 
   return (
@@ -294,7 +313,7 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
             <small>Look for Plex, Jellyfin and Emby on your home network.</small>
           </span>
         </button>
-        {KINDS.map((k) => (
+        {kinds.map((k) => (
           <button key={k} role="tab" aria-selected={pick === k} className={`method-item${pick === k ? ' active' : ''}`} style={{ ['--mc' as string]: MEDIA_SERVER_BRAND[k].color }} onClick={() => setPick(k)}>
             <MediaServerMark kind={k} size={30} />
             <span className="mi-text">
@@ -324,7 +343,7 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
             onManual={() => setPick(KINDS[0])}
           />
         </div>
-        {KINDS.map((k) => (
+        {kinds.map((k) => (
           <KindPanel key={k} kind={k} hidden={pick !== k} baseUrl={addr[k]} setBaseUrl={(v) => setAddr((a) => ({ ...a, [k]: v }))} onAdded={onAdded} />
         ))}
       </div>
@@ -507,7 +526,7 @@ export default function MediaServerSettings() {
             <Icon name="monitor" size={28} />
             <div>
               <strong>No media server connected yet.</strong>
-              <p>Pick Plex, Jellyfin or Emby below, or let Mediarium find them on your network. Then test the connection and add it.</p>
+              <p>Pick a server below, or let Mediarium find Plex, Jellyfin and Emby on your network. Then test the connection and add it.</p>
             </div>
           </div>
         )}

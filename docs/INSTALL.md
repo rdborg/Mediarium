@@ -208,8 +208,8 @@ Each kind of media has its own folder setting. You only need the ones you use.
 | Media | Environment variable | Default | Notes |
 |---|---|---|---|
 | Music | `MUSIC_DIR` | `/music` | Works today. Switch it on under Settings > Media types ([music.md](./music.md)). |
-| Ebooks | `EBOOKS_DIR` | `/ebooks` | Not ready yet. The folder is only remembered for later. |
-| Audiobooks | `AUDIOBOOKS_DIR` | `/audiobooks` | Not ready yet. The folder is only remembered for later. |
+| Ebooks | `EBOOKS_DIR` | `/ebooks` | Works today. Switch it on under Settings > Media types ([books.md](./books.md)). |
+| Audiobooks | `AUDIOBOOKS_DIR` | `/audiobooks` | Works today. Switch it on under Settings > Media types ([books.md](./books.md)). |
 
 There are two ways to give one of them a folder:
 
@@ -285,14 +285,14 @@ The Docker images set `BUNDLED_FLARESOLVERR` (the `-full` image only) and `MEDIA
 Open `http://<your-server-ip>:8264`. The first time, a short wizard walks you through:
 
 1. **Admin account.** The first account you make is the administrator. From outside your home network (through a reverse proxy, or on a server) the page also asks for a one-time setup code. Find it in the log: `docker logs mediarium`, look for `setup_code`. You also tick that you have read the responsible-use notice ([LEGAL.md](./LEGAL.md)).
-2. **Media types.** Pick movies, TV shows and music. At least one has to stay on, and audiobooks and ebooks show as coming soon. Later steps only ask about what you picked.
-3. **Library paths.** One box for each kind you picked, plus downloads. They show the folders your compose file maps (from `MOVIES_DIR`, `TV_DIR`, `DOWNLOADS_DIR`, `MUSIC_DIR` and so on) and check each one live: whether it exists, whether Mediarium can write to it, whether it is **Mapped to your device**, and the free space. A folder that isn't mapped shows the exact line to add to your compose file. Ebooks and audiobooks folders can be set here too, for later.
+2. **Media types.** Pick movies, TV shows, music, ebooks and audiobooks. At least one has to stay on. Later steps only ask about what you picked.
+3. **Library paths.** One box for each kind you picked, plus downloads. They show the folders your compose file maps (from `MOVIES_DIR`, `TV_DIR`, `DOWNLOADS_DIR`, `MUSIC_DIR` and so on) and check each one live: whether it exists, whether Mediarium can write to it, whether it is **Mapped to your device**, and the free space. A folder that isn't mapped shows the exact line to add to your compose file. When your folders share one mapped folder such as `/data`, the wizard suggests a folder inside it (for example `/data/Ebooks`) and can create it for you.
 4. **Connect services.** Movie and show details, subtitles and lists come from TMDB, OpenSubtitles and Trakt. The official image has these built in, so there is usually nothing to do. If a key is needed, the wizard explains how to get a free one. Subtitles are switched on later, under Settings > Info, lists and subtitles > Subtitles.
 5. **Indexers** (where Mediarium looks for releases) and **Usenet provider** (your Usenet provider's login; skip it if you only use torrents).
 6. **Quality & naming.** The default quality, and the media player you use (Plex, Jellyfin, Emby, Kodi or something else), which picks the matching file naming style.
 7. **Media server** (optional). Sign in to Plex, Jellyfin or Emby so "Watch in" links work and the server refreshes when something new arrives.
 
-![Setup step 2, Media types: cards for Movies, TV shows and Music ticked, and Audiobooks and Ebooks marked coming soon](images/onboarding-media-types.png)
+![Setup step 2, Media types: cards for Movies, TV shows, Music, Ebooks and Audiobooks, all ticked](images/onboarding-media-types.png)
 
 *Step 2, Media types.*
 

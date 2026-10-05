@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { scrollToTop } from '../scrollTop'
 import { api, isAdmin, type WatchLink } from '../api'
-import { MediaServerMark } from './mediaServerBrand'
+import { MEDIA_SERVER_BRAND, MediaServerMark } from './mediaServerBrand'
 import { useAuth } from '../AuthContext'
 import { demoEnabled } from '../demo'
 import { titleFor, useSpecificTitle } from '../documentTitle'
@@ -10,6 +10,8 @@ import { sectionFor, type SectionKey } from '../sections'
 import { inPage, pageTitle, settingsGroupsFor } from '../settingsNav'
 import { useLive } from '../useLive'
 import { useUnreadErrors } from '../useProblems'
+import { useModules } from '../ModulesContext'
+import { openBookApp } from '../bookshelf/open'
 import BrandMark from './BrandMark'
 import BusyNotice from './BusyNotice'
 import ImportBanner from './ImportBanner'
@@ -33,21 +35,13 @@ const NAV: { to: string; label: string; icon: IconName; sec: SectionKey; end?: b
 export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   // A small, hideable link to support the project (administrators only). Hidden per browser.
-  const [showSupport, setShowSupport] = useState(() => {
+  const [showSupport] = useState(() => {
     try {
       return localStorage.getItem('mediarium-hide-support') !== '1'
     } catch {
       return true
     }
   })
-  function hideSupport() {
-    setShowSupport(false)
-    try {
-      localStorage.setItem('mediarium-hide-support', '1')
-    } catch {
-      // best effort only
-    }
-  }
   const [active, setActive] = useState(0)
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -67,6 +61,8 @@ export default function AppShell() {
   // Members only have their own profile and About under Settings.
   const settingsGroups = settingsGroupsFor(admin)
   const nav = NAV.map((n) => (n.sec === 'settings' ? { ...n, to: settingsGroups[0].pages[0].to } : n))
+  const { on: moduleOn } = useModules()
+  const booksOn = moduleOn('ebooks') || moduleOn('audiobooks')
   const inUpcoming = location.pathname.startsWith('/wanted') || location.pathname.startsWith('/calendar')
   // Errors from the last day that nobody has marked as read (administrators only).
   const unreadErrors = useUnreadErrors(admin)
@@ -225,25 +221,6 @@ export default function AppShell() {
             )
           })}
         </div>
-        {homes.length > 0 && !collapsed && (
-          <div className="side-servers">
-            {homes.map((h) => (
-              <a key={h.serverId} href={h.url} target="_blank" rel="noreferrer" title={`Open ${h.name}`}>
-                <MediaServerMark kind={h.kind} size={18} /> <span>Open {h.name}</span> <Icon name="external" size={13} />
-              </a>
-            ))}
-          </div>
-        )}
-        {admin && showSupport && (
-          <div className="side-support">
-            <a href="https://ko-fi.com/ryanborg" target="_blank" rel="noreferrer" title="Support Mediarium">
-              <Icon name="heart" size={15} /> <span>Support Mediarium</span>
-            </a>
-            <button className="side-support-x" onClick={hideSupport} aria-label="Hide the support link" title="Hide this">
-              ×
-            </button>
-          </div>
-        )}
       </nav>
       <div className="main-area">
         <header className="topbar">
@@ -253,6 +230,29 @@ export default function AppShell() {
           {pageHasHeading ? <p className="top-title">{heading}</p> : <h1 className="top-title">{heading}</h1>}
           <SearchBox />
           <div className="top-actions">
+            {booksOn && (
+              <a
+                className="top-link"
+                href="/bookshelf/"
+                onClick={(e) => {
+                  e.preventDefault()
+                  openBookApp()
+                }}
+                title="Read and listen in Mediarium Books (opens in its own window)"
+              >
+                <Icon name="book" size={15} /> <span>eBooks/Audiobooks Player</span>
+              </a>
+            )}
+            {homes.map((h) => (
+              <a key={h.serverId} className="top-link" href={h.url} target="_blank" rel="noreferrer" title={`Open ${MEDIA_SERVER_BRAND[h.kind].label} (${h.name}) in a new tab`}>
+                <MediaServerMark kind={h.kind} size={16} /> <span>{MEDIA_SERVER_BRAND[h.kind].label}</span>
+              </a>
+            ))}
+            {admin && showSupport && (
+              <a className="top-link icon-only support" href="https://ko-fi.com/ryanborg" target="_blank" rel="noreferrer" title="Support Mediarium" aria-label="Support Mediarium">
+                <Icon name="heart" size={15} />
+              </a>
+            )}
             {demoEnabled() && (
               <span className="demo-chip" title="Sample data is showing. Turn it off from your profile menu.">
                 <Icon name="flask" size={14} /> Demo data

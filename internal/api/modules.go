@@ -8,16 +8,18 @@ import (
 )
 
 // The modules switchboard: which kinds of media Mediarium looks after.
-// Movies and TV are on by default, music is off until switched on;
-// audiobooks and ebooks are not built yet and cannot be switched on. Turning
+// Movies and TV are on by default; music, ebooks and audiobooks are off until
+// switched on. Turning
 // a module off hides its pages and stops its automation (no searches, RSS
 // sync or automatic grabs) and its add endpoints answer 409; nothing that
 // already exists is deleted or changed, and downloads already running finish.
 
 const (
-	moduleMovies = "movies"
-	moduleTV     = "tv"
-	moduleMusic  = "music"
+	moduleMovies     = "movies"
+	moduleTV         = "tv"
+	moduleMusic      = "music"
+	moduleEbooks     = "ebooks"
+	moduleAudiobooks = "audiobooks"
 )
 
 var (
@@ -44,6 +46,19 @@ func (s *Server) musicEnabled() bool {
 	return v
 }
 
+func (s *Server) ebooksEnabled() bool {
+	v, _ := s.Settings.Get(settings.KeyModulesEbooks)
+	return v == "1"
+}
+
+func (s *Server) audiobooksEnabled() bool {
+	v, _ := s.Settings.Get(settings.KeyModulesAudiobooks)
+	return v == "1"
+}
+
+// booksEnabled reports whether either book module is on.
+func (s *Server) booksEnabled() bool { return s.ebooksEnabled() || s.audiobooksEnabled() }
+
 type moduleState struct {
 	Enabled   bool `json:"enabled"`
 	Available bool `json:"available"` // false for a module that is not built yet
@@ -66,8 +81,8 @@ func (s *Server) modulesPayload() modulesPayload {
 		Movies:     moduleState{Enabled: s.moviesEnabled(), Available: true},
 		TV:         moduleState{Enabled: s.tvEnabled(), Available: true},
 		Music:      moduleState{Enabled: s.musicEnabled(), Available: true},
-		Audiobooks: moduleState{},
-		Ebooks:     moduleState{},
+		Audiobooks: moduleState{Enabled: s.audiobooksEnabled(), Available: true},
+		Ebooks:     moduleState{Enabled: s.ebooksEnabled(), Available: true},
 
 		SubtitlesEnabled: s.subtitlesEnabled(),
 	}
@@ -90,8 +105,7 @@ type moduleChanges struct {
 }
 
 // handlePutModules switches modules on or off (administrators) and answers
-// with the new state. Audiobooks and ebooks cannot be switched on yet (400
-// "Coming soon"), and a change that would leave nothing on is refused (400
+// with the new state. A change that would leave nothing on is refused (400
 // "At least one media type has to stay switched on.").
 func (s *Server) handlePutModules(w http.ResponseWriter, r *http.Request) {
 	var req moduleChanges
@@ -117,9 +131,6 @@ func writeModulesError(w http.ResponseWriter, err error) {
 // setModules applies a change after checking the whole result: nothing is
 // written unless every rule holds.
 func (s *Server) setModules(c moduleChanges) error {
-	if (c.Audiobooks != nil && *c.Audiobooks) || (c.Ebooks != nil && *c.Ebooks) {
-		return errComingSoon
-	}
 	pick := func(change *bool, current bool) bool {
 		if change == nil {
 			return current
@@ -127,7 +138,8 @@ func (s *Server) setModules(c moduleChanges) error {
 		return *change
 	}
 	movies, tv, music := pick(c.Movies, s.moviesEnabled()), pick(c.TV, s.tvEnabled()), pick(c.Music, s.musicEnabled())
-	if !movies && !tv && !music {
+	ebooks, audiobooks := pick(c.Ebooks, s.ebooksEnabled()), pick(c.Audiobooks, s.audiobooksEnabled())
+	if !movies && !tv && !music && !ebooks && !audiobooks {
 		return errNoModules
 	}
 	flag := func(on bool) string {
@@ -145,6 +157,8 @@ func (s *Server) setModules(c moduleChanges) error {
 		{c.TV, settings.KeyModulesTV, tv},
 		{c.Music, settings.KeyModulesMusic, music},
 		{c.Music, settings.KeyMusicEnabled, music}, // the older name, kept in step
+		{c.Ebooks, settings.KeyModulesEbooks, ebooks},
+		{c.Audiobooks, settings.KeyModulesAudiobooks, audiobooks},
 	} {
 		if w.changed == nil {
 			continue
@@ -168,6 +182,16 @@ func (s *Server) requireModule(w http.ResponseWriter, module string) bool {
 	case moduleTV:
 		if !s.tvEnabled() {
 			writeError(w, http.StatusConflict, "TV is switched off. Switch it on in Settings > Media types.")
+			return false
+		}
+	case moduleEbooks:
+		if !s.ebooksEnabled() {
+			writeError(w, http.StatusConflict, "Ebooks are switched off. Switch them on in Settings > Media types.")
+			return false
+		}
+	case moduleAudiobooks:
+		if !s.audiobooksEnabled() {
+			writeError(w, http.StatusConflict, "Audiobooks are switched off. Switch them on in Settings > Media types.")
 			return false
 		}
 	}

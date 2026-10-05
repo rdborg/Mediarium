@@ -3,6 +3,7 @@
 // credentials: 'include' — no token to manage client-side.
 
 import { noteBusy, noteFine, startRead } from './busyState'
+import { outsideService, slowServiceMessage } from './outsideService'
 import { signalFor } from './requestSignal'
 import type { Diagnostics } from './supportReport'
 import type { ProblemCounts, ProblemList } from './problemsView'
@@ -28,7 +29,10 @@ const NO_ANSWER_MESSAGE = 'Could not reach Mediarium. Check that it is running, 
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isRead = !init?.method || init.method === 'GET'
-  const endRead = isRead ? startRead() : undefined
+  // A read that waits on TMDB, Open Library, an indexer and the like says
+  // nothing about Mediarium being busy.
+  const service = isRead ? outsideService(path) : ''
+  const endRead = isRead && !service ? startRead() : undefined
   let res: Response
   let text: string
   try {
@@ -44,6 +48,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // The page cancelled this call itself (for example a search that was replaced): that says nothing about the server.
     if (init?.signal?.aborted) throw e
     if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+      if (service) throw new ApiError(0, slowServiceMessage(service))
       noteBusy()
       throw new ApiError(0, SLOW_MESSAGE, true)
     }
@@ -255,8 +260,6 @@ export interface Settings {
   cleanupAuto?: boolean
   historyRetentionDays?: number
   trashDays?: number
-  moviesExtraPaths?: string[]
-  tvExtraPaths?: string[]
   backupAuto?: boolean
   backupKeep?: number
   speedLimitMB?: number
@@ -445,8 +448,6 @@ export interface AddMovieOptions {
   searchNow?: boolean
   // Leave it alone once it is downloaded. The server treats a missing value as true.
   noUpgrade?: boolean
-  // The library folder to keep it in, when there is more than one.
-  rootPath?: string
 }
 
 export interface AddSeriesOptions {
@@ -455,11 +456,11 @@ export interface AddSeriesOptions {
   sources?: SourcePref
   searchNow?: boolean
   noUpgrade?: boolean
-  rootPath?: string
 }
 
 export interface Series {
   id: number
+  tags?: string[]
   sources?: SourcePref
   profileId?: number
   tmdbId: number
@@ -513,6 +514,7 @@ export interface WantedItem {
 
 export interface Movie {
   id: number
+  tags?: string[]
   sources?: SourcePref
   profileId?: number
   monitored?: boolean
@@ -535,6 +537,8 @@ export interface QueueItem {
   movieId: number
   seriesId?: number
   albumId?: number // an album grab (music module)
+  bookId?: number // a book grab (ebooks and audiobooks)
+  bookFormat?: 'ebook' | 'audiobook'
   tmdbId?: number
   title: string
   subtitle?: string
@@ -793,7 +797,7 @@ export interface TitleFile {
 }
 
 // A Plex, Jellyfin or Emby server Mediarium tells about new files.
-export type MediaServerKind = 'plex' | 'jellyfin' | 'emby'
+export type MediaServerKind = 'plex' | 'jellyfin' | 'emby' | 'audiobookshelf' | 'kavita'
 
 export interface PathMapping {
   from: string // path as Mediarium sees it, e.g. /movies
@@ -1139,6 +1143,8 @@ export interface FolderCheck {
   // True when Mediarium runs in a container (only then do compose lines apply).
   inDocker?: boolean
   warnings: string[]
+  // A missing folder that Mediarium can create safely (inside a mapped, writable one).
+  canCreate?: boolean
 }
 
 export interface HealthItem {
@@ -1177,11 +1183,12 @@ export interface DashActive {
 }
 
 export interface DashRecent {
-  kind: 'movie' | 'series' | 'album'
+  kind: 'movie' | 'series' | 'album' | 'book'
   id: number
   tmdbId?: number
   seriesId?: number
   albumId?: number
+  bookId?: number
   title: string
   subtitle?: string
   year?: number
@@ -1201,6 +1208,9 @@ export interface DashboardData {
     wanted: { movies: number; episodes: number }
     // Always present, zeros when there is no music (or the module is off).
     music?: { artists: number; albums: number; downloaded: number; missing: number }
+    // Books wanted in each format (zeros when there are none).
+    ebooks?: { books: number; downloaded: number; missing: number }
+    audiobooks?: { books: number; downloaded: number; missing: number }
     sizeBytes: number
     qualities: { tier: string; count: number }[]
   }
@@ -1225,6 +1235,81 @@ export interface CalendarEntry {
   subtitle?: string
   releaseDate: string
   status: 'missing' | 'downloading' | 'downloaded'
+}
+
+// ---- Books (ebooks and audiobooks) -------------------------------------
+
+export type BookFormat = 'ebook' | 'audiobook'
+export interface BookFormatState {
+  wanted: boolean
+  status: 'missing' | 'downloading' | 'downloaded'
+  format?: string // the file format: epub, m4b, mp3...
+  path?: string // administrators only
+}
+export interface Book {
+  id: number
+  olKey: string
+  title: string
+  author: string
+  authorKey?: string
+  year?: number
+  coverUrl?: string
+  description?: string
+  addedAt: string
+  ebook: BookFormatState
+  audiobook: BookFormatState
+}
+export interface BookImportResult {
+  path: string
+  author: string
+  title: string
+  year?: number
+  format: string
+  files: number
+  kind: BookFormat
+  status: 'imported' | 'already' | 'unmatched' | 'failed'
+  bookId?: number
+  matched?: string
+  message?: string
+}
+export interface BookImportState {
+  phase: '' | 'running' | 'done' | 'failed'
+  done: number
+  total: number
+  summary: Record<string, number>
+  results: BookImportResult[]
+  error?: string
+  started?: string
+}
+export interface BookProgress {
+  bookId: number
+  format: BookFormat
+  position: string // ebook: an EPUB CFI or a page; audiobook: "track:seconds"
+  percent: number
+  finished: boolean
+  updatedAt?: string
+}
+export interface BookTrack {
+  index: number
+  name: string
+  size: number
+}
+export interface BookWork extends BookFound {
+  description?: string
+  subjects: string[]
+}
+export interface BookFound {
+  key: string
+  title: string
+  author: string
+  authorKey?: string
+  year?: number
+  coverId?: number
+  coverUrl?: string
+  libraryId?: number
+  // Whether an ebook / an audiobook edition has been published (Open Library).
+  hasEbook?: boolean
+  hasAudio?: boolean
 }
 
 // ---- Modules and music -------------------------------------------------
@@ -1646,6 +1731,38 @@ export const api = {
   createMusicProfile: (data: MusicProfileInput) => post<MusicProfile>('/music/profiles', data),
   updateMusicProfile: (id: number, data: MusicProfileInput) => put<MusicProfile>(`/music/profiles/${id}`, data),
   deleteMusicProfile: (id: number) => del<null>(`/music/profiles/${id}`),
+  listBooks: () => get<Book[]>('/books'),
+  getBook: (id: number) => get<Book>(`/books/${id}`),
+  searchBooks: (q: string) => get<BookFound[]>(`/books/search?q=${encodeURIComponent(q)}`),
+  bookDiscover: (p: { list: 'trending' | 'browse'; period?: string; subject?: string; from?: string; to?: string; sort?: string; page?: number }) => {
+    const q = new URLSearchParams()
+    for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') q.set(k, String(v))
+    return get<BookFound[]>(`/books/discover?${q}`)
+  },
+  bookLinks: (id: number) => get<{ serverId: number; name: string; kind: MediaServerKind; url: string }[]>(`/books/${id}/links`),
+  bookTracks: (id: number) => get<{ tracks: BookTrack[]; format: string }>(`/books/${id}/tracks`),
+  bookTrackUrl: (id: number, n: number) => `/api/books/${id}/listen/${n}`,
+  bookFileUrl: (id: number, download = false) => `/api/books/${id}/read${download ? '?download=1' : ''}`,
+  bookProgress: (id: number, format: BookFormat) => get<BookProgress>(`/books/${id}/progress?format=${format}`),
+  listBookProgress: () => get<BookProgress[]>('/books/progress'),
+  saveBookProgress: (id: number, p: { format: BookFormat; position: string; percent: number; finished?: boolean }, keepalive = false) =>
+    fetch(`/api/books/${id}/progress`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p), keepalive, credentials: 'same-origin' }).then(() => undefined),
+  authorWorks: (key: string, sort: 'popular' | 'newest' = 'popular') => get<BookFound[]>(`/book-authors/${encodeURIComponent(key)}/works?sort=${sort}`),
+  followedAuthors: () => get<{ key: string; name: string; ebook: boolean; audiobook: boolean; followedAt: string }[]>('/book-authors'),
+  followAuthor: (key: string, data: { name: string; ebook: boolean; audiobook: boolean }) => put<null>(`/book-authors/${encodeURIComponent(key)}/follow`, data),
+  unfollowAuthor: (key: string) => del<null>(`/book-authors/${encodeURIComponent(key)}/follow`),
+  bookWork: (key: string) => get<BookWork>(`/book-works/${encodeURIComponent(key)}`),
+  bookImportStatus: () => get<BookImportState>('/books/import'),
+  startBookImport: (format?: BookFormat) => post<BookImportState>('/books/import', { format: format ?? '' }),
+  bookSubjects: () => get<{ label: string; subject: string }[]>('/books/subjects'),
+  addBook: (data: { olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
+    post<Book>('/books', data),
+  setBookWanted: (id: number, format: BookFormat, wanted: boolean) => put<Book>(`/books/${id}/want`, { format, wanted }),
+  deleteBook: (id: number, deleteFiles: boolean) => del<null>(`/books/${id}?deleteFiles=${deleteFiles}`),
+  bookReleases: (id: number, format: BookFormat) => get<SearchResult[]>(`/books/${id}/releases?format=${format}`),
+  grabBook: (id: number, data: { format: BookFormat; releaseTitle: string; downloadUrl: string; sizeBytes: number; protocol?: 'usenet' | 'torrent' }) =>
+    post<{ queueId: number }>(`/books/${id}/grab`, data),
+  searchNowBook: (id: number, format: BookFormat) => post<{ grabbed: number; message: string }>(`/books/${id}/search?format=${format}`),
   listArtists: () => get<MusicArtist[]>('/music/artists'),
   getArtist: (id: number) => get<MusicArtist>(`/music/artists/${id}`),
   addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean }) => post<MusicArtist>('/music/artists', data),
@@ -1777,6 +1894,10 @@ export const api = {
   setSeriesNoUpgrade: (id: number, noUpgrade: boolean) => put<null>(`/series/${id}/no-upgrade`, { noUpgrade }),
   bulkMonitored: (items: BulkTitle[], monitored: boolean) => put<BulkResult>('/library/bulk/monitored', { items, monitored }),
   bulkNoUpgrade: (items: BulkTitle[], noUpgrade: boolean) => put<BulkResult>('/library/bulk/no-upgrade', { items, noUpgrade }),
+  listTags: () => get<{ name: string; movies: number; shows: number }[]>('/tags'),
+  titleTags: (kind: 'movie' | 'tv', id: number) => get<{ tags?: string[] }>(kind === 'movie' ? `/movies/${id}` : `/series/${id}`).then((t) => t.tags ?? []),
+  setTitleTags: (kind: 'movie' | 'tv', id: number, tags: string[]) => put<{ tags: string[] }>(kind === 'movie' ? `/movies/${id}/tags` : `/series/${id}/tags`, { tags }),
+  bulkTags: (items: BulkTitle[], add: string[], remove: string[]) => put<BulkResult>('/library/bulk/tags', { items, add, remove }),
   bulkProfile: (items: BulkTitle[], profileId: number) => put<BulkResult>('/library/bulk/profile', { items, profileId }),
   bulkSources: (items: BulkTitle[], sources: SourcePref) => put<BulkResult>('/library/bulk/sources', { items, sources }),
   bulkSearchNow: (items: BulkTitle[]) => post<BulkSearchResult>('/library/bulk/search-now', { items }),
@@ -1790,6 +1911,7 @@ export const api = {
 
   testService: (data: { service: 'tmdb' | 'opensubtitles' | 'trakt'; key?: string; username?: string; password?: string }) =>
     post<{ ok: boolean; message: string }>('/settings/test-service', data),
+  createFolder: (path: string) => post<FolderCheck>('/settings/folder-create', { path }),
   folderCheck: (path: string) => get<FolderCheck>(`/settings/folder-check?path=${encodeURIComponent(path)}`),
   health: () => get<{ items: HealthItem[] }>('/health'),
   modules: () => get<ModulesAnswer>('/modules'),

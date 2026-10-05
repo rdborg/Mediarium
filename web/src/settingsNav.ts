@@ -88,6 +88,7 @@ export function pageTitle(pathname: string, admin = true): string {
   if (pathname.startsWith('/library')) return 'Library'
   if (pathname.startsWith('/music/import')) return 'Import music'
   if (pathname.startsWith('/music')) return 'Music'
+  if (pathname.startsWith('/book/') || pathname.startsWith('/books/')) return 'Book'
   if (pathname.startsWith('/import')) return 'Import'
   if (pathname.startsWith('/wanted') || pathname.startsWith('/calendar')) return 'Upcoming'
   if (pathname.startsWith('/queue')) return 'Activity'

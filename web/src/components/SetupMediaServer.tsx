@@ -7,7 +7,7 @@ import { FindServers, JellyfinEmbySignIn, PlexSignIn } from './MediaServerSignIn
 import { MEDIA_SERVER_BRAND, MediaServerMark } from './mediaServerBrand'
 
 const KINDS: MediaServerKind[] = ['plex', 'jellyfin', 'emby']
-const EXAMPLE: Record<MediaServerKind, string> = {
+const EXAMPLE: Partial<Record<MediaServerKind, string>> = {
   plex: 'http://192.168.1.10:32400',
   jellyfin: 'http://192.168.1.10:8096',
   emby: 'http://192.168.1.10:8096',

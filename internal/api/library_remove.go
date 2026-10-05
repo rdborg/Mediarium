@@ -83,7 +83,7 @@ func (s *Server) removeMovieFiles(m library.Movie) (removedFiles, error) {
 	if m.FilePath == "" {
 		return removedFiles{}, nil
 	}
-	root := s.movieFileRoot(m.FilePath)
+	root := s.moviesRoot()
 	own := []string{m.FilePath}
 	folder := filepath.Dir(m.FilePath)
 	if s.isTitleFolder(root, folder, own, func(name string) bool { return matchesMovie(name, m) }) {
@@ -174,7 +174,7 @@ func (s *Server) removeSeriesFiles(series library.Series, files []string) (remov
 	if len(files) == 0 {
 		return removedFiles{}, nil
 	}
-	root := s.tvFileRoot(files[0])
+	root := s.tvRoot()
 	folder := commonDir(files)
 	if seasonFolderName.MatchString(filepath.Base(folder)) {
 		folder = filepath.Dir(folder)

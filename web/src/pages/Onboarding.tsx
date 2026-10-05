@@ -60,8 +60,8 @@ const FOLDER_REQUIRED: Record<FolderKind, string> = {
   movies: 'Add the folder your movies go in, for example /movies.',
   tv: 'Add the folder your TV shows go in, for example /tv.',
   music: 'Add the folder your music goes in, for example /music.',
-  ebooks: '',
-  audiobooks: '',
+  ebooks: 'Add the folder your ebooks go in, for example /books.',
+  audiobooks: 'Add the folder your audiobooks go in, for example /audiobooks.',
   downloads: 'Add the folder downloads are saved in, for example /downloads.',
 }
 
@@ -130,7 +130,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
   }, [])
 
   // Which kinds of media to manage (saved to Settings > Media types).
-  const [chosen, setChosen] = useState<Chosen>({ movies: true, tv: true, music: false })
+  const [chosen, setChosen] = useState<Chosen>({ movies: true, tv: true, music: false, ebooks: false, audiobooks: false })
   const [lastOneHint, setLastOneHint] = useState(false)
   const typesLoaded = useRef(false)
   useEffect(() => {
@@ -138,7 +138,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
     typesLoaded.current = true
     api
       .modules()
-      .then((m) => setChosen({ movies: m.movies?.enabled !== false, tv: m.tv?.enabled !== false, music: m.music?.enabled === true }))
+      .then((m) => setChosen({ movies: m.movies?.enabled !== false, tv: m.tv?.enabled !== false, music: m.music?.enabled === true, ebooks: m.ebooks?.enabled === true, audiobooks: m.audiobooks?.enabled === true }))
       .catch(() => undefined)
   }, [step])
   function toggleType(key: keyof Chosen) {
@@ -199,8 +199,9 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
   for (const k of asked) {
     pathErrors[k] = check.firstError(check.required(folders[k], FOLDER_REQUIRED[k]), check.folderPath(folders[k] ?? '', FOLDER_INFO[k].fallback))
   }
-  pathErrors.ebooks = check.folderPath(folders.ebooks ?? '', FOLDER_INFO.ebooks.fallback)
-  pathErrors.audiobooks = check.folderPath(folders.audiobooks ?? '', FOLDER_INFO.audiobooks.fallback)
+  for (const k of ['ebooks', 'audiobooks'] as const) {
+    if (!asked.includes(k)) pathErrors[k] = check.folderPath(folders[k] ?? '', FOLDER_INFO[k].fallback)
+  }
   const pathCheck = useValidation(pathErrors)
 
   // Quality and naming.
@@ -318,7 +319,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
       return
     }
     await guard(async () => {
-      await api.setModules({ movies: chosen.movies, tv: chosen.tv, music: chosen.music })
+      await api.setModules({ movies: chosen.movies, tv: chosen.tv, music: chosen.music, ebooks: !!chosen.ebooks, audiobooks: !!chosen.audiobooks })
       loadSvc()
       setStep(S.paths)
     })
@@ -329,7 +330,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
     if (!pathCheck.attempt()) return
     await guard(async () => {
       const inUse = svc ? foldersInUse(svc) : {}
-      const save = foldersToSave([...asked, 'ebooks', 'audiobooks'], folders, inUse)
+      const save = foldersToSave([...new Set<FolderKind>([...asked, 'ebooks', 'audiobooks'])], folders, inUse)
       const body: Partial<SettingsData> = {}
       for (const k of Object.keys(save) as FolderKind[]) body[SETTING_FIELD[k]] = save[k]
       if (Object.keys(body).length > 0) await api.putSettings(body)

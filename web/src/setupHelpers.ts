@@ -91,9 +91,11 @@ export interface Chosen {
   movies: boolean
   tv: boolean
   music: boolean
+  ebooks?: boolean
+  audiobooks?: boolean
 }
 
-export const nothingChosen = (c: Chosen) => !c.movies && !c.tv && !c.music
+export const nothingChosen = (c: Chosen) => !c.movies && !c.tv && !c.music && !c.ebooks && !c.audiobooks
 export const hasVideo = (c: Chosen) => c.movies || c.tv
 
 /** The library folders to ask for, in order, ending with downloads. */
@@ -102,6 +104,8 @@ export function foldersToAsk(c: Chosen): FolderKind[] {
   if (c.movies) out.push('movies')
   if (c.tv) out.push('tv')
   if (c.music) out.push('music')
+  if (c.ebooks) out.push('ebooks')
+  if (c.audiobooks) out.push('audiobooks')
   out.push('downloads')
   return out
 }
@@ -112,6 +116,8 @@ export function mediaPhrase(c: Chosen): string {
   if (c.movies) parts.push('movies')
   if (c.tv) parts.push('TV shows')
   if (c.music) parts.push('music')
+  if (c.ebooks) parts.push('ebooks')
+  if (c.audiobooks) parts.push('audiobooks')
   if (parts.length <= 1) return parts[0] ?? ''
   return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]
 }

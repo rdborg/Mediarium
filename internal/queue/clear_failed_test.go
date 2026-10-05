@@ -68,3 +68,55 @@ func TestOldFailuresSettledByALaterDownloadAreCleared(t *testing.T) {
 		t.Fatalf("cleared %d (err %v), want 1", n, err)
 	}
 }
+
+func TestFailedBookTriesAreClearedOnceThatFormatIsDownloaded(t *testing.T) {
+	db := openDB(t)
+	if _, err := db.Exec(`INSERT INTO books (id, ol_key, title) VALUES (1, 'OL1W', 'It'), (2, 'OL2W', 'Carrie')`); err != nil {
+		t.Fatal(err)
+	}
+	repo := queue.NewRepo(db)
+	add := func(it queue.Item, st queue.Status) int64 {
+		t.Helper()
+		id, err := repo.Enqueue(it)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.SetStatus(id, st, ""); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	wrong := add(queue.Item{BookID: 1, BookFormat: "ebook", ReleaseTitle: "Stephen.King-If.It.Bleeds.EPUB"}, queue.StatusFailed)
+	audio := add(queue.Item{BookID: 1, BookFormat: "audiobook", ReleaseTitle: "It.Audiobook.Bad"}, queue.StatusFailed)
+	other := add(queue.Item{BookID: 2, BookFormat: "ebook", ReleaseTitle: "Carrie.Bad"}, queue.StatusFailed)
+	good := add(queue.Item{BookID: 1, BookFormat: "ebook", ReleaseTitle: "Stephen King - It (epub)"}, queue.StatusCompleted)
+	if n, err := repo.ClearFailedForBook(1, "ebook", good); err != nil || n != 1 {
+		t.Fatalf("cleared %d (err %v), want 1", n, err)
+	}
+	for id, want := range map[int64]bool{wrong: false, audio: true, other: true, good: true} {
+		_, err := repo.Get(id)
+		if (err == nil) != want {
+			t.Errorf("item %d: present = %v, want %v", id, err == nil, want)
+		}
+	}
+}
+
+func TestOldBookFailuresSettledByALaterDownloadAreCleared(t *testing.T) {
+	db := openDB(t)
+	if _, err := db.Exec(`INSERT INTO books (id, ol_key, title) VALUES (1, 'OL1W', 'It')`); err != nil {
+		t.Fatal(err)
+	}
+	ins := func(format, status, at string) {
+		t.Helper()
+		if _, err := db.Exec(`INSERT INTO download_queue (book_id, book_format, release_title, status, completed_at) VALUES (1, ?, 'r', ?, ?)`, format, status, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ins("ebook", "failed", "2026-10-05T08:10:25Z")     // settled by the ebook below
+	ins("ebook", "completed", "2026-10-05T08:10:27Z")  //
+	ins("audiobook", "failed", "2026-10-05T08:00:00Z") // a different format: kept
+	n, err := queue.NewRepo(db).ClearSettledFailures()
+	if err != nil || n != 1 {
+		t.Fatalf("cleared %d (err %v), want 1", n, err)
+	}
+}

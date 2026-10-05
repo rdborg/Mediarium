@@ -126,7 +126,7 @@ func (s *Server) handleManualImport(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "That movie isn't in your library.")
 			return
 		}
-		dest, err := s.buildDestPath(s.movieHome(m), m.Title, m.Year, m.TMDBID, guessName(src), src)
+		dest, err := s.buildDestPath(s.moviesRoot(), m.Title, m.Year, m.TMDBID, guessName(src), src)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

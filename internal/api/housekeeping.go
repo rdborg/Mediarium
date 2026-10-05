@@ -47,7 +47,7 @@ func (s *Server) downloadsArea() cleanup.Area {
 	return cleanup.Area{
 		Base:      s.downloadsRoot(),
 		Work:      s.downloadsIncompleteDir(),
-		Protected: append(append(s.movieRoots(), s.tvRoots()...), s.musicRoot()),
+		Protected: append([]string{s.moviesRoot(), s.tvRoot()}, s.musicRoot()),
 	}
 }
 

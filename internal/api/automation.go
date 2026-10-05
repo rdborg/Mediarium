@@ -127,6 +127,7 @@ func (s *Server) hunt(ctx context.Context) {
 		s.huntTV(ctx, instances, profiles)
 	}
 	s.huntMusic(ctx, instances) // only while the music module is on
+	s.huntBooks(ctx)            // only while ebooks or audiobooks are on
 }
 
 // huntMovie searches for one movie if it is monitored (or force is set, for

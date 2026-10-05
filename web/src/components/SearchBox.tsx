@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { api, type MusicArtistResult, type TitleResult } from '../api'
+import { api, type BookFound, type MusicArtistResult, type TitleResult } from '../api'
 import { useModules } from '../ModulesContext'
 import AddMusicDialog from './AddMusicDialog'
+import { BookAddDialog } from './BookDiscover'
 import { artistKind } from './artistKind'
 import Icon from './Icon'
 import { MusicFallback, PosterFallback } from './PosterCard'
@@ -33,6 +34,9 @@ export default function SearchBox() {
   const titlesOn = on('movies') || on('tv')
   const [artists, setArtists] = useState<MusicArtistResult[] | null>(null)
   const [addingArtist, setAddingArtist] = useState<MusicArtistResult | null>(null)
+  const booksOn = on('ebooks') || on('audiobooks')
+  const [bookHits, setBookHits] = useState<BookFound[] | null>(null)
+  const [addingBook, setAddingBook] = useState<BookFound | null>(null)
 
   useEffect(() => {
     const term = q.trim()
@@ -94,6 +98,26 @@ export default function SearchBox() {
     }
   }, [q, musicOn])
 
+  // Books come from Open Library, asked a moment after titles too.
+  useEffect(() => {
+    const term = q.trim()
+    if (!booksOn || term.length < 2) {
+      setBookHits(null)
+      return
+    }
+    let stale = false
+    const t = setTimeout(() => {
+      api
+        .searchBooks(term)
+        .then((r) => !stale && setBookHits(r.slice(0, 5)))
+        .catch(() => !stale && setBookHits([]))
+    }, 450)
+    return () => {
+      stale = true
+      clearTimeout(t)
+    }
+  }, [q, booksOn])
+
   // Close when the page changes or you click elsewhere.
   useEffect(() => setOpen(false), [location.pathname])
   useEffect(() => {
@@ -134,6 +158,10 @@ export default function SearchBox() {
     if (a.artistId > 0) navigate(`/music/artist/${a.artistId}`)
     else setAddingArtist(a)
   }
+  const chooseBook = (b: BookFound) => {
+    setOpen(false)
+    navigate(b.libraryId ? `/book/${b.libraryId}` : `/books/work/${b.key}`)
+  }
   const seeAll = () => {
     setOpen(false)
     if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`)
@@ -141,7 +169,8 @@ export default function SearchBox() {
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
     const titleCount = results?.length ?? 0
-    const count = titleCount + (artists?.length ?? 0)
+    const artistEnd = titleCount + (artists?.length ?? 0)
+    const count = artistEnd + (bookHits?.length ?? 0)
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setOpen(true)
@@ -152,7 +181,8 @@ export default function SearchBox() {
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (active >= 0 && active < titleCount && results?.[active]) choose(results[active])
-      else if (active >= titleCount && artists?.[active - titleCount]) chooseArtist(artists[active - titleCount])
+      else if (active >= titleCount && active < artistEnd && artists?.[active - titleCount]) chooseArtist(artists[active - titleCount])
+      else if (active >= artistEnd && bookHits?.[active - artistEnd]) chooseBook(bookHits[active - artistEnd])
       else seeAll()
     } else if (e.key === 'Escape') {
       // Escape closes the list; pressed again (nothing left to close) it leaves the box.
@@ -163,7 +193,8 @@ export default function SearchBox() {
 
   const showPanel = open && q.trim().length >= 2
   const titleCount = results?.length ?? 0
-  const nothingFound = results !== null && results.length === 0 && (!musicOn || (artists !== null && artists.length === 0))
+  const artistEnd = titleCount + (artists?.length ?? 0)
+  const nothingFound = results !== null && results.length === 0 && (!musicOn || (artists !== null && artists.length === 0)) && (!booksOn || (bookHits !== null && bookHits.length === 0))
 
   // A plain function, not a component: a component made inside another one is a
   // new type on every render, which would rebuild every row each time the mouse moves.
@@ -204,7 +235,7 @@ export default function SearchBox() {
     )
   }
 
-  const placeholder = `Search ${[on('movies') && 'movies', on('tv') && 'TV shows', musicOn && 'artists'].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1') || 'Mediarium'}`
+  const placeholder = `Search ${[on('movies') && 'movies', on('tv') && (on('movies') ? 'shows' : 'TV shows'), musicOn && 'artists', booksOn && 'books'].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1') || 'Mediarium'}`
 
   return (
     <div className="searchbox" ref={box}>
@@ -287,6 +318,41 @@ export default function SearchBox() {
               )}
             </div>
           ))}
+          {booksOn && bookHits && bookHits.length > 0 && <div className="searchbox-group">Books</div>}
+          {bookHits?.map((b, i) => (
+            <div
+              key={b.key}
+              className={`searchbox-row${artistEnd + i === active ? ' active' : ''}`}
+              role="option"
+              aria-selected={artistEnd + i === active}
+              onMouseEnter={() => setActive(artistEnd + i)}
+              onClick={() => chooseBook(b)}
+            >
+              {b.coverUrl ? <img src={b.coverUrl.replace('-M.jpg', '-S.jpg')} alt="" loading="lazy" /> : <PosterFallback />}
+              <div className="searchbox-text">
+                <strong>{b.title}</strong>
+                <span>
+                  <i className="kind-dot kind-book" /> {[b.author, b.year].filter(Boolean).join(' · ') || 'Book'}
+                </span>
+              </div>
+              {b.libraryId ? (
+                <span className="state-tag st-downloaded" title="Already in your library">
+                  <Icon name="check" size={12} /> In library
+                </span>
+              ) : (
+                <button
+                  className="primary btn-sm btn-with-icon"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    setAddingBook(b)
+                  }}
+                >
+                  <Icon name="plus" size={14} /> Add
+                </button>
+              )}
+            </div>
+          ))}
           {results && results.length > 0 && (
             <button className="searchbox-all" onClick={seeAll}>
               See all results for “{q.trim()}”
@@ -295,6 +361,7 @@ export default function SearchBox() {
           )}
         </div>
       )}
+      <BookAddDialog target={addingBook} onClose={() => setAddingBook(null)} />
       {addingArtist && (
         <AddMusicDialog
           target={{ kind: 'artist', mbid: addingArtist.mbid, name: addingArtist.name, type: addingArtist.type, country: addingArtist.country, disambiguation: addingArtist.disambiguation }}

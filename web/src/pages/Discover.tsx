@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, ApiError, type DiscoverMovie, type MusicType } from '../api'
+import { api, ApiError, type BookFound, type DiscoverMovie, type MusicType } from '../api'
 import { PicksProvider, pickKey, usePicks } from '../discoverPicks'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import type { AddMusicTarget } from '../components/AddMusicDialog'
 import DiscoverRail from '../components/DiscoverRail'
+import { BookAddDialog, BookBody } from '../components/BookDiscover'
 import { MusicAddDialog, MusicBody } from '../components/MusicDiscover'
 import { MUSIC_GENRES, MUSIC_TYPE_OPTIONS } from '../components/MusicRails'
-import { KIND_LABEL, useKinds, type MediaKind } from '../ModulesContext'
+import { KIND_LABEL, useKinds, useModules, type MediaKind } from '../ModulesContext'
 import Dropdown from '../components/Dropdown'
 import PagedGrid from '../components/PagedGrid'
 import Icon from '../components/Icon'
@@ -42,7 +43,10 @@ function traktList(value: string): string | null {
   return null
 }
 
-type Show = 'all' | MediaKind
+// A Discover section: a kind of media, or books (ebooks and audiobooks share one).
+type Section = MediaKind | 'book'
+type Show = 'all' | Section
+const isSection = (v: string | null): v is Section => v === 'movie' || v === 'tv' || v === 'music' || v === 'book'
 
 const LISTS: ListName[] = ['trending', 'popular', 'upcoming']
 const LIST_HINT: Record<ListName, string> = { trending: 'this week', popular: 'all-time favourites', upcoming: 'add them now and they download once released', similar: 'based on what is in your library' }
@@ -88,7 +92,7 @@ function TitleRails({ kind, filters, filtering, includeOlder, setIncludeOlder, o
 
 // On the All tab every kind of media gets its own section, so it is clear
 // where one group ends and the next begins.
-function Section({ kind, children }: { kind: MediaKind; children: ReactNode }) {
+function SectionBlock({ kind, children }: { kind: Section; children: ReactNode }) {
   const k = DISCOVER_KINDS[kind]
   return (
     <section className="discover-section" style={{ ['--kc' as string]: k.color }} aria-label={k.label}>
@@ -212,21 +216,27 @@ function DiscoverPage() {
   const [hideOwned, setHideOwned] = useHideOwned()
   const [adding, setAdding] = useState<AddTarget | null>(null)
   const [addingMusic, setAddingMusic] = useState<AddMusicTarget | null>(null)
+  const [addingBook, setAddingBook] = useState<BookFound | null>(null)
 
   const [params] = useSearchParams()
   const [picked, setPicked] = useState<Show>(() => {
     const asked = params.get('kind')
-    return asked === 'music' || asked === 'movie' || asked === 'tv' ? asked : 'all'
+    return isSection(asked) ? asked : 'all'
   })
   // Only the kinds of media that are switched on get a tab, and a section on
-  // the All tab.
-  const kindsOn = useKinds()
+  // the All tab. Ebooks and audiobooks share one Books section.
+  const { on } = useModules()
+  const booksOn = on('ebooks') || on('audiobooks')
+  const mediaKinds = useKinds()
+  // Ebooks and audiobooks share one tab: the same books, each marked with the editions that exist.
+  const kindsOn: Section[] = [...(on('movies') || on('tv') || on('music') || !booksOn ? mediaKinds : []), ...(booksOn ? (['book'] as const) : [])]
   const tabs: Show[] = ['all', ...kindsOn]
   const show: Show = tabs.includes(picked) ? picked : tabs[0]
   useEffect(() => {
     const asked = params.get('kind')
-    if (asked === 'music' || asked === 'movie' || asked === 'tv') setPicked(asked)
+    if (isSection(asked)) setPicked(asked)
   }, [params])
+  const [subjects, setSubjects] = useState<{ label: string; subject: string }[]>([])
   const [genre, setGenre] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -254,6 +264,11 @@ function DiscoverPage() {
     setMusicType('all')
     // The order picked on one tab may not exist on another (music has no "highest rated").
     setSort((cur) => (cur === 'rating' && show !== 'movie' && show !== 'tv' ? 'popular' : cur))
+    if (show === 'book') {
+      setGenres([])
+      if (subjects.length === 0) api.bookSubjects().then(setSubjects).catch(() => undefined)
+      return
+    }
     if (show === 'all' || show === 'music') return setGenres([])
     // Movie genres must never end up in the TV list (or the other way round) if the answers arrive out of order.
     let stale = false
@@ -267,10 +282,15 @@ function DiscoverPage() {
     return () => {
       stale = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show])
 
   const years = useMemo(() => Array.from({ length: new Date().getFullYear() + 2 - 1920 }, (_, i) => String(new Date().getFullYear() + 1 - i)), [])
-  const genreOptions = show === 'music' ? MUSIC_GENRES.map((g) => ({ value: g, label: g })) : genres.map((g) => ({ value: String(g.id), label: g.name }))
+  const genreOptions =
+    show === 'music' ? MUSIC_GENRES.map((g) => ({ value: g, label: g })) : show === 'book' ? subjects.map((s) => ({ value: s.subject, label: s.label })) : genres.map((g) => ({ value: String(g.id), label: g.name }))
+  // Movies and shows browse through the movie database; music and books have their own.
+  const titleKind = show !== 'music' && show !== 'book'
+  const bookFilters = { subject: genre, subjectName: subjects.find((s) => s.subject === genre)?.label, from, to, sort }
   const orders = show === 'all' ? SHARED_ORDERS : DISCOVER_KINDS[show].orders
   const filters: Filters = { genre, genreName: genres.find((g) => String(g.id) === genre)?.name, from, to, sort, musicType }
   const musicFilters = { type: musicType, genre, yearFrom: from, yearTo: to, sort }
@@ -301,19 +321,20 @@ function DiscoverPage() {
     <div className="seg">
       {tabs.map((k) => (
         <button key={k} className={show === k ? 'active' : ''} onClick={() => setPicked(k)}>
-          {k === 'all' ? 'All' : KIND_LABEL[k]}
+          {k === 'all' ? 'All' : k === 'book' ? 'eBooks & Audiobooks' : KIND_LABEL[k]}
         </button>
       ))}
     </div>
   )
 
   // The rails of one kind, for its own tab or for its section on the All tab.
-  function body(kind: MediaKind, short: boolean) {
+  function body(kind: Section, short: boolean) {
+    if (kind === 'book') return <BookBody filters={bookFilters} filtering={filtering} onAdd={setAddingBook} onClear={clear} />
     if (kind === 'music') return <MusicBody filters={musicFilters} filtering={filtering} onAdd={setAddingMusic} onClear={clear} />
     return <TitleRails kind={kind} filters={filters} filtering={filtering} includeOlder={includeOlder} setIncludeOlder={setIncludeOlder} owned={owned} onAdd={setAdding} onClear={clear} short={short} />
   }
 
-  const trakt = show !== 'music'
+  const trakt = titleKind
 
   return (
     <div>
@@ -323,13 +344,13 @@ function DiscoverPage() {
           label="Genre"
           value={genre}
           onChange={setGenre}
-          disabled={(show !== 'music' && browseMissing) || show === 'all'}
+          disabled={(titleKind && browseMissing) || show === 'all'}
           title={show === 'all' ? 'Pick a kind of media to filter by genre' : undefined}
           options={[{ value: '', label: show === 'all' ? 'Genre: pick a kind' : 'All genres' }, ...genreOptions]}
         />
-        <Dropdown label="From year" value={from} onChange={setFrom} disabled={show !== 'music' && browseMissing} options={[{ value: '', label: 'From any year' }, ...years.map((y) => ({ value: y, label: `From ${y}` }))]} />
-        <Dropdown label="To year" value={to} onChange={setTo} disabled={show !== 'music' && browseMissing} options={[{ value: '', label: 'To any year' }, ...years.map((y) => ({ value: y, label: `To ${y}` }))]} />
-        <Dropdown label="Order" value={sort} onChange={setSort} disabled={show !== 'music' && browseMissing} options={orders} />
+        <Dropdown label="From year" value={from} onChange={setFrom} disabled={titleKind && browseMissing} options={[{ value: '', label: 'From any year' }, ...years.map((y) => ({ value: y, label: `From ${y}` }))]} />
+        <Dropdown label="To year" value={to} onChange={setTo} disabled={titleKind && browseMissing} options={[{ value: '', label: 'To any year' }, ...years.map((y) => ({ value: y, label: `To ${y}` }))]} />
+        <Dropdown label="Order" value={sort} onChange={setSort} disabled={titleKind && browseMissing} options={orders} />
         {show === 'music' && <Dropdown label="Type" value={musicType} onChange={(t) => setMusicType(t as MusicType)} options={MUSIC_TYPE_OPTIONS} />}
         {filtering && (
           <button className="btn-sm" onClick={clear}>
@@ -339,7 +360,7 @@ function DiscoverPage() {
         <Switch checked={hideOwned} onChange={setHideOwned} label="Hide what I have" />
         <span className="spacer" />
         <NotInterestedList />
-        {show !== 'music' && <SelectToggle />}
+        {titleKind && <SelectToggle />}
         {trakt && (
           <button className="btn-with-icon" onClick={() => setShowImport((v) => !v)}>
             <Icon name="list" size={16} /> {showImport ? 'Close list import' : 'Import a Trakt list'}
@@ -377,9 +398,9 @@ function DiscoverPage() {
 
       {show === 'all'
         ? kindsOn.map((kind) => (
-            <Section key={kind} kind={kind}>
+            <SectionBlock key={kind} kind={kind}>
               {body(kind, false)}
-            </Section>
+            </SectionBlock>
           ))
         : body(show, true)}
 
@@ -395,6 +416,7 @@ function DiscoverPage() {
         />
       )}
       <MusicAddDialog target={addingMusic} onClose={() => setAddingMusic(null)} />
+      <BookAddDialog target={addingBook} onClose={() => setAddingBook(null)} />
     </div>
   )
 }

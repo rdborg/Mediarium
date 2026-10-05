@@ -1,12 +1,11 @@
 Mediarium - native program (preview)
 ====================================
 
-This archive contains the Mediarium program (mediarium or mediarium.exe),
+This archive contains the Mediarium program for Linux (mediarium),
 the AGPL-3.0 LICENSE, and these notes.
 
-Note: running Mediarium natively on Windows, macOS or Linux (without
-Docker) is NOT a supported install yet. Installers and packages are coming
-soon. The supported way to install Mediarium today is Docker:
+Note: running Mediarium natively on Linux (without Docker) is NOT a
+supported install yet. The supported way to install Mediarium is Docker:
 
   https://github.com/rdborg/Mediarium/blob/main/docs/INSTALL.md
 
@@ -25,9 +24,6 @@ Mediarium looks for them by the plain names "par2" and "7z" on your PATH.
   Debian/Ubuntu : sudo apt install par2 p7zip-full
   Fedora        : sudo dnf install par2cmdline p7zip p7zip-plugins
   Arch          : sudo pacman -S par2cmdline p7zip
-  macOS         : brew install par2 p7zip
-  Windows       : install 7-Zip and a command-line par2 build, and add the
-                  folders containing 7z.exe and par2.exe to your PATH.
 
 Folders
 -------
@@ -39,8 +35,8 @@ Natively, set these environment variables (the defaults /config, /downloads,
   MOVIES_DIR      movie library
   TV_DIR          TV library
   MUSIC_DIR       music library (only used if you switch on Music in Settings)
-  EBOOKS_DIR      ebooks folder (optional; ebooks are not ready yet)
-  AUDIOBOOKS_DIR  audiobooks folder (optional; audiobooks are not ready yet)
+  EBOOKS_DIR      ebooks folder (only used if you switch on Ebooks)
+  AUDIOBOOKS_DIR  audiobooks folder (only used if you switch on Audiobooks)
   APP_PORT        web page port (default 8264)
 
 Keep DOWNLOADS_DIR, MOVIES_DIR and TV_DIR on the same drive so imports can
@@ -51,8 +47,8 @@ Then open http://localhost:8264 and follow the setup wizard.
 Restart and updates
 -------------------
 Settings > System > Server and backup has Restart buttons. They work when
-something starts Mediarium again after it exits: systemd and launchd are
-found by themselves (the supplied files use Restart=always and KeepAlive).
+something starts Mediarium again after it exits: systemd is found by
+itself (the supplied unit uses Restart=always).
 For any other service manager set MEDIARIUM_SUPERVISED=1. Where nothing
 would start it again, the page offers Shut down instead.
 

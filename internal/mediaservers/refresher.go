@@ -135,7 +135,7 @@ func (r *Refresher) refreshServer(s Server, work map[MediaKind][]string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	var firstErr error
-	for _, kind := range []MediaKind{MediaMovie, MediaTV, MediaMusic} {
+	for _, kind := range []MediaKind{MediaMovie, MediaTV, MediaMusic, MediaBook} {
 		folders := work[kind]
 		if len(folders) == 0 {
 			continue

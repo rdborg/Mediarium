@@ -32,19 +32,17 @@ The keys the app stores in its settings table. You normally change these from th
 | `library.import_added_backfill` | "1" once it has run (set by the app, not user-editable) |
 | `library.import_conflict_policy` | "skip" \| "overwrite" \| "overwrite_if_better" \| "ask" |
 | `library.movie_name_format` | token string, used when preset=custom |
-| `library.movies_extra_paths` | more movie folders besides the main one, one per line; unset = none |
 | `library.movies_path` |  |
 | `library.naming_preset` | plex\|jellyfin\|kodi\|minimal\|custom |
 | `library.presets_version` | revision of the built-in quality presets last applied; unset means never (set at start, not user-editable) |
 | `library.quality_profile` | legacy: an old preset key (any-1080p, ultra-hd, any); only read once to pick the initial default profile |
 | `library.trash_days` | days removed titles' files stay in the recycle bin (.mediarium-trash in the library folder); unset = 7, "0" = delete straight away |
-| `library.tv_extra_paths` | more TV folders besides the main one, one per line; unset = none |
 | `library.tv_path` | falls back to the TV_DIR env default when unset |
 | `mediaservers.client_id` | set by the app, not user-editable |
 | `metadata.tmdb_api_key` | encrypted |
 | `metadata.trakt_client_id` | encrypted |
-| `modules.audiobooks` | not built yet: always off |
-| `modules.ebooks` | not built yet: always off |
+| `modules.audiobooks` | "1" switches it on; unset or "0" leaves it off |
+| `modules.ebooks` | "1" switches it on; unset or "0" leaves it off |
 | `modules.movies` | "0" switches movies off; anything else (including unset) leaves them on |
 | `modules.music` | "1" switches music on; unset or "0" leaves it off (unset falls back to music.enabled) |
 | `modules.tv` | "0" switches TV off; anything else (including unset) leaves it on |

@@ -42,7 +42,7 @@ interface Waiting {
   lastSearchAt?: string
 }
 
-const itemLink = (q: QueueItem) => (q.albumId ? `/music/album/${q.albumId}` : q.seriesId ? `/series/${q.seriesId}` : q.tmdbId ? `/title/${q.tmdbId}` : undefined)
+const itemLink = (q: QueueItem) => (q.bookId ? `/book/${q.bookId}` : q.albumId ? `/music/album/${q.albumId}` : q.seriesId ? `/series/${q.seriesId}` : q.tmdbId ? `/title/${q.tmdbId}` : undefined)
 
 // What a button press is doing right now, so only that button says so.
 type Doing = 'pause' | 'resume' | 'stop' | 'other'
@@ -90,7 +90,7 @@ function QueueRow({ q, admin, busy, act, stop, remove }: RowProps) {
   const barTone = q.status === 'failed' ? 'bad' : q.status === 'conflict' ? 'warn' : q.status === 'paused' ? 'paused' : ''
   const note = stateNote(q)
   return (
-    <div className={`qrow st-${q.status}${q.status === 'failed' ? ' failed' : ''} kind-${q.albumId ? 'music' : q.seriesId ? 'tv' : 'movie'}`}>
+    <div className={`qrow st-${q.status}${q.status === 'failed' ? ' failed' : ''} kind-${q.bookId ? 'book' : q.albumId ? 'music' : q.seriesId ? 'tv' : 'movie'}`}>
       <div className="qthumb">{q.albumId ? <Cover src={q.posterUrl} /> : q.posterUrl ? <img src={q.posterUrl} alt="" loading="lazy" /> : <PosterFallback />}</div>
       <div className="qmain">
         <div className="qtitle">

@@ -3,22 +3,21 @@ import type { Chosen } from '../setupHelpers'
 
 type Key = keyof Chosen
 
-const CARDS: { key: Key | 'audiobooks' | 'ebooks'; title: string; icon: IconName; text: string; soon?: boolean }[] = [
+const CARDS: { key: Key; title: string; icon: IconName; text: string; soon?: boolean }[] = [
   { key: 'movies', title: 'Movies', icon: 'film', text: 'Find and download movies, and file them neatly in your library.' },
   { key: 'tv', title: 'TV shows', icon: 'tv', text: 'Follow shows and get new episodes when they air.' },
   { key: 'music', title: 'Music', icon: 'music', text: 'Keep your artists and albums in order.' },
-  { key: 'audiobooks', title: 'Audiobooks', icon: 'headphones', text: 'You can set a folder for them in the next step.', soon: true },
-  { key: 'ebooks', title: 'Ebooks', icon: 'book', text: 'You can set a folder for them in the next step.', soon: true },
+  { key: 'ebooks', title: 'Ebooks', icon: 'book', text: 'Books for your e-reader, EPUB first.' },
+  { key: 'audiobooks', title: 'Audiobooks', icon: 'headphones', text: 'Audiobooks, filed by author, ready for your player.' },
 ]
 
-// "What do you want to manage?": one card per kind of media. Movies, TV and
-// music switch on and off. Audiobooks and ebooks are on the way, so they are
-// shown but cannot be switched on yet.
+// "What do you want to manage?": one card per kind of media, each one
+// switched on or off.
 export default function SetupMediaTypes({ chosen, onToggle, lastOneHint }: { chosen: Chosen; onToggle: (key: Key) => void; lastOneHint: boolean }) {
   return (
     <div className="media-cards">
       {CARDS.map((c) => {
-        const on = !c.soon && chosen[c.key as Key]
+        const on = !c.soon && !!chosen[c.key]
         return (
           <button
             key={c.key}
@@ -28,7 +27,7 @@ export default function SetupMediaTypes({ chosen, onToggle, lastOneHint }: { cho
             aria-disabled={c.soon || undefined}
             disabled={c.soon}
             className={`choice-card media-card${on ? ' active' : ''}${c.soon ? ' soon' : ''}`}
-            onClick={() => !c.soon && onToggle(c.key as Key)}
+            onClick={() => !c.soon && onToggle(c.key)}
           >
             <span className="choice-box" aria-hidden="true">
               {on && <Icon name="check" size={13} />}

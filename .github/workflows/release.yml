@@ -8,8 +8,8 @@
 # be published under a number the code does not carry.
 #
 # What it produces:
-#   1. Native binaries (linux/amd64, linux/arm64, windows/amd64, darwin/amd64,
-#      darwin/arm64), each packed with LICENSE + README-INSTALL.txt, plus a
+#   1. Native Linux binaries (linux/amd64, linux/arm64), each packed with
+#      LICENSE + README-INSTALL.txt and the systemd files, plus a
 #      sha256sums.txt and its signature sha256sums.txt.sig (when the
 #      UPDATE_SIGNING_KEY secret is set), attached to a GitHub Release.
 #   2. A multi-arch (linux/amd64 + linux/arm64) Docker image pushed to
@@ -127,9 +127,6 @@ jobs:
         include:
           - { goos: linux, goarch: amd64 }
           - { goos: linux, goarch: arm64 }
-          - { goos: windows, goarch: amd64 }
-          - { goos: darwin, goarch: amd64 }
-          - { goos: darwin, goarch: arm64 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -163,7 +160,6 @@ jobs:
           mkdir -p "${out}"
 
           exe="mediarium"
-          if [ "${GOOS}" = "windows" ]; then exe="mediarium.exe"; fi
 
           go build -trimpath \
             -ldflags "-s -w -X main.version=${VERSION} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID}" \
@@ -174,36 +170,19 @@ jobs:
           mkdir -p "${out}/docs"
           cp docs/INSTALL.md "${out}/docs/INSTALL.md"
 
-          # Per-platform helper files (all UNTESTED; see packaging/README.md).
-          case "${GOOS}" in
-            linux)
-              cp packaging/systemd/mediarium.service "${out}/mediarium.service"
-              cp packaging/systemd/mediarium.env.example "${out}/mediarium.env.example"
-              ;;
-            windows)
-              cp packaging/windows/run-mediarium.ps1 "${out}/run-mediarium.ps1"
-              ;;
-            darwin)
-              cp packaging/macos/install.sh "${out}/install.sh"
-              cp packaging/macos/io.github.rdborg.mediarium.plist "${out}/io.github.rdborg.mediarium.plist"
-              ;;
-          esac
+          # The systemd files for running it as a service (see packaging/README.md).
+          cp packaging/systemd/mediarium.service "${out}/mediarium.service"
+          cp packaging/systemd/mediarium.env.example "${out}/mediarium.env.example"
 
           cd dist
-          if [ "${GOOS}" = "windows" ]; then
-            zip -r "${name}.zip" "${name}"
-          else
-            tar -czf "${name}.tar.gz" "${name}"
-          fi
+          tar -czf "${name}.tar.gz" "${name}"
           rm -rf "${name}"
 
       - name: Upload archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: archive-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: |
-            dist/*.zip
-            dist/*.tar.gz
+          path: dist/*.tar.gz
           if-no-files-found: error
           retention-days: 1
 
@@ -239,7 +218,7 @@ jobs:
         working-directory: release
         run: |
           set -euo pipefail
-          sha256sum *.zip *.tar.gz > sha256sums.txt
+          sha256sum *.tar.gz > sha256sums.txt
           cat sha256sums.txt
 
       # Signs sha256sums.txt with the private key held in the repository secret

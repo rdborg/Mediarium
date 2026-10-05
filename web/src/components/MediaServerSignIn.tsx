@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, type FoundMediaServer, type MediaServerKind, type PlexAccountServer } from '../api'
+import { api, type FoundMediaServer, type PlexAccountServer } from '../api'
 import Icon from './Icon'
 import { MEDIA_SERVER_BRAND, MediaServerMark } from './mediaServerBrand'
 import { useToast } from './Toast'
@@ -217,7 +217,7 @@ export function PlexSignIn({ onAdded }: { onAdded: () => void }) {
 // password is only used to get a key; it is never stored.
 // `checkAddress` shows a problem with the address box (above this form) and
 // returns false when the address is not usable yet.
-export function JellyfinEmbySignIn({ kind, baseUrl, checkAddress, onAdded }: { kind: Exclude<MediaServerKind, 'plex'>; baseUrl: string; checkAddress: () => boolean; onAdded: () => void }) {
+export function JellyfinEmbySignIn({ kind, baseUrl, checkAddress, onAdded }: { kind: 'jellyfin' | 'emby'; baseUrl: string; checkAddress: () => boolean; onAdded: () => void }) {
   const toast = useToast()
   const [qc, setQc] = useState<{ id: string; code: string } | null>(null)
   const [username, setUsername] = useState('')

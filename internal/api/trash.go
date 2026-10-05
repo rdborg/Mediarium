@@ -76,14 +76,20 @@ func (s *Server) discardFileWithSidecars(root, file, label string) (int, bool, e
 // trashRoots names each library folder that can hold a recycle bin.
 func (s *Server) trashRoots() map[string]string {
 	roots := map[string]string{}
-	for i, r := range s.movieRoots() {
-		roots[rootKey("movies", i)] = r
+	if m := s.moviesRoot(); m != "" {
+		roots["movies"] = m
 	}
-	for i, r := range s.tvRoots() {
-		roots[rootKey("tv", i)] = r
+	if t := s.tvRoot(); t != "" {
+		roots["tv"] = t
 	}
 	if m := s.musicRoot(); m != "" {
 		roots["music"] = m
+	}
+	if e := s.ebooksRoot(); e != "" {
+		roots["ebooks"] = e
+	}
+	if a := s.audiobooksRoot(); a != "" {
+		roots["audiobooks"] = a
 	}
 	return roots
 }

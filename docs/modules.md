@@ -7,27 +7,27 @@ Mediarium looks after several kinds of media, and each kind is a module. **Setti
 | Movies | on | available |
 | TV | on | available |
 | Music | off | available, see [music.md](./music.md) |
-| Audiobooks | off | coming soon (cannot be switched on yet) |
-| Ebooks | off | coming soon (cannot be switched on yet) |
+| Ebooks | off | see [books.md](./books.md) |
+| Audiobooks | off | see [books.md](./books.md) |
 
 ## The Media types page
 
-![The Media types page: cards for Movies, TV shows and Music switched on, and Audiobooks and Ebooks marked coming soon](images/settings-modules.png)
+![The Media types page: cards for Movies, TV shows, Music, Ebooks and Audiobooks, all switched on](images/settings-modules.png)
 
-*Settings > Media types. Movies, TV shows and Music are switched on. Audiobooks and Ebooks are greyed out as coming soon. The Settings entry in the sidebar is open.*
+*Settings > Media types. All five kinds are switched on. The Settings entry in the sidebar is open.*
 
-**Settings > Media types** is the first page in Settings, and the one administrators land on. Each kind of media has a card with a switch, side by side and all the same height. There's no Save button, and a small message confirms the change. If the server refuses it, the switch goes back and the reason is shown.
+**Settings > Media types** is the first page in Settings, and the one administrators land on. Each kind of media has a card with a switch, side by side and all the same height. A card says in a line what that kind does, with a short list of what you get. There's no Save button, and a small message confirms the change. If the server refuses it, the switch goes back and the reason is shown.
 
 - **Movies**, **TV shows** and **Music** can be switched on and off.
-- **Audiobooks** and **Ebooks** are greyed out with a "Coming soon" label.
+- **Ebooks** and **Audiobooks** switch on and off like the others (see [books.md](./books.md)).
 - Each card says **On** or **Off**, and its switch reads **Switched on** or **Switched off**.
 - The last module that's on can't be switched off. Its switch is locked, with a note that Mediarium needs at least one kind of media.
-- All five cards look alike: an icon, the name, a one-line description and either the switch or the "Coming soon" label.
-- The music folder and the **Import my existing collection** button are on the **Folders and file names** page, with the movie, TV and downloads folders (see [music.md](./music.md#importing-an-existing-collection)). The music folder shows there even while Music is off, greyed out with a note to switch Music on first. The Ebooks and Audiobooks folders are greyed out as "Coming soon", with the folder Mediarium would use (from `EBOOKS_DIR` and `AUDIOBOOKS_DIR`, or the one you set in the setup wizard).
+- All five cards look alike: an icon, the name, a one-line description and the switch.
+- The music folder and the **Import my existing collection** button are on the **Folders and file names** page, with the movie, TV and downloads folders (see [music.md](./music.md#importing-an-existing-collection)). The music folder shows there even while Music is off, greyed out with a note to switch Music on first. The Ebooks and Audiobooks folders work the same way: greyed out while their format is off, starting from `EBOOKS_DIR` and `AUDIOBOOKS_DIR` (or the one you set in the setup wizard).
 
 Every signed-in account, basic users included, sees only the modules that are on. The Movies, TV and Music tabs in the Library and Discover, and the music pages, appear and disappear with the switches.
 
-![The Library page on the Movies tab, with Movies, TV and Music tabs and a status badge on each poster](images/library.png)
+![The Library page on the Movies tab, with Movies, TV, Music, Ebooks and Audiobooks tabs and a status badge on each poster](images/library.png)
 
 *The Library with all three modules on: one tab each for Movies, TV and Music. Switch a module off and its tab disappears.*
 
@@ -37,7 +37,7 @@ Every signed-in account, basic users included, sees only the modules that are on
 
 ## In the setup wizard
 
-The second step of the first-run wizard is **What do you want to manage?**, with the same five cards. Movies and TV shows start on, Music starts off, and Audiobooks and Ebooks are marked coming soon. At least one has to stay on. Your choice is saved to the same switches (`PUT /api/modules`), and the later steps only ask about what you picked. The **Library paths** step has a box for each kind you chose plus Downloads, and **Quality & naming** talks only about movies and TV shows (with music alone there's nothing to pick there). Folders for ebooks and audiobooks can be filled in ahead of time in a section for later.
+The second step of the first-run wizard is **What do you want to manage?**, with the same five cards. Movies and TV shows start on; Music, Ebooks and Audiobooks start off. At least one has to stay on. Your choice is saved to the same switches (`PUT /api/modules`), and the later steps only ask about what you picked. The **Library paths** step has a box for each kind you chose plus Downloads, and **Quality & naming** talks only about movies and TV shows (with music alone there's nothing to pick there). Folders for ebooks and audiobooks you didn't pick can be filled in ahead of time in a section for later.
 
 ## Folders for each module
 
@@ -55,13 +55,17 @@ Downloads use `DOWNLOADS_DIR` (`/downloads`, setting `library.downloads_path`). 
 
 ### Adding music, ebooks or audiobooks later
 
+**The easy way:** if your movies, TV and downloads already share one mapped folder (for example `/data/Movies`, `/data/tv` and `/data/downloads`), there's nothing to change in your compose file. Under **Settings > Library > Folders and file names**, a folder that isn't found offers **Use /data/Ebooks** (or Music, Audiobooks), which creates it next to the others and fills in the box. Then press **Save**. A missing folder inside a mapped one also gets a **Create this folder** button, and the setup wizard offers **create it now**. Mediarium only creates a folder one level inside a folder that is mapped to your device and writable, so nothing ends up inside the container where an update would lose it.
+
+**Otherwise:**
+
 1. Create the folder on your server (on a NAS, before the next step, or Docker won't start).
 2. Give it to the container: either a `*_DIR` line in `environment` pointing inside your `/data` folder (for example `MUSIC_DIR=/data/music`), or a `volumes` line such as `- /path/to/music:/music`. Then recreate the container ([INSTALL.md](./INSTALL.md#optional-folders-music-ebooks-and-audiobooks)).
 3. Switch the type on under **Settings > Media types** (music today), and check the folder under **Settings > Library > Folders and file names**, which shows whether it's **Mapped to your device**.
 
 ## On the dashboard
 
-The top row of the dashboard has a card for every kind of media (Movies, TV shows, Music, Audiobooks, Ebooks) and a compact **Server** card as the last one. A card shows how many you have and opens that Library tab. A kind that's switched off keeps its card, dimmed with an "Off" label and the count it had. Audiobooks and Ebooks are dimmed with "Coming soon". The Server card shows the processor (with Mediarium's own share), memory and storage in use, with a small dot that turns amber and then red as any of them fills up. What's downloading and what's wanted are in the greeting card above it. The wanted number is the length of the list on Upcoming > Wanted: monitored titles with no file, and episodes that have already aired. On wide screens all six cards sit in one row, on medium screens in two rows of three, and on phones two by two. Basic users don't see the Server card.
+The top row of the dashboard has a card for every kind of media (Movies, TV shows, Music, Ebooks, Audiobooks) and a compact **Server** card as the last one. A card shows how many you have and opens that Library tab. A kind that's switched off keeps its card, dimmed with an "Off" label and the count it had. The Server card shows the processor (with Mediarium's own share), memory and storage in use, with a small dot that turns amber and then red as any of them fills up. What's downloading and what's wanted are in the greeting card above it. The wanted number is the length of the list on Upcoming > Wanted: monitored titles with no file, and episodes that have already aired. On wide screens all six cards sit in one row, on medium screens in two rows of three, and on phones two by two. Basic users don't see the Server card.
 
 ![The Server card on the dashboard, opened to show load, uptimes, what Mediarium itself uses and the free space of each folder](images/dashboard-server.png)
 
@@ -95,11 +99,11 @@ At least one kind of media must stay on. A change that would switch every availa
   "movies":     {"enabled": true,  "available": true},
   "tv":         {"enabled": true,  "available": true},
   "music":      {"enabled": false, "available": true},
-  "audiobooks": {"enabled": false, "available": false},
-  "ebooks":     {"enabled": false, "available": false}
+  "audiobooks": {"enabled": false, "available": true},
+  "ebooks":     {"enabled": false, "available": true}
 }
 ```
 
-`PUT /api/modules` (administrators) takes any of `{"movies": bool, "tv": bool, "music": bool, "audiobooks": bool, "ebooks": bool}` and returns the same shape. Fields left out keep their module as it is. Turning audiobooks or ebooks on is refused with 400 `{"error": "Coming soon"}`, and a change that leaves nothing on with 400 `{"error": "At least one media type has to stay switched on."}`. A refused request changes nothing.
+`PUT /api/modules` (administrators) takes any of `{"movies": bool, "tv": bool, "music": bool, "audiobooks": bool, "ebooks": bool}` and returns the same shape. Fields left out keep their module as it is. A change that leaves nothing on with 400 `{"error": "At least one media type has to stay switched on."}`. A refused request changes nothing.
 
 The switches are stored as the settings `modules.movies`, `modules.tv`, `modules.music`, `modules.audiobooks` and `modules.ebooks` (see [reference/settings-keys.md](./reference/settings-keys.md)). The older `music.enabled` setting still works: it's used while `modules.music` has never been set, and is kept in step when the switchboard changes music. `PUT /api/settings` with `musicEnabled` goes through the same rules.

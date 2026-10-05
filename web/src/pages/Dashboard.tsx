@@ -233,6 +233,7 @@ function ActiveDownloads({ items }: { items: QueueItem[] }) {
 function recentLink(r: DashRecent): string {
   if (r.kind === 'movie') return `/title/${r.tmdbId}`
   if (r.kind === 'album') return `/music/album/${r.albumId ?? r.id}`
+  if (r.kind === 'book') return `/book/${r.bookId ?? r.id}`
   return `/series/${r.seriesId}`
 }
 
@@ -253,12 +254,12 @@ function RecentRow({ items }: { items: DashRecent[] }) {
   return (
     <div className="recent-row" ref={row}>
       {items.slice(0, cols).map((r) => (
-        <Link key={`${r.kind}-${r.id}`} className={`mini-poster kind-${r.kind === 'movie' ? 'movie' : r.kind === 'album' ? 'music' : 'tv'}`} to={recentLink(r)}>
+        <Link key={`${r.kind}-${r.id}`} className={`mini-poster kind-${r.kind === 'movie' ? 'movie' : r.kind === 'album' ? 'music' : r.kind === 'book' ? 'book' : 'tv'}`} to={recentLink(r)}>
           <span className="mini-art">{r.kind === 'album' ? <Cover src={r.posterUrl} /> : r.posterUrl ? <img src={r.posterUrl} alt="" loading="lazy" /> : <PosterFallback />}</span>
           {r.state && <span className={`recent-state st-${r.state}`}>{RECENT_STATE[r.state]}</span>}
           <strong>{r.title}</strong>
           <small>
-            {r.year || ''} {r.kind === 'series' ? '· TV' : r.kind === 'album' ? '· Music' : ''}
+            {r.year || ''} {r.kind === 'series' ? '· TV' : r.kind === 'album' ? '· Music' : r.kind === 'book' ? '· Book' : ''}
           </small>
         </Link>
       ))}
@@ -354,36 +355,20 @@ export default function Dashboard() {
   const { library: lib } = data
   const empty = lib.movies.total === 0 && lib.series.total === 0
   const music = lib.music ?? { artists: 0, albums: 0, downloaded: 0, missing: 0 }
+  const noBooks = { books: 0, downloaded: 0, missing: 0 }
+  const ebooks = lib.ebooks ?? noBooks
+  const audiobooks = lib.audiobooks ?? noBooks
   // The same number the Wanted page lists (monitored, not downloaded, already aired).
   const startedGaps = setupGaps(factsFromDashboard(data, { movies: on('movies'), tv: on('tv') }))
-  const wanted = (lib.wanted?.movies ?? 0) + (lib.wanted?.episodes ?? 0)
+  const wanted = (lib.wanted?.movies ?? 0) + (lib.wanted?.episodes ?? 0) + (on('ebooks') ? ebooks.missing : 0) + (on('audiobooks') ? audiobooks.missing : 0)
   // Downloads waiting in line are not downloading yet.
   const inLine = active.filter((i) => i.status === 'queued').length
   const running = active.length - inLine
   const problems = data.health.filter((h) => h.level !== 'info').length
   const qualityTotal = lib.qualities.reduce((n, q) => n + q.count, 0)
 
-  return (
-    <div className="dashboard">
-      <section className="hero-welcome">
-        <div>
-          <h1>
-            {greeting()}, <span>{name}</span>
-          </h1>
-          <p>
-            {empty
-              ? admin
-                ? 'Welcome to Mediarium. Search for a movie or show in the bar above, or import what you already have.'
-                : 'Welcome to Mediarium. Search for a movie or show in the bar above to add it.'
-              : running > 0
-                ? `${running} ${running === 1 ? 'download is' : 'downloads are'} in progress right now${inLine > 0 ? `, ${inLine} waiting in line` : ''}.`
-                : inLine > 0
-                  ? `${inLine} ${inLine === 1 ? 'download is' : 'downloads are'} waiting in line.`
-                : wanted > 0
-                  ? `Nothing is downloading right now. ${wanted} ${wanted === 1 ? 'item is' : 'items are'} still missing.`
-                  : 'Everything is up to date.'}
-          </p>
-        </div>
+  // Downloading, wanted, all good: with the server panel when there is one.
+  const heroPills = (
         <div className="hero-pills">
           <Link to="/queue" className="hero-pill" style={{ ['--pc' as string]: 'var(--c-activity)' }}>
             <Icon name="download" size={15} /> {running} downloading
@@ -406,13 +391,39 @@ export default function Dashboard() {
             </button>
           )}
         </div>
-      </section>
+  )
 
-      {!server.denied && (
-        <div className="server-strip">
-          <ServerInfoCard stats={server.stats} denied={server.denied} to={admin ? '/settings/system' : undefined} />
+  return (
+    <div className="dashboard">
+      <section className={`hero-welcome${server.denied ? '' : ' with-server'}`}>
+        <div className="hero-left">
+        <div>
+          <h1>
+            {greeting()}, <span>{name}</span>
+          </h1>
+          <p>
+            {empty
+              ? admin
+                ? 'Welcome to Mediarium. Search for a movie or show in the bar above, or import what you already have.'
+                : 'Welcome to Mediarium. Search for a movie or show in the bar above to add it.'
+              : running > 0
+                ? `${running} ${running === 1 ? 'download is' : 'downloads are'} in progress right now${inLine > 0 ? `, ${inLine} waiting in line` : ''}.`
+                : inLine > 0
+                  ? `${inLine} ${inLine === 1 ? 'download is' : 'downloads are'} waiting in line.`
+                : wanted > 0
+                  ? `Nothing is downloading right now. ${wanted} ${wanted === 1 ? 'item is' : 'items are'} still missing.`
+                  : 'Everything is up to date.'}
+          </p>
         </div>
-      )}
+          {server.denied && heroPills}
+        </div>
+        {!server.denied && (
+          <div className="hero-server">
+            {heroPills}
+            <ServerInfoCard stats={server.stats} denied={server.denied} to={admin ? '/settings/system' : undefined} />
+          </div>
+        )}
+      </section>
 
       {admin && <DashboardUpdate />}
 
@@ -455,6 +466,26 @@ export default function Dashboard() {
           to="/library?kind=music"
           color="var(--c-music)"
           off={!on('music')}
+        />
+        <ModuleCard
+          icon="book"
+          label="Ebooks"
+          value={ebooks.books}
+          unit={ebooks.books === 1 ? 'book' : 'books'}
+          sub={`${ebooks.downloaded} downloaded · ${ebooks.missing} missing`}
+          to="/library?kind=ebook"
+          color="var(--c-book)"
+          off={!on('ebooks')}
+        />
+        <ModuleCard
+          icon="headphones"
+          label="Audiobooks"
+          value={audiobooks.books}
+          unit={audiobooks.books === 1 ? 'book' : 'books'}
+          sub={`${audiobooks.downloaded} downloaded · ${audiobooks.missing} missing`}
+          to="/library?kind=audiobook"
+          color="var(--c-audiobook)"
+          off={!on('audiobooks')}
         />
       </div>
       <p className="dash-more">

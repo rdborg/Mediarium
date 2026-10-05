@@ -183,6 +183,11 @@ func (c *Client) authorize(req *http.Request, s Server) {
 		if s.Token != "" {
 			req.Header.Set("X-Emby-Token", s.Token)
 		}
+	case KindAudiobookshelf, KindKavita:
+		// Kavita's token here is the bearer token kavitaAuth got for the API key.
+		if s.Token != "" {
+			req.Header.Set("Authorization", "Bearer "+s.Token)
+		}
 	}
 }
 
@@ -249,6 +254,10 @@ func (c *Client) Test(ctx context.Context, s Server) (TestResult, error) {
 		return c.plexTest(ctx, s)
 	case KindJellyfin, KindEmby:
 		return c.embyTest(ctx, s)
+	case KindAudiobookshelf:
+		return c.absTest(ctx, s)
+	case KindKavita:
+		return c.kavitaTest(ctx, s)
 	}
 	return TestResult{}, userErr(nil, "Unknown server type %q.", s.Kind)
 }
@@ -260,6 +269,29 @@ func (c *Client) RefreshAll(ctx context.Context, s Server) error {
 		return c.plexRefreshAll(ctx, s)
 	case KindJellyfin, KindEmby:
 		return explain(s, c.do(ctx, s, http.MethodPost, "/Library/Refresh", nil, nil, nil))
+	case KindAudiobookshelf, KindKavita:
+		var libs []Library
+		var err error
+		authed := s
+		if s.Kind == KindKavita {
+			libs, authed, err = c.kavitaLibraries(ctx, s)
+		} else {
+			libs, err = c.absLibraries(ctx, s)
+		}
+		if err != nil {
+			return err
+		}
+		for _, l := range libs {
+			if s.Kind == KindKavita {
+				err = c.kavitaScan(ctx, authed, l)
+			} else if l.Type != "podcast" {
+				err = c.absScan(ctx, s, l)
+			}
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	return userErr(nil, "Unknown server type %q.", s.Kind)
 }
@@ -268,6 +300,21 @@ func (c *Client) RefreshAll(ctx context.Context, s Server) error {
 // sees them; the server's path mapping is applied here). It returns a short
 // description of each scan it started, for the log.
 func (c *Client) RefreshFolders(ctx context.Context, s Server, kind MediaKind, folders []string) ([]string, error) {
+	if s.Kind.BookServer() {
+		// Book servers only keep books.
+		if kind != MediaBook {
+			return nil, nil
+		}
+		return c.bookRefresh(ctx, s, folders)
+	}
+	if kind == MediaBook {
+		// Plex, Jellyfin and Emby scan a book folder only when one of their
+		// libraries holds it; a whole-library scan for a book is not worth it.
+		folders = c.foldersInLibraries(ctx, s, folders)
+		if len(folders) == 0 {
+			return nil, nil
+		}
+	}
 	switch s.Kind {
 	case KindPlex:
 		return c.plexRefreshFolders(ctx, s, kind, folders)
@@ -275,6 +322,31 @@ func (c *Client) RefreshFolders(ctx context.Context, s Server, kind MediaKind, f
 		return c.embyRefreshFolders(ctx, s, folders)
 	}
 	return nil, userErr(nil, "Unknown server type %q.", s.Kind)
+}
+
+// foldersInLibraries keeps the folders that are inside one of the server's
+// libraries (as the server sees them).
+func (c *Client) foldersInLibraries(ctx context.Context, s Server, folders []string) []string {
+	var locations []string
+	switch s.Kind {
+	case KindPlex:
+		libs, err := c.plexSections(ctx, s)
+		if err != nil {
+			return nil
+		}
+		for _, l := range libs {
+			locations = append(locations, l.Locations...)
+		}
+	case KindJellyfin, KindEmby:
+		locations = c.embyLibraryLocations(ctx, s)
+	}
+	var out []string
+	for _, f := range folders {
+		if insideAny(MapPath(f, s.PathMap), locations) {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // Find looks a title up by its TMDB id. found is false when the server
@@ -285,6 +357,8 @@ func (c *Client) Find(ctx context.Context, s Server, kind MediaKind, tmdbID int)
 		return c.plexFind(ctx, s, kind, tmdbID, nil)
 	case KindJellyfin, KindEmby:
 		return c.embyFind(ctx, s, kind, tmdbID)
+	case KindAudiobookshelf, KindKavita:
+		return Item{}, false, nil // books are found by title (FindBook)
 	}
 	return Item{}, false, userErr(nil, "Unknown server type %q.", s.Kind)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
+	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/queue"
@@ -19,6 +20,8 @@ type queueItemPayload struct {
 	MovieID      int64   `json:"movieId"`
 	SeriesID     int64   `json:"seriesId,omitempty"`
 	AlbumID      int64   `json:"albumId,omitempty"` // an album grab (music module)
+	BookID       int64   `json:"bookId,omitempty"`  // a book grab (ebooks and audiobooks)
+	BookFormat   string  `json:"bookFormat,omitempty"`
 	TMDBID       int     `json:"tmdbId,omitempty"`
 	Title        string  `json:"title"`
 	Subtitle     string  `json:"subtitle,omitempty"`
@@ -126,7 +129,7 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 	for i, it := range items {
 		title, subtitle, poster := s.describeQueueItem(it)
 		p := queueItemPayload{
-			ID: it.ID, MovieID: it.MovieID, SeriesID: it.SeriesID, AlbumID: it.AlbumID, Title: title, Subtitle: subtitle, PosterURL: poster,
+			ID: it.ID, MovieID: it.MovieID, SeriesID: it.SeriesID, AlbumID: it.AlbumID, BookID: it.BookID, BookFormat: it.BookFormat, Title: title, Subtitle: subtitle, PosterURL: poster,
 			ReleaseTitle: it.ReleaseTitle, Protocol: string(it.Protocol), SizeBytes: it.SizeBytes, Status: string(it.Status),
 			ProgressPct: it.ProgressPct, Error: plainerror.Text(it.Error), AddedAt: it.AddedAt, CompletedAt: it.CompletedAt, DestPath: it.DestPath,
 			Interrupted: it.Interrupted, Pending: s.pipelines.pending(it.ID), QueuePosition: positions[it.ID],
@@ -267,8 +270,14 @@ func (s *Server) regrab(item queue.Item) (int64, error) {
 			return 0, fmt.Errorf("That album isn't in your library any more.")
 		}
 		return s.grabAlbum(artist, album, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked)
+	case item.BookID > 0:
+		book, err := s.BookRepo.Get(item.BookID)
+		if err != nil {
+			return 0, fmt.Errorf("That book isn't in your library any more.")
+		}
+		return s.grabBook(book, books.Format(item.BookFormat), item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, queue.PriorityManual)
 	}
-	return 0, fmt.Errorf("This download isn't linked to a movie, show or album.")
+	return 0, fmt.Errorf("This download isn't linked to a movie, show, album or book.")
 }
 
 // queueItemEvent is itemEvent for the movie, show or album a queue item
@@ -315,6 +324,8 @@ func (s *Server) handleBlocklistQueueItem(w http.ResponseWriter, r *http.Request
 		go s.searchSeriesInBackground(item.SeriesID)
 	case item.AlbumID > 0:
 		s.background(func() { s.retryAlbum(item.AlbumID) })
+	case item.BookID > 0:
+		s.background(func() { s.searchBook(item.BookID, books.Format(item.BookFormat), true) })
 	}
 	writeJSON(w, http.StatusOK, nil)
 }

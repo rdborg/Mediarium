@@ -13,6 +13,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/auth"
 	"github.com/rdborg/mediarium/internal/blocklist"
+	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/config"
 	"github.com/rdborg/mediarium/internal/crypto"
 	"github.com/rdborg/mediarium/internal/download"
@@ -59,6 +60,10 @@ type Server struct {
 	Problems          *problems.Log  // the log of real problems shown under Settings > System > Logs and errors (handlers_problems.go)
 	MediaServers      *mediaservers.Repo
 	MusicRepo         *music.Repo // artists, albums, tracks (the music module, music*.go)
+	BookRepo          *books.Repo // ebooks and audiobooks (books_api.go)
+	OpenLibrary       *books.Client
+	bookImport        bookImports // the "import books already on disk" job (books_import.go)
+	authorCheck       authorCheck // when followed authors were last checked (books_authors.go)
 
 	mediaClient    *mediaservers.Client
 	mediaRefresher *mediaservers.Refresher // rescans Plex/Jellyfin/Emby after imports
@@ -191,6 +196,8 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 		return nil, fmt.Errorf("init quality profiles: %w", err)
 	}
 	s.MusicRepo = music.NewRepo(db)
+	s.BookRepo = books.NewRepo(db)
+	s.OpenLibrary = books.NewClient("Mediarium/" + version + " (https://mediarium.app)")
 	s.mb = musicbrainz.New(version)
 	if err := s.MusicRepo.SeedPresets(); err != nil {
 		return nil, fmt.Errorf("init music profiles: %w", err)
@@ -291,7 +298,7 @@ func (s *Server) Routes() http.Handler {
 // without the test being updated too.
 func (s *Server) protectedRoutes() *routeTable {
 	t := newRouteTable()
-	t.gate = s.musicRouteOpen // /api/music/ answers 404 while the music module is off
+	t.gate = s.moduleRouteOpen // /api/music/ and /api/books/ answer 404 while their module is off
 	member := t.group(accessMember)
 	admin := t.group(accessAdmin)
 
@@ -349,6 +356,9 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/movies/{id}/search", s.handleMovieSearch)
 	member.HandleFunc("POST /api/movies/{id}/search-now", s.handleMovieSearchNow)
 	member.HandleFunc("POST /api/movies/{id}/grab", s.handleGrab)
+	member.HandleFunc("GET /api/tags", s.handleListTags)
+	member.HandleFunc("PUT /api/movies/{id}/tags", s.handleSetMovieTags)
+	member.HandleFunc("PUT /api/series/{id}/tags", s.handleSetSeriesTags)
 	member.HandleFunc("PUT /api/movies/{id}/monitored", s.handleSetMovieMonitored)
 
 	// Shows: the same.
@@ -362,6 +372,33 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("PUT /api/series/{id}/monitored", s.handleSetSeriesMonitored)
 	member.HandleFunc("PUT /api/series/{id}/seasons/{season}/monitored", s.handleSetSeasonMonitored)
 	member.HandleFunc("PUT /api/episodes/{id}/monitored", s.handleSetEpisodeMonitored)
+
+	// Books: ebooks and audiobooks (404 while both are off).
+	member.HandleFunc("GET /api/books", s.handleListBooks)
+	member.HandleFunc("POST /api/books", s.handleAddBook)
+	member.HandleFunc("GET /api/books/search", s.handleBookSearch)
+	member.HandleFunc("GET /api/books/discover", s.handleBookDiscover)
+	member.HandleFunc("GET /api/books/subjects", s.handleBookSubjects)
+	member.HandleFunc("GET /api/books/{id}/links", s.handleBookLinks)
+	member.HandleFunc("GET /api/books/progress", s.handleListBookProgress)
+	member.HandleFunc("GET /api/book-authors", s.handleFollowedAuthors)
+	member.HandleFunc("GET /api/book-works/{key}", s.handleBookWork)
+	member.HandleFunc("GET /api/book-authors/{key}/works", s.handleAuthorWorks)
+	member.HandleFunc("PUT /api/book-authors/{key}/follow", s.handleFollowAuthor)
+	member.HandleFunc("DELETE /api/book-authors/{key}/follow", s.handleUnfollowAuthor)
+	member.HandleFunc("GET /api/books/{id}/progress", s.handleGetBookProgress)
+	member.HandleFunc("PUT /api/books/{id}/progress", s.handleSetBookProgress)
+	member.HandleFunc("GET /api/books/{id}/read", s.handleReadBook)
+	member.HandleFunc("GET /api/books/{id}/tracks", s.handleBookTracks)
+	member.HandleFunc("GET /api/books/{id}/listen/{n}", s.handleListenBook)
+	admin.HandleFunc("GET /api/books/import", s.handleBookImportStatus)
+	admin.HandleFunc("POST /api/books/import", s.handleStartBookImport)
+	member.HandleFunc("GET /api/books/{id}", s.handleGetBook)
+	member.HandleFunc("PUT /api/books/{id}/want", s.handleSetBookWant)
+	member.HandleFunc("POST /api/books/{id}/search", s.handleSearchBookNow)
+	admin.HandleFunc("DELETE /api/books/{id}", s.handleDeleteBook)
+	member.HandleFunc("GET /api/books/{id}/releases", s.handleBookReleases)
+	member.HandleFunc("POST /api/books/{id}/grab", s.handleGrabBook)
 
 	// Music: the same for artists and albums (404 while the music module is off).
 	member.HandleFunc("GET /api/music/profiles", s.handleMusicProfiles)
@@ -422,6 +459,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("GET /api/settings/filesystem-check", s.handleFilesystemCheck)
 	admin.HandleFunc("POST /api/settings/test-service", s.handleTestService)
 	admin.HandleFunc("GET /api/settings/folder-check", s.handleFolderCheck)
+	admin.HandleFunc("POST /api/settings/folder-create", s.handleCreateFolder)
 	admin.HandleFunc("GET /api/settings/naming-preview", s.handleNamingPreview)
 
 	// Indexers and Usenet servers.
@@ -456,6 +494,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("PUT /api/library/bulk/monitored", s.handleBulkMonitored)
 	admin.HandleFunc("PUT /api/library/bulk/no-upgrade", s.handleBulkNoUpgrade)
 	admin.HandleFunc("PUT /api/library/bulk/profile", s.handleBulkProfile)
+	admin.HandleFunc("PUT /api/library/bulk/tags", s.handleBulkTags)
 	admin.HandleFunc("PUT /api/library/bulk/sources", s.handleBulkSources)
 	admin.HandleFunc("POST /api/library/bulk/search-now", s.handleBulkSearchNow)
 	admin.HandleFunc("POST /api/library/bulk/remove", s.handleBulkRemove)

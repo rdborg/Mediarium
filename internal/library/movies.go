@@ -41,12 +41,9 @@ type Movie struct {
 	// plain words) and empty otherwise.
 	DetailsState string
 	DetailsNote  string
-	// RootPath is the library folder the movie is kept in when it is not the
-	// main movies folder ("" = the main one).
-	RootPath string
 }
 
-const movieColumns = `id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref, COALESCE(added_by, 0), genres, no_upgrade, details_state, details_note, root_path`
+const movieColumns = `id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref, COALESCE(added_by, 0), genres, no_upgrade, details_state, details_note`
 
 type Repo struct {
 	db *sql.DB
@@ -259,7 +256,7 @@ func (r *Repo) scanRow(scanner rowScanner) (Movie, error) {
 		filePath sql.NullString
 		genres   sql.NullString
 	)
-	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref, &m.AddedBy, &genres, &m.NoUpgrade, &m.DetailsState, &m.DetailsNote, &m.RootPath)
+	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref, &m.AddedBy, &genres, &m.NoUpgrade, &m.DetailsState, &m.DetailsNote)
 	if err == sql.ErrNoRows {
 		return Movie{}, err
 	}
@@ -271,13 +268,4 @@ func (r *Repo) scanRow(scanner rowScanner) (Movie, error) {
 	m.Quality = quality.String
 	m.FilePath = filePath.String
 	return m, nil
-}
-
-// SetRootPath chooses the library folder a movie is kept in ("" = the main
-// movies folder). It only affects where new files go.
-func (r *Repo) SetRootPath(id int64, root string) error {
-	if _, err := r.db.Exec(`UPDATE movies SET root_path = ? WHERE id = ?`, root, id); err != nil {
-		return fmt.Errorf("set movie folder: %w", err)
-	}
-	return nil
 }

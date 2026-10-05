@@ -11,14 +11,50 @@ interface ModuleInfo {
   icon: IconName
   color: string
   blurb: string
+  points: string[]
 }
 
 const MODULES: ModuleInfo[] = [
-  { key: 'movies', name: 'Movies', icon: 'film', color: 'var(--c-movie)', blurb: 'Find, download and organise movies, like Radarr.' },
-  { key: 'tv', name: 'TV shows', icon: 'tv', color: 'var(--c-tv)', blurb: 'Follow shows and get new episodes as they air, like Sonarr.' },
-  { key: 'music', name: 'Music', icon: 'music', color: 'var(--c-music)', blurb: 'Keep the albums of the artists you love, in FLAC or MP3, like Lidarr.' },
-  { key: 'audiobooks', name: 'Audiobooks', icon: 'headphones', color: 'var(--text-dim)', blurb: 'Audiobooks, named and filed neatly.' },
-  { key: 'ebooks', name: 'Ebooks', icon: 'book', color: 'var(--text-dim)', blurb: 'Ebooks and comics for your e-reader.' },
+  {
+    key: 'movies',
+    name: 'Movies',
+    icon: 'film',
+    color: 'var(--c-movie)',
+    blurb: 'Find, download and organise movies.',
+    points: ['Discover what is popular, new and coming soon', 'The quality you want, with upgrades if you like', 'Named and filed for your media player', 'Subtitles and tags such as Kids or 4K'],
+  },
+  {
+    key: 'tv',
+    name: 'TV shows',
+    icon: 'tv',
+    color: 'var(--c-tv)',
+    blurb: 'Follow shows and get new episodes as they air.',
+    points: ['New episodes picked up by themselves', 'Whole seasons or single episodes', 'A calendar of what airs next', 'Filed by show and season'],
+  },
+  {
+    key: 'music',
+    name: 'Music',
+    icon: 'music',
+    color: 'var(--c-music)',
+    blurb: 'Keep the albums of the artists you love.',
+    points: ['Follow artists and get their new albums', 'FLAC or MP3, your choice', 'Albums, singles and EPs', 'Filed by artist and album'],
+  },
+  {
+    key: 'ebooks',
+    name: 'Ebooks',
+    icon: 'book',
+    color: 'var(--c-book)',
+    blurb: 'Books for your e-reader, filed by author.',
+    points: ['EPUB first, then AZW3, MOBI or PDF', 'Trending books and the classics on Discover', 'Follow authors for their new books', 'Read them in Mediarium Books'],
+  },
+  {
+    key: 'audiobooks',
+    name: 'Audiobooks',
+    icon: 'headphones',
+    color: 'var(--c-audiobook)',
+    blurb: 'Audiobooks ready for your player, filed by author.',
+    points: ['M4B first, then MP3 and the rest', 'Chapters kept in order', 'Listen in Mediarium Books, with a sleep timer', 'Your place is saved on every device'],
+  },
 ]
 
 // The switchboard: which kinds of media Mediarium looks after. A module that
@@ -65,12 +101,19 @@ export default function ModulesSettings() {
             <section key={m.key} className={`module-card${st.enabled ? ' on' : ''}${soon ? ' soon' : ''}`} style={{ ['--mc' as string]: m.color }}>
               <header>
                 <span className="module-ico">
-                  <Icon name={m.icon} size={22} />
+                  <Icon name={m.icon} size={26} />
                 </span>
                 <h2>{m.name}</h2>
                 {!soon && <span className={`module-state ${st.enabled ? 'is-on' : 'is-off'}`}>{st.enabled ? 'On' : 'Off'}</span>}
               </header>
               <p className="module-blurb">{m.blurb}</p>
+              <ul className="module-points">
+                {m.points.map((pt) => (
+                  <li key={pt}>
+                    <Icon name="check" size={14} /> {pt}
+                  </li>
+                ))}
+              </ul>
 
               <footer>
                 {soon ? (

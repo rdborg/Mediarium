@@ -20,8 +20,8 @@ type Config struct {
 	MoviesDir           string // /movies
 	TVDir               string // /tv
 	MusicDir            string // /music (only used when the music module is switched on)
-	EbooksDir           string // /ebooks (kept for the ebooks module, which is not built yet)
-	AudiobooksDir       string // /audiobooks (kept for the audiobooks module, which is not built yet)
+	EbooksDir           string // /ebooks (the ebooks module)
+	AudiobooksDir       string // /audiobooks (the audiobooks module)
 
 	DBPath        string
 	SecretKeyPath string

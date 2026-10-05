@@ -57,6 +57,12 @@ Switch on **Tell me when an error happens** at the bottom of the page to get a m
 
 Problems are kept for **30 days**, and at most 2000 of them. A shorter history time (`historyRetentionDays`, see [History and activity](downloads.md#history-and-activity)) applies here too. The daily [clean-up](downloads.md#clean-up) removes older ones.
 
+## "Mediarium is slow to answer right now"
+
+A yellow notice under the top bar. It appears when Mediarium itself takes more than 10 seconds to answer the page, for example while a big download is being unpacked or a library import is running, and goes away by itself once answers come back at normal speed. Nothing needs doing; if it stays for a long time, check the server isn't out of memory or disk space (**Settings > System**).
+
+Lists that come from outside services don't raise it: Discover (TMDB, MusicBrainz, Open Library), the search box, release searches on your indexers, subtitles and media server links. Those show their own loading placeholders, and if one of the services doesn't answer at all, the message names it ("Open Library is slow to answer right now") instead of blaming Mediarium.
+
 ## Examples
 
 **"Too many connections to your Usenet provider."** Your provider allows only so many connections at once for one login. If another program such as SABnzbd uses the same account, stop it, or lower the number of connections in **Settings > Downloading > Usenet and torrents**. Mediarium lowers the number itself while the provider complains, so downloads keep going, just slower.

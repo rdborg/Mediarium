@@ -30,9 +30,10 @@ func (s *Server) sendNotification(event notify.Event) {
 }
 
 // deliverNotification sends event to every target that wants it, in the
-// background.
+// background. It counts as background work, so anything that waits for the
+// downloads to settle (the tests do) waits for it too.
 func (s *Server) deliverNotification(event notify.Event) {
-	go func() {
+	s.background(func() {
 		senders, err := s.NotifyRepo.SendersFor(notify.EventKind(event.Type))
 		if err != nil {
 			log.Printf("notify: load senders: %v", err)
@@ -48,7 +49,7 @@ func (s *Server) deliverNotification(event notify.Event) {
 			log.Printf("notify: %v", err)
 			noteNotifyFailure(err)
 		}
-	}()
+	})
 }
 
 // notifyTargetRequest is the body of create, update and test. Config holds the

@@ -27,6 +27,7 @@ type seriesPayload struct {
 	ProfileID       int64    `json:"profileId"`
 	Sources         string   `json:"sources"`
 	Genres          []string `json:"genres"`  // TMDB genre names; empty until fetched
+	Tags            []string `json:"tags"`    // the person's own tags ("Kids", "4K")
 	AddedBy         *userRef `json:"addedBy"` // null when unknown
 	// NoUpgrade: automation does not look for better versions of the episodes.
 	NoUpgrade bool `json:"noUpgrade"`
@@ -47,7 +48,7 @@ func toSeriesPayload(s library.Series, who func(int64) *userRef) seriesPayload {
 		ID: s.ID, TMDBID: s.TMDBID, Title: s.Title, Year: s.Year, Overview: s.Overview,
 		PosterURL: metadata.PosterURL(s.PosterPath), Monitored: s.Monitored,
 		EpisodeCount: s.EpisodeCount, DownloadedCount: s.DownloadedCount, ProfileID: s.ProfileID, Sources: s.SourcePref,
-		Genres: genres, AddedBy: who(s.AddedBy),
+		Genres: genres, Tags: []string{}, AddedBy: who(s.AddedBy),
 		NoUpgrade: s.NoUpgrade, DetailsState: s.DetailsState, DetailsNote: s.DetailsNote,
 	}
 }
@@ -109,9 +110,13 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	who := s.accountNames()
+	tags, _ := s.MovieRepo.AllTitleTags(library.TagSeries)
 	out := make([]seriesPayload, len(list))
 	for i, sr := range list {
 		out[i] = toSeriesPayload(sr, who)
+		if t := tags[sr.ID]; t != nil {
+			out[i].Tags = t
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -137,6 +142,9 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := seriesDetailPayload{seriesPayload: toSeriesPayload(sr, s.accountNames()), Episodes: make([]episodePayload, len(eps))}
+	if t, err := s.MovieRepo.TitleTags(library.TagSeries, sr.ID); err == nil {
+		out.Tags = t
+	}
 	for i, e := range eps {
 		out.Episodes[i] = toEpisodePayload(e)
 	}
@@ -155,8 +163,6 @@ type addSeriesRequest struct {
 	// NoUpgrade leaves the episodes alone once they are downloaded. On when
 	// left out: better versions are something the person asks for.
 	NoUpgrade *bool `json:"noUpgrade"`
-	// RootPath is the library folder to keep it in ("" = the main TV folder).
-	RootPath string `json:"rootPath"`
 }
 
 // handleAddSeries adds a show and its complete episode list (every real
@@ -195,10 +201,6 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	if req.RootPath != "" && !isRoot(s.tvRoots(), req.RootPath) {
-		writeError(w, http.StatusBadRequest, "Choose one of the TV folders set up in Settings > Library.")
-		return
-	}
 
 	userID, byline := requester(r)
 	created, err := s.addSeriesFromTMDB(r.Context(), req.TMDBID, userID, boolOr(req.NoUpgrade, true))
@@ -220,11 +222,6 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 	if req.Sources != "" {
 		if err := s.MovieRepo.SetSeriesSourcePref(created.ID, req.Sources); err == nil {
 			created.SourcePref = req.Sources
-		}
-	}
-	if req.RootPath != "" && req.RootPath != s.tvRoot() {
-		if err := s.MovieRepo.SetSeriesRootPath(created.ID, req.RootPath); err == nil {
-			created.RootPath = req.RootPath
 		}
 	}
 	_ = s.QueueRepo.LogSeriesActivity(created.ID, "added", created.Title+" (series) added to library"+byline)
@@ -381,7 +378,7 @@ func (s *Server) removeSeries(id int64, deleteFiles bool) (string, error) {
 		return series.Title, &removeProblem{http.StatusInternalServerError, err.Error()}
 	}
 	if deleteFiles {
-		if err := checkRemovable(s.tvFileRoot(firstOf(files)), files); err != nil {
+		if err := checkRemovable(s.tvRoot(), files); err != nil {
 			return series.Title, &removeProblem{http.StatusConflict, err.Error()}
 		}
 	}
@@ -395,7 +392,7 @@ func (s *Server) removeSeries(id int64, deleteFiles bool) (string, error) {
 	if now, err := s.seriesFiles(id); err == nil && !slices.Equal(now, files) {
 		files = now
 		if deleteFiles {
-			if err := checkRemovable(s.tvFileRoot(firstOf(files)), files); err != nil {
+			if err := checkRemovable(s.tvRoot(), files); err != nil {
 				return series.Title, &removeProblem{http.StatusConflict, err.Error()}
 			}
 		}

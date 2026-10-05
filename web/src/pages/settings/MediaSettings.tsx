@@ -1,4 +1,3 @@
-import ExtraFolders from '../../components/ExtraFolders'
 import RenameCard from '../../components/RenameCard'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -10,6 +9,7 @@ import HardlinkWarning from '../../components/HardlinkWarning'
 import NamingPreview from '../../components/NamingPreview'
 import { useModules } from '../../ModulesContext'
 import { firstError, folderPath, required } from '../../validate'
+import { coreParent, pathInside, type FolderKind } from '../../setupHelpers'
 import { FieldError, FormProblem, useValidation } from '../../useValidation'
 
 // The tokens the naming engine understands (internal/organizer/naming.go).
@@ -35,6 +35,8 @@ function LibrarySection() {
   const [moviesPath, setMoviesPath] = useState('')
   const [tvPath, setTvPath] = useState('')
   const [musicPath, setMusicPath] = useState('')
+  const [ebooksPath, setEbooksPath] = useState('')
+  const [audiobooksPath, setAudiobooksPath] = useState('')
   const [downloadsPath, setDownloadsPath] = useState('')
   const [namingPreset, setNamingPreset] = useState('plex')
   const [customFormat, setCustomFormat] = useState('')
@@ -47,10 +49,14 @@ function LibrarySection() {
   const navigate = useNavigate()
   const { on } = useModules()
   const musicOn = on('music')
+  const ebooksOn = on('ebooks')
+  const audiobooksOn = on('audiobooks')
   const errors = {
     moviesPath: firstError(required(moviesPath, 'Add the folder your movies live in, for example /movies.'), folderPath(moviesPath, '/movies')),
     tvPath: folderPath(tvPath, '/tv'),
     musicPath: musicOn ? folderPath(musicPath, '/music') : null,
+    ebooksPath: ebooksOn ? firstError(required(ebooksPath, 'Add the folder your ebooks go in, for example /books.'), folderPath(ebooksPath, '/books')) : null,
+    audiobooksPath: audiobooksOn ? firstError(required(audiobooksPath, 'Add the folder your audiobooks go in, for example /audiobooks.'), folderPath(audiobooksPath, '/audiobooks')) : null,
     downloadsPath: firstError(required(downloadsPath, 'Add the folder downloads should go to, for example /downloads.'), folderPath(downloadsPath, '/downloads')),
     customFormat: namingPreset === 'custom' ? firstError(required(customFormat, 'Add a naming format, for example {Movie Title} ({Year}).'), namingFormat(customFormat)) : null,
     illegalCharReplacement:
@@ -63,6 +69,12 @@ function LibrarySection() {
         : null,
   }
   const v = useValidation(errors)
+  // Where a missing folder could go instead: next to movies, TV and downloads
+  // when they share one mapped folder (for example /data/Ebooks).
+  const suggestFor = (kind: FolderKind) => {
+    const { parent, sample } = coreParent({ movies: moviesPath, tv: tvPath, downloads: downloadsPath })
+    return parent ? pathInside(parent, kind, sample) : undefined
+  }
 
   const load = useCallback(() => {
     setLoadError('')
@@ -73,6 +85,8 @@ function LibrarySection() {
         setMoviesPath(s.moviesPath)
         setTvPath(s.tvPath ?? '')
         setMusicPath(s.musicPath ?? '')
+        setEbooksPath(s.ebooksPath ?? '')
+        setAudiobooksPath(s.audiobooksPath ?? '')
         setDownloadsPath(s.downloadsPath)
         setNamingPreset(s.namingPreset || 'plex')
         setCustomFormat(s.movieNameFormat)
@@ -92,6 +106,8 @@ function LibrarySection() {
         moviesPath,
         tvPath,
         musicPath: musicPath.trim(),
+        ebooksPath: ebooksPath.trim() || undefined,
+        audiobooksPath: audiobooksPath.trim() || undefined,
         downloadsPath,
         namingPreset,
         movieNameFormat: customFormat,
@@ -159,6 +175,22 @@ function LibrarySection() {
               <small className="path-note">Turn on Music in Media types first.</small>
             )}
           </div>
+          <div className={`path-col${ebooksOn ? '' : ' path-off'}`}>
+            <label>
+              Ebooks folder
+              <input value={ebooksPath} onChange={(e) => setEbooksPath(e.target.value)} placeholder="/books" spellCheck={false} disabled={!ebooksOn} {...v.bind('ebooksPath', ebooksPath, setEbooksPath)} />
+              <FieldError v={v} name="ebooksPath" />
+            </label>
+            {ebooksOn ? <FolderStatus path={ebooksPath} suggest={suggestFor('ebooks')} onUse={setEbooksPath} /> : <small className="path-note">Turn on Ebooks in Media types first.</small>}
+          </div>
+          <div className={`path-col${audiobooksOn ? '' : ' path-off'}`}>
+            <label>
+              Audiobooks folder
+              <input value={audiobooksPath} onChange={(e) => setAudiobooksPath(e.target.value)} placeholder="/audiobooks" spellCheck={false} disabled={!audiobooksOn} {...v.bind('audiobooksPath', audiobooksPath, setAudiobooksPath)} />
+              <FieldError v={v} name="audiobooksPath" />
+            </label>
+            {audiobooksOn ? <FolderStatus path={audiobooksPath} suggest={suggestFor('audiobooks')} onUse={setAudiobooksPath} /> : <small className="path-note">Turn on Audiobooks in Media types first.</small>}
+          </div>
           <div className="path-col">
             <label>
               Downloads folder
@@ -167,14 +199,14 @@ function LibrarySection() {
             </label>
             <FolderStatus path={downloadsPath} />
           </div>
-          <ExtraFolders kind="movies" />
-          <ExtraFolders kind="tv" />
         </div>
         <HardlinkWarning
           libraries={[
             { label: 'movies', path: moviesPath },
             { label: 'TV shows', path: tvPath },
             ...(musicOn ? [{ label: 'music', path: musicPath }] : []),
+            ...(ebooksOn ? [{ label: 'ebooks', path: ebooksPath }] : []),
+            ...(audiobooksOn ? [{ label: 'audiobooks', path: audiobooksPath }] : []),
           ]}
           downloads={downloadsPath}
         />

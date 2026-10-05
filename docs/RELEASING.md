@@ -90,7 +90,7 @@ The example releases version `1.3.0`. Replace it with your number.
 7. **Watch the release run** under the repository's Actions tab, workflow "Release". It:
    - checks that the tag matches `VERSION` (and stops everything if not);
    - builds the web interface once;
-   - builds the app for Linux (amd64, arm64), Windows (amd64) and macOS (Intel and Apple silicon), each packed with the licence and install notes, plus a `sha256sums.txt`;
+   - builds the app for Linux (amd64, arm64), each packed with the licence, the install notes and the systemd files, plus a `sha256sums.txt`;
    - signs `sha256sums.txt` and adds `sha256sums.txt.sig`, if the `UPDATE_SIGNING_KEY` secret is set (see [Signing releases](#signing-releases));
    - creates a GitHub Release named "Mediarium v1.3.0" with those files and notes generated from the commits;
    - builds the Docker image for linux/amd64 and linux/arm64 and pushes it to `ghcr.io` with the tags `1.3.0`, `1.3` and `latest`;

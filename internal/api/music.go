@@ -83,6 +83,14 @@ func (s *Server) musicRoot() string {
 // the role check (a member still gets 403 on an administrator route) and
 // covers every music route, so a new one can never be reached with the
 // module off through a forgotten check.
+func (s *Server) moduleRouteOpen(w http.ResponseWriter, r *http.Request) bool {
+	if (strings.HasPrefix(r.URL.Path, "/api/books") || strings.HasPrefix(r.URL.Path, "/api/book-")) && !s.booksEnabled() {
+		writeError(w, http.StatusNotFound, "Ebooks and audiobooks are switched off. Switch them on in Settings > Media types.")
+		return false
+	}
+	return s.musicRouteOpen(w, r)
+}
+
 func (s *Server) musicRouteOpen(w http.ResponseWriter, r *http.Request) bool {
 	if strings.HasPrefix(r.URL.Path, "/api/music/") && !s.musicEnabled() {
 		writeError(w, http.StatusNotFound, musicOffMessage)

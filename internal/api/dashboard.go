@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/fsinfo"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
@@ -120,12 +121,29 @@ type dashActive struct {
 	Release     string  `json:"release"`
 }
 
+type dashBookCounts struct {
+	Books      int `json:"books"`
+	Downloaded int `json:"downloaded"`
+	Missing    int `json:"missing"`
+}
+
+func (c *dashBookCounts) add(status string) {
+	c.Books++
+	switch status {
+	case books.StatusDownloaded:
+		c.Downloaded++
+	case books.StatusMissing:
+		c.Missing++
+	}
+}
+
 type dashRecent struct {
 	Kind      string `json:"kind"`
 	ID        int64  `json:"id"`
 	TMDBID    int    `json:"tmdbId,omitempty"`
 	SeriesID  int64  `json:"seriesId,omitempty"`
 	AlbumID   int64  `json:"albumId,omitempty"` // kind "album" (music module)
+	BookID    int64  `json:"bookId,omitempty"`  // kind "book"
 	Title     string `json:"title"`
 	Subtitle  string `json:"subtitle,omitempty"`
 	Year      int    `json:"year,omitempty"`
@@ -171,8 +189,11 @@ type dashboardPayload struct {
 			Downloaded int `json:"downloaded"` // albums with their files
 			Missing    int `json:"missing"`    // albums neither downloaded nor downloading
 		} `json:"music"`
-		SizeBytes int64         `json:"sizeBytes"`
-		Qualities []dashQuality `json:"qualities"`
+		// Ebooks and Audiobooks count the books wanted in each format.
+		Ebooks     dashBookCounts `json:"ebooks"`
+		Audiobooks dashBookCounts `json:"audiobooks"`
+		SizeBytes  int64          `json:"sizeBytes"`
+		Qualities  []dashQuality  `json:"qualities"`
 	} `json:"library"`
 	Folders         []dashFolder           `json:"folders"`
 	Active          []dashActive           `json:"active"`
@@ -242,6 +263,20 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	out.Library.Music.Artists, out.Library.Music.Albums = counts.Artists, counts.Albums
 	out.Library.Music.Downloaded, out.Library.Music.Missing = counts.Downloaded, counts.Missing
+
+	bookList, err := s.BookRepo.List()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for _, b := range bookList {
+		if b.WantEbook {
+			out.Library.Ebooks.add(b.EbookStatus)
+		}
+		if b.WantAudiobook {
+			out.Library.Audiobooks.add(b.AudioStatus)
+		}
+	}
 
 	stats, err := s.libraryStats()
 	if err != nil {
@@ -330,6 +365,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 				d.Kind, d.SeriesID = "series", c.SeriesID
 			} else if c.AlbumID > 0 {
 				d.Kind, d.AlbumID = "album", c.AlbumID
+			} else if c.BookID > 0 {
+				d.Kind, d.BookID = "book", c.BookID
 			} else if m, err := s.MovieRepo.Get(c.MovieID); err == nil {
 				d.TMDBID, d.Year, d.Quality = m.TMDBID, m.Year, m.Quality
 			}
@@ -391,6 +428,14 @@ func (s *Server) describeQueueItem(it queue.Item) (title, subtitle, poster strin
 	case it.AlbumID > 0:
 		if t, sub, cover, ok := s.describeAlbum(it.AlbumID); ok {
 			title, subtitle, poster = t, sub, cover
+		}
+	case it.BookID > 0:
+		if b, err := s.BookRepo.Get(it.BookID); err == nil {
+			title, poster = b.Title, books.CoverURL(b.CoverID, "M")
+			subtitle = "Ebook · " + b.Author
+			if it.BookFormat == string(books.Audiobook) {
+				subtitle = "Audiobook · " + b.Author
+			}
 		}
 	case it.SeriesID > 0:
 		if sr, err := s.MovieRepo.GetSeries(it.SeriesID); err == nil {

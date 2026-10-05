@@ -90,11 +90,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 		return fail(badRelease(fmt.Errorf("couldn't find the movie file in the finished download: %w", err)))
 	}
 
-	home := ""
-	if m, err := s.MovieRepo.Get(movieID); err == nil {
-		home = s.movieHome(m)
-	}
-	destPath, err := s.buildDestPath(home, movieTitle, movieYear, tmdbID, releaseTitle, videoFile)
+	destPath, err := s.buildDestPath(s.moviesRoot(), movieTitle, movieYear, tmdbID, releaseTitle, videoFile)
 	if err != nil {
 		return fail(err)
 	}
@@ -142,7 +138,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	}
 	if replaceEarlier {
 		// The new file has another name than the one it replaces: the old one goes.
-		s.removeReplacedFile(s.movieFileRoot(earlierFile), earlierFile, result.DestPath, movieID, 0, movieTitle)
+		s.removeReplacedFile(s.moviesRoot(), earlierFile, result.DestPath, movieID, 0, movieTitle)
 	}
 	// Subtitles that came with the release go next to the movie before any
 	// download is considered, so they count as already there.
@@ -160,6 +156,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	importedItem.Quality, importedItem.SizeBytes, importedItem.Path = string(tier), fileSize(result.DestPath), result.DestPath
 	s.notifyItem("imported", importedItem)
 	s.movieImported(result.DestPath)
+	s.pushTagsAfterImport(library.TagMovie, movieID)
 	return nil
 }
 

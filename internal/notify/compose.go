@@ -15,7 +15,7 @@ type Detail struct {
 // Item is what a download-related event is about. Compose turns it into the
 // subject, the sentence and the detail rows every channel shows.
 type Item struct {
-	Media     string // "movie" | "show" | "episode" | "album"; anything else reads as a movie
+	Media     string // "movie" | "show" | "episode" | "album" | "ebook" | "audiobook"; anything else reads as a movie
 	Title     string // "Titanic", "Severance", "Radiohead - OK Computer"
 	Year      int    // 0 when unknown
 	Episode   string // "S02E03" or "Season 2"; empty for a movie or a whole show
@@ -67,8 +67,11 @@ func Compose(eventType string, it Item, links Links, at time.Time) Event {
 	kind := EventKind(eventType)
 	name := it.Name()
 	watch := "ready to watch"
-	if it.Media == "album" {
+	switch it.Media {
+	case "album", "audiobook":
 		watch = "ready to listen to"
+	case "ebook":
+		watch = "ready to read"
 	}
 
 	ev := Event{Type: eventType, Timestamp: at, PosterURL: it.PosterURL, LinkURL: links.to(it.LinkPath)}

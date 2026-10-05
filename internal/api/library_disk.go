@@ -84,7 +84,7 @@ func (s *Server) handleMovieDiskUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	var u diskUsagePayload
 	if m.FilePath != "" {
-		root, folder := s.movieFileRoot(m.FilePath), filepath.Dir(m.FilePath)
+		root, folder := s.moviesRoot(), filepath.Dir(m.FilePath)
 		if s.isTitleFolder(root, folder, []string{m.FilePath}, func(name string) bool { return matchesMovie(name, m) }) {
 			u.addFolder(folder)
 		} else {
@@ -123,7 +123,7 @@ func (s *Server) handleSeriesDiskUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	var u diskUsagePayload
 	if len(files) > 0 {
-		root := s.tvFileRoot(files[0])
+		root := s.tvRoot()
 		folder := commonDir(files)
 		if seasonFolderName.MatchString(filepath.Base(folder)) {
 			folder = filepath.Dir(folder)

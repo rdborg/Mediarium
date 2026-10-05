@@ -41,7 +41,7 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 			if m.FilePath == "" {
 				continue
 			}
-			to, err := s.buildDestPath(s.movieFileRoot(m.FilePath), m.Title, m.Year, m.TMDBID, strings.TrimSuffix(filepath.Base(m.FilePath), filepath.Ext(m.FilePath)), m.FilePath)
+			to, err := s.buildDestPath(s.moviesRoot(), m.Title, m.Year, m.TMDBID, strings.TrimSuffix(filepath.Base(m.FilePath), filepath.Ext(m.FilePath)), m.FilePath)
 			if err != nil {
 				return nil, err
 			}
@@ -67,9 +67,7 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 				}
 				done[ep.FilePath] = true
 				rel := parser.Parse(strings.TrimSuffix(filepath.Base(ep.FilePath), filepath.Ext(ep.FilePath)))
-				here := sr
-				here.RootPath = s.tvFileRoot(ep.FilePath)
-				to, err := s.buildTVDestPath(here, ep, rel, ep.FilePath)
+				to, err := s.buildTVDestPath(sr, ep, rel, ep.FilePath)
 				if err != nil {
 					return nil, err
 				}
@@ -138,9 +136,9 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue // already right, or gone
 		}
-		root := s.movieFileRoot(p.From)
+		root := s.moviesRoot()
 		if p.Kind == "episode" {
-			root = s.tvFileRoot(p.From)
+			root = s.tvRoot()
 		}
 		if err := renameWithSidecars(root, p.From, p.To); err != nil {
 			res.Failed = append(res.Failed, fmt.Sprintf("%s: %v", p.Title, err))

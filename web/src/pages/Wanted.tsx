@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, isAdmin, type Movie, type MusicWanted, type Series, type SubtitleQuota, type SubtitleWanted, type WantedItem } from '../api'
+import { api, isAdmin, type Book, type BookFormat, type Movie, type MusicWanted, type Series, type SubtitleQuota, type SubtitleWanted, type WantedItem } from '../api'
 import { useAuth } from '../AuthContext'
 import { useConfirm } from '../components/ConfirmProvider'
 import Cover from '../components/Cover'
@@ -46,7 +46,10 @@ function groupRows(items: WantedItem[]): Row[] {
   return rows.map((r) => (r.type === 'show' && r.items.length === 1 ? { type: 'item', item: r.items[0] } : r))
 }
 
-const KIND_ICON: Record<MediaKind, IconName> = { movie: 'film', tv: 'tv', music: 'music' }
+// The kinds the list can be narrowed to: the media kinds, and books.
+type ListKind = MediaKind | 'book'
+const KIND_ICON: Record<ListKind, IconName> = { movie: 'film', tv: 'tv', music: 'music', book: 'book' }
+const LIST_LABEL = (k: ListKind) => (k === 'book' ? 'Books' : KIND_LABEL[k])
 
 // Wanted: what Mediarium is still hunting for. "Missing" is monitored movies
 // with nothing downloaded and aired episodes without a file; "Upgrades" is
@@ -73,9 +76,14 @@ export default function Wanted() {
   const [busy, setBusy] = useState<string | null>(null)
   const [counts, setCounts] = useState<{ missing?: number; cutoff?: number; subtitles?: number }>({})
   // Music albums, when the music module is on, share the same lists.
-  const kinds = useKinds()
-  const musicOn = kinds.includes('music')
-  const [media, setMedia] = useState<'all' | MediaKind>('all')
+  const mediaKinds = useKinds()
+  const musicOn = mediaKinds.includes('music')
+  const { on } = useModules()
+  const booksOn = on('ebooks') || on('audiobooks')
+  const kinds: ListKind[] = [...mediaKinds, ...(booksOn ? (['book'] as const) : [])]
+  const [media, setMedia] = useState<'all' | ListKind>('all')
+  // Books wanted in a format that is still missing (books have no upgrades).
+  const [bookList, setBookList] = useState<Book[] | null>(null)
   const [music, setMusic] = useState<MusicWanted[] | null>(null)
   const [musicCounts, setMusicCounts] = useState<{ missing?: number; cutoff?: number }>({})
   // The search box, how many rows are shown, which shows are unfolded, and
@@ -120,7 +128,8 @@ export default function Wanted() {
     setMusic(null)
     api.getWanted(kind).then(setItems).catch((e) => setError(e instanceof Error ? e.message : String(e)))
     if (musicOn) api.musicWanted(kind).then(setMusic).catch(() => setMusic([]))
-  }, [kind, showDismissed, musicOn])
+    if (booksOn) api.listBooks().then(setBookList).catch(() => setBookList([]))
+  }, [kind, showDismissed, musicOn, booksOn])
   useEffect(load, [load])
   // Quiet refresh: update the lists in place without flashing the loading state.
   useLive(() => {
@@ -142,6 +151,7 @@ export default function Wanted() {
         })
         .catch(() => undefined)
       if (musicOn) api.musicWanted(kind).then(setMusic).catch(() => undefined)
+      if (booksOn) api.listBooks().then(setBookList).catch(() => undefined)
     }
   }, 10000)
 
@@ -204,6 +214,19 @@ export default function Wanted() {
 
   const link = (i: { kind: string; tmdbId?: number; seriesId?: number }) => (i.kind === 'movie' ? `/title/${i.tmdbId}` : `/series/${i.seriesId}`)
   const missingState = describeState('searching')
+
+  async function searchBookNow(b: Book, f: BookFormat) {
+    setBusy(`book-${b.id}-${f}`)
+    try {
+      const res = await api.searchNowBook(b.id, f)
+      toast.info(`${b.title}: ${res.message}`)
+      if (res.grabbed > 0) load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function searchMusicNow(a: MusicWanted) {
     setBusy(`music-${a.id}`)
@@ -294,7 +317,10 @@ export default function Wanted() {
             </div>
   )
 
-  const total = (k: Kind) => (counts[k] === undefined ? undefined : counts[k]! + (k === 'subtitles' ? 0 : (musicCounts[k] ?? 0)))
+  const missingBooks = (booksOn ? (bookList ?? []) : []).flatMap((b) =>
+    (['ebook', 'audiobook'] as BookFormat[]).filter((f) => on(f === 'ebook' ? 'ebooks' : 'audiobooks') && b[f].wanted && b[f].status === 'missing').map((f) => ({ book: b, format: f })),
+  )
+  const total = (k: Kind) => (counts[k] === undefined ? undefined : counts[k]! + (k === 'subtitles' ? 0 : (musicCounts[k] ?? 0)) + (k === 'missing' ? missingBooks.length : 0))
   const tab = (k: Kind, label: string) => (
     <button className={kind === k ? 'active' : ''} onClick={() => setKind(k)}>
       {label} {total(k) !== undefined && <small>({total(k)})</small>}
@@ -310,12 +336,15 @@ export default function Wanted() {
   const rows = groupRows(shownItems)
   const pagedRows = rows.slice(0, limit)
   const musicRoom = Math.max(0, limit - rows.length)
-  const loadingList = items === null || (musicOn && music === null)
+  const shownBooks = kind === 'missing' && (sel === 'all' || sel === 'book') ? missingBooks.filter((x) => matches(`${x.book.author} ${x.book.title}`)) : []
+  const bookRoom = Math.max(0, musicRoom - shownMusic.length)
+  const loadingList = items === null || (musicOn && music === null) || (booksOn && bookList === null)
+  const listed = rows.length + shownMusic.length + shownBooks.length
   const kindChips = kinds.length > 1 && kind !== 'subtitles' && (
     <div className="chip-row" style={{ marginBottom: 16, alignItems: 'center' }}>
       {(['all', ...kinds] as const).map((k) => (
         <button key={k} className={`chip${sel === k ? ' active' : ''}`} onClick={() => setMedia(k)}>
-          {k !== 'all' && <Icon name={KIND_ICON[k]} size={13} />} {k === 'all' ? 'All' : KIND_LABEL[k]}
+          {k !== 'all' && <Icon name={KIND_ICON[k]} size={13} />} {k === 'all' ? 'All' : LIST_LABEL(k)}
         </button>
       ))}
       {sel !== 'all' && (
@@ -339,7 +368,7 @@ export default function Wanted() {
 
       {error && <p className="error-text">{error}</p>}
       {kindChips}
-      {kind !== 'subtitles' && (items?.length ?? 0) + (music?.length ?? 0) > 0 && (
+      {kind !== 'subtitles' && (items?.length ?? 0) + (music?.length ?? 0) + missingBooks.length > 0 && (
         <div className="toolbar">
           <input className="wanted-search" type="search" placeholder="Find a title" aria-label="Find a title in this list" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE) }} />
           <span className="spacer" />
@@ -418,10 +447,10 @@ export default function Wanted() {
         )
       ) : loadingList ? (
         error ? null : <Loading height={120} />
-      ) : shownItems.length === 0 && shownMusic.length === 0 ? (
+      ) : shownItems.length === 0 && shownMusic.length === 0 && shownBooks.length === 0 ? (
         <div className="empty-state">
           <Icon name="check" size={44} />
-          {sel !== 'all' && (items?.length ?? 0) + (music?.length ?? 0) > 0 ? (
+          {sel !== 'all' && (items?.length ?? 0) + (music?.length ?? 0) + missingBooks.length > 0 ? (
             <>
               <p>Nothing matches this filter.</p>
               <button className="btn-with-icon" onClick={() => setMedia('all')}>
@@ -503,12 +532,38 @@ export default function Wanted() {
               </div>
             )
           })}
+          {shownBooks.slice(0, bookRoom).map(({ book: b, format: f }) => (
+            <div key={`book-${b.id}-${f}`} className="wrow kind-book">
+              <div className="qthumb">{b.coverUrl ? <img src={b.coverUrl.replace('-M.jpg', '-S.jpg')} alt="" loading="lazy" /> : <PosterFallback />}</div>
+              <div className="wmain">
+                <Link to={`/book/${b.id}`}>
+                  <strong>
+                    <Icon name={f === 'ebook' ? 'book' : 'headphones'} size={13} /> {b.title}
+                  </strong>
+                </Link>
+                <small>{[f === 'ebook' ? 'Ebook' : 'Audiobook', b.author, b.year].filter(Boolean).join(' · ')}</small>
+              </div>
+              <div className="wmeta">
+                <span className={`state-tag st-${missingState.key}`} title={missingState.hint}>
+                  <Icon name={missingState.icon} size={12} /> {missingState.label}
+                </span>
+              </div>
+              <div className="row-actions">
+                <button className="primary btn-sm btn-with-icon" disabled={busy === `book-${b.id}-${f}`} onClick={() => void searchBookNow(b, f)}>
+                  <Icon name="search" size={14} /> {busy === `book-${b.id}-${f}` ? 'Searching…' : 'Search now'}
+                </button>
+                <Link className="icon-btn" to={`/book/${b.id}`} title="Open" aria-label="Open">
+                  <Icon name="open" size={17} />
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      {kind !== 'subtitles' && rows.length + shownMusic.length > limit && (
+      {kind !== 'subtitles' && listed > limit && (
         <div className="rail-foot">
           <button className="btn-sm" onClick={() => setLimit((l) => l + PAGE)}>
-            Show more ({rows.length + shownMusic.length - limit} left)
+            Show more ({listed - limit} left)
           </button>
         </div>
       )}

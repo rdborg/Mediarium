@@ -32,6 +32,8 @@ func TestComposeSubjects(t *testing.T) {
 	episode := notify.Item{Media: "episode", Title: "Severance", Year: 2022, Episode: "S02E03", Quality: "WEBDL-1080p", LinkPath: "/series/4"}
 	pack := notify.Item{Media: "show", Title: "Severance", Year: 2022, Episode: "Season 2", LinkPath: "/series/4"}
 	album := notify.Item{Media: "album", Title: "Radiohead - OK Computer", Year: 1997, LinkPath: "/music/artist/2"}
+	ebook := notify.Item{Media: "ebook", Title: "The Hobbit", Year: 1937, Quality: "EPUB", LinkPath: "/book/1"}
+	audiobook := notify.Item{Media: "audiobook", Title: "Project Hail Mary", Year: 2021, LinkPath: "/book/2"}
 	sub := notify.Item{Media: "movie", Title: "Titanic", Year: 1997, Language: "English", Path: "/data/Movies/Titanic (1997)/Titanic (1997).en.srt"}
 
 	tests := []struct {
@@ -46,6 +48,8 @@ func TestComposeSubjects(t *testing.T) {
 		{"episode imported", "imported", episode, "Severance S02E03 is ready to watch", "Severance S02E03", []string{"Episode"}},
 		{"season pack imported", "imported", pack, "Severance (2022), season 2 is ready to watch", "", []string{"Episode"}},
 		{"album imported", "imported", album, "Radiohead - OK Computer (1997) is ready to listen to", "", nil},
+		{"ebook imported", "imported", ebook, "The Hobbit (1937) is ready to read", "", nil},
+		{"audiobook imported", "imported", audiobook, "Project Hail Mary (2021) is ready to listen to", "", nil},
 		{"grabbed", "grabbed", titanic, "Downloading Titanic (1997)", "added it to the downloads", []string{"Release"}},
 		{"failed", "failed", failed, "Download failed: Titanic (1997)", "did not work", []string{"Reason", "Release"}},
 		{"conflict", "conflict", titanic, "Needs your decision: Titanic (1997)", "Choose what to do in Activity", []string{"Existing file"}},

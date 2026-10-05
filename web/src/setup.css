@@ -108,7 +108,8 @@
   place-items: center;
   color: var(--on-accent, #062a24);
 }
-.media-card.active .choice-box {
+.media-card.active .choice-box,
+.choice-card.active .choice-box {
   border-color: var(--accent);
   background: var(--accent);
 }

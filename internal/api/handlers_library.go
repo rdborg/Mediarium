@@ -145,6 +145,7 @@ type moviePayload struct {
 	Monitored bool     `json:"monitored"`
 	Sources   string   `json:"sources"`
 	Genres    []string `json:"genres"`  // TMDB genre names; empty until fetched
+	Tags      []string `json:"tags"`    // the person's own tags ("Kids", "4K")
 	AddedBy   *userRef `json:"addedBy"` // null when unknown
 	// NoUpgrade: automation leaves this movie alone once it is downloaded.
 	NoUpgrade bool `json:"noUpgrade"`
@@ -164,7 +165,7 @@ func toMoviePayload(m library.Movie, who func(int64) *userRef) moviePayload {
 	return moviePayload{
 		ID: m.ID, TMDBID: m.TMDBID, Title: m.Title, Year: m.Year, Overview: m.Overview,
 		PosterURL: metadata.PosterURL(m.PosterPath), Status: string(m.Status), Quality: m.Quality, FilePath: m.FilePath, ProfileID: m.ProfileID, Monitored: m.Monitored, Sources: m.SourcePref,
-		Genres: genres, AddedBy: who(m.AddedBy),
+		Genres: genres, Tags: []string{}, AddedBy: who(m.AddedBy),
 		NoUpgrade: m.NoUpgrade, DetailsState: m.DetailsState, DetailsNote: m.DetailsNote,
 	}
 }
@@ -176,9 +177,13 @@ func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	who := s.accountNames()
+	tags, _ := s.MovieRepo.AllTitleTags(library.TagMovie)
 	out := make([]moviePayload, len(list))
 	for i, m := range list {
 		out[i] = toMoviePayload(m, who)
+		if t := tags[m.ID]; t != nil {
+			out[i].Tags = t
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -198,7 +203,11 @@ func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, toMoviePayload(m, s.accountNames()))
+	out := toMoviePayload(m, s.accountNames())
+	if t, err := s.MovieRepo.TitleTags(library.TagMovie, m.ID); err == nil {
+		out.Tags = t
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // handleDeleteMovie removes a movie from the library. Its downloads are
@@ -239,7 +248,7 @@ func (s *Server) removeMovie(id int64, deleteFiles bool) (string, error) {
 	}
 	var deleted removedFiles
 	if deleteFiles {
-		if err := checkRemovable(s.movieFileRoot(m.FilePath), []string{m.FilePath}); err != nil {
+		if err := checkRemovable(s.moviesRoot(), []string{m.FilePath}); err != nil {
 			return m.Title, &removeProblem{http.StatusConflict, err.Error()}
 		}
 	}
@@ -253,7 +262,7 @@ func (s *Server) removeMovie(id int64, deleteFiles bool) (string, error) {
 		m = now
 		if wantFiles && m.FilePath != "" {
 			deleteFiles, tracked = true, 1
-			if err := checkRemovable(s.movieFileRoot(m.FilePath), []string{m.FilePath}); err != nil {
+			if err := checkRemovable(s.moviesRoot(), []string{m.FilePath}); err != nil {
 				return m.Title, &removeProblem{http.StatusConflict, err.Error()}
 			}
 		}
@@ -285,9 +294,6 @@ type addMovieRequest struct {
 	// swapped for a better version later. On when left out: better versions
 	// are something the person asks for.
 	NoUpgrade *bool `json:"noUpgrade"`
-	// RootPath is the library folder to keep it in, when more than one is
-	// set up ("" = the main movies folder).
-	RootPath string `json:"rootPath"`
 }
 
 // handleAddMovie adds a movie to the library as missing, from a search result
@@ -312,10 +318,6 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.checkProfileChoice(req.ProfileID); err != nil {
 		writeProfileError(w, err)
-		return
-	}
-	if req.RootPath != "" && !isRoot(s.movieRoots(), req.RootPath) {
-		writeError(w, http.StatusBadRequest, "Choose one of the movie folders set up in Settings > Library.")
 		return
 	}
 	if existing, ok, err := s.MovieRepo.GetByTMDBID(req.TMDBID); err != nil {
@@ -349,11 +351,6 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	if req.Sources != "" {
 		if err := s.MovieRepo.SetSourcePref(created.ID, req.Sources); err == nil {
 			created.SourcePref = req.Sources
-		}
-	}
-	if req.RootPath != "" && req.RootPath != s.moviesRoot() {
-		if err := s.MovieRepo.SetRootPath(created.ID, req.RootPath); err == nil {
-			created.RootPath = req.RootPath
 		}
 	}
 	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library"+byline)

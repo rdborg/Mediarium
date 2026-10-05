@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom'
 import { isAdmin } from './api'
 import { AuthProvider, useAuth } from './AuthContext'
@@ -21,6 +21,8 @@ import ImportLibrary from './pages/ImportLibrary'
 import MusicImport from './pages/MusicImport'
 import MusicDiscoverAll from './pages/MusicDiscoverAll'
 import MusicArtist from './pages/MusicArtist'
+import BookDetail from './pages/BookDetail'
+import BookWork from './pages/BookWork'
 import MusicAlbumRedirect from './pages/MusicAlbumRedirect'
 import Search from './pages/Search'
 import SeriesDetail from './pages/SeriesDetail'
@@ -43,6 +45,9 @@ import QualitySettings from './pages/settings/QualitySettings'
 import SettingsLayout from './pages/settings/SettingsLayout'
 import SubtitleSettings from './pages/settings/SubtitleSettings'
 import VPNSettings from './pages/settings/VPNSettings'
+
+// Mediarium Books (reader and player), an app of its own, loaded when opened.
+const BookshelfApp = lazy(() => import('./bookshelf/BookshelfApp'))
 
 // Pages only an administrator can use. A member who opens one (for example
 // by typing its address) is sent somewhere they can use instead.
@@ -79,6 +84,14 @@ function Gate() {
 
   return (
     <Routes>
+      <Route
+        path="/bookshelf/*"
+        element={
+          <Suspense fallback={<Splash label="Loading" />}>
+            <BookshelfApp />
+          </Suspense>
+        }
+      />
       <Route element={<AppShell />}>
         <Route index element={<Dashboard />} />
         <Route path="/search" element={<Search />} />
@@ -92,6 +105,8 @@ function Gate() {
         <Route path="/import" element={<AdminOnly fallback="/library"><ImportLibrary /></AdminOnly>} />
         <Route path="/music/artist/:id" element={<MusicArtist />} />
         <Route path="/music/album/:id" element={<MusicAlbumRedirect />} />
+        <Route path="/book/:id" element={<BookDetail />} />
+        <Route path="/books/work/:key" element={<BookWork />} />
         <Route path="/music/import" element={<AdminOnly fallback="/library"><MusicImport /></AdminOnly>} />
         <Route path="/title/:tmdbId" element={<MovieDetail />} />
         <Route path="/series/:id" element={<SeriesDetail />} />

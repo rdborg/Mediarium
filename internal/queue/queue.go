@@ -65,7 +65,9 @@ type Item struct {
 	SeriesID     int64
 	Season       int
 	Episode      int
-	AlbumID      int64 // music grabs: the album; 0 otherwise
+	AlbumID      int64  // music grabs: the album; 0 otherwise
+	BookID       int64  // book grabs: the book; 0 otherwise
+	BookFormat   string // book grabs: "ebook" or "audiobook"
 	ReleaseTitle string
 	NZBURL       string
 	SizeBytes    int64
@@ -190,9 +192,9 @@ func (r *Repo) Enqueue(item Item) (int64, error) {
 	// The new item goes to the back of the line: one number past the highest
 	// place anyone has taken.
 	res, err := r.db.Exec(
-		`INSERT INTO download_queue (movie_id, series_id, season, episode, album_id, indexer_id, release_title, nzb_url, size_bytes, protocol, status, priority, line_seq)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(line_seq), 0) + 1 FROM download_queue))`,
-		nullIfZero(item.MovieID), nullIfZero(item.SeriesID), nullIfZero(int64(item.Season)), nullIfZero(int64(item.Episode)), nullIfZero(item.AlbumID),
+		`INSERT INTO download_queue (movie_id, series_id, season, episode, album_id, book_id, book_format, indexer_id, release_title, nzb_url, size_bytes, protocol, status, priority, line_seq)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(line_seq), 0) + 1 FROM download_queue))`,
+		nullIfZero(item.MovieID), nullIfZero(item.SeriesID), nullIfZero(int64(item.Season)), nullIfZero(int64(item.Episode)), nullIfZero(item.AlbumID), nullIfZero(item.BookID), item.BookFormat,
 		item.IndexerID, item.ReleaseTitle, storedURL, item.SizeBytes, string(item.Protocol), string(StatusQueued), int(item.Priority),
 	)
 	if err != nil {
@@ -254,8 +256,8 @@ func (r *Repo) Get(id int64) (Item, error) {
 	var status, protocol string
 	var sourcePath, destPath sql.NullString
 	err := r.db.QueryRow(
-		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), indexer_id, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), source_path, dest_path, interrupted, priority, line_seq FROM download_queue WHERE id = ?`, id,
-	).Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.IndexerID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &sourcePath, &destPath, &it.Interrupted, &it.Priority, &it.LineSeq)
+		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), COALESCE(book_id, 0), book_format, indexer_id, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), source_path, dest_path, interrupted, priority, line_seq FROM download_queue WHERE id = ?`, id,
+	).Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.BookID, &it.BookFormat, &it.IndexerID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &sourcePath, &destPath, &it.Interrupted, &it.Priority, &it.LineSeq)
 	if err != nil {
 		return Item{}, fmt.Errorf("get queue item %d: %w", id, err)
 	}
@@ -307,7 +309,7 @@ func (r *Repo) SetProgress(id int64, pct float64) error {
 
 func (r *Repo) List() ([]Item, error) {
 	rows, err := r.db.Query(
-		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), indexer_id, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), dest_path, added_at, COALESCE(completed_at, ''), interrupted, priority, line_seq FROM download_queue ORDER BY added_at DESC, id DESC`)
+		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), COALESCE(book_id, 0), book_format, indexer_id, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), dest_path, added_at, COALESCE(completed_at, ''), interrupted, priority, line_seq FROM download_queue ORDER BY added_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list queue: %w", err)
 	}
@@ -318,7 +320,7 @@ func (r *Repo) List() ([]Item, error) {
 		var it Item
 		var status, protocol string
 		var destPath sql.NullString
-		if err := rows.Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.IndexerID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &destPath, &it.AddedAt, &it.CompletedAt, &it.Interrupted, &it.Priority, &it.LineSeq); err != nil {
+		if err := rows.Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.BookID, &it.BookFormat, &it.IndexerID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &destPath, &it.AddedAt, &it.CompletedAt, &it.Interrupted, &it.Priority, &it.LineSeq); err != nil {
 			return nil, fmt.Errorf("scan queue item: %w", err)
 		}
 		it.Protocol = Protocol(protocol)
@@ -444,13 +446,28 @@ func (r *Repo) ClearFailedForEpisodes(seriesID int64, season int, episodes []int
 	return n, nil
 }
 
-// ClearSettledFailures removes failed entries of a movie that a later
-// download of the same movie completed, so old failures that no longer need
-// attention leave the queue. It returns how many.
+// ClearFailedForBook removes the failed entries of a book in one format,
+// other than keep, once that format has been downloaded another way.
+func (r *Repo) ClearFailedForBook(bookID int64, format string, keep int64) (int64, error) {
+	res, err := r.db.Exec(`DELETE FROM download_queue WHERE book_id = ? AND book_format = ? AND id <> ? AND status = 'failed'`, bookID, format, keep)
+	if err != nil {
+		return 0, fmt.Errorf("clear failed downloads of book %d: %w", bookID, err)
+	}
+	return res.RowsAffected()
+}
+
+// ClearSettledFailures removes failed entries of a movie, or of a book in one
+// format, that a later download of the same thing completed, so old failures
+// that no longer need attention leave the queue. It returns how many.
 func (r *Repo) ClearSettledFailures() (int64, error) {
-	res, err := r.db.Exec(`DELETE FROM download_queue WHERE status = 'failed' AND movie_id IS NOT NULL AND EXISTS (
-		SELECT 1 FROM download_queue c WHERE c.movie_id = download_queue.movie_id AND c.status = 'completed'
-		AND c.completed_at IS NOT NULL AND c.completed_at > COALESCE(download_queue.completed_at, download_queue.added_at))`)
+	res, err := r.db.Exec(`DELETE FROM download_queue WHERE status = 'failed' AND (
+		(movie_id IS NOT NULL AND EXISTS (
+			SELECT 1 FROM download_queue c WHERE c.movie_id = download_queue.movie_id AND c.status = 'completed'
+			AND c.completed_at IS NOT NULL AND c.completed_at > COALESCE(download_queue.completed_at, download_queue.added_at)))
+		OR (book_id IS NOT NULL AND EXISTS (
+			SELECT 1 FROM download_queue c WHERE c.book_id = download_queue.book_id AND c.book_format = download_queue.book_format
+			AND c.status = 'completed' AND c.completed_at IS NOT NULL
+			AND c.completed_at > COALESCE(download_queue.completed_at, download_queue.added_at))))`)
 	if err != nil {
 		return 0, fmt.Errorf("clear settled failures: %w", err)
 	}
@@ -459,6 +476,17 @@ func (r *Repo) ClearSettledFailures() (int64, error) {
 
 // ClearFinished removes every completed, failed and stopped entry and returns
 // how many.
+// HasActiveForBook reports whether a download of book id in format is still
+// running, waiting or parked.
+func (r *Repo) HasActiveForBook(bookID int64, format string) (bool, error) {
+	var n int
+	err := r.db.QueryRow(`SELECT COUNT(*) FROM download_queue WHERE book_id = ? AND book_format = ? AND status IN ('queued', 'downloading', 'importing', 'paused', 'conflict')`, bookID, format).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("check book downloads: %w", err)
+	}
+	return n > 0, nil
+}
+
 func (r *Repo) ClearFinished() (int64, error) {
 	res, err := r.db.Exec(`DELETE FROM download_queue WHERE status IN ('completed', 'failed', 'stopped')`)
 	if err != nil {

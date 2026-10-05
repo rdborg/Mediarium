@@ -34,6 +34,10 @@ func (k Kind) Label() string {
 		return "Jellyfin"
 	case KindEmby:
 		return "Emby"
+	case KindAudiobookshelf:
+		return "Audiobookshelf"
+	case KindKavita:
+		return "Kavita"
 	}
 	return string(k)
 }
@@ -41,7 +45,7 @@ func (k Kind) Label() string {
 // ParseKind accepts a kind in any case.
 func ParseKind(s string) (Kind, bool) {
 	switch k := Kind(strings.ToLower(strings.TrimSpace(s))); k {
-	case KindPlex, KindJellyfin, KindEmby:
+	case KindPlex, KindJellyfin, KindEmby, KindAudiobookshelf, KindKavita:
 		return k, true
 	}
 	return "", false
@@ -56,6 +60,9 @@ const (
 	// MediaMusic is only ever refreshed (an album folder was imported); it
 	// has no TMDB id, so it is never looked up by ParseMediaKind or Find.
 	MediaMusic MediaKind = "music"
+	// MediaBook is an ebook or audiobook: only refreshed, never looked up by
+	// TMDB id (see Client.FindBook).
+	MediaBook MediaKind = "book"
 )
 
 // ParseMediaKind accepts "movie" or "tv" (also "series"/"show").

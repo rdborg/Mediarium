@@ -49,6 +49,7 @@ test('which folders are asked for', () => {
     [{ movies: false, tv: true, music: true }, ['tv', 'music', 'downloads']],
     [{ movies: true, tv: true, music: true }, ['movies', 'tv', 'music', 'downloads']],
     [{ movies: false, tv: false, music: true }, ['music', 'downloads']],
+    [{ movies: true, tv: false, music: false, ebooks: true, audiobooks: true }, ['movies', 'ebooks', 'audiobooks', 'downloads']],
   ]
   for (const [c, want] of rows) assert.deepEqual(h.foldersToAsk(c), want, JSON.stringify(c))
 })
@@ -60,6 +61,7 @@ test('phrases only name the chosen types', () => {
     [{ movies: false, tv: true, music: false }, 'TV shows', 'every show'],
     [{ movies: true, tv: true, music: true }, 'movies, TV shows and music', 'every movie and show'],
     [{ movies: false, tv: false, music: true }, 'music', ''],
+    [{ movies: false, tv: false, music: false, ebooks: true, audiobooks: true }, 'ebooks and audiobooks', ''],
   ]
   for (const [c, media, quality] of rows) {
     assert.equal(h.mediaPhrase(c), media)
@@ -67,6 +69,7 @@ test('phrases only name the chosen types', () => {
   }
   assert.equal(h.nothingChosen({ movies: false, tv: false, music: false }), true)
   assert.equal(h.nothingChosen({ movies: false, tv: false, music: true }), false)
+  assert.equal(h.nothingChosen({ movies: false, tv: false, music: false, audiobooks: true }), false)
   assert.equal(h.hasVideo({ movies: false, tv: false, music: true }), false)
   assert.equal(h.hasVideo({ movies: false, tv: true, music: false }), true)
 })

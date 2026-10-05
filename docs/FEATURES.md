@@ -2,7 +2,7 @@
 
 A plain comparison of what Mediarium does **today** against the apps it can replace or sit beside, written from the source code.
 
-- **Snapshot:** 2026-10-04, version 1.4.1 (database migrations up to `0033`; see the [changelog](../CHANGELOG.md)). Read every "No" as "not found when this was written". If it matters to you, look in `internal/` and `web/src/pages`.
+- **Snapshot:** 2026-10-05, version 2.0.0 (database migrations up to `0038`; see the [changelog](../CHANGELOG.md)). Read every "No" as "not found when this was written". If it matters to you, look in `internal/` and `web/src/pages`.
 - **How each row was judged:** Yes = implemented and reachable in the UI or API. Partial = something real exists but it is narrower than the reference app. No = not found. The evidence is a package, file or endpoint you can open.
 - **Reference apps** are described from general knowledge of those projects and may be out of date for their newest versions. Uncertain claims are worded loosely or left out.
 - Abbreviations: **Rad** Radarr, **Son** Sonarr, **Lid** Lidarr, **Pro** Prowlarr, **Sab** SABnzbd, **qB** qBittorrent, **Baz** Bazarr.
@@ -10,7 +10,7 @@ A plain comparison of what Mediarium does **today** against the apps it can repl
 
 ## 1. Where Mediarium stands in one paragraph
 
-Movies and TV both work end to end. That covers TMDB metadata; one search across Newznab/Torznab indexers and definition-based torrent sites (the community Cardigann definitions, downloaded on demand); grabbing; a built-in Usenet client (multiple servers, PAR2, native RAR and ZIP unpacking, `7z` only for `.7z`); and a built-in BitTorrent engine (with an embedded WireGuard VPN and kill switch). It also has hardlink import with naming presets, quality profiles with upgrade hunting, a blocklist with automatic retry, monitoring, a calendar, a wanted list, subtitles from OpenSubtitles (optional), notifications, media server refresh, family accounts, backups, a clean-up of the downloads folder, health checks and a first-run wizard. Music works too once you switch it on (see 2.4b). Audiobooks and ebooks are not built; they show as "coming soon".
+Movies and TV both work end to end. That covers TMDB metadata; one search across Newznab/Torznab indexers and definition-based torrent sites (the community Cardigann definitions, downloaded on demand); grabbing; a built-in Usenet client (multiple servers, PAR2, native RAR and ZIP unpacking, `7z` only for `.7z`); and a built-in BitTorrent engine (with an embedded WireGuard VPN and kill switch). It also has hardlink import with naming presets, quality profiles with upgrade hunting, a blocklist with automatic retry, monitoring, a calendar, a wanted list, subtitles from OpenSubtitles (optional), notifications, media server refresh, family accounts, backups, a clean-up of the downloads folder, health checks and a first-run wizard. Music, ebooks and audiobooks work too once you switch them on (see 2.4b and [books.md](./books.md)).
 
 What is thin or missing: the things that make the *arr apps manageable at scale (custom formats, delay profiles, tags, multiple root folders, list exclusions, a recycle bin, scheduled backups); more queue control for downloads (speed limits, scheduling, dragging to reorder; pause, resume and stop exist); depth in indexer management (no priorities or tags); a request portal; and a screen for matching releases by hand. Family accounts exist. An administrator can add basic-user accounts that browse, add and follow downloads without seeing the server settings (see [accounts.md](./accounts.md)). RAR (RAR4 and RAR5, including multi-part sets) and ZIP are unpacked natively in Go, so they work the same everywhere. Only the rare `.7z` format uses the `7z` tool, which the Docker image includes.
 
@@ -42,7 +42,7 @@ What is thin or missing: the things that make the *arr apps manageable at scale 
 | Change many titles at once (Library select mode) | **Yes** | administrators pick titles (Shift-click for a range, "Select all N in this view") and monitor, switch better versions, set the quality profile or downloaders, search now (monitored and missing only, 25 at a time) or remove them, each with one request in one transaction: `PUT /api/library/bulk/{monitored,no-upgrade,profile,sources}`, `POST /api/library/bulk/{search-now,remove}`, and `/api/music/bulk/{follow,profile,remove}` for artists; files are deleted only when the request says so ([library.md](./library.md)) | Rad, Son |
 | Move over from other apps | **Yes** | `internal/migrate`, `POST /api/migrate/preview`, `/api/migrate/run`, `GET /api/migrate/status`: twelve apps (Radarr, Sonarr, Prowlarr, SABnzbd, NZBGet, Jackett, NZBHydra2, Overseerr/Jellyseerr, Ombi, Bazarr, Medusa, SickChill), read-only on their side. Library (files registered in place), monitored flags, quality profile matching, indexers, Usenet servers, requests and subtitle languages ([migrate.md](./migrate.md)). Screen: Settings → System → Move from other apps. | Rad, Son, Pro, Sab |
 | Manual import / manual match for unmatched releases | **Yes** | Activity > Import a file by hand: pick a file in the downloads folder and the movie or episode it is (`/api/manual-import`) | Rad, Son |
-| Multiple root folders | **Yes** | extra movie and TV folders in Settings (`library.movies_extra_paths`, `library.tv_extra_paths`), chosen per title when adding (`rootPath`) | Rad, Son |
+| Multiple root folders | **No** | one folder per kind of media, by choice; tags sort a library instead (Kids, 4K) and become collections on media servers | Rad, Son |
 | Tags | **No** | no tag tables or endpoints | Rad, Son, Pro, qB |
 | Import lists (automatic add from a list) | **Partial** | `GET /api/discover/import-list` browses a public Trakt list you paste, then you add titles by hand; nothing syncs on a schedule (`internal/trakt`) | Rad, Son |
 | List exclusions | **Yes** | "Not interested" on Discover (`/api/exclusions`) | Rad, Son |
@@ -134,7 +134,7 @@ Switch it on in Settings > Media types ([modules.md](./modules.md), [music.md](.
 
 | Feature | In Mediarium today | Evidence | In reference apps |
 |---|---|---|---|
-| Module switchboard (movies, TV, music; audiobooks and ebooks "coming soon") | **Yes** | `GET`/`PUT /api/modules`, settings `modules.*`, `internal/api/modules.go`; switching a module off stops its automation and refuses new titles (409), deleting nothing | none |
+| Module switchboard (movies, TV, music, ebooks, audiobooks) | **Yes** | `GET`/`PUT /api/modules`, settings `modules.*`, `internal/api/modules.go`; switching a module off stops its automation and refuses new titles (409), deleting nothing | none |
 | Artist search and metadata | **Yes** | metadata client (`internal/music*`): identifying User-Agent, one request per second from a shared bucket, retry with backoff on 503, in-memory cache; `GET /api/music/search?q=` | Lid |
 | Cover art | **Yes** | the front cover (500 px) from the cover-art service is fetched once per album, cached under the config folder and served by `GET /api/music/albums/{id}/cover` and `/api/music/artists/{id}/cover` (cache headers, plain 404 when there is none); saved as `cover.jpg` in the album folder on import when none exists, never overwriting (`internal/api/music_cover.go`) | Lid |
 | Artists, albums, EPs, singles, tracklists | **Yes** | `POST /api/music/artists` with monitor all / future / none, `GET /api/music/artists[/{id}]`, `GET /api/music/albums/{id}`; the canonical release (earliest official, most common country) supplies the tracklist; live albums, compilations and remixes are left out | Lid |
@@ -156,7 +156,8 @@ Switch it on in Settings > Media types ([modules.md](./modules.md), [music.md](.
 |---|---|---|---|
 | Multiple users and roles | **Partly** | admin and basic-user roles (`member` in the API), accounts managed by an administrator (`/api/users`); one route table decides who may call what (`internal/api/server.go`, `access.go`); no read-only role, no per-user libraries or quotas | Overseerr, Jellyseerr (users, roles); *arr apps are single-login |
 | Request portal (family asks, admin approves) | **No** | not found | Overseerr, Jellyseerr |
-| Books (Readarr), adult (Whisparr) | **No** | music is covered in 2.4b; audiobooks and ebooks show as "coming soon" in Settings and are not built | Readarr, Whisparr |
+| Books (Readarr) | **Partly** | ebooks and audiobooks by book (Open Library), format preference, search, grab and filing by author ([books.md](./books.md)); following authors (their new books are added by themselves); no series following yet | Readarr |
+| Adult (Whisparr) | **No** | not planned | Whisparr |
 | Play-state stats | **No** | | Tautulli |
 | Archive extraction helper for other apps | **n/a** (built in) | | Unpackerr |
 | Sync TRaSH profiles and custom formats | **No** | no custom-format import | Recyclarr |
@@ -175,7 +176,7 @@ Effort: **S** = days or less, **M** = about 1 to 2 weeks, **L** = weeks. Priorit
 |---|---|---|---|
 | 1 | ~~Make RAR unpack work in the image~~ **Done:** RAR is unpacked natively in Go; the health check now notes a missing `7z` (info, `.7z` only) and a missing `par2` | S | Most Usenet releases are RAR |
 | 2 | ~~Hardlink defaults~~ **Partly done:** the compose file and guides use one `/data` mount. Still open: make the "same drive" check try a real `os.Link` probe instead of comparing device numbers | S | Separate mounts silently copy; the dashboard can say everything is fine |
-| 3 | ~~Windows: copy when a link fails~~ **Done:** any link failure falls back to a copy. Still open: a Windows same-drive check | S | The dashboard cannot warn about separate drives on Windows |
+| 3 | ~~Windows: copy when a link fails~~ **Done:** any link failure falls back to a copy | S | |
 | 4 | In-app backup and restore (SQLite `VACUUM INTO` plus `secret.key`, download, restore on start) **done** (Settings > System > Server and backup); still open: scheduled backups | M | `/config` copy while running can corrupt; the selling point is "one folder", so make it one click |
 | 5 | Download queue control: ~~pause/resume~~ **done** (Pause, Resume, Stop, Pause all, Resume all, and a download line); still open: speed limit, dragging to reorder (Usenet and torrent) | M | Baseline expectation coming from SABnzbd or qBittorrent |
 | 6 | Manual import / manual match UI for releases that fail matching | M to L | Named in the original plan; without it failures are dead ends |
@@ -207,7 +208,6 @@ Effort: **S** = days or less, **M** = about 1 to 2 weeks, **L** = weeks. Priorit
 | 22 | Subtitle upgrade and sync | M |
 | 23 | Quality size limits, editions, movie collections | M |
 | 24 | Bulk rename of an existing library | M |
-| 25 | Windows and macOS installers that are tested and signed | M |
 
 ### P3: later
 
@@ -224,7 +224,7 @@ Each of these could become a module of its own. The projects named are for ideas
 | Module | What it would do | Projects to study |
 |---|---|---|
 | Music | Metadata, release matching, per-track naming and tagging, quality profiles for FLAC/MP3. Everything except writing tags is built (see 2.4b) | Lidarr (the *arr way), Picard (metadata and tagging), beets (tagging and organizing library tool) |
-| Books and audiobooks | Author/series tracking, ebook and audiobook formats, metadata from Open Library or similar | Readarr (same family), Calibre-Web (library), Audiobookshelf (audiobooks and podcasts server) |
+| Books and audiobooks | Built: ebooks and audiobooks with Open Library details, authors, Discover, import and the Mediarium Books reader and player (see [books.md](./books.md)). Still open: following a book series | Readarr (same family), Calibre-Web (library), Audiobookshelf (audiobooks and podcasts server) |
 | Comics | Volume/issue tracking with a comics metadata source | Mylar3, Kapowarr |
 | Podcasts | Subscribe to feeds, download episodes, retention rules | Audiobookshelf also handles podcasts |
 | Anime specifics | Absolute numbering, AniDB or similar IDs, release-group preferences, dual audio | Sonarr's anime handling, Shoko |
@@ -239,5 +239,5 @@ Each of these could become a module of its own. The projects named are for ideas
 - **Download folders:** each download works in `downloads/incomplete/queue-N` and is imported straight from there. The `downloads/complete` folder is created but not used.
 - **Metrics endpoint:** it is `GET /api/metrics`, behind sign-in, not the usual `/metrics`.
 - **Hardlinks and folder mounts:** hardlinks only work inside one mounted folder, so the compose file and every platform guide use one `/data` mount for downloads, movies and TV. Separate mounts copy files instead. See [INSTALL.md](./INSTALL.md#why-one-data-folder-hardlinks).
-- **Install methods:** Docker is the only supported install for now. Native Windows, macOS and Linux programs are attached to each release as a preview, and the app-store entries are prepared but not submitted ([PLATFORMS.md](./PLATFORMS.md)).
+- **Install methods:** Docker is the only supported install for now. A native Linux program is attached to each release as a preview (there are no Windows or macOS versions; those run the Docker image in Docker Desktop), and the app-store entries are prepared but not submitted ([PLATFORMS.md](./PLATFORMS.md)).
 - **Backups:** the in-app backup is the easy way (Settings > System > Server and backup). By hand, stop the container first, so no download is writing files while you copy them.

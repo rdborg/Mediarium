@@ -147,7 +147,7 @@ func TestMediaServerFormIsChecked(t *testing.T) {
 		{"bad public address", "POST", "/api/media-servers", good(map[string]any{"publicUrl": "ftp://plex.example.com"}), "http:// or https://"},
 		{"token with a space", "POST", "/api/media-servers", good(map[string]any{"token": "abc 123"}), "space or line break"},
 		{"name too long", "POST", "/api/media-servers", good(map[string]any{"name": strings.Repeat("n", 101)}), "at most 100"},
-		{"unknown type", "POST", "/api/media-servers", good(map[string]any{"kind": "kodi"}), "Plex, Jellyfin or Emby"},
+		{"unknown type", "POST", "/api/media-servers", good(map[string]any{"kind": "kodi"}), "Plex, Jellyfin, Emby, Audiobookshelf or Kavita"},
 		{"relative folder mapping", "POST", "/api/media-servers", good(map[string]any{"pathMap": []map[string]string{{"from": "media/movies", "to": "/data/movies"}}}), "isn't complete"},
 		{"half a folder mapping", "POST", "/api/media-servers", good(map[string]any{"pathMap": []map[string]string{{"from": "/media/movies", "to": ""}}}), "needs a folder in Mediarium"},
 	})

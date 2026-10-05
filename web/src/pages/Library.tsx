@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, isAdmin, type BulkResult, type BulkTitle, type Movie, type MusicArtist, type QualityProfile, type QueueItem, type Series, type SourcePref } from '../api'
+import { api, isAdmin, type Book, type BookFormat, type BulkResult, type BulkTitle, type Movie, type MusicArtist, type QualityProfile, type QueueItem, type Series, type SourcePref } from '../api'
 import { useAuth } from '../AuthContext'
 import { useKinds, useModules, type MediaKind } from '../ModulesContext'
 import MusicLibrary from './MusicLibrary'
+import BookLibrary from './BookLibrary'
 import ActionMenu from '../components/ActionMenu'
 import BulkBar from '../components/BulkBar'
+import { BulkTagMenu, TagChips } from '../components/Tags'
 import Dropdown from '../components/Dropdown'
 import Icon from '../components/Icon'
 import PosterCard, { PosterFallback, type CardAction } from '../components/PosterCard'
@@ -42,6 +44,7 @@ interface Item {
   state: ItemState
   live?: QueueItem
   genres: string[]
+  tags: string[]
   gettingDetails: boolean // an import is still filling in this title's details
 }
 
@@ -68,7 +71,7 @@ function fromMovie(m: Movie, queue: QueueItem[]): Item {
   return {
     key: `movie-${m.id}`, kind: 'movie', id: m.id, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl,
     monitored: m.monitored !== false, profileId: m.profileId ?? 0, status: m.status, quality: m.quality, have: m.status === 'downloaded' ? 1 : 0, total: 1, filePath: m.filePath,
-    state: detailsState(m) ?? movieState(m, queue), live: progressFor(queue, (q) => q.movieId === m.id && !q.seriesId), genres: m.genres ?? [],
+    state: detailsState(m) ?? movieState(m, queue), live: progressFor(queue, (q) => q.movieId === m.id && !q.seriesId), genres: m.genres ?? [], tags: m.tags ?? [],
     gettingDetails: !!m.detailsState,
   }
 }
@@ -78,7 +81,7 @@ function fromSeries(s: Series, queue: QueueItem[]): Item {
   return {
     key: `tv-${s.id}`, kind: 'tv', id: s.id, tmdbId: s.tmdbId, title: s.title, year: s.year, posterUrl: s.posterUrl,
     monitored: s.monitored, profileId: s.profileId ?? 0, status, have: s.downloadedCount, total: s.episodeCount,
-    state: detailsState(s) ?? seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id), genres: s.genres ?? [],
+    state: detailsState(s) ?? seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id), genres: s.genres ?? [], tags: s.tags ?? [],
     gettingDetails: !!s.detailsState,
   }
 }
@@ -98,6 +101,11 @@ const FILTERS: Record<Kind, { id: string; label: string; test: (i: Item) => bool
 // Your library: movies and shows as posters or a list, with the things you do
 // most a click away on every item (search for a release, monitor, open,
 // remove) and a select mode for doing them to many at once.
+// A Library tab: a kind of media, or one of the two book formats.
+type Tab = MediaKind | BookFormat
+const TAB_LABEL: Record<Tab, string> = { movie: 'Movies', tv: 'TV', music: 'Music', ebook: 'Ebooks', audiobook: 'Audiobooks' }
+const isTab = (v: string | null): v is Tab => v !== null && v in TAB_LABEL
+
 export default function Library() {
   const confirm = useConfirm()
   const navigate = useNavigate()
@@ -106,20 +114,30 @@ export default function Library() {
   // are for administrators.
   const admin = isAdmin(useAuth().user)
   const [params] = useSearchParams()
-  const kinds = useKinds()
-  const musicOn = useModules().on('music')
-  const [tab, setTab] = useState<MediaKind>(() => {
+  const { on } = useModules()
+  const musicOn = on('music')
+  const booksOn = on('ebooks') || on('audiobooks')
+  const videoKinds = useKinds()
+  // The tabs: movies, TV and music (whichever are on), then ebooks and audiobooks.
+  const kinds: Tab[] = [
+    ...(on('movies') || on('tv') || musicOn || !booksOn ? videoKinds : []),
+    ...(on('ebooks') ? (['ebook'] as const) : []),
+    ...(on('audiobooks') ? (['audiobook'] as const) : []),
+  ]
+  const [tab, setTab] = useState<Tab>(() => {
     // The Library always opens on the first tab (Movies) unless a link asks for another.
     const asked = params.get('kind')
-    return asked === 'tv' || asked === 'music' ? asked : 'movie'
+    return isTab(asked) ? asked : 'movie'
   })
   useEffect(() => {
     const asked = params.get('kind')
-    if (asked === 'tv' || asked === 'movie' || asked === 'music') setTab(asked)
+    if (isTab(asked)) setTab(asked)
   }, [params])
   // A kind that is switched off cannot be shown: fall back to the first that is on.
-  const active: MediaKind = kinds.includes(tab) ? tab : kinds[0]
-  const kind: Kind = active === 'music' ? 'movie' : active
+  const active: Tab = kinds.includes(tab) ? tab : kinds[0]
+  const kind: Kind = active === 'tv' ? 'tv' : 'movie'
+  const [bookList, setBookList] = useState<Book[] | null>(null)
+  const [queueNow, setQueueNow] = useState<QueueItem[]>([])
   const [artists, setArtists] = useState<MusicArtist[] | null>(null)
   const [view, setView] = useState<View>(() => (recall(STORAGE.view) === 'list' ? 'list' : 'grid'))
   const [movies, setMovies] = useState<Item[] | null>(null)
@@ -141,6 +159,7 @@ export default function Library() {
     remember(STORAGE.reverse, r ? '1' : '0')
   }
   const [genre, setGenre] = useState('')
+  const [tag, setTag] = useState('')
   const [decade, setDecade] = useState('')
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
@@ -158,8 +177,10 @@ export default function Library() {
         api.listMovies().then((m) => { setMovies(m.map((x) => fromMovie(x, queue))); setError('') }).catch(failed)
         api.listSeries().then((s) => { setShows(s.map((x) => fromSeries(x, queue))); setError('') }).catch(failed)
         if (musicOn) api.listArtists().then((a) => { setArtists(a); setError('') }).catch(failed)
+        if (booksOn) api.listBooks().then((b) => { setBookList(b); setError('') }).catch(failed)
+        setQueueNow(queue)
       })
-  }, [musicOn])
+  }, [musicOn, booksOn])
   useEffect(() => {
     load()
   }, [load])
@@ -181,6 +202,7 @@ export default function Library() {
         test(i) &&
         (!needle || i.title.toLowerCase().includes(needle)) &&
         (!genre || i.genres.includes(genre)) &&
+        (!tag || i.tags.some((t) => t.toLowerCase() === tag.toLowerCase())) &&
         (!decade || (i.year >= Number(decade) && i.year < Number(decade) + 10)),
     )
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
@@ -188,19 +210,21 @@ export default function Library() {
     else if (sort === 'status') list.sort((a, b) => a.state.key.localeCompare(b.state.key) || a.title.localeCompare(b.title))
     if (reverse) list.reverse()
     return list
-  }, [items, kind, filter, text, sort, reverse, genre, decade])
+  }, [items, kind, filter, text, sort, reverse, genre, tag, decade])
   // Everything that narrows the list (sorting does not), and the way back.
-  const filtersActive = text.trim() !== '' || filter !== 'all' || genre !== '' || decade !== ''
+  const filtersActive = text.trim() !== '' || filter !== 'all' || genre !== '' || tag !== '' || decade !== ''
   function clearFilters() {
     setText('')
     setFilter('all')
     setGenre('')
+    setTag('')
     setDecade('')
   }
   const genreOptions = useMemo(() => [...new Set((items ?? []).flatMap((i) => i.genres))].sort(), [items])
+  const tagOptions = useMemo(() => [...new Set((items ?? []).flatMap((i) => i.tags))].sort((a, b) => a.localeCompare(b)), [items])
   const decadeOptions = useMemo(() => [...new Set((items ?? []).filter((i) => i.year).map((i) => Math.floor(i.year / 10) * 10))].sort((a, b) => b - a), [items])
 
-  function chooseKind(k: MediaKind) {
+  function chooseKind(k: Tab) {
     setTab(k)
     setFilter('all')
     setSelected(new Set())
@@ -390,24 +414,29 @@ export default function Library() {
   const total = items?.length ?? 0
 
   // Only the kinds of media that are switched on get a tab.
-  const counts: Record<MediaKind, number | undefined> = { movie: movies?.length, tv: shows?.length, music: artists?.length }
+  const bookCount = (f: BookFormat) => bookList?.filter((b) => b[f].wanted || b[f].status === 'downloaded').length
+  const counts: Record<Tab, number | undefined> = { movie: movies?.length, tv: shows?.length, music: artists?.length, ebook: bookCount('ebook'), audiobook: bookCount('audiobook') }
   const kindSwitch = (
     <div className="seg">
       {kinds.map((k) => (
         <button key={k} className={active === k ? 'active' : ''} onClick={() => chooseKind(k)}>
-          {k === 'movie' ? 'Movies' : k === 'tv' ? 'TV' : 'Music'} {counts[k] !== undefined ? <small>({counts[k]})</small> : null}
+          {TAB_LABEL[k]} {counts[k] !== undefined ? <small>({counts[k]})</small> : null}
         </button>
       ))}
     </div>
   )
 
   if (active === 'music') return <MusicLibrary artists={artists} error={error} switcher={kindSwitch} admin={admin} reload={load} />
+  if (active === 'ebook' || active === 'audiobook') return <BookLibrary format={active} books={bookList} queue={queueNow} error={error} switcher={kindSwitch} reload={load} admin={admin} />
 
   return (
     <div>
       <div className="toolbar">
         {kindSwitch}
         <input type="search" placeholder={`Find in your ${kind === 'movie' ? 'movies' : 'shows'}…`} value={text} onChange={(e) => setText(e.target.value)} aria-label="Find in your library" />
+        {tagOptions.length > 0 && (
+          <Dropdown label="Tag" value={tag} onChange={setTag} options={[{ value: '', label: 'All tags' }, ...tagOptions.map((t) => ({ value: t, label: t }))]} />
+        )}
         {genreOptions.length > 0 && (
           <Dropdown label="Genre" value={genre} onChange={setGenre} options={[{ value: '', label: 'All genres' }, ...genreOptions.map((g) => ({ value: g, label: g }))]} />
         )}
@@ -482,6 +511,12 @@ export default function Library() {
             ]}
           />
           <ActionMenu label="Quality profile" disabled={chosen.length === 0 || busy || profiles.length === 0} choices={profileChoices} onPick={(id) => void runBulk(() => api.bulkProfile(bulkTitles(), Number(id)))} />
+          <BulkTagMenu
+            disabled={chosen.length === 0 || busy}
+            inSelection={[...new Set(chosen.flatMap((i) => i.tags))].sort((a, b) => a.localeCompare(b))}
+            onAdd={(t) => void runBulk(() => api.bulkTags(bulkTitles(), [t], []))}
+            onRemove={(t) => void runBulk(() => api.bulkTags(bulkTitles(), [], [t]))}
+          />
           <ActionMenu
             label="Download from"
             disabled={chosen.length === 0 || busy}
@@ -568,10 +603,19 @@ export default function Library() {
               actions={actionsFor(i)}
               selection={selecting ? { selected: selected.has(i.key), onToggle: (e) => pick(i.key, e.shiftKey) } : undefined}
               footer={
-                i.kind === 'tv' && i.total > 0 && !i.gettingDetails ? (
-                  <div className="bar" style={{ width: '100%', marginTop: 6 }} title={`${i.have} of ${i.total} episodes`}>
-                    <span style={{ width: `${(i.have / i.total) * 100}%` }} />
-                  </div>
+                (i.kind === 'tv' && i.total > 0 && !i.gettingDetails) || i.tags.length > 0 ? (
+                  <>
+                    {i.kind === 'tv' && i.total > 0 && !i.gettingDetails && (
+                      <div className="bar" style={{ width: '100%', marginTop: 6 }} title={`${i.have} of ${i.total} episodes`}>
+                        <span style={{ width: `${(i.have / i.total) * 100}%` }} />
+                      </div>
+                    )}
+                    {i.tags.length > 0 && (
+                      <span className="pcard-tags">
+                        <TagChips tags={i.tags} />
+                      </span>
+                    )}
+                  </>
                 ) : undefined
               }
             />

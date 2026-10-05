@@ -55,7 +55,25 @@ export default function FolderBox({
   const info = FOLDER_INFO[kind]
   const id = useId()
   const [status, setStatus] = useState<Status | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
   const path = value.trim()
+
+  // Make the folder now (only one level inside a mapped, writable one; the
+  // server refuses anything else), then show its real status.
+  async function createNow(target: string) {
+    setCreating(true)
+    setCreateError('')
+    try {
+      const check = await api.createFolder(target)
+      if (target === path) setStatus({ check, parentMapped: true })
+      else onChange(target)
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setCreating(false)
+    }
+  }
 
   useEffect(() => {
     if (!path) {
@@ -140,7 +158,20 @@ export default function FolderBox({
               )}
             </div>
           )}
-          {missing && status?.parentMapped && <p className="fbox-calm">This folder isn&apos;t there yet. Mediarium creates it when it&apos;s needed.</p>}
+          {missing && status?.parentMapped && (
+            <p className="fbox-calm">
+              This folder isn&apos;t there yet. Mediarium creates it when it&apos;s needed, or{' '}
+              {r.canCreate ? (
+                <button type="button" className="link-btn" disabled={creating} onClick={() => void createNow(path)}>
+                  {creating ? 'creating…' : 'create it now'}
+                </button>
+              ) : (
+                'you can create it yourself'
+              )}
+              .
+            </p>
+          )}
+          {createError && <p className="fbox-warn">{createError}</p>}
           {missing && !inDocker && !quiet && <p className="fbox-warn">This folder doesn&apos;t exist on this computer. Create it, or type a folder that does.</p>}
           {missing && inDocker && quiet && !status?.parentMapped && <p className="fbox-calm">Nothing is mapped here yet, which is fine.</p>}
           {r.exists && !insideContainer && r.warnings.map((w) => <p key={w} className="fbox-warn">{w}</p>)}
@@ -162,8 +193,8 @@ export default function FolderBox({
           {canUseParent && (
             <p className="fbox-small">
               Already mapping <code>{parent}</code>? Then skip this and use a folder inside it.{' '}
-              <button type="button" className="link-btn" onClick={() => onChange(parentValue)}>
-                Use {parentValue}
+              <button type="button" className="link-btn" disabled={creating} onClick={() => void createNow(parentValue)}>
+                {creating ? 'Creating…' : `Use ${parentValue}`}
               </button>
             </p>
           )}

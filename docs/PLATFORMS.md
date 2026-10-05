@@ -20,8 +20,6 @@ The image is `ghcr.io/rdborg/mediarium:latest`, built for `linux/amd64` and `lin
 
 | Platform | What it will be | Status |
 |---|---|---|
-| Windows | An installer, running Mediarium as a normal Windows program with no Docker | Coming soon |
-| macOS | A download for Apple silicon and Intel Macs, starting at login | Coming soon |
 | Linux without Docker | `.deb` and `.rpm` packages with a systemd service | Coming soon |
 | Unraid Community Applications | One-click install from the Apps tab | Coming soon |
 | TrueNAS SCALE app catalog | One-click install from Apps → Discover | Coming soon |
@@ -34,7 +32,7 @@ The image is `ghcr.io/rdborg/mediarium:latest`, built for `linux/amd64` and `lin
 
 Until then, anything that runs Docker can run Mediarium: see the [Docker install](./INSTALL.md).
 
-Each GitHub release also has plain programs for Windows, macOS and Linux, without an installer. They're a barely tested preview and not supported yet. The notes inside the archive say what to set up. Tell us how it goes.
+There are no separate Windows or macOS versions: on a Windows PC or a Mac, run Mediarium in Docker Desktop. Each GitHub release also has a plain Linux program, without an installer. It's a barely tested preview and not supported yet. The notes inside the archive say what to set up. Tell us how it goes.
 
 ## Raspberry Pi notes
 

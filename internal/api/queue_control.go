@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/download"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
@@ -207,8 +208,23 @@ func (s *Server) preparePipeline(item queue.Item) (func(), error) {
 				slog.Info("queue: album download ended", "queueId", item.ID, "err", err)
 			}
 		}, nil
+	case item.BookID > 0:
+		book, err := s.BookRepo.Get(item.BookID)
+		if err != nil {
+			return nil, errors.New("That book isn't in your library any more.")
+		}
+		f := books.Format(item.BookFormat)
+		if !f.Valid() {
+			f = books.Ebook
+		}
+		_ = s.BookRepo.SetState(book.ID, f, books.StatusDownloading, "", "")
+		return func() {
+			if err := s.runBookPipeline(item.ID, book, f, item.ReleaseTitle, item.NZBURL, protocol); err != nil {
+				slog.Info("queue: book download ended", "queueId", item.ID, "err", err)
+			}
+		}, nil
 	}
-	return nil, errors.New("This download isn't linked to a movie, show or album.")
+	return nil, errors.New("This download isn't linked to a movie, show, album or book.")
 }
 
 // fileExists reports whether path names something on disk.
@@ -277,7 +293,27 @@ func (s *Server) releaseTitleClaims(item queue.Item) {
 			return
 		}
 		_ = s.MusicRepo.SetAlbumStatus(a.ID, s.restoredAlbumStatus(a))
+	case item.BookID > 0:
+		b, err := s.BookRepo.Get(item.BookID)
+		f := books.Format(item.BookFormat)
+		if err != nil || !f.Valid() || b.Status(f) != books.StatusDownloading {
+			return
+		}
+		if busy, err := s.QueueRepo.HasActiveForBook(b.ID, string(f)); err != nil || busy {
+			return
+		}
+		_ = s.BookRepo.SetState(b.ID, f, restoredBookStatus(b, f), "", "")
 	}
+}
+
+// restoredBookStatus is what one format of a book goes back to when a
+// download for it ends without importing: downloaded when its file is still
+// there, otherwise missing.
+func restoredBookStatus(b books.Book, f books.Format) string {
+	if fileExists(b.Path(f)) {
+		return books.StatusDownloaded
+	}
+	return books.StatusMissing
 }
 
 func restoredEpisodeStatus(ep library.Episode) library.Status {
@@ -550,10 +586,10 @@ func (s *Server) isUpgradeDownload(it queue.Item) bool {
 
 // tidyResult is what tidyOrphans put right.
 type tidyResult struct {
-	Movies, Episodes, Albums, Upgrades int
+	Movies, Episodes, Albums, Books, Upgrades int
 }
 
-func (t tidyResult) any() bool { return t.Movies+t.Episodes+t.Albums+t.Upgrades > 0 }
+func (t tidyResult) any() bool { return t.Movies+t.Episodes+t.Albums+t.Books+t.Upgrades > 0 }
 
 // tidyOrphans fixes the leftovers that made titles look stuck, at startup:
 //   - a movie, episode or album marked "downloading" with no download behind
@@ -606,6 +642,7 @@ func (s *Server) tidyOrphans() tidyResult {
 
 	movieOpen := map[int64]bool{}
 	albumOpen := map[int64]bool{}
+	bookOpen := map[string]bool{} // book id + format
 	seriesOpen := map[int64][]queue.Item{}
 	for _, it := range items {
 		if !open(it) {
@@ -616,6 +653,8 @@ func (s *Server) tidyOrphans() tidyResult {
 			movieOpen[it.MovieID] = true
 		case it.AlbumID > 0:
 			albumOpen[it.AlbumID] = true
+		case it.BookID > 0:
+			bookOpen[fmt.Sprintf("%d|%s", it.BookID, it.BookFormat)] = true
 		case it.SeriesID > 0:
 			seriesOpen[it.SeriesID] = append(seriesOpen[it.SeriesID], it)
 		}
@@ -659,6 +698,20 @@ func (s *Server) tidyOrphans() tidyResult {
 			}
 		}
 	}
+	if list, err := s.BookRepo.List(); err == nil {
+		for _, b := range list {
+			for _, f := range []books.Format{books.Ebook, books.Audiobook} {
+				switch {
+				case b.Status(f) == books.StatusDownloading && !bookOpen[fmt.Sprintf("%d|%s", b.ID, f)]:
+					_ = s.BookRepo.SetState(b.ID, f, restoredBookStatus(b, f), "", "")
+					res.Books++
+				case b.Status(f) == books.StatusMissing && fileExists(b.Path(f)):
+					_ = s.BookRepo.SetState(b.ID, f, books.StatusDownloaded, "", "")
+					res.Books++
+				}
+			}
+		}
+	}
 	return res
 }
 
@@ -684,7 +737,7 @@ func (s *Server) recoverAtStartup() {
 	}
 	tidy := s.tidyOrphans()
 	if paused > 0 || tidy.any() {
-		slog.Info("queue: start-up check", "pausedDownloads", paused, "moviesFixed", tidy.Movies, "episodesFixed", tidy.Episodes, "albumsFixed", tidy.Albums, "upgradesRemoved", tidy.Upgrades)
+		slog.Info("queue: start-up check", "pausedDownloads", paused, "moviesFixed", tidy.Movies, "episodesFixed", tidy.Episodes, "albumsFixed", tidy.Albums, "booksFixed", tidy.Books, "upgradesRemoved", tidy.Upgrades)
 	}
 	if paused > 0 {
 		_ = s.QueueRepo.LogActivity(0, "paused", fmt.Sprintf("Mediarium was restarted, so %s that was downloading is now paused. Press Resume in Activity to carry on.", plural(int(paused), "download")))

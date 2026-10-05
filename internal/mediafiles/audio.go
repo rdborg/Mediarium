@@ -13,7 +13,7 @@ import (
 const KindAudio Kind = "audio"
 
 var audioTypes = map[string]string{
-	".flac": "audio/flac", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".alac": "audio/mp4",
+	".flac": "audio/flac", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".m4b": "audio/mp4", ".alac": "audio/mp4",
 	".aac": "audio/aac", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".opus": "audio/opus",
 }
 

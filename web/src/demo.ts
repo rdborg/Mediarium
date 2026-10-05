@@ -18,6 +18,8 @@ import type {
   WantedItem,
 } from './api'
 
+import { demoAuthorWorks, demoBookCounts, demoBookList, demoBooks, demoBookSearch, demoProgress, demoTracks, demoWork } from './demoBooks'
+
 const KEY = 'mediarium-demo'
 
 export function demoEnabled(): boolean {
@@ -227,8 +229,9 @@ function dashboard(real: DashboardData | null): DashboardData {
       { kind: 'series', id: 103, seriesId: 103, title: 'Shōgun', subtitle: 'S01E10', posterUrl: poster(103), quality: '1080p WEB', sizeBytes: 3.1e9, at: ago(2970) },
     ],
     upcoming: calendar.filter((c) => c.releaseDate >= day(0)).slice(0, 5),
-    health: real?.health ?? [],
-    setup: real?.setup ?? { indexers: 2, usenetServers: 1, vpnConnected: false, torrentsReady: false, mediaServers: 1 },
+    // The demo shows a set-up install: the real "not set up yet" warnings would hide the sample content.
+    health: (real?.health ?? []).filter((h) => h.level === 'info'),
+    setup: { indexers: 2, usenetServers: 1, vpnConnected: true, torrentsReady: true, mediaServers: 1 },
   }
 }
 
@@ -337,6 +340,7 @@ export function installDemo() {
       // Pretend common actions worked so buttons feel alive; nothing is saved.
       // Only library actions are faked. Everything else (profile, settings,
       // notifications, sign-in) is real, so saving those is never swallowed.
+      if (/^\/api\/(books|book-authors)/.test(p)) return json({ grabbed: 0, message: 'Demo mode: nothing was changed.', tags: [] })
       if (/^\/api\/(movies|series|queue|blocklist|library)/.test(p)) {
         if (p === '/api/movies' || p === '/api/series') return json({ id: 999, tmdbId: 0, title: 'Demo', year: 2024, status: 'missing' }, 201)
         return json({ grabbed: 0, message: 'Demo mode: nothing was changed.', queueId: 1, removed: 0 })
@@ -382,8 +386,40 @@ export function installDemo() {
         } catch {
           realData = null
         }
-        return json(dashboard(realData))
+        return json({ ...dashboard(realData), library: { ...dashboard(realData).library, ...demoBookCounts } })
       }
+      case p === '/api/books':
+        return json(demoBooks)
+      case p === '/api/books/progress':
+        return json(demoProgress)
+      case p === '/api/books/search':
+        return json(demoBookSearch(u.searchParams.get('q') ?? ''))
+      case p === '/api/books/discover': {
+        const list = u.searchParams.get('list') === 'trending' ? (u.searchParams.get('period') === 'yearly' ? 1 : 0) : (u.searchParams.get('subject') ?? '').length + 2
+        return json(demoBookList(list, Number(u.searchParams.get('page') ?? 1)))
+      }
+      case p === '/api/book-authors':
+        return json([])
+      case /^\/api\/book-authors\/[^/]+\/works$/.test(p):
+        return json(demoAuthorWorks(decodeURIComponent(p.split('/')[3])))
+      case /^\/api\/book-works\/[^/]+$/.test(p): {
+        const w = demoWork(decodeURIComponent(p.split('/').pop() ?? ''))
+        return w ? json(w) : json({ error: 'not found' }, 404)
+      }
+      case /^\/api\/books\/\d+$/.test(p):
+        return json(demoBooks.find((b) => b.id === Number(p.split('/').pop())) ?? demoBooks[0])
+      case /^\/api\/books\/\d+\/progress$/.test(p): {
+        const id = Number(p.split('/')[3])
+        const f = u.searchParams.get('format')
+        return json(demoProgress.find((x) => x.bookId === id && x.format === f) ?? { bookId: id, format: f, position: '', percent: 0, finished: false })
+      }
+      case /^\/api\/books\/\d+\/tracks$/.test(p):
+        return json({ tracks: demoTracks, format: 'm4b' })
+      case /^\/api\/books\/\d+\/links$/.test(p):
+        return json([])
+      case /^\/api\/books\/\d+\/read$/.test(p):
+        // A short public-domain sample, so the reader has something to show.
+        return real('/demo/sample-book.epub')
       case p === '/api/discover/trending':
       case p === '/api/discover/for-you':
         return json(discoverPool(0, false))

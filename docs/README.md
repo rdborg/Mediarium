@@ -6,7 +6,7 @@ Start here. The reference pages are generated from the code, and every change to
 |---|---|
 | Install it with Docker (one compose file, any Linux server or NAS) | [INSTALL.md](./INSTALL.md) |
 | Install it on Synology, Unraid, QNAP or Linux, step by step | [synology.md](./synology.md), [unraid.md](./unraid.md), [qnap.md](./qnap.md), [linux.md](./linux.md) |
-| See which platforms work now and which are coming soon (Windows, macOS, app stores, Raspberry Pi) | [PLATFORMS.md](./PLATFORMS.md) |
+| See which platforms work now and which are coming soon (app stores, Proxmox, Raspberry Pi) | [PLATFORMS.md](./PLATFORMS.md) |
 | See what it can and cannot do today, and what is planned | [FEATURES.md](./FEATURES.md) |
 | Move over from Radarr, Sonarr, Prowlarr, SABnzbd and other apps without redoing your setup or moving files | [migrate.md](./migrate.md) |
 | Add movies and shows you already have on disk (Import existing in the Library) | [import-library.md](./import-library.md) |
@@ -19,9 +19,10 @@ Start here. The reference pages are generated from the code, and every change to
 | Choose a quality profile (the built-in presets, cutoffs, upgrades, fallback profiles) | [quality-profiles.md](./quality-profiles.md) |
 | See why a title has not downloaded, read the Activity page, pause, resume or stop a download, retry without downloading again | [activity.md](./activity.md) |
 | Subtitles: the on/off switch, release subtitles, offers, daily limits, dismissing | [subtitles.md](./subtitles.md) |
-| Switch movies, TV and music on or off (Settings > Media types) | [modules.md](./modules.md) |
+| Switch movies, TV, music, ebooks and audiobooks on or off (Settings > Media types) | [modules.md](./modules.md) |
 | Change many movies, shows or artists at once from the Library (monitor, better versions, quality profile, download from, search now, remove) | [library.md](./library.md) |
 | Manage music (switch on the music module, artists and albums, audio quality, importing a collection) | [music.md](./music.md) |
+| Ebooks and audiobooks (switch them on, add books, which release is picked, where files go) | [books.md](./books.md) |
 | Connect Plex, Jellyfin or Emby (library refresh after imports, "Watch in" links, finding the token or API key, path mapping) | [media-servers.md](./media-servers.md) |
 | Set up notifications (email, ntfy, Gotify, Pushover, Slack, Discord, Telegram, webhook), turn them on and off, test them | [notifications.md](./notifications.md) |
 | Find out what went wrong (a failed download, "too many connections", a full disk) and what to try, copy a report for support | [logs-and-errors.md](./logs-and-errors.md) |

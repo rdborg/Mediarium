@@ -5,6 +5,7 @@ import Icon from '../components/Icon'
 import PosterCard from '../components/PosterCard'
 import ProfilePicker from '../components/ProfilePicker'
 import ReleaseTable from '../components/ReleaseTable'
+import TitleTags from '../components/Tags'
 import FilesPanel from '../components/FilesPanel'
 import SubtitlesOffNote from '../components/SubtitlesOffNote'
 import SubtitlesPanel from '../components/SubtitlesPanel'
@@ -214,6 +215,7 @@ function MoviePage() {
             {movie.filePath && <code className="filepath">{movie.filePath}</code>}
           </div>
         )}
+        {inLibrary && movie.libraryId && <TitleTags kind="movie" id={movie.libraryId} />}
       </TitleHero>
 
       {!inLibrary && <CastCard cast={movie.cast ?? []} />}

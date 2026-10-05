@@ -8,9 +8,10 @@ import "net/http"
 // allowed because React sets style attributes; scripts are never inline.
 const contentSecurityPolicy = "default-src 'self'; " +
 	"script-src 'self'; " +
-	"style-src 'self' 'unsafe-inline'; " +
-	"img-src 'self' data: blob: https://image.tmdb.org https://coverartarchive.org https://*.archive.org; " +
-	"font-src 'self'; " +
+	// blob: styles and fonts are an EPUB's own, unpacked by the reader.
+	"style-src 'self' 'unsafe-inline' blob:; " +
+	"img-src 'self' data: blob: https://image.tmdb.org https://coverartarchive.org https://archive.org https://*.archive.org https://covers.openlibrary.org; " +
+	"font-src 'self' blob:; " +
 	"media-src 'self' blob:; " +
 	"connect-src 'self'; " +
 	"object-src 'none'; " +

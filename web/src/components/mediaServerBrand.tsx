@@ -5,6 +5,8 @@ export const MEDIA_SERVER_BRAND: Record<MediaServerKind, { label: string; color:
   plex: { label: 'Plex', color: '#E5A00D' },
   jellyfin: { label: 'Jellyfin', color: '#AA5CC3' },
   emby: { label: 'Emby', color: '#52B54B' },
+  audiobookshelf: { label: 'Audiobookshelf', color: '#4F7DF0' },
+  kavita: { label: 'Kavita', color: '#4AC694' },
 }
 
 // A small round badge with the server's first letter in its brand colour

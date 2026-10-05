@@ -32,6 +32,46 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/blocklist` | admin |  |
 | DELETE | `/api/blocklist/{id}` | admin |  |
 
+## book-authors
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/book-authors` | any account | GET /api/book-authors: the authors followed. |
+| DELETE | `/api/book-authors/{key}/follow` | any account | DELETE /api/book-authors/{key}/follow: stop following. |
+| PUT | `/api/book-authors/{key}/follow` | any account | PUT /api/book-authors/{key}/follow: follow an author (or change the formats). |
+| GET | `/api/book-authors/{key}/works` | any account | GET /api/book-authors/{key}/works?sort=popular\|newest |
+
+## book-works
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/book-works/{key}` | any account | GET /api/book-works/{key}: one book from Open Library for its info page, marked when it is already in the library. |
+
+## books
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/books` | any account |  |
+| POST | `/api/books` | any account | adds a book with the formats asked for. |
+| GET | `/api/books/discover` | any account | GET /api/books/discover?list=trending&period=weekly&page=1 GET /api/books/discover?list=browse&subject=fantasy&from=2000&to=2010&sort=popular&page=1 |
+| GET | `/api/books/import` | admin |  |
+| POST | `/api/books/import` | admin | starts reading the books folders (administrators). |
+| GET | `/api/books/progress` | any account | GET /api/books/progress: where the person is in every book. |
+| GET | `/api/books/search` | any account | looks books up on Open Library by title or author. |
+| GET | `/api/books/subjects` | any account | GET /api/books/subjects: the genres the Discover filter offers. |
+| DELETE | `/api/books/{id}` | admin | removes a book; with ?deleteFiles=true its files go to the recycle bin of their folder (or are deleted when the bin is off). |
+| GET | `/api/books/{id}` | any account |  |
+| POST | `/api/books/{id}/grab` | any account |  |
+| GET | `/api/books/{id}/links` | any account | GET /api/books/{id}/links: where the book can be read or listened to, the connected Audiobookshelf and Kavita servers that have it. |
+| GET | `/api/books/{id}/listen/{n}` | any account | GET /api/books/{id}/listen/{n}: one track, with ranges for seeking. |
+| GET | `/api/books/{id}/progress` | any account | GET /api/books/{id}/progress?format=: where the person is in one format. |
+| PUT | `/api/books/{id}/progress` | any account | PUT /api/books/{id}/progress: saves where the person is. |
+| GET | `/api/books/{id}/read` | any account | GET /api/books/{id}/read: the ebook file. |
+| GET | `/api/books/{id}/releases` | any account |  |
+| POST | `/api/books/{id}/search` | any account |  |
+| GET | `/api/books/{id}/tracks` | any account | GET /api/books/{id}/tracks: the audiobook's tracks in order. |
+| PUT | `/api/books/{id}/want` | any account |  |
+
 ## calendar
 
 | Method | Path | Access | What it does |
@@ -133,6 +173,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/library/bulk/remove` | admin | takes the chosen titles out of the library, one after the other. |
 | POST | `/api/library/bulk/search-now` | admin | looks for releases of the chosen titles that are monitored and still missing something. |
 | PUT | `/api/library/bulk/sources` | admin | chooses where the chosen titles are downloaded from. |
+| PUT | `/api/library/bulk/tags` | admin | adds and removes tags on the chosen titles (administrators). |
 | POST | `/api/library/import` | admin | registers the reviewed selections. |
 | GET | `/api/library/import/active` | admin | lists what is going on: scans waiting to be reviewed or still running, imports still filling in details, and finished imports whose banner has not been dismi... |
 | GET | `/api/library/import/batches/{id}` | admin |  |
@@ -218,6 +259,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/movies/{id}/subtitles` | any account |  |
 | POST | `/api/movies/{id}/subtitles/download` | any account |  |
 | GET | `/api/movies/{id}/subtitles/status` | any account |  |
+| PUT | `/api/movies/{id}/tags` | any account | PUT /api/movies/{id}/tags and /api/series/{id}/tags: replace a title's tags. |
 
 ## music
 
@@ -332,6 +374,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/series/{id}/search-now` | any account | searches for everything wanted in a series (or one season, or one episode) right now, even if unmonitored. |
 | PUT | `/api/series/{id}/seasons/{season}/monitored` | any account |  |
 | PUT | `/api/series/{id}/sources` | admin |  |
+| PUT | `/api/series/{id}/tags` | any account |  |
 
 ## settings
 
@@ -341,6 +384,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/settings` | admin | applies a partial update — only non-empty fields are written, so the frontend can PUT just the field(s) a given wizard step/settings form changed. |
 | GET | `/api/settings/filesystem-check` | admin |  |
 | GET | `/api/settings/folder-check` | admin | inspects one folder for the setup screens: does it exist, can Mediarium write to it, how much room is left and — in Docker — was it actually mapped in fr... |
+| POST | `/api/settings/folder-create` | admin | makes a missing library folder (administrators), only where creatableParent allows. |
 | GET | `/api/settings/naming-preview` | admin | shows a naming preset or custom format applied to a fixed sample release, so the page can display the exact file name while someone edits the tokens. |
 | POST | `/api/settings/test-service` | admin | checks a key for an outside service without saving it, so the setup wizard and Settings can say whether it works before the person moves on. |
 
@@ -390,6 +434,12 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/system/update/install` | admin | reports how "Update now" is going. |
 | POST | `/api/system/update/install` | admin | starts "Update now". |
 | GET | `/api/system/update/latest` | admin | returns what is known about the newest release. |
+
+## tags
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/tags` | any account |  |
 
 ## tmdb
 
@@ -465,4 +515,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 |---|---|---|---|
 | GET | `/api/wanted` | any account | lists what automation is still looking for: "missing" (monitored, nothing downloaded; episodes only once aired) or "cutoff" (downloaded but below the profile... |
 
-245 routes.
+275 routes.

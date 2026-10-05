@@ -35,6 +35,12 @@ func (s *Server) musicImported(files ...string) {
 	s.mediaServersImported(mediaservers.MediaMusic, files...)
 }
 
+// booksImported tells the media servers a book was imported (Audiobookshelf
+// and Kavita scan the library that holds it).
+func (s *Server) booksImported(files ...string) {
+	s.mediaServersImported(mediaservers.MediaBook, files...)
+}
+
 func (s *Server) episodesImported(files ...string) {
 	s.mediaServersImported(mediaservers.MediaTV, files...)
 }
@@ -102,7 +108,7 @@ func buildMediaServer(req mediaServerRequest, base mediaservers.Server) (mediase
 	if strings.TrimSpace(req.Kind) != "" {
 		kind, ok := mediaservers.ParseKind(req.Kind)
 		if !ok {
-			return out, fmt.Errorf("Unknown media server type %q. Use Plex, Jellyfin or Emby.", req.Kind)
+			return out, fmt.Errorf("Unknown media server type %q. Use Plex, Jellyfin, Emby, Audiobookshelf or Kavita.", req.Kind)
 		}
 		out.Kind = kind
 	}
@@ -433,12 +439,15 @@ func (s *Server) mediaServerHealth() []healthItem {
 		if !m.Enabled || m.LastError == "" {
 			continue
 		}
+		impact := "New downloads may not show up there until it rescans on its own, and \"Watch in " + m.Kind.Label() + "\" links can be missing."
+		if m.Kind.BookServer() {
+			impact = "New books may not show up there until it rescans on its own, and the links to it on book pages can be missing."
+		}
 		items = append(items, healthItem{
-			ID:    fmt.Sprintf("media-server-failed-%d", m.ID),
-			Level: "warn",
-			Title: fmt.Sprintf("%s (%s) isn't working", m.Name, m.Kind.Label()),
-			Impact: "New downloads may not show up there until it rescans on its own, and \"Watch in " + m.Kind.Label() +
-				"\" links can be missing. The last check said: " + strings.TrimRight(m.LastError, ". ") + ". Test it again once it is fixed.",
+			ID:     fmt.Sprintf("media-server-failed-%d", m.ID),
+			Level:  "warn",
+			Title:  fmt.Sprintf("%s (%s) isn't working", m.Name, m.Kind.Label()),
+			Impact: impact + " The last check said: " + strings.TrimRight(m.LastError, ". ") + ". Test it again once it is fixed.",
 			Action: &healthAction{Label: "Check media servers", Path: "/settings/media-servers"},
 		})
 	}

@@ -1,6 +1,6 @@
 # The Library page
 
-The Library shows what's in your library: a tab each for **Movies**, **TV** and **Music** (only the kinds that are switched on, see [modules.md](./modules.md)). Every title is a poster or a row, with a status, and the things you do most are one click away: search for a release now, monitor or stop monitoring, open the page, and (for administrators) remove it. Above the list you can search by name, filter by genre, decade and status, and sort. The list is sorted by **Recently added**, newest first, until you pick another sort.
+The Library shows what's in your library: a tab each for **Movies**, **TV**, **Music**, **Ebooks** and **Audiobooks** (only the kinds that are switched on, see [modules.md](./modules.md)). Every title is a poster or a row, with a status, and the things you do most are one click away: search for a release now, monitor or stop monitoring, open the page, and (for administrators) remove it. Above the list you can search by name, filter by genre, decade and status, and sort. The list is sorted by **Recently added**, newest first, until you pick another sort. The book tabs are described in [books.md](./books.md). To keep kids' films, 4K or anything else apart, use tags (below) rather than separate folders.
 
 ![The Library page on the Movies tab: posters with a Downloaded badge, the Import existing and Add new buttons, and the Select button](images/library.png)
 
@@ -55,14 +55,21 @@ Removing shows a question with the names of the titles and the number. Downloads
 
 Every removal writes a line to **Activity** that says what happened to the files, for one title and for many alike: "Inception removed from library. Its files were deleted (4 files, 1 folder)." or "Inception removed from library. Its files were kept (1 file)." A title with no file on disk says "It had no files on disk."
 
-## More than one library folder
+## Tags
 
-**Settings > Library > Folders and file names** has **More movie folders** and **More TV folders**: extra folders besides the main ones, one per line (another disk, a "Kids" folder, a 4K folder). Each must already exist and, with Docker, be mapped into the container. Up to 10 of each.
+Tags are your own words for sorting a library that lives in one folder: **Kids**, **4K**, **Christmas**, **Dad's films**, anything. They are the way to keep kids' films or 4K copies apart without separate folders.
 
-- When there are extra folders, the add dialog asks **Keep it in**: the main folder (the default) or one of the extra ones. New downloads for that title go there.
-- A movie whose files are already in an extra folder (for example after an import) keeps getting its new files there.
-- Everything that protects your files works the same in every folder: removing a title, the recycle bin (each folder has its own, shown in Activity > Recycle bin), renaming, and importing by hand never touch anything outside these folders.
-- Stored as `library.movies_extra_paths` and `library.tv_extra_paths`; scripts use `moviesExtraPaths` and `tvExtraPaths` (lists) in `PUT /api/settings`, and `rootPath` when adding a movie or show.
+- **On a title's page**, under the controls: type a tag and press Enter (or a comma). Tags already in use are suggested as you type. Press × on a tag to take it off.
+- **When adding** a movie or show, the add window has a **Tags** box, so a title can be tagged Kids from the start.
+- **On many titles at once**: in **Select** mode, **Tags** adds a tag to every chosen title, or removes one of the tags they have.
+- **Filter by tag**: the Library's **Tag** filter (shown once a tag is in use) lists only the titles with that tag. Cards show their tags under the title.
+- Up to 20 tags per title, 30 characters each. Case doesn't matter: "kids" joins an existing "Kids".
+- **On your media server** every tag becomes a collection of the same name: in Plex the title's collection field, in Jellyfin and Emby a collection (box set) named after the tag. So a "Kids" tag gives a Kids collection to browse, or to share with a child's account. A title that isn't on the server yet gets its tags a few minutes after it's downloaded. Taking a tag off takes the title out of that collection. Collections you made yourself on the server are never touched. See [media-servers.md](./media-servers.md#tags-as-collections).
+- Tags live in Mediarium's database and go when the title is removed.
+
+## One folder per kind
+
+Each kind of media has one library folder (Settings > Library > Folders and file names). To keep kids' films, 4K copies or anything else apart, use tags (above) instead of separate folders. To see how full the disk is, the folder boxes show the free space, and Settings > System shows storage.
 
 ## Renaming existing files
 
@@ -77,6 +84,9 @@ Files keep the name they had when they arrived. After you change the naming pres
 The Music tab has the same **Select** mode for artists, with **Follow**, **Stop following**, **Quality profile** (the music profiles) and **Remove from library**. Removing asks the same way and keeps the album folders unless you tick the box.
 
 ## For scripts
+
+Tags: `GET /api/tags` lists them with how many movies and shows have each; `PUT /api/movies/{id}/tags` and `PUT /api/series/{id}/tags` take `{"tags": ["Kids", "4K"]}` and replace the title's tags; `PUT /api/library/bulk/tags` takes `{"items": [...], "add": [...], "remove": [...]}` (administrators). Movies and shows carry `"tags"` in their JSON.
+
 
 All of these are for administrators. A title is `{"kind": "movie" | "tv", "id": n}`. Each request changes all its titles in one database transaction, so a failure part way changes nothing. A title that's not in the library (any more) is skipped and reported, and the rest are changed. Up to 5000 titles per request.
 

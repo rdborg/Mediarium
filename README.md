@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-<p align="center"><b>Your movies, TV and music, from search to library, in one app.</b></p>
+<p align="center"><b>Your movies, TV, music and books, from search to library, in one app.</b></p>
 
 <p align="center">
   <a href="docs/INSTALL.md">Install</a> ·
@@ -22,16 +22,18 @@ Mediarium is a self-hosted media manager. Find a movie or show, and it searches 
 
 It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Bazarr in **one app**: one container, one web page, one search bar, one thing to update and back up.
 
-- **Movies and TV**, plus **music** if you switch it on. Audiobooks and ebooks are coming soon.
+- **Movies and TV**, plus **music**, **ebooks** and **audiobooks** if you switch them on.
+- **Mediarium Books**, a built-in reader and audiobook player that opens as an app of its own and remembers your place on every device.
+- **Tags** such as Kids or 4K, which also show up as collections in Plex, Jellyfin and Emby.
 - **Discover and search** everything from one place, across all your indexers.
 - **Built-in downloaders** for Usenet and torrents, with repair and unpacking.
 - **Built-in VPN** for torrents (WireGuard), with no special container permissions.
 - **Quality profiles** with upgrades and fallbacks, automatic searching and retries.
-- **Subtitles**, notifications, media-server refresh, family accounts and backups.
+- **Subtitles**, notifications, media-server refresh (Plex, Jellyfin, Emby, Audiobookshelf, Kavita), family accounts and backups.
 - **Move over from Radarr, Sonarr, Prowlarr, SABnzbd** and eight other apps without redoing your setup. They are only read, never changed.
 - Runs on **Synology, Unraid, QNAP, any Linux server** and 64-bit Raspberry Pi.
 
-Mediarium is new. Movies and TV work end to end, and so does music once you switch it on. It's used daily, but expect some rough edges. [FEATURES.md](docs/FEATURES.md) says what works and what doesn't yet.
+Mediarium is new. Movies and TV work end to end, and so do music, ebooks and audiobooks once you switch them on. It's used daily, but expect some rough edges. [FEATURES.md](docs/FEATURES.md) says what works and what doesn't yet.
 
 ## Screenshots
 
@@ -43,8 +45,10 @@ Mediarium is new. Movies and TV work end to end, and so does music once you swit
 | **Library**: every title with its status, and Select to change many at once | **Activity**: what is downloading, waiting in line or failed, plus history and blocklist |
 | ![Upcoming calendar for the month](docs/images/upcoming-calendar.png) | ![An artist page in the music library](docs/images/music-artist.png) |
 | **Upcoming**: the calendar of releases and episodes, and what is still wanted | **Music**: artists and albums, off until you switch it on |
+| ![Discover on the eBooks and Audiobooks tab, with a corner banner on each cover saying eBook, Audiobook or both](docs/images/discover-books.png) | ![The Mediarium Books shelf with the books you are reading or listening to at the top](docs/images/bookshelf.png) |
+| **Books**: trending and classic books, each marked eBook, Audiobook or both | **Mediarium Books**: your shelf, with the reader and the audiobook player |
 | ![The Media types page with cards for movies, TV shows, music, audiobooks and ebooks](docs/images/settings-modules.png) | ![The Quality page with the quality profiles table](docs/images/settings-quality.png) |
-| **Media types**: switch movies, TV and music on or off | **Quality**: profiles and the fallback order |
+| **Media types**: switch movies, TV, music, ebooks and audiobooks on or off | **Quality**: profiles and the fallback order |
 
 <p align="center"><img src="docs/images/phone-dashboard.png" alt="Mediarium on a phone" width="260" /></p>
 
@@ -70,11 +74,11 @@ Step-by-step guides: **[Synology](docs/synology.md)** (including running next to
 | Platform | Status |
 |---|---|
 | Docker on Linux, NAS or Raspberry Pi (64-bit) | **Available now** |
-| Windows installer | Coming soon |
-| macOS | Coming soon |
 | Linux without Docker (`.deb`, `.rpm`, systemd) | Coming soon |
 | One-click apps: Unraid, TrueNAS, CasaOS/ZimaOS, Umbrel, Portainer | Coming soon |
 | Proxmox helper script, Helm chart | Coming soon |
+
+There are no separate Windows or macOS versions. On a Windows PC or a Mac, Mediarium runs in Docker Desktop.
 
 Details: [What runs where](docs/PLATFORMS.md).
 

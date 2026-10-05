@@ -8,14 +8,24 @@ export function useGridColumns(ref: RefObject<HTMLElement | null>, fallback = 6)
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    // Only real track sizes count: a grid that isn't laid out yet answers
+    // "none", which is not one column.
     const measure = () => {
-      const n = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length
+      const n = getComputedStyle(el).gridTemplateColumns.split(' ').filter((v) => v.endsWith('px')).length
       if (n > 0) setCols(n)
     }
     measure()
+    // A page that is still settling (fonts, an entrance animation) can give
+    // the first answer too early, without a resize to correct it.
+    const frame = requestAnimationFrame(measure)
+    const later = window.setTimeout(measure, 400)
     const ro = new ResizeObserver(measure)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(later)
+      ro.disconnect()
+    }
   }, [ref])
   return cols
 }

@@ -3,6 +3,7 @@ import { sortProfiles } from './qualityBlurb'
 import { useEffect, useRef, useState } from 'react'
 import { api, type DashboardData, type QualityProfile, type SourcePref } from '../api'
 import Icon from './Icon'
+import { TagChips, TagInput } from './Tags'
 import { PosterFallback } from './PosterCard'
 import { useToast } from './Toast'
 import { useFocusTrap } from '../useFocusTrap'
@@ -66,9 +67,14 @@ export default function AddDialog({
   const [monitor, setMonitor] = useState<'all' | 'future' | 'none'>('all')
   const [sources, setSources] = useState<SourcePref>('')
   const [searchNow, setSearchNow] = useState(true)
-  // The library folders to choose from, when more than one is set up.
-  const [folders, setFolders] = useState<{ main: string; extra: string[] }>({ main: '', extra: [] })
-  const [rootPath, setRootPath] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [knownTags, setKnownTags] = useState<string[]>([])
+  useEffect(() => {
+    api
+      .listTags()
+      .then((l) => setKnownTags(l.map((x) => x.name)))
+      .catch(() => undefined)
+  }, [])
   const [keepBetter, setKeepBetter] = useState(savedBetter)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -84,8 +90,6 @@ export default function AddDialog({
       .getSettings()
       .then((s) => {
         setDefaultSources(s.defaultSources ?? 'both')
-        const movie = target.kind === 'movie'
-        setFolders({ main: (movie ? s.moviesPath : s.tvPath) ?? '', extra: (movie ? s.moviesExtraPaths : s.tvExtraPaths) ?? [] })
       })
       .catch(() => undefined)
     api.dashboard().then((d) => setDash(d.setup)).catch(() => undefined)
@@ -106,11 +110,14 @@ export default function AddDialog({
     try {
       let libraryId: number
       if (isMovie) {
-        const m = await api.addMovie(target.tmdbId, { profileId: profileId || undefined, monitored, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter, rootPath: rootPath || undefined })
+        const m = await api.addMovie(target.tmdbId, { profileId: profileId || undefined, monitored, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
         libraryId = m.id
       } else {
-        const s = await api.addSeries(target.tmdbId, { profileId: profileId || undefined, monitor, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter, rootPath: rootPath || undefined })
+        const s = await api.addSeries(target.tmdbId, { profileId: profileId || undefined, monitor, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
         libraryId = s.id
+      }
+      if (tags.length > 0) {
+        await api.setTitleTags(isMovie ? 'movie' : 'tv', libraryId, tags).catch(() => undefined)
       }
       toast.success(`${target.title} added.${searchNow && !cannotSearch ? ' Searching for a release now.' : ''}`)
       onAdded(libraryId)
@@ -155,20 +162,6 @@ export default function AddDialog({
             </select>
           </label>
 
-          {folders.extra.length > 0 && (
-            <label>
-              Keep it in
-              <select value={rootPath} onChange={(e) => setRootPath(e.target.value)}>
-                <option value="">{folders.main || 'The main folder'} (main)</option>
-                {folders.extra.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
           {isMovie ? (
             <label>
               Monitoring
@@ -187,6 +180,17 @@ export default function AddDialog({
               </select>
             </label>
           )}
+
+          <div className="add-tags">
+            <span>Tags (optional)</span>
+            <TagChips tags={tags} onRemove={(x) => setTags((cur) => cur.filter((y) => y !== x))} />
+            <TagInput
+              suggestions={knownTags.filter((k) => !tags.some((x) => x.toLowerCase() === k.toLowerCase()))}
+              onAdd={(x) => setTags((cur) => (cur.some((y) => y.toLowerCase() === x.toLowerCase()) ? cur : [...cur, x]))}
+              placeholder="Like Kids or 4K"
+              disabled={busy}
+            />
+          </div>
 
           <label>
             Download from

@@ -199,4 +199,3 @@ func TestBookInfoPage(t *testing.T) {
 		t.Fatalf("unknown book: %d", status)
 	}
 }
-

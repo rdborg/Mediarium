@@ -55,7 +55,7 @@ Buttons for things an account may not do are hidden, and the server refuses them
 
 A basic user without **Add titles themselves** still sees Discover and the search box, but their Add button says **Request**. What they pick is kept as a request, exactly as they chose it (quality, formats and so on), and they're told it was sent to an administrator.
 
-- **Activity > Requests** lists them. Admins see everyone's, with **Approve** (the title is added for that person, as they asked, and the library says who asked) and **Decline** (with an optional note the person sees). Everyone else sees their own, and can take back a request that is still waiting. Asking twice for the same title is refused; two titles that only share a name (Dune from 1984 and from 2021) are separate requests. A request whose kind of media has been switched off waits until it is switched on again. For music, "Only this album" is part of the request, so approving it adds the artist with just that album.
+- **Activity > Requests** lists them. Admins see everyone's, with **Approve** (the title is added for that person, as they asked, and the library says who asked) and **Decline** (with an optional note the person sees). Everyone else sees their own, and can take back a request that is still waiting. Asking twice for the same title is refused; two titles that only share a name (a 1984 film and its 2021 remake) are separate requests. A request whose kind of media has been switched off waits until it is switched on again. For music, "Only this album" is part of the request, so approving it adds the artist with just that album.
 - New requests can reach you by notification: tick **Requests** on a notification under Settings > Connections > Notifications.
 - Asking twice for the same title, or for something already in the library, is refused with a message.
 
@@ -81,7 +81,7 @@ Admins manage accounts in **Settings > Accounts** (the profile menu has a shortc
 
 **What is checked.** Every account form points out a problem under the field when you leave it, or when you press the button, and nothing is sent until it's fixed. The server enforces the same rules, so they hold for scripts too: usernames of 3 to 32 characters with only letters, numbers, dots, dashes and underscores; an optional email address that looks like `name@example.com`; a name of up to 100 characters; passwords of 8 to 72 characters. Only a username you change is checked, so an older username with other characters keeps working.
 
-The activity list says who added a title, for example "The Matrix added to library by Sam".
+The activity list says who added a title, for example "Night Harbour added to library by Sam".
 
 ## Changing, resetting and removing accounts
 

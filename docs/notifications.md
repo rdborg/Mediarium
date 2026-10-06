@@ -52,11 +52,11 @@ Every message has a clear subject and the same details, made from one template, 
 
 | Event | Subject |
 |---|---|
-| Downloaded | `Titanic (1997) is ready to watch` (an album: `is ready to listen to`) |
-| Download started | `Downloading Titanic (1997)` |
-| Failed | `Download failed: Titanic (1997)` |
-| Needs a decision | `Needs your decision: Titanic (1997)` |
-| Subtitles | `Subtitles added: Titanic (1997)` |
+| Downloaded | `Night Harbour (1997) is ready to watch` (an album: `is ready to listen to`) |
+| Download started | `Downloading Night Harbour (1997)` |
+| Failed | `Download failed: Night Harbour (1997)` |
+| Needs a decision | `Needs your decision: Night Harbour (1997)` |
+| Subtitles | `Subtitles added: Night Harbour (1997)` |
 | Something is wrong | `Mediarium needs attention: your Usenet login was refused` |
 | New version | `Mediarium 2.1.0 is available` |
 | Test | `Mediarium test message` |

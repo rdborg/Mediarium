@@ -66,7 +66,7 @@ const FOLDER_REQUIRED: Record<FolderKind, string> = {
 }
 
 const NAMING_CHOICES = [
-  { id: 'plex', name: 'Plex', text: 'Title and year, for example "Dune (2021)". Works with Plex and most other players.' },
+  { id: 'plex', name: 'Plex', text: 'Title and year, for example "Night Harbour (2021)". Works with Plex and most other players.' },
   { id: 'jellyfin', name: 'Jellyfin / Emby', text: 'Title and year plus the quality in brackets, for example "[1080p]". For Jellyfin or Emby.' },
   { id: 'kodi', name: 'Kodi', text: 'Title and year plus quality and source, for example "[1080p Bluray]". For Kodi.' },
   { id: 'minimal', name: 'Simple', text: "Just the title, with episodes as S01E02. For when you don't use a media player." },

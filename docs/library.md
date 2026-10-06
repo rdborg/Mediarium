@@ -53,7 +53,7 @@ Removing shows a question with the names of the titles and the number. Downloads
 
 **Files in your library are only deleted if you tick "Also delete the files of all N from the disk".** That goes for one title or many. When you remove a single title, the box shows how many files and how much space they take in your library (for example "3 files, 11.0 GB"). They go to the recycle bin first (**Activity > Recycle bin**) and are deleted for good after 7 days, so a slip can be undone with **Put back** (see [Removing a movie or show](downloads.md#the-recycle-bin)). When you tick it, a red line repeats how many titles are affected. A title whose files lie outside your library folder is never touched. It's left in place, and the note says why. The others carry on.
 
-Every removal writes a line to **Activity** that says what happened to the files, for one title and for many alike: "Inception removed from library. Its files were deleted (4 files, 1 folder)." or "Inception removed from library. Its files were kept (1 file)." A title with no file on disk says "It had no files on disk."
+Every removal writes a line to **Activity** that says what happened to the files, for one title and for many alike: "Night Harbour removed from library. Its files were deleted (4 files, 1 folder)." or "Night Harbour removed from library. Its files were kept (1 file)." A title with no file on disk says "It had no files on disk."
 
 ## Tags
 
@@ -71,8 +71,8 @@ Tags are your own words for sorting a library that lives in one folder: **Kids**
 
 Most TV releases name episodes by season (`Show.S02E05`). Two kinds of show don't:
 
-- **Anime** counts episodes from the very first one: `[SubsPlease] One Piece - 1085 (1080p)`, `Show E105`, or a batch `Show - 01-12`.
-- **Daily shows** (talk shows, news) go by the day: `The.Daily.Show.2024.03.15`.
+- **Anime** counts episodes from the very first one: `[Group] Long Voyage - 1085 (1080p)`, `Show E105`, or a batch `Show - 01-12`.
+- **Daily shows** (talk shows, news) go by the day: `The.Evening.Desk.2024.03.15`.
 
 A show's page has **Episode numbering**: *Seasons (S01E05)*, *Anime (episode 105)* or *Daily (by air date)*. Mediarium sets it when the show is added, also when it comes from a library import or from Sonarr, which passes on its own setting (Japanese animation is Anime; talk shows and news are Daily), and you can change it. Later anime seasons named like "Show S2 - 05" are read as that season's episode, and a recap such as "Show - 12.5" is not taken for episode 12. For an Anime show, episode 105 is found by counting the show's episodes season by season from the first one (specials left out); for a Daily show, by matching the air date. Searches then also look for "Show 105" or "Show 2024 03 15", and releases and downloaded files named that way are matched to the right episode. A release that does carry a season marker is always taken as it says.
 

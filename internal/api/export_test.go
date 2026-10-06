@@ -77,7 +77,7 @@ func (s *Server) TestSubtitleSweepJob(ctx context.Context) { s.subtitleSweepJob(
 
 // TestScriptsDir is the folder scripts are picked from; TestNotifyImported
 // sends an "imported" event as an import does (and runs the chosen script).
-func (s *Server) TestScriptsDir() string { return s.scriptsDir() }
+func (s *Server) TestScriptsDir() string            { return s.scriptsDir() }
 func (s *Server) TestNotifyImported(it notify.Item) { s.notifyItem("imported", it) }
 
 // TestAgeSubtitleFiles makes the saved subtitles look downloaded and checked d ago.

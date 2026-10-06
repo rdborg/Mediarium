@@ -8,6 +8,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Fixed
+- The Kindle converter ignores impossible positions inside a book instead of trusting them (found by GitHub's code scanning; no effect on 64-bit systems).
+
 ### Changed
 - Updated source-map-js, a library used only while building the web interface, for a security fix. The app itself is unchanged.
 

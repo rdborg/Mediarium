@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -184,9 +185,11 @@ var (
 	idAttr      = regexp.MustCompile(`<[^>]*\s(?:id|name)\s*=\s*["']([^"']+)["'][^>]*>`)
 )
 
+// base32 reads a KF8 base-32 number (a fid or an offset); -1 when it isn't
+// one, or is too large to be a real position.
 func base32(s string) int {
 	n, err := strconv.ParseInt(strings.ToLower(s), 32, 64)
-	if err != nil {
+	if err != nil || n < 0 || n > math.MaxInt32 {
 		return -1
 	}
 	return int(n)

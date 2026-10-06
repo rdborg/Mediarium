@@ -365,9 +365,8 @@ func TestPauseThenResumeCarriesOnFromTheSavedFiles(t *testing.T) {
 	if err != nil || !bytes.Equal(got, e.wantFile) {
 		t.Fatalf("the movie in the library should be the complete file: %v", err)
 	}
-	if exists(e.workDirFor(id)) {
-		t.Fatal("the download folder should be cleaned up after the import")
-	}
+	// "completed" is set just before the clean-up runs, so give it a moment.
+	waitFor(t, "the download folder to be cleaned up after the import", func() bool { return !exists(e.workDirFor(id)) })
 }
 
 func TestStopTable(t *testing.T) {

@@ -436,3 +436,14 @@ func TestHugeRegularExpressionIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// TestFeedThatIsAWebPage: an address that gives back a web page (Prowlarr's
+// home page instead of an indexer feed) gets a message saying what to use.
+func TestFeedThatIsAWebPage(t *testing.T) {
+	for _, body := range []string{"<!DOCTYPE html><html><head><title>Prowlarr</title></head></html>", "\n  <html lang=\"en\"><body>login</body></html>"} {
+		_, err := parseNewznabFeed([]byte(body), "Prowlarr", "SECRETKEY1")
+		if err == nil || !strings.Contains(err.Error(), "web page") || !strings.Contains(err.Error(), "/api") {
+			t.Fatalf("%q: %v", body, err)
+		}
+	}
+}

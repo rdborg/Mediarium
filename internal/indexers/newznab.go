@@ -112,6 +112,13 @@ func maskSecret(s, secret string) string {
 	return strings.ReplaceAll(s, secret, "REDACTED")
 }
 
+// looksLikeWebPage reports whether a reply is an HTML page (a home page or a
+// login page) rather than a feed.
+func looksLikeWebPage(body []byte) bool {
+	head := strings.ToLower(strings.TrimSpace(string(body[:min(len(body), 512)])))
+	return strings.HasPrefix(head, "<!doctype html") || strings.HasPrefix(head, "<html") || strings.Contains(head, "<html")
+}
+
 // parseNewznabFeed reads a Newznab or Torznab reply: an RSS feed of releases,
 // or an <error> element saying why there are none. apiKey, when the reply
 // repeats it, is hidden in any message returned.
@@ -127,6 +134,9 @@ func parseNewznabFeed(body []byte, indexerName, apiKey string) ([]Result, error)
 		}
 		if xml.Unmarshal(body, &apiErr) == nil && apiErr.Description != "" {
 			return nil, fmt.Errorf("newznab error from %s: %s (code %s)", indexerName, maskSecret(truncate(apiErr.Description, 300), apiKey), truncate(apiErr.Code, 20))
+		}
+		if looksLikeWebPage(body) {
+			return nil, fmt.Errorf("%s answered with a web page, not an indexer feed. Check the address: it must be the indexer's API address, not the site's home page. For an indexer in Prowlarr, open it in Prowlarr and copy its Torznab or Newznab feed address (it looks like http://192.168.1.10:9696/5/api), and use Prowlarr's API key. Or copy all your Prowlarr indexers at once under Settings > System > Move from other apps", indexerName)
 		}
 		// the parser quotes the text it stopped at, which could hold the key
 		return nil, fmt.Errorf("parse newznab response from %s: %s", indexerName, maskSecret(err.Error(), apiKey))

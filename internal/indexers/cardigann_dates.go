@@ -204,6 +204,25 @@ var (
 )
 
 // fromUnknownDate makes the best of whatever date text a site shows.
+// isoWithExtraZone matches an ISO date-time that carries its time zone twice,
+// "2022-06-25T20:46:53.000000Z +00:00", as some sites print it.
+var isoWithExtraZone = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)Z\s*[+-]\d{2}:?\d{2}$`)
+
+// fromAnyDate reads a date written in any common way: ISO 8601 (also with
+// the zone written twice) or the forms fromUnknownDate knows.
+func fromAnyDate(s string, now time.Time) (time.Time, error) {
+	str := strings.TrimSpace(s)
+	if m := isoWithExtraZone.FindStringSubmatch(str); m != nil {
+		str = strings.Replace(m[1], " ", "T", 1) + "Z"
+	}
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999Z07:00", "2006-01-02 15:04:05Z07:00"} {
+		if t, err := time.Parse(layout, str); err == nil {
+			return t, nil
+		}
+	}
+	return fromUnknownDate(str, now)
+}
+
 func fromUnknownDate(s string, now time.Time) (time.Time, error) {
 	str := strings.Join(strings.Fields(s), " ")
 	if str == "" {

@@ -199,6 +199,12 @@ func applyFilter(data string, f FilterBlock, vars *tmplVars) (string, error) {
 	case "dateparse", "timeparse":
 		t, err := parseDateLayout(strings.TrimSpace(data), argAt(args, 0), time.Now())
 		if err != nil {
+			// Sites change how they write dates; one that no longer matches
+			// its definition's layout is read as any common date instead,
+			// as Prowlarr does, rather than failing the whole search.
+			if alt, altErr := fromAnyDate(data, time.Now()); altErr == nil {
+				return alt.Format(time.RFC1123Z), nil
+			}
 			return "", err
 		}
 		return t.Format(time.RFC1123Z), nil

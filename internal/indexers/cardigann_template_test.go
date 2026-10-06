@@ -144,6 +144,9 @@ func TestFilters(t *testing.T) {
 		{"dateparse dotnet", "2026-01-15 16:24:34 +0000", FilterBlock{"dateparse", "yyyy-MM-dd HH:mm:ss zzz"}, "Thu, 15 Jan 2026 16:24:34 +0000"},
 		{"dateparse go layout", "15/01/2026", FilterBlock{"dateparse", "02/01/2006"}, time.Date(2026, 1, 15, 0, 0, 0, 0, time.Local).Format(time.RFC1123Z)},
 		{"andmatch no-op", "x", FilterBlock{"andmatch", nil}, "x"},
+		// A site that stopped writing dates the way its definition says (UTOPIA).
+		{"dateparse other format", "2022-06-25T20:46:53.000000Z +00:00", FilterBlock{"dateparse", "MM/dd/yyyy HH:mm:ss zzz"}, "Sat, 25 Jun 2022 20:46:53 +0000"},
+		{"dateparse iso", "2022-06-25T20:46:53Z", FilterBlock{"dateparse", "MM/dd/yyyy HH:mm:ss zzz"}, "Sat, 25 Jun 2022 20:46:53 +0000"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

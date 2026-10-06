@@ -43,7 +43,7 @@ type NewznabClient struct {
 func NewNewznabClient(name, baseURL, apiKey string) *NewznabClient {
 	return &NewznabClient{
 		Name:       name,
-		BaseURL:    strings.TrimRight(baseURL, "/"),
+		BaseURL:    newznabBase(baseURL),
 		APIKey:     apiKey,
 		httpClient: netguard.Client(20 * time.Second),
 	}
@@ -110,6 +110,22 @@ func maskSecret(s, secret string) string {
 		return s
 	}
 	return strings.ReplaceAll(s, secret, "REDACTED")
+}
+
+// newznabBase is the indexer's address without the "/api" every request
+// adds. Prowlarr, Jackett and many indexers show their feed address with
+// "/api" already on the end (and sometimes "?t=...&apikey=..."), and an
+// address pasted like that must work too.
+func newznabBase(raw string) string {
+	base := strings.TrimSpace(raw)
+	if i := strings.IndexAny(base, "?#"); i >= 0 {
+		base = base[:i]
+	}
+	base = strings.TrimRight(base, "/")
+	if strings.HasSuffix(strings.ToLower(base), "/api") {
+		base = base[:len(base)-len("/api")]
+	}
+	return strings.TrimRight(base, "/")
 }
 
 // looksLikeWebPage reports whether a reply is an HTML page (a home page or a

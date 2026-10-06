@@ -55,6 +55,8 @@ Mediarium is new. Movies and TV work end to end, and so do music, ebooks and aud
 
 <p align="center"><img src="docs/images/phone-dashboard.png" alt="Mediarium on a phone" width="260" /></p>
 
+> **About these screenshots.** They were taken in demo mode, so every movie, show, artist, poster and cover in them is made up (the books are old public-domain classics). That's on purpose: the pictures don't use anyone else's titles or artwork. In your own copy, Mediarium shows the real posters, artwork and details for whatever you search for and add.
+
 ## Install with Docker
 
 Mediarium runs in Docker on any 64-bit Linux server or NAS (`amd64` or `arm64`).

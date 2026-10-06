@@ -2,6 +2,8 @@
 
 Start here. The reference pages are generated from the code, and every change to the app updates its page in the same commit.
 
+The screenshots in these pages come from demo mode: the movies, shows, artists, posters and covers are all made up (the books are public-domain classics), so no one else's titles or artwork are used. Your own copy shows the real posters and details for what you search for and add.
+
 | I want to... | Read |
 |---|---|
 | Install it with Docker (one compose file, any Linux server or NAS) | [INSTALL.md](./INSTALL.md) |

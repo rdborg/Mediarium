@@ -92,7 +92,7 @@ The example releases version `2.1.0`. Replace it with your number.
    - builds the web interface once;
    - builds the app for Linux (amd64, arm64), each packed with the licence, the install notes and the systemd files, plus a `sha256sums.txt`;
    - signs `sha256sums.txt` and adds `sha256sums.txt.sig`, if the `UPDATE_SIGNING_KEY` secret is set (see [Signing releases](#signing-releases));
-   - creates a GitHub Release named "Mediarium v2.1.0" with those files and notes generated from the commits;
+   - creates a GitHub Release named "Mediarium v2.1.0" with those files, and notes made from the version's section of `CHANGELOG.md` with install steps on top (`tools/release-notes.sh`; a test build without a section gets GitHub's own list);
    - builds the Docker image for linux/amd64 and linux/arm64 and pushes it to `ghcr.io` with the tags `2.1.0`, `2.1` and `latest`;
    - builds the "full" image (with the Cloudflare helper), starts it as a test, and pushes it with the tags `2.1.0-full`, `2.1-full` and `latest-full` (see [The full image](#the-full-image-with-the-cloudflare-helper)).
 

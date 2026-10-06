@@ -8,6 +8,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Changed
+- Updated source-map-js, a library used only while building the web interface, for a security fix. The app itself is unchanged.
+
 ## [2.1.0] - 2026-10-06
 
 ### Added

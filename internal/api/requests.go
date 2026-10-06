@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/auth"
@@ -40,11 +41,37 @@ func (s *Server) mustRequest(r *http.Request) bool {
 	return err == nil && !p.AddDirect
 }
 
+// mayAddNew reports whether the caller may put a title that isn't in the
+// library yet there through a side door, such as picking a release for it in
+// Search: administrators always, everyone else only with the permission for
+// that kind of media and "add titles themselves". Otherwise it answers 403.
+func (s *Server) mayAddNew(w http.ResponseWriter, r *http.Request, kind string) bool {
+	u := auth.UserFromContext(r.Context())
+	if u == nil || u.IsAdmin || r.Context().Value(approvingKey{}) != nil {
+		return true
+	}
+	p, err := s.Auth.PermissionsOf(u.ID)
+	if err != nil || !p.Allows(kind) {
+		writeError(w, http.StatusForbidden, notAllowedMessage)
+		return false
+	}
+	if !p.AddDirect {
+		writeError(w, http.StatusForbidden, "That title isn't in the library yet. Ask for it from its page first; once an administrator approves it, you can pick a release.")
+		return false
+	}
+	return true
+}
+
 type requestInfo struct {
 	title, poster string
 	year          int
 	inLibrary     bool
 }
+
+// requestsMu makes approving, declining and taking back a request take
+// turns: an approval can take seconds while the title is looked up, and a
+// second click must not answer the same request again.
+var requestsMu sync.Mutex
 
 // describeRequest works out what a request is for, from the add it carries.
 func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) (requestInfo, error) {
@@ -80,15 +107,26 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 		if json.Unmarshal(body, &req) != nil || !artistID.MatchString(strings.TrimSpace(req.MBID)) {
 			return requestInfo{}, errors.New("Pick an artist from the search results.")
 		}
-		a, err := s.MusicBrainz().GetArtist(ctx, strings.TrimSpace(req.MBID))
+		mbid := strings.TrimSpace(req.MBID)
+		if _, ok, _ := s.MusicRepo.GetArtistByMBID(mbid); ok {
+			return requestInfo{inLibrary: true}, nil
+		}
+		a, err := s.MusicBrainz().GetArtist(ctx, mbid)
 		if err != nil {
 			return requestInfo{}, err
 		}
-		return requestInfo{title: a.Name}, nil
+		title := a.Name
+		if t := strings.TrimSpace(req.AlbumTitle); t != "" && req.AlbumMBID != "" {
+			title += " – " + t
+		}
+		return requestInfo{title: title}, nil
 	case "book":
 		var req addBookRequest
 		if json.Unmarshal(body, &req) != nil || strings.TrimSpace(req.OLKey) == "" || strings.TrimSpace(req.Title) == "" {
 			return requestInfo{}, errors.New("Pick a book from the search results.")
+		}
+		if !req.Ebook && !req.Audiobook {
+			return requestInfo{}, errors.New("Choose ebook, audiobook or both.")
 		}
 		if _, ok, _ := s.BookRepo.GetByKey(req.OLKey); ok {
 			return requestInfo{inLibrary: true}, nil
@@ -100,6 +138,36 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 		return requestInfo{title: title, year: req.Year, poster: books.CoverURL(req.CoverID, "M")}, nil
 	}
 	return requestInfo{}, fmt.Errorf("unknown kind %q", kind)
+}
+
+// requestKey is what a request is for, from the add it carries: the title's
+// id where it comes from ("movie:tmdb:603", "music:<mbid>/<album mbid>",
+// "book:OL27448W"). Two requests with the same key ask for the same thing.
+func requestKey(kind, payload string) string {
+	var v struct {
+		TMDBID    int    `json:"tmdbId"`
+		MBID      string `json:"mbid"`
+		AlbumMBID string `json:"albumMbid"`
+		OLKey     string `json:"olKey"`
+	}
+	if json.Unmarshal([]byte(payload), &v) != nil {
+		return ""
+	}
+	switch kind {
+	case "movie", "tv":
+		if v.TMDBID > 0 {
+			return fmt.Sprintf("%s:tmdb:%d", kind, v.TMDBID)
+		}
+	case "music":
+		if mbid := strings.ToLower(strings.TrimSpace(v.MBID)); mbid != "" {
+			return "music:" + mbid + "/" + strings.ToLower(strings.TrimSpace(v.AlbumMBID))
+		}
+	case "book":
+		if k := strings.TrimSpace(v.OLKey); k != "" {
+			return "book:" + k
+		}
+	}
+	return ""
 }
 
 // fileRequest answers an add from an account that has to ask: it is kept as
@@ -122,9 +190,17 @@ func (s *Server) fileRequest(w http.ResponseWriter, r *http.Request, kind string
 		return
 	}
 	by, byline := requester(r)
-	if dup, _ := s.Requests.PendingFor(by, kind, info.title); dup {
-		writeError(w, http.StatusConflict, "You already asked for "+info.title+". An administrator will look at it.")
+	mine, err := s.Requests.List(by)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	key := requestKey(kind, string(body))
+	for _, x := range mine {
+		if x.Status == requests.Pending && x.Kind == kind && key != "" && requestKey(x.Kind, x.Payload) == key {
+			writeError(w, http.StatusConflict, "You already asked for "+info.title+". An administrator will look at it.")
+			return
+		}
 	}
 	req, err := s.Requests.Create(requests.Request{Kind: kind, Title: info.title, Year: info.year, Poster: info.poster, Payload: string(body), RequestedBy: by})
 	if err != nil {
@@ -182,8 +258,25 @@ func (s *Server) requestFromPath(w http.ResponseWriter, r *http.Request) (reques
 	return req, true
 }
 
+// requestKindOn reports whether the media type a request is for is switched on.
+func (s *Server) requestKindOn(kind string) bool {
+	switch kind {
+	case "movie":
+		return s.moviesEnabled()
+	case "tv":
+		return s.tvEnabled()
+	case "music":
+		return s.musicEnabled()
+	case "book":
+		return s.booksEnabled()
+	}
+	return false
+}
+
 // POST /api/requests/{id}/approve: add the title as the person asked.
 func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
+	requestsMu.Lock()
+	defer requestsMu.Unlock()
 	req, ok := s.requestFromPath(w, r)
 	if !ok {
 		return
@@ -195,6 +288,10 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 	handler := map[string]http.HandlerFunc{"movie": s.handleAddMovie, "tv": s.handleAddSeries, "music": s.handleAddArtist, "book": s.handleAddBook}[req.Kind]
 	if handler == nil {
 		writeError(w, http.StatusBadRequest, "This request can't be approved.")
+		return
+	}
+	if !s.requestKindOn(req.Kind) {
+		writeError(w, http.StatusConflict, "That kind of media is switched off under Settings > Media types. Switch it on to approve this request.")
 		return
 	}
 	// The add runs on the person's behalf, so the library says who asked.
@@ -212,7 +309,7 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 	note := ""
 	switch {
 	case rec.Code < 300:
-	case rec.Code == http.StatusConflict:
+	case rec.Code == http.StatusConflict && s.requestInLibrary(r.Context(), req):
 		note = "It was already in the library."
 	default:
 		var e struct {
@@ -223,7 +320,11 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 			e.Error = "The title couldn't be added."
 		}
 		slog.Info("requests: approve failed", "request", req.ID, "status", rec.Code, "err", e.Error)
-		writeError(w, http.StatusBadGateway, e.Error)
+		status := http.StatusBadGateway
+		if rec.Code < 500 {
+			status = http.StatusConflict
+		}
+		writeError(w, status, e.Error)
 		return
 	}
 	adminID, byline := requester(r)
@@ -236,8 +337,18 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// requestInLibrary reports whether what req asks for is in the library now.
+func (s *Server) requestInLibrary(ctx context.Context, req requests.Request) bool {
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	info, err := s.describeRequest(ctx, req.Kind, []byte(req.Payload))
+	return err == nil && info.inLibrary
+}
+
 // POST /api/requests/{id}/decline {"note": "..."}
 func (s *Server) handleDeclineRequest(w http.ResponseWriter, r *http.Request) {
+	requestsMu.Lock()
+	defer requestsMu.Unlock()
 	req, ok := s.requestFromPath(w, r)
 	if !ok {
 		return
@@ -267,6 +378,8 @@ func (s *Server) handleDeclineRequest(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/requests/{id}: someone takes back their own waiting request;
 // an administrator can remove any.
 func (s *Server) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
+	requestsMu.Lock()
+	defer requestsMu.Unlock()
 	req, ok := s.requestFromPath(w, r)
 	if !ok {
 		return

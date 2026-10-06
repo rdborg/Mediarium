@@ -200,8 +200,11 @@ func (s *Server) runScript(event string, it notify.Item) scriptRun {
 	out := &tailBuffer{n: scriptOutputKept}
 	cmd.Stdout, cmd.Stderr = out, out
 	cmd.WaitDelay = 5 * time.Second
+	ownProcessGroup(cmd)
 	start := time.Now()
 	err = cmd.Run()
+	// Anything the script started and left running goes with it.
+	killProcessGroup(cmd)
 	run.Seconds = int(time.Since(start).Round(time.Second) / time.Second)
 	if cmd.ProcessState != nil {
 		run.ExitCode = cmd.ProcessState.ExitCode()
@@ -331,7 +334,11 @@ func (s *Server) handleTestScript(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "Pick a script and save it first.")
 		return
 	}
-	scriptMu.Lock()
+	// Never queue behind import runs: someone is waiting on the answer.
+	if !scriptMu.TryLock() {
+		writeError(w, http.StatusConflict, "A script is running now, after an import. Try again when it has finished.")
+		return
+	}
 	run := s.runScript("test", notify.Item{Media: "movie", Title: "Test Movie", Year: 2001, Quality: "Bluray-1080p", Path: filepath.Join(s.moviesRoot(), "Test Movie (2001)", "Test Movie (2001).mkv")})
 	scriptMu.Unlock()
 	s.saveScriptRun(run)

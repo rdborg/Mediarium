@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, type BookFound, type BookSeries as Series, type BookSeriesEntry } from '../api'
+import { api, can, type BookFound, type BookSeries as Series, type BookSeriesEntry } from '../api'
+import { useAuth } from '../AuthContext'
 import { entryMeta } from '../bookSeries'
 import { useModules } from '../ModulesContext'
 import { useGridColumns } from '../useGridColumns'
@@ -22,6 +23,9 @@ export default function BookSeries({ workKey, title, author }: { workKey: string
   const cols = useGridColumns(grid)
   const [series, setSeries] = useState<Series | null | undefined>(undefined)
   const [rows, setRows] = useState(1)
+  // Following adds books by itself, so it needs "add titles themselves" too.
+  const me = useAuth().user
+  const mayFollow = can(me, 'manage') && can(me, 'addDirect')
   const [adding, setAdding] = useState<BookFound | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -78,7 +82,7 @@ export default function BookSeries({ workKey, title, author }: { workKey: string
           {series ? (series.position ? `Book ${series.position} of ${series.name}` : series.name) : 'Series'}
           {series && <span className="rail-hint">{series.entries.length} books</span>}
         </h2>
-        {series && (
+        {series && mayFollow && (
           <Switch
             checked={series.followed}
             onChange={(v) => void follow(v)}

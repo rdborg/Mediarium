@@ -87,7 +87,15 @@ func TestBadReleaseIsBlocklistedAndNextBestIsTried(t *testing.T) {
 
 	// The Bluray dud fails, gets blocklisted, and the WEB-DL is tried next.
 	// Once the WEB-DL is in, the dud's failed entry is settled and leaves the queue.
-	queueItems := waitForQueue(t, client, httpSrv.URL, 1)
+	// The dud's failed entry alone is one item too, so wait for the end
+	// state rather than a count (under a slow build the retry takes a while).
+	var queueItems []map[string]any
+	for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		queueItems = waitForQueue(t, client, httpSrv.URL, 1)
+		if len(queueItems) == 1 && queueItems[0]["releaseTitle"] == goodRelease && queueItems[0]["status"] == "completed" {
+			break
+		}
+	}
 	if len(queueItems) != 1 || queueItems[0]["releaseTitle"] != goodRelease || queueItems[0]["status"] != "completed" {
 		t.Fatalf("expected only the next-best, completed, got %v", queueItems)
 	}

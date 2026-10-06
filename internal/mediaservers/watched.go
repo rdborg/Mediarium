@@ -88,7 +88,7 @@ func (c *Client) plexWatched(ctx context.Context, s Server) (WatchState, error) 
 					continue
 				}
 				if id, ok := tmdbOf(it); ok {
-					out.Movies[id] = merge(out.Movies[id], Play{Plays: it.ViewCount, LastPlayed: time.Unix(it.LastViewedAt, 0).UTC()})
+					out.Movies[id] = merge(out.Movies[id], Play{Plays: it.ViewCount, LastPlayed: plexTime(it.LastViewedAt)})
 				}
 			}
 		case plexSectionType(MediaTV):
@@ -112,7 +112,7 @@ func (c *Client) plexWatched(ctx context.Context, s Server) (WatchState, error) 
 					continue
 				}
 				k := EpisodeKey{ShowTMDB: show, Season: e.ParentIndex, Episode: e.Index}
-				out.Episodes[k] = merge(out.Episodes[k], Play{Plays: e.ViewCount, LastPlayed: time.Unix(e.LastViewedAt, 0).UTC()})
+				out.Episodes[k] = merge(out.Episodes[k], Play{Plays: e.ViewCount, LastPlayed: plexTime(e.LastViewedAt)})
 			}
 		}
 	}
@@ -212,4 +212,13 @@ func (c *Client) embySeriesTMDB(ctx context.Context, s Server, userID, seriesID 
 	}
 	id, _ := strconv.Atoi(providerID(it.ProviderIDs, "Tmdb"))
 	return id
+}
+
+// plexTime is a Plex timestamp (Unix seconds); 0, when Plex doesn't know,
+// is the zero time rather than 1970.
+func plexTime(sec int64) time.Time {
+	if sec <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(sec, 0).UTC()
 }

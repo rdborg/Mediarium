@@ -64,7 +64,11 @@ type Book struct {
 // Released reports whether the book is out on day now: no release date is
 // known, or the date has come.
 func (b Book) Released(now time.Time) bool {
-	return b.ReleaseDate == "" || b.ReleaseDate <= now.Format("2006-01-02")
+	if b.ReleaseDate == "" {
+		// No date, only a year: a book announced for a later year isn't out.
+		return b.Year == 0 || b.Year <= now.Year()
+	}
+	return b.ReleaseDate <= now.Format("2006-01-02")
 }
 
 // Wants reports whether the book is wanted in format f.

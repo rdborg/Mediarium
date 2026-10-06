@@ -25,6 +25,7 @@ func TestPlexWatched(t *testing.T) {
 				{"ratingKey": "10", "type": "movie", "Guid": []map[string]any{{"id": "tmdb://603"}}, "viewCount": 2, "lastViewedAt": 1700000000},
 				{"ratingKey": "11", "type": "movie", "Guid": []map[string]any{{"id": "tmdb://604"}}},
 				{"ratingKey": "12", "type": "movie", "guid": "com.plexapp.agents.themoviedb://605?lang=en", "viewCount": 1, "lastViewedAt": 1600000000},
+				{"ratingKey": "13", "type": "movie", "Guid": []map[string]any{{"id": "tmdb://606"}}, "viewCount": 1}, // watched, date unknown
 			}}
 		case "/library/sections/2/all":
 			if r.URL.Query().Get("type") == "4" {
@@ -48,7 +49,7 @@ func TestPlexWatched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(st.Movies) != 2 || st.Movies[603].Plays != 2 || !st.Movies[603].LastPlayed.Equal(time.Unix(1700000000, 0)) || st.Movies[605].Plays != 1 {
+	if len(st.Movies) != 3 || st.Movies[603].Plays != 2 || !st.Movies[603].LastPlayed.Equal(time.Unix(1700000000, 0)) || st.Movies[605].Plays != 1 || !st.Movies[606].LastPlayed.IsZero() {
 		t.Fatalf("movies: %+v", st.Movies)
 	}
 	if len(st.Episodes) != 1 || st.Episodes[EpisodeKey{1399, 1, 2}].Plays != 1 {

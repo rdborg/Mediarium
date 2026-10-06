@@ -43,7 +43,7 @@ echo "$(date '+%Y-%m-%d %H:%M') $MEDIARIUM_MEDIA: $MEDIARIUM_TITLE $MEDIARIUM_EP
 ## How it runs
 
 - One run at a time. When several imports finish together, their runs wait their turn. More than 50 waiting are dropped (and logged).
-- A run is stopped after the time you set (5 minutes unless changed, at most an hour). **Try it** stops after a minute at most.
+- A run is stopped after the time you set (5 minutes unless changed, at most an hour), together with anything it started. Anything it leaves running in the background is stopped when it finishes, so a script can't leave programs behind. **Try it** stops after a minute at most, and says so if a run after an import is still going.
 - The import never waits for the script and doesn't depend on it.
 - If a run fails (it can't start, ends with an exit code other than 0, or is stopped), the page shows what went wrong with the last few lines it printed, and a line is written to Activity. A run that went fine shows only on the page.
 

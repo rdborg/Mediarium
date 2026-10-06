@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, isAdmin, type Book, type BookFormat, type Movie, type MusicWanted, type Series, type SubtitleQuota, type SubtitleWanted, type WantedItem } from '../api'
-import { releaseLabel } from '../bookSeries'
+import { releaseLabel, localDate } from '../bookSeries'
 import { useAuth } from '../AuthContext'
 import { useConfirm } from '../components/ConfirmProvider'
 import Cover from '../components/Cover'
@@ -337,7 +337,7 @@ export default function Wanted() {
   const rows = groupRows(shownItems)
   const pagedRows = rows.slice(0, limit)
   const musicRoom = Math.max(0, limit - rows.length)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate(new Date())
   const shownBooks = kind === 'missing' && (sel === 'all' || sel === 'book') ? missingBooks.filter((x) => matches(`${x.book.author} ${x.book.title}`)) : []
   const bookRoom = Math.max(0, musicRoom - shownMusic.length)
   const loadingList = items === null || (musicOn && music === null) || (booksOn && bookList === null)

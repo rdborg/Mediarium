@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -46,12 +47,16 @@ type CleanupRules struct {
 }
 
 type watchedStatus struct {
-	LastSync  string `json:"lastSync,omitempty"`  // RFC 3339
-	LastError string `json:"lastError,omitempty"` // the last sync's problem, in plain words
-	Servers   int    `json:"servers"`             // how many servers were read
-	Movies    int    `json:"movies"`              // watched movies found in the library
-	Episodes  int    `json:"episodes"`            // watched episodes found in the library
-	LastClean string `json:"lastCleanup,omitempty"`
+	LastSync string `json:"lastSync,omitempty"` // RFC 3339
+	// LastFullSync is the last read in which every server answered. Cleanup
+	// only trusts that: a server that failed would make its plays look like
+	// nobody watched.
+	LastFullSync string `json:"lastFullSync,omitempty"`
+	LastError    string `json:"lastError,omitempty"` // the last sync's problem, in plain words
+	Servers      int    `json:"servers"`             // how many servers were read
+	Movies       int    `json:"movies"`              // watched movies found in the library
+	Episodes     int    `json:"episodes"`            // watched episodes found in the library
+	LastClean    string `json:"lastCleanup,omitempty"`
 }
 
 var watchedMu sync.Mutex // one sync or cleanup at a time
@@ -113,8 +118,11 @@ func (s *Server) syncWatched(ctx context.Context) (watchedStatus, error) {
 			episodes[k] = mergePlay(episodes[k], p)
 		}
 	}
-	if read == 0 && len(problems) > 0 {
+	if read == 0 {
 		st.LastError = strings.Join(problems, "; ")
+		if st.LastError == "" {
+			st.LastError = "No Plex, Jellyfin or Emby server is switched on under Connections > Media servers."
+		}
 		s.saveWatchedStatus(st)
 		return st, errors.New(st.LastError)
 	}
@@ -149,6 +157,11 @@ func (s *Server) syncWatched(ctx context.Context) (watchedStatus, error) {
 		return st, err
 	}
 	st.LastSync = time.Now().UTC().Format(time.RFC3339)
+	if len(problems) == 0 {
+		st.LastFullSync = st.LastSync
+	} else {
+		st.LastFullSync = "" // the list is missing what the failed server knows
+	}
 	st.LastError = strings.Join(problems, "; ")
 	st.Servers, st.Movies, st.Episodes = read, nMovies, nEpisodes
 	s.saveWatchedStatus(st)
@@ -199,6 +212,9 @@ type libraryCleanupItem struct {
 	Title    string `json:"title"`
 	Reason   string `json:"reason"`
 	Path     string `json:"-"`
+
+	episodeIDs []int64   // every episode in the file (a multi-episode file)
+	since      time.Time // last watched, or when it arrived for the unwatched rule
 }
 
 func hasTag(tags []string, keep []string) bool {
@@ -220,14 +236,69 @@ func ago(t time.Time, now time.Time) string {
 	return fmt.Sprintf("%d days", d)
 }
 
+// fileTime is a file's modification time, or zero.
+func fileTime(path string) time.Time {
+	if info, err := os.Stat(path); err == nil {
+		return info.ModTime()
+	}
+	return time.Time{}
+}
+
+func latest(ts ...time.Time) time.Time {
+	var out time.Time
+	for _, t := range ts {
+		if t.After(out) {
+			out = t
+		}
+	}
+	return out
+}
+
+// movieDownloadTimes maps each movie to its last finished download (as far
+// back as the history goes).
+func (s *Server) movieDownloadTimes() (map[int64]time.Time, error) {
+	rows, err := s.db.Query(`SELECT movie_id, MAX(completed_at) FROM download_queue WHERE status = 'completed' AND movie_id IS NOT NULL AND completed_at IS NOT NULL GROUP BY movie_id`)
+	if err != nil {
+		return nil, fmt.Errorf("movie download times: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64]time.Time{}
+	for rows.Next() {
+		var id int64
+		var at string
+		if err := rows.Scan(&id, &at); err != nil {
+			return nil, fmt.Errorf("scan movie download time: %w", err)
+		}
+		for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05"} {
+			if t, err := time.Parse(layout, at); err == nil {
+				out[id] = t
+				break
+			}
+		}
+	}
+	return out, rows.Err()
+}
+
 // libraryCleanupCandidates lists what the rules remove now, oldest first.
+//
+// A title watched a while ago but downloaded again since (its last download,
+// or its file, is newer than the last play) is kept: someone wants to watch
+// it again. A title never watched counts from when it arrived (added,
+// downloaded or its file written, whichever is latest), not from when it was
+// first wanted.
 func (s *Server) libraryCleanupCandidates(rules CleanupRules, now time.Time) ([]libraryCleanupItem, error) {
 	watched, err := s.MovieRepo.ListWatched()
 	if err != nil {
 		return nil, err
 	}
-	movieTags, _ := s.MovieRepo.AllTitleTags(library.TagMovie)
-	seriesTags, _ := s.MovieRepo.AllTitleTags(library.TagSeries)
+	movieTags, err := s.MovieRepo.AllTitleTags(library.TagMovie)
+	if err != nil {
+		return nil, fmt.Errorf("read tags: %w", err)
+	}
+	seriesTags, err := s.MovieRepo.AllTitleTags(library.TagSeries)
+	if err != nil {
+		return nil, fmt.Errorf("read tags: %w", err)
+	}
 	movieWatch := map[int64]library.Watched{}
 	epWatch := map[[3]int64]library.Watched{}
 	for _, w := range watched {
@@ -243,17 +314,29 @@ func (s *Server) libraryCleanupCandidates(rules CleanupRules, now time.Time) ([]
 		if err != nil {
 			return nil, err
 		}
-		added, _ := s.MovieRepo.MovieAddedDates()
+		added, err := s.MovieRepo.MovieAddedDates()
+		if err != nil {
+			return nil, err
+		}
+		downloaded, err := s.movieDownloadTimes()
+		if err != nil {
+			return nil, err
+		}
 		for _, m := range movies {
 			if m.Status != library.StatusDownloaded || m.FilePath == "" || hasTag(movieTags[m.ID], rules.KeepTags) {
 				continue
 			}
+			fresh := latest(downloaded[m.ID], fileTime(m.FilePath)) // when this copy arrived
 			w, seen := movieWatch[m.ID]
 			switch {
-			case seen && rules.MoviesWatchedDays > 0 && !w.LastPlayed.IsZero() && now.Sub(w.LastPlayed) >= time.Duration(rules.MoviesWatchedDays)*24*time.Hour:
-				out = append(out, libraryCleanupItem{Kind: "movie", ID: m.ID, Title: movieLabel(m), Reason: "watched " + ago(w.LastPlayed, now) + " ago", Path: m.FilePath})
-			case !seen && rules.MoviesUnwatchedDays > 0 && !added[m.ID].IsZero() && now.Sub(added[m.ID]) >= time.Duration(rules.MoviesUnwatchedDays)*24*time.Hour:
-				out = append(out, libraryCleanupItem{Kind: "movie", ID: m.ID, Title: movieLabel(m), Reason: "not watched, added " + ago(added[m.ID], now) + " ago", Path: m.FilePath})
+			case seen && rules.MoviesWatchedDays > 0 && !w.LastPlayed.IsZero() && fresh.Before(w.LastPlayed) &&
+				now.Sub(w.LastPlayed) >= time.Duration(rules.MoviesWatchedDays)*24*time.Hour:
+				out = append(out, libraryCleanupItem{Kind: "movie", ID: m.ID, Title: movieLabel(m), Reason: "watched " + ago(w.LastPlayed, now) + " ago", Path: m.FilePath, since: w.LastPlayed})
+			case !seen && rules.MoviesUnwatchedDays > 0:
+				arrived := latest(added[m.ID], fresh)
+				if !arrived.IsZero() && now.Sub(arrived) >= time.Duration(rules.MoviesUnwatchedDays)*24*time.Hour {
+					out = append(out, libraryCleanupItem{Kind: "movie", ID: m.ID, Title: movieLabel(m), Reason: "not watched in the " + ago(arrived, now) + " since it arrived", Path: m.FilePath, since: arrived})
+				}
 			}
 		}
 	}
@@ -268,20 +351,58 @@ func (s *Server) libraryCleanupCandidates(rules CleanupRules, now time.Time) ([]
 			}
 			eps, err := s.MovieRepo.ListEpisodes(sh.ID)
 			if err != nil {
-				continue
+				return nil, err
 			}
+			// A file can hold several episodes: it goes only when every one
+			// of them qualifies, and then all of them are cleared.
+			var files []string
+			byFile := map[string][]library.Episode{}
 			for _, e := range eps {
-				w, ok := epWatch[[3]int64{sh.ID, int64(e.Season), int64(e.Episode)}]
-				if !ok || e.Status != library.StatusDownloaded || e.FilePath == "" || w.LastPlayed.IsZero() {
+				if e.Status != library.StatusDownloaded || e.FilePath == "" {
 					continue
 				}
-				if now.Sub(w.LastPlayed) >= time.Duration(rules.EpisodesWatchedDays)*24*time.Hour {
-					out = append(out, libraryCleanupItem{Kind: "episode", ID: e.ID, SeriesID: sh.ID, Title: fmt.Sprintf("%s S%02dE%02d", sh.Title, e.Season, e.Episode), Reason: "watched " + ago(w.LastPlayed, now) + " ago", Path: e.FilePath})
+				if _, ok := byFile[e.FilePath]; !ok {
+					files = append(files, e.FilePath)
 				}
+				byFile[e.FilePath] = append(byFile[e.FilePath], e)
+			}
+			for _, f := range files {
+				group := byFile[f]
+				fresh := fileTime(f)
+				var lastPlayed time.Time
+				ok := true
+				for _, e := range group {
+					w, seen := epWatch[[3]int64{sh.ID, int64(e.Season), int64(e.Episode)}]
+					if !seen || w.LastPlayed.IsZero() || !fresh.Before(w.LastPlayed) ||
+						now.Sub(w.LastPlayed) < time.Duration(rules.EpisodesWatchedDays)*24*time.Hour {
+						ok = false
+						break
+					}
+					lastPlayed = latest(lastPlayed, w.LastPlayed)
+				}
+				if !ok {
+					continue
+				}
+				first, last := group[0], group[len(group)-1]
+				title := fmt.Sprintf("%s S%02dE%02d", sh.Title, first.Season, first.Episode)
+				if len(group) > 1 {
+					title += fmt.Sprintf("-E%02d", last.Episode)
+				}
+				ids := make([]int64, 0, len(group))
+				for _, e := range group {
+					ids = append(ids, e.ID)
+				}
+				out = append(out, libraryCleanupItem{Kind: "episode", ID: first.ID, SeriesID: sh.ID, Title: title, Reason: "watched " + ago(lastPlayed, now) + " ago", Path: f, episodeIDs: ids, since: lastPlayed})
 			}
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Title < out[j].Title })
+	// Oldest first, so the per-run limit takes what has waited longest.
+	sort.SliceStable(out, func(i, j int) bool {
+		if !out[i].since.Equal(out[j].since) {
+			return out[i].since.Before(out[j].since)
+		}
+		return out[i].Title < out[j].Title
+	})
 	return out, nil
 }
 
@@ -297,9 +418,9 @@ type libraryCleanupResult struct {
 func (s *Server) runLibraryCleanup(rules CleanupRules, manual bool) (libraryCleanupResult, error) {
 	var res libraryCleanupResult
 	st := s.watchedStatus()
-	last, _ := time.Parse(time.RFC3339, st.LastSync)
+	last, _ := time.Parse(time.RFC3339, st.LastFullSync)
 	if time.Since(last) > watchedFreshFor {
-		return res, errors.New("what's been watched hasn't been read from your media servers in the last two days, so nothing was removed. Press Read now first")
+		return res, errors.New("what's been watched hasn't been read from all your media servers in the last two days, so nothing was removed. Press Read now first, and check every server answers")
 	}
 	watchedMu.Lock()
 	defer watchedMu.Unlock()
@@ -348,13 +469,24 @@ func (s *Server) cleanLibraryItem(it libraryCleanupItem) error {
 		if err != nil {
 			return err
 		}
-		if _, err := s.removeSeriesFiles(sh, []string{it.Path}); err != nil {
+		// Only the episode's own file and the files named after it: never
+		// the show's folder, even when it is the last tracked file there.
+		if _, _, err := s.discardFileWithSidecars(s.tvRoot(), it.Path, seriesLabel(sh)); err != nil {
 			return err
 		}
-		if err := s.MovieRepo.ClearEpisodeFile(it.ID); err != nil {
-			return err
+		ids := it.episodeIDs
+		if len(ids) == 0 {
+			ids = []int64{it.ID}
 		}
-		return s.MovieRepo.SetEpisodeMonitored(it.ID, false)
+		for _, id := range ids {
+			if err := s.MovieRepo.ClearEpisodeFile(id); err != nil {
+				return err
+			}
+			if err := s.MovieRepo.SetEpisodeMonitored(id, false); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	return fmt.Errorf("unknown kind %q", it.Kind)
 }

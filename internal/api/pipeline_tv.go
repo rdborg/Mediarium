@@ -48,6 +48,14 @@ func (s *Server) grabTV(series library.Series, hintSeason, hintEpisode int, rele
 		return 0, errTorrentsDisabled
 	}
 	season, episodes := resolveTVTarget(releaseTitle, hintSeason, hintEpisode)
+	// Anime and daily names carry no season marker: read them the way the
+	// show numbers its episodes ("[Group] Show - 14" is S02E01), so one
+	// episode isn't taken for a whole season.
+	if m := s.releaseMapper(series); m != nil && parser.Parse(releaseTitle).Season == 0 {
+		if rel := m(parser.Parse(releaseTitle)); rel.Season > 0 && len(rel.Episodes) > 0 {
+			season, episodes = rel.Season, rel.Episodes
+		}
+	}
 	if season == 0 {
 		return 0, fmt.Errorf("can't tell which season %q is for. Its title has no season marker and none was given", releaseTitle)
 	}

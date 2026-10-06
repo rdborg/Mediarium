@@ -22,23 +22,13 @@ import (
 // guessSeriesType picks a type for a newly added show: Japanese animation is
 // anime; talk shows and news are daily.
 func guessSeriesType(show metadata.Show) string {
-	anime := false
+	ids := make([]int, 0, len(show.Genres))
+	names := make([]string, 0, len(show.Genres))
 	for _, g := range show.Genres {
-		if g.ID == 16 || strings.EqualFold(g.Name, "Animation") {
-			for _, c := range show.OriginCountry {
-				if strings.EqualFold(c, "JP") {
-					anime = true
-				}
-			}
-		}
+		ids = append(ids, g.ID)
+		names = append(names, g.Name)
 	}
-	switch {
-	case anime:
-		return library.SeriesAnime
-	case strings.EqualFold(show.Type, "Talk Show"), strings.EqualFold(show.Type, "News"):
-		return library.SeriesDaily
-	}
-	return library.SeriesStandard
+	return library.GuessSeriesType(ids, names, show.OriginCountry, show.Type)
 }
 
 // mapRelease gives an anime or daily release the season and episodes it is

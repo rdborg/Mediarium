@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rdborg/mediarium/internal/notify"
 )
@@ -163,5 +164,18 @@ func TestScriptTestRun(t *testing.T) {
 				t.Fatalf("last run: %+v", last)
 			}
 		})
+	}
+}
+
+func TestScriptLeavesNothingRunning(t *testing.T) {
+	server, base, admin := loginNewServer(t)
+	dir := server.TestScriptsDir()
+	putScript(t, dir, "bg.sh", `(sleep 1; touch late.txt) >/dev/null 2>&1 &
+exit 0`, 0o755)
+	postJSONMethod[map[string]any](t, admin, http.MethodPut, base+"/api/scripts", map[string]any{"script": "bg.sh"}, http.StatusOK)
+	postJSON[map[string]any](t, admin, base+"/api/scripts/test", nil, http.StatusOK)
+	time.Sleep(2 * time.Second)
+	if _, err := os.Stat(filepath.Join(dir, "late.txt")); err == nil {
+		t.Fatal("what the script left running in the background kept going")
 	}
 }

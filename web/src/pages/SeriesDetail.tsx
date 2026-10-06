@@ -24,6 +24,7 @@ import { removeOption } from '../diskUsage'
 import ReleaseNotice from '../components/ReleaseNotice'
 import type { Unanswered } from '../releaseHint'
 import { useDocumentTitle } from '../documentTitle'
+import { localDate } from '../bookSeries'
 
 // A target for interactive search: one episode, or a whole season (no
 // episode set) which only offers season packs.
@@ -211,7 +212,7 @@ function SeriesPage() {
 
   if (!series) return loadError || error ? <p className="error-text">{loadError || error}</p> : <p>Loading…</p>
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate(new Date())
   const isMissing = (e: { status: string; airDate?: string }) => e.status === 'missing' && !!e.airDate && e.airDate <= today
   // The next episode still to air, for the facts at the top.
   const next = series.episodes.filter((e) => e.airDate && e.airDate >= today).sort((a, b) => (a.airDate! < b.airDate! ? -1 : 1))[0]
@@ -326,15 +327,21 @@ function SeriesPage() {
               <span className={`badge ${done === allEps.length ? 'downloaded' : 'missing'}`}>
                 {done} / {allEps.length}
               </span>
-              <button onClick={() => runSearch({ season, label: `Season ${season} (packs)` })}>Search season</button>
-              <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
-                <input
-                  type="checkbox"
-                  checked={allEps.every((e) => e.monitored)}
-                  onChange={(e) => toggleSeason(season, e.target.checked)}
-                />
-                Monitored
-              </label>
+              {season === 0 ? (
+                <span className="hint">Listed for reference. Mediarium can&apos;t look for specials yet.</span>
+              ) : (
+                <>
+                  <button onClick={() => runSearch({ season, label: `Season ${season} (packs)` })}>Search season</button>
+                  <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+                    <input
+                      type="checkbox"
+                      checked={allEps.every((e) => e.monitored)}
+                      onChange={(e) => toggleSeason(season, e.target.checked)}
+                    />
+                    Monitored
+                  </label>
+                </>
+              )}
             </div>
             {open && <table style={{ marginTop: 8 }}>
               <thead>
@@ -355,12 +362,14 @@ function SeriesPage() {
                     <Fragment key={e.id}>
                     <tr>
                       <td>
-                        <input
-                          type="checkbox"
-                          checked={e.monitored}
-                          onChange={(ev) => toggleEpisode(e.id, ev.target.checked)}
-                          aria-label={`Monitor episode ${e.episode}`}
-                        />
+                        {season > 0 && (
+                          <input
+                            type="checkbox"
+                            checked={e.monitored}
+                            onChange={(ev) => toggleEpisode(e.id, ev.target.checked)}
+                            aria-label={`Monitor episode ${e.episode}`}
+                          />
+                        )}
                       </td>
                       <td>{e.episode}</td>
                       <td>{e.title || <span style={{ color: 'var(--text-dim)' }}>TBA</span>}</td>
@@ -374,12 +383,14 @@ function SeriesPage() {
                       </td>
                       <td>{qualityText(e.quality)}</td>
                       <td>
-                        <button
-                          disabled={unaired && e.status === 'missing'}
-                          onClick={() => runSearch({ season, episode: e.episode, label: `S${String(season).padStart(2, '0')}E${String(e.episode).padStart(2, '0')}` })}
-                        >
-                          Search
-                        </button>{' '}
+                        {season > 0 && (
+                          <button
+                            disabled={unaired && e.status === 'missing'}
+                            onClick={() => runSearch({ season, episode: e.episode, label: `S${String(season).padStart(2, '0')}E${String(e.episode).padStart(2, '0')}` })}
+                          >
+                            Search
+                          </button>
+                        )}{' '}
                         {subtitlesOn && e.status === 'downloaded' && (
                           <button onClick={() => setSubsOpen(subsOpen === e.id ? null : e.id)}>Subtitles</button>
                         )}

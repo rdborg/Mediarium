@@ -80,6 +80,11 @@ func (s *Server) TestSubtitleSweepJob(ctx context.Context) { s.subtitleSweepJob(
 func (s *Server) TestScriptsDir() string            { return s.scriptsDir() }
 func (s *Server) TestNotifyImported(it notify.Item) { s.notifyItem("imported", it) }
 
+// TestSetMovieAddedAt changes when a movie joined the library.
+func (s *Server) TestSetMovieAddedAt(id int64, at time.Time) {
+	_, _ = s.db.Exec(`UPDATE movies SET added_at = ? WHERE id = ?`, at.UTC().Format(time.RFC3339), id)
+}
+
 // TestAgeSubtitleFiles makes the saved subtitles look downloaded and checked d ago.
 func (s *Server) TestAgeSubtitleFiles(d time.Duration) {
 	at := time.Now().Add(-d).UTC().Format("2006-01-02T15:04:05.000Z")

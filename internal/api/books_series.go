@@ -283,6 +283,10 @@ func (s *Server) addSeriesBooks(ctx context.Context, f books.FollowedSeries, by 
 			if have.SeriesName == "" {
 				_ = s.BookRepo.SetSeries(have.ID, series.Name, e.Position)
 			}
+			// A release date that moved (a book postponed) is kept up to date.
+			if e.ReleaseDate != "" && e.ReleaseDate != have.ReleaseDate {
+				_ = s.BookRepo.SetReleaseDate(have.ID, e.ReleaseDate)
+			}
 			continue
 		}
 		b, err := s.BookRepo.Add(books.Book{OLKey: e.Key, Title: e.Title, Author: e.Author, AuthorKey: e.AuthorKey, Year: e.Year, CoverID: e.CoverID,

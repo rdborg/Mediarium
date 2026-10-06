@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -273,6 +274,24 @@ func convertKF8(p *pdb, h *header, meta Metadata) (*epubBook, error) {
 		parts = []kf8Part{{name: "part0000.xhtml", start: 0, end: len(text), text: text}}
 	}
 
+	// The ids in each part, found once: scanning the part again for every
+	// link made books with many links very slow.
+	type idAt struct {
+		end int
+		id  string
+	}
+	partIDs := make([][]idAt, len(parts))
+	idsOf := func(i int) []idAt {
+		if partIDs[i] == nil {
+			found := []idAt{}
+			for _, m := range idAttr.FindAllSubmatchIndex(parts[i].text, -1) {
+				found = append(found, idAt{end: m[1], id: string(parts[i].text[m[2]:m[3]])})
+			}
+			partIDs[i] = found
+		}
+		return partIDs[i]
+	}
+
 	// Where a kindle:pos link points: the part holding that place, and the
 	// nearest id at or before it.
 	target := func(fid, off int) string {
@@ -280,7 +299,7 @@ func convertKF8(p *pdb, h *header, meta Metadata) (*epubBook, error) {
 			return parts[0].name
 		}
 		pos := frags[fid].insert + off
-		for _, pt := range parts {
+		for pi, pt := range parts {
 			if pos < pt.start || pos >= pt.end {
 				continue
 			}
@@ -293,8 +312,10 @@ func convertKF8(p *pdb, h *header, meta Metadata) (*epubBook, error) {
 					n += gt + 1
 				}
 			}
-			if all := idAttr.FindAllSubmatch(pt.text[:n], -1); len(all) > 0 {
-				return pt.name + "#" + string(all[len(all)-1][1])
+			ids := idsOf(pi)
+			// The last id that ends at or before n.
+			if k := sort.Search(len(ids), func(k int) bool { return ids[k].end > n }); k > 0 {
+				return pt.name + "#" + ids[k-1].id
 			}
 			return pt.name
 		}

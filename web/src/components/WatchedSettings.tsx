@@ -39,6 +39,8 @@ export default function WatchedSettings() {
   const [tags, setTags] = useState('')
   const [busy, setBusy] = useState('')
   const [preview, setPreview] = useState<LibraryCleanupItem[] | null>(null)
+  // The rules the preview was made with: "Remove these now" only runs them.
+  const [previewRules, setPreviewRules] = useState('')
 
   const load = useCallback(() => {
     api
@@ -162,8 +164,10 @@ export default function WatchedSettings() {
               disabled={!!busy || !anyRule}
               onClick={() =>
                 void run('preview', async () => {
-                  const p = await api.cleanupPreview(draft())
+                  const rules = draft()
+                  const p = await api.cleanupPreview(rules)
                   setPreview(p.items)
+                  setPreviewRules(JSON.stringify(rules))
                 })
               }
             >
@@ -217,14 +221,15 @@ export default function WatchedSettings() {
                       </li>
                     ))}
                   </ul>
+                  {previewRules !== JSON.stringify(draft()) && <p className="hint">The rules changed since this preview. Press Preview again before removing anything.</p>}
                   <button
                     className="btn-sm danger-ghost btn-with-icon"
-                    disabled={!!busy}
+                    disabled={!!busy || previewRules !== JSON.stringify(draft())}
                     onClick={() =>
                       void run('run', async () => {
                         if (!(await confirm({ title: 'Remove these now?', body: 'The files of the titles listed are deleted now (into the recycle bin when it is on).', confirmLabel: 'Remove now', danger: true })))
                           return
-                        await api.putWatchedSettings({ cleanup: draft() })
+                        await api.putWatchedSettings({ cleanup: JSON.parse(previewRules) })
                         const r = await api.runLibraryCleanup()
                         toast.success(`Removed ${r.removed.length} ${r.removed.length === 1 ? 'title' : 'titles'}${r.failed.length ? `, ${r.failed.length} couldn't be removed` : ''}.`)
                         setPreview(null)

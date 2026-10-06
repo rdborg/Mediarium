@@ -143,6 +143,9 @@ var (
 	// or "Title.E1085" without a season.
 	leadingGroupRe = regexp.MustCompile(`^\[([^\]]{1,40})\][.\s_]*`)
 	absoluteDashRe = regexp.MustCompile(`\.-\.(\d{1,4})(?:v\d)?(?:-(\d{1,4})(?:v\d)?)?(?:\.|\[|\(|$)`)
+	// seasonDashRe is the anime way of naming a later season's episode:
+	// "Show S2 - 05" (spaces are dots by then).
+	seasonDashRe   = regexp.MustCompile(`(?i)\bS(\d{1,2})\.-\.(\d{1,3})(?:v\d)?(?:-(\d{1,3})(?:v\d)?)?(?:\.|\[|\(|$)`)
 	absoluteERe    = regexp.MustCompile(`(?i)\.E(\d{2,4})(?:v\d)?(?:\.|\[|\(|$)`)
 	leadingDigitRe = regexp.MustCompile(`^(\d{1,3})`)
 )
@@ -195,9 +198,12 @@ func Parse(name string) Release {
 	name = stripExtension(name)
 	var r Release
 	// "[SubsPlease] Show - 01 (1080p) [ABCD1234]": the group comes first.
+	// A group at the end ("-ETHEL") still wins: a leading bracket can also
+	// be a site's tag ("[ www.example.org ] - Show.S01E01...-ETHEL").
+	leading := ""
 	if m := leadingGroupRe.FindStringSubmatch(name); m != nil {
-		r.Group = strings.TrimSpace(m[1])
-		name = name[len(m[0]):]
+		leading = strings.TrimSpace(m[1])
+		name = strings.TrimLeft(name[len(m[0]):], "-. _")
 	}
 	working := strings.ReplaceAll(name, "_", ".")
 	working = strings.ReplaceAll(working, " ", ".")
@@ -243,9 +249,30 @@ func Parse(name string) Release {
 		}
 	}
 
+	// "Show S2 - 05": season 2, episode 5, not a season pack.
+	if r.Season > 0 && len(r.Episodes) == 0 {
+		if m := seasonDashRe.FindStringSubmatch(working); m != nil && atoi(m[1]) == r.Season {
+			first, last := atoi(m[2]), atoi(m[2])
+			if m[3] != "" && atoi(m[3]) >= first && atoi(m[3])-first < 500 {
+				last = atoi(m[3])
+			}
+			for e := first; e <= last && first > 0; e++ {
+				r.Episodes = append(r.Episodes, e)
+			}
+			if len(r.Episodes) > 0 {
+				r.Episode = r.Episodes[0]
+			}
+		}
+	}
+
 	// Anime numbering, only when the name has no season marker.
 	if r.Season == 0 && r.AirDate == "" {
-		if loc := absoluteDashRe.FindStringSubmatchIndex(working); loc != nil {
+		if loc := absoluteDashRe.FindStringSubmatchIndex(working); loc != nil && halfEpisode(working, loc[1]) {
+			// A recap ("- 12.5"): no episode number, but the title still ends here.
+			if loc[0] < titleEnd {
+				titleEnd = loc[0]
+			}
+		} else if loc != nil {
 			first := atoi(working[loc[2]:loc[3]])
 			last := first
 			if loc[4] >= 0 {
@@ -273,10 +300,13 @@ func Parse(name string) Release {
 
 	// The release group is the last thing in the name, and only counts after
 	// something else was read: "Spider-Man" has no group.
-	if loc := groupRe.FindStringSubmatchIndex(working); r.Group == "" && loc != nil && titleEnd < loc[0] {
+	if loc := groupRe.FindStringSubmatchIndex(working); loc != nil && titleEnd < loc[0] {
 		if g := working[loc[2]:loc[3]]; !notGroupRe.MatchString(g) {
 			r.Group = g
 		}
+	}
+	if r.Group == "" {
+		r.Group = leading
 	}
 
 	if titleEnd < 0 || titleEnd > len(working) {
@@ -415,4 +445,10 @@ func normalizeAudio(s string) string {
 func atoi(s string) int {
 	n, _ := strconv.Atoi(s)
 	return n
+}
+
+// halfEpisode reports whether the number a match ended on goes on with a
+// decimal part: "- 12.5" is a recap between episodes 12 and 13, not 12.
+func halfEpisode(working string, end int) bool {
+	return end > 0 && end < len(working) && working[end-1] == '.' && working[end] >= '0' && working[end] <= '9'
 }

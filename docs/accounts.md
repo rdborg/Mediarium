@@ -42,7 +42,7 @@ The [HTTP API reference](./reference/api.md) marks every route as **public**, **
 When you add or edit a basic user, **Permissions** lets you choose what they may do. Everything is on to start with, which is what a basic user could always do, so you only switch off what you don't want:
 
 - **They can add or ask for:** Movies, TV shows, Music, Books (only the types switched on are listed). A type that's off can't be added or asked for at all.
-- **Add titles themselves.** Off: what they add becomes a **request** instead (see below). Good for children's accounts.
+- **Add titles themselves.** Off: what they add becomes a **request** instead (see below). Good for children's accounts. Without it they also can't follow a book series or an author (that adds books by itself), and picking a release in Search only works for titles already in the library.
 - **Pick releases.** Search your indexers and choose what to download.
 - **Search now and monitoring.** Start searches, change what is monitored and the tags, follow authors and series.
 - **Retry downloads.** Try a failed or stopped download again.
@@ -55,7 +55,7 @@ Buttons for things an account may not do are hidden, and the server refuses them
 
 A basic user without **Add titles themselves** still sees Discover and the search box, but their Add button says **Request**. What they pick is kept as a request, exactly as they chose it (quality, formats and so on), and they're told it was sent to an administrator.
 
-- **Activity > Requests** lists them. Admins see everyone's, with **Approve** (the title is added for that person, as they asked, and the library says who asked) and **Decline** (with an optional note the person sees). Everyone else sees their own, and can take back a request that is still waiting.
+- **Activity > Requests** lists them. Admins see everyone's, with **Approve** (the title is added for that person, as they asked, and the library says who asked) and **Decline** (with an optional note the person sees). Everyone else sees their own, and can take back a request that is still waiting. Asking twice for the same title is refused; two titles that only share a name (Dune from 1984 and from 2021) are separate requests. A request whose kind of media has been switched off waits until it is switched on again. For music, "Only this album" is part of the request, so approving it adds the artist with just that album.
 - New requests can reach you by notification: tick **Requests** on a notification under Settings > Connections > Notifications.
 - Asking twice for the same title, or for something already in the library, is refused with a message.
 
@@ -100,7 +100,7 @@ Two rules stop you from locking yourself out:
 
 ## Signing in through your reverse proxy
 
-If a proxy such as Authelia or Authentik already asks everyone to log in, Mediarium can take the user name from it so nobody signs in twice. It is off by default and set under **Sign in through your reverse proxy** on this page. The names must match the accounts here. See [security.md](./security.md#sign-in-through-your-reverse-proxy).
+If a proxy such as Authelia or Authentik already asks everyone to log in, Mediarium can take the user name from it so nobody signs in twice. It is off by default and set under **Sign in through your reverse proxy** on this page, with the header name and your proxy's address. The names must match the accounts here. See [security.md](./security.md#sign-in-through-your-reverse-proxy).
 
 ## A forgotten administrator password
 

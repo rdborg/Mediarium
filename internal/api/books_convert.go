@@ -45,6 +45,11 @@ func (s *Server) convertedDir() string { return filepath.Join(s.cfg.ConfigDir, "
 // convertedEPUB returns the EPUB copy of a Kindle book file, making it when
 // there isn't one for this version of the file yet.
 func (s *Server) convertedEPUB(full string, info os.FileInfo) (string, error) {
+	// The same file can be reached through a link in the library path; the
+	// copy is named after where it really is, so every way finds it.
+	if real, err := filepath.EvalSymlinks(full); err == nil {
+		full = real
+	}
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%d", full, info.Size(), info.ModTime().UnixNano())))
 	out := filepath.Join(s.convertedDir(), hex.EncodeToString(sum[:12])+".epub")
 	if _, err := os.Stat(out); err == nil {

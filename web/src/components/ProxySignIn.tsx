@@ -11,6 +11,7 @@ export default function ProxySignIn() {
   const toast = useToast()
   const [state, setState] = useState<State | null>(null)
   const [header, setHeader] = useState('')
+  const [addresses, setAddresses] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,17 +21,19 @@ export default function ProxySignIn() {
       .then((s) => {
         setState(s)
         setHeader(s.header)
+        setAddresses(s.addresses || s.from)
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }, [])
 
-  async function save(next: string) {
+  async function save(next: string, from: string) {
     setBusy(true)
     setError('')
     try {
-      const s = await api.putProxySignIn(next.trim())
+      const s = await api.putProxySignIn(next.trim(), from.trim())
       setState(s)
       setHeader(s.header)
+      setAddresses(s.addresses || s.from)
       toast.success(s.header ? `Sign-in through your proxy is on, using ${s.header}.` : 'Sign-in through your proxy is off.')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -48,7 +51,7 @@ export default function ProxySignIn() {
       <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>
         Only for a proxy that asks for the login itself, such as Authelia, Authentik or Cloudflare Access. It can pass the signed-in user name on in a
         header, and Mediarium signs that account in without its own sign-in page. A plain reverse proxy (like the one on a Synology) doesn&apos;t need
-        this: leave it off. Mediarium only believes the header from a proxy listed in TRUSTED_PROXIES, and the name has to match an account here.{' '}
+        this: leave it off. Mediarium only believes the header when it comes straight from your proxy's address, and the name has to match an account here.{' '}
         <a href={`${DOCS_URL}/security.md#sign-in-through-your-reverse-proxy`} target="_blank" rel="noreferrer">
           How to set it up
         </a>
@@ -58,11 +61,19 @@ export default function ProxySignIn() {
           <span>Header with the user name</span>
           <input value={header} placeholder="Remote-User" onChange={(e) => setHeader(e.target.value)} disabled={busy || state === null} />
         </label>
-        <button className="primary" onClick={() => void save(header)} disabled={busy || state === null || header.trim() === (state?.header ?? '')}>
+        <label style={{ display: 'grid', gap: 4, flex: '1 1 220px', maxWidth: 320 }}>
+          <span>Your proxy&apos;s address</span>
+          <input value={addresses} placeholder="172.18.0.5" onChange={(e) => setAddresses(e.target.value)} disabled={busy || state === null} />
+        </label>
+        <button
+          className="primary"
+          onClick={() => void save(header, addresses)}
+          disabled={busy || state === null || (header.trim() === (state?.header ?? '') && addresses.trim() === (state?.addresses ?? ''))}
+        >
           {on ? 'Save' : 'Turn on'}
         </button>
         {on && (
-          <button onClick={() => void save('')} disabled={busy}>
+          <button onClick={() => void save('', '')} disabled={busy}>
             Turn off
           </button>
         )}
@@ -70,7 +81,7 @@ export default function ProxySignIn() {
       {state && (
         <p className="hint" style={{ marginBottom: 0 }}>
           {!state.viaTrustedProxy
-            ? 'This page did not come through a trusted proxy, so the header would be ignored for you right now.'
+            ? `This page came from ${state.from}${on ? ", which isn't the proxy address above, so the header is ignored for you right now" : ''}. Open Mediarium through your proxy to see its address here.`
             : on
               ? state.seen
                 ? `Your proxy sent ${state.header}: ${state.seen}.`

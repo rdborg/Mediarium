@@ -10,7 +10,7 @@ import Switch from '../components/Switch'
 import { useToast } from '../components/Toast'
 import AuthorBooks from '../components/AuthorBooks'
 import BookSeries from '../components/BookSeries'
-import { audioDetails } from '../bookSeries'
+import { audioDetails, localDate } from '../bookSeries'
 import { useDocumentTitle } from '../documentTitle'
 import { useModules } from '../ModulesContext'
 import { useLive } from '../useLive'
@@ -89,7 +89,7 @@ export default function BookDetail() {
           <p className="title-tagline">
             {[book.author, book.year, book.seriesName && (book.seriesPosition ? `Book ${book.seriesPosition} of ${book.seriesName}` : book.seriesName)].filter(Boolean).join(' · ')}
           </p>
-          {book.releaseDate && book.releaseDate > new Date().toISOString().slice(0, 10) && (
+          {book.releaseDate && book.releaseDate > localDate(new Date()) && (
             <p className="notice notice-info" style={{ marginTop: 8 }}>
               Comes out on {new Date(book.releaseDate + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}. Mediarium starts looking for it then.
             </p>

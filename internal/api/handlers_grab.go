@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/rdborg/mediarium/internal/auth"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
@@ -119,6 +120,12 @@ func (s *Server) handleSearchGrab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, inLibrary, err := s.MovieRepo.GetByTMDBID(match.TMDBID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	} else if !inLibrary && !s.mayAddNew(w, r, auth.PermMovies) {
+		return
+	}
 	userID, _ := requester(r)
 	movie, err := s.findOrAddMovie(*match, userID)
 	if err != nil {

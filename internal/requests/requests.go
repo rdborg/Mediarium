@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -118,16 +117,6 @@ func (rp *Repo) Pending() (int, error) {
 		return 0, fmt.Errorf("count requests: %w", err)
 	}
 	return n, nil
-}
-
-// PendingFor reports whether by already asked for this title and is waiting.
-func (rp *Repo) PendingFor(by int64, kind, title string) (bool, error) {
-	var n int
-	err := rp.db.QueryRow(`SELECT COUNT(*) FROM requests WHERE requested_by = ? AND kind = ? AND title = ? COLLATE NOCASE AND status = 'pending'`, by, kind, strings.TrimSpace(title)).Scan(&n)
-	if err != nil {
-		return false, fmt.Errorf("check requests: %w", err)
-	}
-	return n > 0, nil
 }
 
 // Decide records an administrator's answer.

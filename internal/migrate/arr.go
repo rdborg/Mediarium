@@ -86,6 +86,7 @@ type arrSeries struct {
 	Path             string         `json:"path"`
 	RootFolderPath   string         `json:"rootFolderPath"`
 	QualityProfileID int            `json:"qualityProfileId"`
+	SeriesType       string         `json:"seriesType"` // Sonarr: standard, daily or anime
 	Seasons          []arrSeason    `json:"seasons"`
 	Statistics       arrSeriesStats `json:"statistics"`
 }

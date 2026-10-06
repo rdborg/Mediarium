@@ -47,7 +47,7 @@ What is thin or missing: the things that make the *arr apps manageable at scale 
 | Import lists (automatic add from a list) | **Partial** | `GET /api/discover/import-list` browses a public Trakt list you paste, then you add titles by hand; nothing syncs on a schedule (`internal/trakt`) | Rad, Son |
 | List exclusions | **Yes** | "Not interested" on Discover (`/api/exclusions`) | Rad, Son |
 | Season packs, multi-episode releases | **Yes** | `internal/parser`, `pipeline_tv.go`, `automation_tv.go`; a grab marks the episodes it will deliver as downloading when it is queued, and automatic searches never grab an episode that is already downloading, so a pack's episodes are only tried singly after the pack failed (`grab_claim.go`) | Son |
-| Anime / absolute numbering / daily shows / series types | **No** | parser only handles `SxxEyy` forms; TV specials are excluded (`metadata/tv.go`) | Son |
+| Anime / absolute numbering / daily shows / series types | **Yes** | a show's episode numbering is standard, anime (absolute numbers) or daily (air dates), guessed when it is added (`internal/api/series_type.go`, parser `Absolute`/`AirDate`); specials are listed but not looked for yet | Son |
 | Minimum availability / release-date gating for movies | **Partial** | unreleased movies are skipped using the TMDB release date (`unreleased()` in `automation.go`); not configurable | Rad |
 | Editions, movie collections | **No** | not found | Rad |
 | Media management: recycle bin | **Yes** | removed files wait in `.mediarium-trash` inside the library folder for 7 days, with Put back (`/api/trash`) | Rad, Son |
@@ -204,7 +204,7 @@ Effort: **S** = days or less, **M** = about 1 to 2 weeks, **L** = weeks. Priorit
 |---|---|---|
 | 19 | ~~Download scheduling~~ **Done**: download hours (see [downloads.md](./downloads.md#speed-and-space)) and post-processing scripts (see [scripts.md](./scripts.md)) | M |
 | 20 | OIDC / reverse-proxy header auth | M |
-| 21 | ~~Anime handling (absolute numbering, series types, daily shows)~~ **Done** and specials (see [library.md](./library.md#anime-and-daily-shows)) | M to L |
+| 21 | ~~Anime handling (absolute numbering, series types, daily shows)~~ **Done**, and specials are listed (not looked for yet; see [library.md](./library.md#anime-and-daily-shows)) | M to L |
 | 22 | Subtitle ~~sync~~ **Done** (shift and line up with another subtitle; see [subtitles.md](./subtitles.md#fixing-a-subtitle-that-is-out-of-time)). Still open: upgrades | M |
 | 23 | Quality size limits, editions, movie collections | M |
 | 24 | ~~Bulk rename of an existing library~~ **Done**: Rename existing files (see [library.md](./library.md#renaming-existing-files)) | M |

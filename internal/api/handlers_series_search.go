@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/rdborg/mediarium/internal/auth"
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
@@ -27,7 +28,9 @@ var (
 // sides carry one — plenty of TV releases omit the year entirely.
 func matchesShow(releaseTitle string, series library.Series) bool {
 	rel := parser.Parse(releaseTitle)
-	if rel.Year != 0 && series.Year != 0 && rel.Year != series.Year {
+	// A daily show's air date carries a year too ("Show.2024.03.15"): that
+	// is the episode's, not the show's.
+	if rel.Year != 0 && series.Year != 0 && rel.Year != series.Year && rel.AirDate == "" {
 		return false
 	}
 	return normalizeTitle(rel.Title) == normalizeTitle(series.Title)
@@ -57,8 +60,12 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	season, _ := strconv.Atoi(r.URL.Query().Get("season"))
 	episode, _ := strconv.Atoi(r.URL.Query().Get("episode"))
+	if season == 0 && r.URL.Query().Get("season") == "0" {
+		writeError(w, http.StatusBadRequest, "Mediarium can't search for specials yet.")
+		return
+	}
 	if season <= 0 {
-		writeError(w, http.StatusBadRequest, "season is required")
+		writeError(w, http.StatusBadRequest, "Choose a season to search.")
 		return
 	}
 	series, err := s.MovieRepo.GetSeries(id)
@@ -154,6 +161,9 @@ func (s *Server) grabFromSearchTV(w http.ResponseWriter, r *http.Request, req gr
 		return
 	}
 	if !ok {
+		if !s.mayAddNew(w, r, auth.PermTV) {
+			return
+		}
 		userID, byline := requester(r)
 		series, err = s.addSeriesFromTMDB(r.Context(), match.TMDBID, userID, true)
 		if err != nil {

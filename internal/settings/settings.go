@@ -154,7 +154,8 @@ const (
 	KeyCleanupRules  = "cleanup.rules"  // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
 
 	// Sign-in through a reverse proxy (Settings > Accounts). See docs/security.md.
-	KeyAuthProxyHeader = "auth.proxy_header" // the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key
+	KeyAuthProxyHeader    = "auth.proxy_header"    // the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key
+	KeyAuthProxyAddresses = "auth.proxy_addresses" // where that proxy connects from: IP addresses or CIDR ranges, comma-separated ("private" is refused). The header is only believed from these
 
 	// A script to run after each import (Settings > System > Scripts). See docs/scripts.md.
 	KeyScriptAfterImport = "scripts.after_import" // JSON: script (a file name in /config/scripts; empty = off) and timeoutSec (default 300). Only a signed-in browser session can set it, not an API key

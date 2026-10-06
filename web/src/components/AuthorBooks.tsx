@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, type BookFound } from '../api'
+import { api, can, type BookFound } from '../api'
+import { useAuth } from '../AuthContext'
 import { useModules } from '../ModulesContext'
 import { useGridColumns } from '../useGridColumns'
 import { BookAddDialog, BookCard } from './BookDiscover'
@@ -16,6 +17,9 @@ export default function AuthorBooks({ authorKey, author, exclude }: { authorKey:
   const cols = useGridColumns(grid)
   const [works, setWorks] = useState<BookFound[] | null>(null)
   const [followed, setFollowed] = useState(false)
+  // Following adds books by itself, so it needs "add titles themselves" too.
+  const me = useAuth().user
+  const mayFollow = can(me, 'manage') && can(me, 'addDirect')
   const [rows, setRows] = useState(1)
   const [adding, setAdding] = useState<BookFound | null>(null)
   const [busy, setBusy] = useState(false)
@@ -64,7 +68,7 @@ export default function AuthorBooks({ authorKey, author, exclude }: { authorKey:
     <section className="discover-rail author-books">
       <div className="rail-head">
         <h2>More by {author}</h2>
-        <Switch checked={followed} onChange={(v) => void follow(v)} disabled={busy} label="Follow this author" description="New books by them are added and looked for by themselves." />
+        {mayFollow && <Switch checked={followed} onChange={(v) => void follow(v)} disabled={busy} label="Follow this author" description="New books by them are added and looked for by themselves." />}
       </div>
       <div className="poster-grid" ref={grid}>
         {works === null

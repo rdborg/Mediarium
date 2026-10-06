@@ -78,6 +78,9 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 			bySeason[ep.Season] = append(bySeason[ep.Season], ep)
 		}
 		for _, season := range order {
+			if season == 0 {
+				continue // specials: listed, but not looked for (yet)
+			}
 			if scope.season != 0 && season != scope.season {
 				continue
 			}
@@ -185,15 +188,17 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 		return filterSources(dropBlocked(rawSearcher(series, season, episode), blocked), s.sourcesFor(series.SourcePref))
 	}
 
-	grab := func(series library.Series, season int, best *indexers.Result) (bool, []int) {
-		if _, err := s.grabTV(series, season, 0, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(scope.force)); err != nil {
+	// grab queues best for season (and episode, 0 for a season pack) and
+	// returns the episodes it covers, read the way the show numbers them.
+	grab := func(series library.Series, season, episode int, best *indexers.Result) (bool, []int) {
+		if _, err := s.grabTV(series, season, episode, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(scope.force)); err != nil {
 			if !errors.Is(err, errAlreadyGrabbed) && !errors.Is(err, errBlocklisted) {
 				log.Printf("automation: %s: tv grab %q for %q: %v", logPrefix, best.Title, series.Title, err)
 			}
 			return false, nil
 		}
 		grabs++
-		return true, parser.Parse(best.Title).Episodes
+		return true, parseFor(s.releaseMapper(series), best.Title).Episodes
 	}
 
 	for _, w := range wants {
@@ -203,7 +208,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 		}
 		if w.wholeSeason {
 			if best := pickTVResult(searcher(w.series, w.season, 0), w.series, w.season, 0, w.profile, nil, s.releaseMapper(w.series)); best != nil {
-				if ok, _ := grab(w.series, w.season, best); ok {
+				if ok, _ := grab(w.series, w.season, 0, best); ok {
 					s.noteFallbackGrab(0, w.series.ID, w.series.Title, w.profile, best.Title)
 					continue
 				}
@@ -222,7 +227,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 			if best == nil {
 				continue
 			}
-			_, grabbed := grab(w.series, w.season, best)
+			_, grabbed := grab(w.series, w.season, ep.Episode, best)
 			if len(grabbed) > 0 {
 				s.noteFallbackGrab(0, w.series.ID, w.series.Title, w.profile, best.Title)
 			}
@@ -242,7 +247,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 		if best == nil {
 			continue
 		}
-		grab(u.series, u.episode.Season, best)
+		grab(u.series, u.episode.Season, u.episode.Episode, best)
 	}
 	return grabs
 }

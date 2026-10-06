@@ -462,7 +462,11 @@ func (s *Server) huntBooks(ctx context.Context) {
 		return
 	}
 	n := 0
+	now := time.Now()
 	for _, b := range wanted {
+		if !b.Released(now) {
+			continue // not out yet: it doesn't take one of the searches
+		}
 		for _, f := range []books.Format{books.Ebook, books.Audiobook} {
 			if n >= 10 {
 				return

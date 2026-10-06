@@ -33,6 +33,7 @@ type Permissions struct {
 
 // Permission names used by the route table.
 const (
+	PermAddDirect = "addDirect" // add titles without asking
 	PermReleases  = "releases"
 	PermManage    = "manage"
 	PermRetry     = "retry"
@@ -52,6 +53,8 @@ func DefaultPermissions() Permissions {
 // Allows reports whether p includes the named permission.
 func (p Permissions) Allows(name string) bool {
 	switch name {
+	case PermAddDirect:
+		return p.AddDirect
 	case PermReleases:
 		return p.Releases
 	case PermManage:

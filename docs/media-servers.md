@@ -189,13 +189,15 @@ Under the list of servers, **What's been watched** is a switch, **off** until yo
 Once **What's been watched** is on, **Cleanup rules** can free up space. Each rule has its own switch and a number of days:
 
 - **Movies watched a while ago**: a movie last watched that many days ago.
-- **Movies nobody watched**: a movie never watched, that many days after it was added.
+- **Movies nobody watched**: a movie never watched, that many days after it arrived (downloaded, or added to the library, whichever is later). A movie you asked for months ago and got yesterday is new.
 - **Episodes watched a while ago**: an episode last watched that many days ago.
 - **Always keep titles tagged**: tags (for example `Keep, Kids`) that protect a movie or a whole show from every rule.
 
 **Preview** lists what the rules match right now and changes nothing. **Remove these now** removes the previewed titles straight away. **Run once a day** (off by default, and it asks first) applies the rules every day.
 
-What a removal does: the title's files are deleted, or moved to the recycle bin when it is on (Settings > System). The title stays in your library as missing and stops being looked for, so it isn't downloaded again; switch monitoring back on to get it again. Every removal is written to Activity. A run removes at most 50 titles, and nothing runs when what's been watched hasn't been read in the last two days.
+What is never removed: a title with a keep tag; a movie or episode downloaded again after it was last watched (someone wants to see it again); a title the media server marks as watched without saying when; and a file holding several episodes unless every one of them matches.
+
+What a removal does: the title's files are deleted, or moved to the recycle bin when it is on (Settings > System). The title stays in your library as missing and stops being looked for, so it isn't downloaded again; switch monitoring back on to get it again. Every removal is written to Activity. For an episode only its own file and the files named after it go, never the show's folder. A run removes at most 50 titles, the ones that have waited longest first. Nothing runs unless what's been watched was read from every media server in the last two days: if one of them doesn't answer, cleanup waits, because its plays would be missing. **Remove these now** removes exactly what the preview listed; change a rule and it asks for a new preview.
 
 ## Troubleshooting
 

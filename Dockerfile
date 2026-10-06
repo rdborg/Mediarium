@@ -108,7 +108,9 @@ LABEL org.opencontainers.image.version="${VERSION}" \
 # shells out to. p7zip is only used for .7z archives: RAR and
 # ZIP are unpacked natively in Go (Alpine's 7z has no RAR codec, so it could
 # not be relied on for RAR anyway).
-RUN apk add --no-cache ca-certificates tzdata su-exec par2cmdline p7zip
+# tini runs as process 1 and cleans up processes that end without a parent
+# (for example ones a post-import script left behind).
+RUN apk add --no-cache ca-certificates tzdata su-exec par2cmdline p7zip tini
 
 # Default UID/GID, overridable via PUID/PGID at runtime
 ENV PUID=1000 \
@@ -136,4 +138,4 @@ HEALTHCHECK --interval=30s --timeout=8s --start-period=90s --retries=3 \
   CMD wget -q -T 5 -O /dev/null "http://127.0.0.1:${APP_PORT:-8264}/api/version" || exit 1
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["/app/app"]
+CMD ["/sbin/tini", "--", "/app/app"]

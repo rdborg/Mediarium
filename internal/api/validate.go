@@ -151,6 +151,3 @@ func checkAbsPath(v, example string) string { return inputcheck.AbsPath(v, examp
 
 // checkAPIKey wants one unbroken string, the way keys and tokens are.
 func checkAPIKey(v string) string { return inputcheck.APIKey(v) }
-
-// validEmail reports whether an address passes checkEmail's format rule.
-func validEmail(v string) bool { return inputcheck.ValidEmail(v) }

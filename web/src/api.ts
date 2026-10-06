@@ -1715,7 +1715,9 @@ export interface WatchedTitle {
 // Sign-in through a reverse proxy (Settings > Accounts).
 export interface ProxySignIn {
   header: string // "" = off
-  viaTrustedProxy: boolean // this request came through a proxy in TRUSTED_PROXIES
+  addresses: string // where the proxy connects from (addresses or CIDR ranges)
+  from: string // the address this page came from
+  viaTrustedProxy: boolean // this request came from the proxy named in addresses
   seen: string // what the proxy put in the header for this request
 }
 
@@ -1965,7 +1967,7 @@ export const api = {
   searchNowBook: (id: number, format: BookFormat) => post<{ grabbed: number; message: string }>(`/books/${id}/search?format=${format}`),
   listArtists: () => get<MusicArtist[]>('/music/artists'),
   getArtist: (id: number) => get<MusicArtist>(`/music/artists/${id}`),
-  addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean }) => post<MusicArtist | Requested>('/music/artists', data),
+  addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean; albumMbid?: string; albumTitle?: string }) => post<MusicArtist | Requested>('/music/artists', data),
   updateArtist: (id: number, changes: { monitored?: boolean; profileId?: number }) => put<MusicArtist>(`/music/artists/${id}`, changes),
   deleteArtist: (id: number, deleteFiles: boolean) => del<null>(`/music/artists/${id}?deleteFiles=${deleteFiles}`),
   getAlbum: (id: number) => get<MusicAlbum>(`/music/albums/${id}`),
@@ -2044,7 +2046,7 @@ export const api = {
   cleanupPreview: (rules: CleanupRules) => get<{ items: LibraryCleanupItem[]; limit: number }>(`/watched/cleanup/preview?${new URLSearchParams({ rules: JSON.stringify(rules) })}`),
   runLibraryCleanup: () => post<{ removed: LibraryCleanupItem[]; failed: LibraryCleanupItem[]; more: number }>('/watched/cleanup/run', {}),
   watched: () => get<{ movies: Record<string, WatchedTitle>; series: Record<string, WatchedTitle> }>('/watched'),
-  putProxySignIn: (header: string) => put<ProxySignIn>('/auth/proxy-signin', { header }),
+  putProxySignIn: (header: string, addresses: string) => put<ProxySignIn>('/auth/proxy-signin', { header, addresses }),
   restartApp: (safe = false) => post<{ ok: boolean; restarting: boolean; safe: boolean }>(`/system/restart${safe ? '?safe=true' : ''}`),
   shutdownApp: () => post<{ ok: boolean }>('/system/shutdown'),
   movieEvents: (id: number) => get<TitleEvent[]>(`/movies/${id}/events`),

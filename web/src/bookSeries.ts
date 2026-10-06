@@ -13,7 +13,13 @@ export function releaseLabel(date: string, locale?: string): string {
   return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export function entryMeta(e: SeriesEntryLike, today = new Date().toISOString().slice(0, 10), locale?: string): string {
+// localDate is a day as YYYY-MM-DD in this browser's time zone (toISOString
+// would give the UTC day, a day off in the evening or early morning).
+export function localDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export function entryMeta(e: SeriesEntryLike, today = localDate(new Date()), locale?: string): string {
   const ahead = e.releaseDate && e.releaseDate > today ? releaseLabel(e.releaseDate, locale) : ''
   const when = ahead ? `out ${ahead}` : e.year ? String(e.year) : ''
   return [`Book ${e.position}`, when].filter(Boolean).join(' · ')

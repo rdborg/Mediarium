@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { audioDetails, entryMeta } from './bookSeries.ts'
+import { audioDetails, entryMeta, localDate } from './bookSeries.ts'
 
 test('the line under a book of a series', () => {
   const today = '2026-10-05'
@@ -25,4 +25,9 @@ test('the line about an audiobook', () => {
     [undefined, undefined, ''],
   ]
   for (const [n, m, want] of cases) assert.equal(audioDetails(n, m), want)
+})
+
+test('a day is the local day, not the UTC one', () => {
+  assert.equal(localDate(new Date(2026, 9, 6, 23, 30)), '2026-10-06')
+  assert.equal(localDate(new Date(2026, 0, 1, 0, 15)), '2026-01-01')
 })

@@ -342,10 +342,16 @@ func (im *Importer) importRequest(ctx context.Context, rq requestPlan) (outcome,
 	for i, e := range infos {
 		eps[i] = library.Episode{Season: e.Season, Episode: e.Episode, Title: e.Name, Overview: e.Overview, AirDate: e.AirDate}
 	}
+	var genreIDs []int
+	var genreNames []string
+	for _, g := range detail.Genres {
+		genreIDs, genreNames = append(genreIDs, g.ID), append(genreNames, g.Name)
+	}
 	series, err := lib.AddSeries(library.Series{
 		TMDBID: detail.TMDBID, Title: detail.Name, Year: detail.Year(), Overview: detail.Overview,
 		PosterPath: detail.PosterPath, FirstAirDate: detail.FirstAirDate, Monitored: true,
-		Genres: tmdb.ShowGenres(ctx, detail.Show),
+		Genres:     tmdb.ShowGenres(ctx, detail.Show),
+		SeriesType: library.GuessSeriesType(genreIDs, genreNames, detail.OriginCountry, detail.Type),
 	}, eps)
 	if err != nil {
 		return OutcomeFailed, err.Error()

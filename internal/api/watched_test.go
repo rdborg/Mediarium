@@ -58,6 +58,11 @@ func TestWatchedAndCleanup(t *testing.T) {
 		if err := os.WriteFile(file, []byte("video"), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		// Downloaded long before it was watched.
+		old := time.Now().AddDate(0, -6, 0)
+		if err := os.Chtimes(file, old, old); err != nil {
+			t.Fatal(err)
+		}
 		if err := server.MovieRepo.SetStatus(m.ID, library.StatusDownloaded, "Bluray-1080p", file); err != nil {
 			t.Fatal(err)
 		}

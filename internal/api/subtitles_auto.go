@@ -30,8 +30,7 @@ var errNoSubtitle = errors.New("no subtitle found")
 // searched for or downloaded.
 var errSubtitlesOff = errors.New("Subtitles are switched off. Turn them on in Settings > Info, lists and subtitles > Subtitles.")
 
-func pathBase(p string) string   { return filepath.Base(p) }
-func lowerASCII(s string) string { return strings.ToLower(s) }
+func pathBase(p string) string { return filepath.Base(p) }
 func sortSubtitleResults(r []subtitleResultPayload) {
 	sort.SliceStable(r, func(i, j int) bool { return r[i].Score > r[j].Score })
 }
@@ -260,6 +259,11 @@ func (s *Server) writeSubtitle(ctx context.Context, it subtitleItem, lang string
 	path := fmt.Sprintf("%s.%s.srt", subtitleBase(it.filePath), lang)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return "", fmt.Errorf("write subtitle file: %w", err)
+	}
+	// A copy kept by the timing tool belonged to the subtitle just replaced:
+	// "Put the original back" must not bring that one back.
+	if err := os.Remove(path + ".bak"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("subtitles: remove the old backup of %s: %v", filepath.Base(path), err)
 	}
 	s.recordSubtitle(it, lang, path, pick)
 	movieID := int64(0)

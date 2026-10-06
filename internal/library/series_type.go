@@ -3,6 +3,7 @@ package library
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // How a show's episodes are numbered in release names.
@@ -17,6 +18,31 @@ func ValidSeriesType(t string) string {
 	switch t {
 	case SeriesAnime, SeriesDaily:
 		return t
+	}
+	return SeriesStandard
+}
+
+// GuessSeriesType picks a type for a newly added show from what TMDB says
+// about it: Japanese animation is anime; talk shows and news are daily.
+// genreIDs and genreNames are its genres, countries where it was made, and
+// kind TMDB's type of show ("Talk Show", "News", "Scripted"...).
+func GuessSeriesType(genreIDs []int, genreNames, countries []string, kind string) string {
+	animation := false
+	for _, id := range genreIDs {
+		animation = animation || id == 16
+	}
+	for _, n := range genreNames {
+		animation = animation || strings.EqualFold(n, "Animation")
+	}
+	if animation {
+		for _, c := range countries {
+			if strings.EqualFold(c, "JP") {
+				return SeriesAnime
+			}
+		}
+	}
+	if strings.EqualFold(kind, "Talk Show") || strings.EqualFold(kind, "News") {
+		return SeriesDaily
 	}
 	return SeriesStandard
 }

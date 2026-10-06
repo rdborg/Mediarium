@@ -39,6 +39,9 @@ func sniffImage(b []byte) (ext, mime string) {
 	return "", ""
 }
 
+// maxFontSize is the most a font may unpack to; real ones are a few MB.
+const maxFontSize = 32 << 20
+
 // fontRecord unpacks a KF8 "FONT" record (zlib, sometimes with its first
 // bytes scrambled by a key).
 func fontRecord(rec []byte) ([]byte, string) {
@@ -46,6 +49,9 @@ func fontRecord(rec []byte) ([]byte, string) {
 		return nil, ""
 	}
 	usize := int(binary.BigEndian.Uint32(rec[4:]))
+	if usize > maxFontSize {
+		return nil, ""
+	}
 	flags := binary.BigEndian.Uint32(rec[8:])
 	dstart := int(binary.BigEndian.Uint32(rec[12:]))
 	xorLen := int(binary.BigEndian.Uint32(rec[16:]))

@@ -68,13 +68,6 @@ func (s *Server) quietHoursJob(context.Context) {
 	}
 }
 
-// heldCount is how many messages are waiting for the quiet hours to end.
-func (s *Server) heldCount() int {
-	s.held.mu.Lock()
-	defer s.held.mu.Unlock()
-	return len(s.held.events)
-}
-
 func quietHoursText(from, to int) string {
 	return strconv.Itoa(from) + "-" + strconv.Itoa(to)
 }

@@ -86,21 +86,36 @@ func convertMobi6(p *pdb, h *header, meta Metadata) (*epubBook, error) {
 			targets[n] = true
 		}
 	}
-	positions := make([]int, 0, len(targets))
-	for n := range targets {
-		positions = append(positions, n)
-	}
-	sort.Sort(sort.Reverse(sort.IntSlice(positions)))
-	for _, pos := range positions {
+	// Each anchor goes at its position, or just after the tag the position
+	// falls inside. All are placed in one pass over the text: inserting
+	// them one by one copied the whole book once per link.
+	type anchorAt struct{ at, pos int }
+	anchors := make([]anchorAt, 0, len(targets))
+	for pos := range targets {
 		at := pos
 		if insideTag(text, at) {
 			if gt := bytes.IndexByte(text[at:], '>'); gt >= 0 {
 				at += gt + 1
 			}
 		}
-		anchor := []byte(fmt.Sprintf(`<a id="filepos%d"></a>`, pos))
-		text = append(text[:at], append(anchor, text[at:]...)...)
+		anchors = append(anchors, anchorAt{at, pos})
 	}
+	sort.Slice(anchors, func(i, j int) bool {
+		if anchors[i].at != anchors[j].at {
+			return anchors[i].at < anchors[j].at
+		}
+		return anchors[i].pos < anchors[j].pos
+	})
+	var withAnchors bytes.Buffer
+	withAnchors.Grow(len(text) + len(anchors)*32)
+	last := 0
+	for _, a := range anchors {
+		withAnchors.Write(text[last:a.at])
+		fmt.Fprintf(&withAnchors, `<a id="filepos%d"></a>`, a.pos)
+		last = a.at
+	}
+	withAnchors.Write(text[last:])
+	text = withAnchors.Bytes()
 	text = fileposAttr.ReplaceAll(text, []byte(`href="#filepos$1"`))
 
 	res := newResources(p, firstResource(p, h))

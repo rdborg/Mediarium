@@ -174,8 +174,10 @@ func readSubtitleBackup(folder mediafiles.Folder, rel string) ([]byte, error) {
 		return nil, err
 	}
 	defer root.Close()
-	if _, _, err := folder.Open(rel); err != nil { // the same path checks as reading
+	f, _, err := folder.Open(rel) // the same path checks as reading
+	if err != nil {
 		return nil, err
 	}
+	f.Close()
 	return root.ReadFile(filepath.FromSlash(rel) + ".bak")
 }

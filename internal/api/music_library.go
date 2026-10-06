@@ -186,6 +186,9 @@ type addArtistRequest struct {
 	Monitor   string `json:"monitor"`   // all (default), future or none
 	ProfileID int64  `json:"profileId"` // 0 = the default music profile
 	SearchNow bool   `json:"searchNow"` // search for the monitored albums straight away
+	// AlbumMBID (with monitor "none") monitors just this album of the artist.
+	AlbumMBID  string `json:"albumMbid,omitempty"`
+	AlbumTitle string `json:"albumTitle,omitempty"` // for the request list only
 }
 
 // handleAddArtist adds an artist from MusicBrainz with its albums, EPs and
@@ -243,6 +246,17 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s added to the music library with %s%s", artist.Name, plural(len(albums), "release"), byline))
+	if want := strings.TrimSpace(req.AlbumMBID); want != "" {
+		for i, a := range albums {
+			if a.MBID == want && !a.Monitored {
+				if err := s.MusicRepo.SetAlbumMonitored(a.ID, true); err != nil {
+					writeError(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+				albums[i].Monitored = true
+			}
+		}
+	}
 	if req.SearchNow {
 		s.background(func() { s.searchArtistAlbums(artist.ID) })
 	}

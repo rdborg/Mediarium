@@ -349,6 +349,11 @@ export function installDemo() {
     }
 
     switch (true) {
+      // A sample title's history and files: there are none on this server.
+      case /^\/api\/(movies|series)\/\d+\/events$/.test(p):
+        return json([])
+      case /^\/api\/(movies|series)\/\d+\/files$/.test(p):
+        return json({ folder: '', files: [] })
       case p === '/api/movies':
         return json(movies)
       case /^\/api\/movies\/\d+$/.test(p):

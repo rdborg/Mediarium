@@ -45,8 +45,6 @@ func readPDB(data []byte) (*pdb, error) {
 	return p, nil
 }
 
-func (p *pdb) count() int { return len(p.offsets) }
-
 // record returns record i, or nil when it doesn't exist or is out of range.
 func (p *pdb) record(i int) []byte {
 	if i < 0 || i >= len(p.offsets) {
@@ -210,7 +208,7 @@ func stripTrailing(rec []byte, flags uint16) []byte {
 // palmDOC undoes PalmDOC's LZ77 compression.
 func palmDOC(in []byte) []byte {
 	out := make([]byte, 0, len(in)*2)
-	for i := 0; i < len(in); {
+	for i := 0; i < len(in) && len(out) < maxPalmDOCRecord; {
 		c := in[i]
 		i++
 		switch {
@@ -244,10 +242,21 @@ func palmDOC(in []byte) []byte {
 	return out
 }
 
+// Limits that keep a damaged or hostile file from using up memory: a
+// PalmDOC record unpacks to 4 KB (16 KB allows for odd writers), and no
+// real book has more text than maxBookText.
+const (
+	maxPalmDOCRecord = 16 << 10
+	maxBookText      = 256 << 20
+)
+
 // text decompresses the book's text records into its raw markup.
 func (h *header) text(p *pdb) ([]byte, error) {
 	var buf bytes.Buffer
 	for i := 1; i <= h.textRecords; i++ {
+		if buf.Len() > maxBookText {
+			return nil, fmt.Errorf("the book's text is larger than %d MB", maxBookText>>20)
+		}
 		rec := p.record(h.start + i)
 		if rec == nil {
 			break

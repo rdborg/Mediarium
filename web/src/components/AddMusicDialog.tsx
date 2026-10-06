@@ -63,11 +63,16 @@ export default function AddMusicDialog({ target, onClose, onAdded }: { target: A
       let artistId = existingArtist
       let found = undefined as { id: number; monitored: boolean } | undefined
       if (!artistId) {
+        // "Only this album" goes with the add, so it also travels with a
+        // request and needs no separate permission to monitor the album.
+        const albumOnly = choice === 'album' && item
         const added = await api.addArtist({
           mbid: artistMbid,
           monitor: choice === 'all' ? 'all' : choice === 'future' ? 'future' : 'none',
           profileId: profileId || undefined,
-          searchNow: choice === 'all' && willSearch,
+          searchNow: (choice === 'all' || !!albumOnly) && willSearch,
+          albumMbid: albumOnly ? item.mbid : undefined,
+          albumTitle: albumOnly ? item.title : undefined,
         })
         if (isRequested(added)) {
           toast.success(added.message)
@@ -78,7 +83,7 @@ export default function AddMusicDialog({ target, onClose, onAdded }: { target: A
         found = added.albums?.find((a) => a.mbid === item?.mbid)
       }
       let albumId: number | undefined
-      if (choice === 'album' && item) {
+      if (choice === 'album' && item && existingArtist) {
         if (!found) found = (await api.getArtist(artistId)).albums?.find((a) => a.mbid === item.mbid)
         if (!found) {
           toast.info(`${artistName} was added, but "${item.title}" is not in their list of albums.`)
@@ -94,6 +99,7 @@ export default function AddMusicDialog({ target, onClose, onAdded }: { target: A
           }
         }
       }
+      if (albumId === undefined && choice === 'album' && found) albumId = found.id
       toast.success(
         choice === 'album' && item
           ? `"${item.title}" added.${willSearch ? ' Searching for it now.' : ''}`

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -104,14 +105,14 @@ func TestLooksLikeDockerBridge(t *testing.T) {
 // neighbour names; a search with typed networks does not.
 func TestDiscoverTriesGatewayAndNamesOnlyWithoutTypedNetworks(t *testing.T) {
 	jelly := newFakeAuthServer(t, KindJellyfin)
-	lookups := 0
+	var lookups atomic.Int32 // the lookups run side by side
 	d := &Discoverer{
 		Budget: 5 * time.Second, BroadcastWait: -1, Workers: 8,
 		Probes:     []Probe{{Port: portOf(t, jelly.srv.URL), Scheme: "http"}},
 		allow:      testAllow,
 		interfaces: func() ([]*net.IPNet, error) { return nil, nil },
 		gateway:    func() net.IP { return net.ParseIP("127.0.0.1") },
-		lookup:     func(context.Context, string) []net.IP { lookups++; return nil },
+		lookup:     func(context.Context, string) []net.IP { lookups.Add(1); return nil },
 		inDocker:   func() bool { return true },
 		dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			host, _, _ := net.SplitHostPort(addr)
@@ -126,14 +127,14 @@ func TestDiscoverTriesGatewayAndNamesOnlyWithoutTypedNetworks(t *testing.T) {
 	if len(res.Found) != 1 || res.Found[0].Kind != KindJellyfin || res.Found[0].Via != "scan" {
 		t.Fatalf("the gateway should have been tried and found: %+v", res)
 	}
-	if lookups != len(NeighbourNames) {
-		t.Fatalf("looked up %d names, want %d", lookups, len(NeighbourNames))
+	if int(lookups.Load()) != len(NeighbourNames) {
+		t.Fatalf("looked up %d names, want %d", lookups.Load(), len(NeighbourNames))
 	}
 
 	_, lan, _ := net.ParseCIDR("192.168.50.0/24")
 	res = d.Discover(context.Background(), []*net.IPNet{lan})
-	if len(res.Found) != 0 || lookups != len(NeighbourNames) {
-		t.Fatalf("typed networks must be the only thing searched: %+v (lookups %d)", res, lookups)
+	if len(res.Found) != 0 || int(lookups.Load()) != len(NeighbourNames) {
+		t.Fatalf("typed networks must be the only thing searched: %+v (lookups %d)", res, lookups.Load())
 	}
 }
 

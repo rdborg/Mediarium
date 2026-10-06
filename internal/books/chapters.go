@@ -23,7 +23,9 @@ type Chapter struct {
 }
 
 const (
-	maxMoovSize = 64 << 20 // the index of even a 60-hour book is far smaller
+	// The index lists every audio frame (about 4 bytes each, 47 a second),
+	// so a 100-hour book's is near 70 MB; this allows well over 200 hours.
+	maxMoovSize = 160 << 20
 	maxChapters = 2000
 )
 
@@ -301,15 +303,20 @@ func textSamples(t mp4Track, r io.ReaderAt, size int64) []Chapter {
 		}
 	}
 	// Each sample's place in the file: chunks hold runs of samples.
+	// The sample-to-chunk table is in chunk order, so it is walked once
+	// alongside the chunks, and the walk stops once every sample is placed.
 	sampleOff := make([]uint64, 0, n)
 	entries := int(stsc[0])
+	e := 0
+	perChunk := uint32(0)
 	for ci := range offsets {
+		if len(sampleOff) >= n {
+			break
+		}
 		chunk := uint32(ci + 1)
-		perChunk := uint32(0)
-		for e := 0; e < entries && 1+e*3+2 < len(stsc); e++ {
-			if stsc[1+e*3] <= chunk {
-				perChunk = stsc[1+e*3+1]
-			}
+		for e < entries && 1+e*3+2 < len(stsc) && stsc[1+e*3] <= chunk {
+			perChunk = stsc[1+e*3+1]
+			e++
 		}
 		off := offsets[ci]
 		for s := uint32(0); s < perChunk && len(sampleOff) < n; s++ {

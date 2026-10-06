@@ -40,3 +40,30 @@ func seq(a, b int) []int {
 	}
 	return out
 }
+
+func TestAnimeSeasonsRecapsAndGroups(t *testing.T) {
+	cases := []struct {
+		name     string
+		title    string
+		group    string
+		season   int
+		episodes []int
+		absolute []int
+	}{
+		// A later season named the anime way is one episode, not a pack.
+		{"[SubsPlease] Mushoku Tensei S2 - 05 (1080p) [ABCD1234].mkv", "Mushoku Tensei", "SubsPlease", 2, []int{5}, nil},
+		{"[Judas] Mushoku Tensei S2 - 01-12 (Batch) [1080p]", "Mushoku Tensei", "Judas", 2, seq(1, 12), nil},
+		// A recap between episodes is not the episode before it.
+		{"[SubsPlease] Frieren - 12.5 (1080p) [ABCD1234].mkv", "Frieren", "SubsPlease", 0, nil, nil},
+		{"[SubsPlease] Frieren - 12 (1080p) [ABCD1234].mkv", "Frieren", "SubsPlease", 0, nil, []int{12}},
+		// A site's tag in front doesn't hide the real group at the end.
+		{"[ www.UIndex.org ] - Show.S01E01.1080p.WEB.h264-ETHEL", "Show", "ETHEL", 1, []int{1}, nil},
+		{"[TGx] Show.S01E02.720p.WEB.h264-GRP", "Show", "GRP", 1, []int{2}, nil},
+	}
+	for _, tc := range cases {
+		r := Parse(tc.name)
+		if r.Title != tc.title || r.Group != tc.group || r.Season != tc.season || !reflect.DeepEqual(r.Episodes, tc.episodes) || !reflect.DeepEqual(r.Absolute, tc.absolute) {
+			t.Errorf("%q:\n got title=%q group=%q season=%d episodes=%v abs=%v", tc.name, r.Title, r.Group, r.Season, r.Episodes, r.Absolute)
+		}
+	}
+}

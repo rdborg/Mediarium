@@ -420,10 +420,20 @@ func (im *Importer) importSeries(ctx context.Context, sp seriesPlan) (outcome, r
 		for i, e := range infos {
 			eps[i] = library.Episode{Season: e.Season, Episode: e.Episode, Title: e.Name, Overview: e.Overview, AirDate: e.AirDate}
 		}
+		// Sonarr already knows how the show is numbered; otherwise guess.
+		seriesType := library.ValidSeriesType(strings.ToLower(sp.series.SeriesType))
+		if sp.series.SeriesType == "" {
+			var ids []int
+			var names []string
+			for _, g := range detail.Genres {
+				ids, names = append(ids, g.ID), append(names, g.Name)
+			}
+			seriesType = library.GuessSeriesType(ids, names, detail.OriginCountry, detail.Type)
+		}
 		series, err = lib.AddSeries(library.Series{
 			TMDBID: detail.TMDBID, Title: detail.Name, Year: detail.Year(), Overview: detail.Overview,
 			PosterPath: detail.PosterPath, FirstAirDate: detail.FirstAirDate, Monitored: sp.series.Monitored,
-			Genres: tmdb.ShowGenres(ctx, detail.Show),
+			Genres: tmdb.ShowGenres(ctx, detail.Show), SeriesType: seriesType,
 		}, eps)
 		if err != nil {
 			return OutcomeFailed, err.Error(), 0

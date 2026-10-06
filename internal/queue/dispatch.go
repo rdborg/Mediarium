@@ -171,5 +171,6 @@ func (d *Dispatcher) failed(item Item, err error) {
 func (d *Dispatcher) FreePlace() bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.holds == 0 && len(d.active) < d.Limit()
+	// Outside the download hours (or with the disk too full) nothing starts.
+	return d.holds == 0 && len(d.active) < d.Limit() && (d.cfg.Hold == nil || !d.cfg.Hold())
 }

@@ -111,17 +111,19 @@ Some proxies ask for the login themselves before anyone reaches the app: Autheli
 
 It is **off** by default. A plain reverse proxy (the one on a Synology, Nginx Proxy Manager, Caddy, Traefik without an auth middleware) doesn't log anyone in, so leave it off for those.
 
-To switch it on, as an administrator open **Settings > Accounts**, find **Sign in through your reverse proxy**, type the header name your proxy sends and press **Turn on**. The card then shows whether this page came through a trusted proxy and what the proxy put in the header, so you can check it works before you rely on it.
+To switch it on, as an administrator open **Settings > Accounts** through your proxy, find **Sign in through your reverse proxy**, type the header name your proxy sends and your proxy's address, and press **Turn on**. When you open the page through the proxy, the address box is already filled in with the address the page came from, which is your proxy. The card then shows whether this page came from that address and what the proxy put in the header, so you can check it works before you rely on it.
 
 How it behaves:
 
-- The header is only believed from a proxy listed in [TRUSTED_PROXIES](#trusted_proxies). From anyone else it is ignored.
+- The header is only believed when the connection comes straight from your proxy's address (one address, or a small range such as `172.18.0.0/24`). From anyone else it is ignored, even from other machines on your network. `private` is not accepted here: a whole network is too wide.
 - The name must match an existing Mediarium account (upper and lower case don't matter). Unknown names are refused; accounts are not created by themselves. Make the accounts under Settings > Accounts with the same user names your proxy uses.
 - An API key or a normal Mediarium session still works and comes first. A wrong API key is refused even if the header is there.
 - It can only be switched on from a signed-in browser, not with an API key. Every change is written to the log.
 - Signing out of Mediarium doesn't sign you out of the proxy. Use your proxy's own sign-out.
 
-**Important:** the proxy must remove the header from whatever the visitor sends, and set it itself (Authelia, Authentik and oauth2-proxy do). And Mediarium's port must only be reachable through the proxy. If a visitor could reach port 8264 directly from an address Mediarium trusts (see the Docker gateway note under TRUSTED_PROXIES), they could claim to be anyone. When in doubt, set `TRUSTED_PROXIES` to your proxy's exact address.
+**Important:** the proxy must remove the header from whatever the visitor sends, and set it itself (Authelia, Authentik and oauth2-proxy do). And Mediarium's port should only be reachable through the proxy. If something else could connect from the proxy's address (for example a Docker gateway address shared by everything outside the container, see the note under TRUSTED_PROXIES), it could claim to be anyone, so use the proxy container's own address rather than the gateway's when you can.
+
+Updating from 2.1.0: sign-in through the proxy then only needed the header, and believed it from any private address. It now also needs the proxy's address, so it stays off until you open the card through your proxy and save once more.
 
 ## ALLOWED_ORIGINS
 

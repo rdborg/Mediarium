@@ -3,6 +3,7 @@
 # database and encryption key, and .git holds history.
 .git
 .github
+.*
 .env
 .env.*
 config/

@@ -6,6 +6,7 @@ import PosterCard from '../components/PosterCard'
 import ProfilePicker from '../components/ProfilePicker'
 import ReleaseTable from '../components/ReleaseTable'
 import TitleTags from '../components/Tags'
+import WatchedLine from '../components/WatchedLine'
 import FilesPanel from '../components/FilesPanel'
 import SubtitlesOffNote from '../components/SubtitlesOffNote'
 import SubtitlesPanel from '../components/SubtitlesPanel'
@@ -20,7 +21,7 @@ import { useToast } from '../components/Toast'
 import { useAuth } from '../AuthContext'
 import { useModules } from '../ModulesContext'
 import { qualityText } from '../format'
-import { api, isAdmin, type DiscoverMovie, type MovieDetail as MovieDetailData, type SearchResult } from '../api'
+import { api, can, isAdmin, type DiscoverMovie, type MovieDetail as MovieDetailData, type SearchResult } from '../api'
 import { useLive } from '../useLive'
 import { useConfirm } from '../components/ConfirmProvider'
 import { removeOption } from '../diskUsage'
@@ -39,7 +40,8 @@ export default function MovieDetail() {
 
 function MoviePage() {
   const confirm = useConfirm()
-  const admin = isAdmin(useAuth().user)
+  const me = useAuth().user
+  const admin = isAdmin(me)
   const { subtitlesOn } = useModules()
   const { tmdbId } = useParams<{ tmdbId: string }>()
   const navigate = useNavigate()
@@ -187,12 +189,16 @@ function MoviePage() {
         actions={
           inLibrary ? (
             <>
-              <button className="primary btn-with-icon" onClick={searchNow} disabled={searchingNow || movie.status === 'downloading'}>
-                <Icon name="search" size={16} /> {searchingNow ? 'Searching…' : movie.status === 'downloaded' ? 'Look for a better copy' : 'Find and download now'}
-              </button>
-              <button className="btn-with-icon" onClick={chooseRelease} disabled={searching}>
-                <Icon name="list" size={16} /> {searching ? 'Loading…' : 'Choose a release'}
-              </button>
+              {can(me, 'manage') && (
+                <button className="primary btn-with-icon" onClick={searchNow} disabled={searchingNow || movie.status === 'downloading'}>
+                  <Icon name="search" size={16} /> {searchingNow ? 'Searching…' : movie.status === 'downloaded' ? 'Look for a better copy' : 'Find and download now'}
+                </button>
+              )}
+              {can(me, 'releases') && (
+                <button className="btn-with-icon" onClick={chooseRelease} disabled={searching}>
+                  <Icon name="list" size={16} /> {searching ? 'Loading…' : 'Choose a release'}
+                </button>
+              )}
               {movie.status === 'downloaded' && <WatchLinks tmdbId={movie.tmdbId} kind="movie" />}
               {admin && (
                 <button className="btn-with-icon danger-ghost" onClick={onRemove}>
@@ -216,6 +222,7 @@ function MoviePage() {
           </div>
         )}
         {inLibrary && movie.libraryId && <TitleTags kind="movie" id={movie.libraryId} />}
+        {inLibrary && movie.libraryId && <WatchedLine kind="movie" id={movie.libraryId} />}
       </TitleHero>
 
       {!inLibrary && <CastCard cast={movie.cast ?? []} />}

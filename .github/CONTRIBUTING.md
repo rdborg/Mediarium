@@ -8,18 +8,18 @@ Mediarium is licensed under AGPL-3.0. By submitting a change you agree that it i
 
 - **Report a bug** with the [bug report form](https://github.com/rdborg/Mediarium/issues/new/choose). Your version (Settings > System > About and credits), how you installed it and the **Copy for support** text (Settings > System > Server and backup > Help and support) make it much quicker to fix.
 - **Test on your hardware.** The install guides for Synology, Unraid and QNAP need people with real devices. If a step or a menu name is different on yours, tell us.
-- **Try a "coming soon" platform** from [PLATFORMS.md](docs/PLATFORMS.md) and report what happens.
+- **Try a "coming soon" platform** from [PLATFORMS.md](../docs/PLATFORMS.md) and report what happens.
 - **Improve the docs.** Plain, friendly wording for people who are not developers is the goal.
 
 ## Before you start on code
 
 - For anything bigger than a small fix, open an issue first so we can agree on the approach. It saves everyone rework.
-- Check [docs/FEATURES.md](docs/FEATURES.md) for what exists and what is planned.
+- Check [docs/FEATURES.md](../docs/FEATURES.md) for what exists and what is planned.
 - Indexer problems: use the "Indexer problem" issue form. Torrent site definitions come from the community Cardigann definitions (the same ones Prowlarr uses), so a broken site often needs a fix there rather than here.
 
 ## Development setup
 
-You need **Go** (the minimum version is the `go` line in [`go.mod`](go.mod)) and **Node.js 22 or newer** for the web interface.
+You need **Go** (the minimum version is the `go` line in [`go.mod`](../go.mod)) and **Node.js 22 or newer** for the web interface.
 
 ```bash
 # build the web interface (it is embedded into the Go program)
@@ -35,8 +35,8 @@ Open `http://localhost:8264`. For live-reloading frontend work, run `API_TARGET=
 **Or with Docker**, with nothing else installed:
 
 ```bash
-cp .env.example .env     # optional: port, PUID/PGID, build keys
-docker compose -f docker-compose.dev.yml up -d --build
+cp docker/.env.example .env     # optional: port, PUID/PGID, build keys
+docker compose up -d --build     # .env points at docker/docker-compose.dev.yml
 ```
 
 ### Before opening a pull request
@@ -86,7 +86,7 @@ Add `--load` with a single `--platform` to get an image in your local `docker im
 
 ## Versions and releases
 
-Mediarium uses [Semantic Versioning](https://semver.org/). The current version is in [`VERSION`](VERSION); contributors do not change it, maintainers do when they cut a release. See [docs/RELEASING.md](docs/RELEASING.md).
+Mediarium uses [Semantic Versioning](https://semver.org/). The current version is in [`VERSION`](../VERSION); contributors do not change it, maintainers do when they cut a release. See [docs/RELEASING.md](../docs/RELEASING.md).
 
 ## Code of conduct
 

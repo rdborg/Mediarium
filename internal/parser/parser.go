@@ -42,6 +42,13 @@ type Release struct {
 	Multi bool
 	// Subbed is set for releases tagged with subtitles (VOSTFR, SUBBED...).
 	Subbed bool
+	// Absolute holds episode numbers counted from the start of the show
+	// rather than per season ("One Piece - 1085", "Show E1085"), the way
+	// anime is usually named. Only set when there is no season marker.
+	Absolute []int
+	// AirDate is the date a daily show's episode aired ("2024-03-15"), when
+	// the name carries one and no season marker.
+	AirDate string
 }
 
 type token struct {
@@ -116,7 +123,11 @@ var (
 		{regexp.MustCompile(`(?i)\bSeason[. ]?(\d{1,2})\b`), func(r *Release, m []string) { r.Season = atoi(m[1]) }},
 		{regexp.MustCompile(`(?i)\bS(\d{1,2})\b`), func(r *Release, m []string) { r.Season = atoi(m[1]) }},
 		// Airdate style: 2021.05.14 or 2021-05-14
-		{regexp.MustCompile(`\b(19|20)\d{2}[.-]\d{2}[.-]\d{2}\b`), func(r *Release, m []string) {}},
+		{regexp.MustCompile(`\b((?:19|20)\d{2})[.-](\d{2})[.-](\d{2})\b`), func(r *Release, m []string) {
+			if r.Season == 0 {
+				r.AirDate = m[1] + "-" + m[2] + "-" + m[3]
+			}
+		}},
 	}
 
 	// groupRe is the release group: a trailing "-GROUPNAME" at the very end
@@ -126,8 +137,13 @@ var (
 	notGroupRe  = regexp.MustCompile(`(?i)^(?:dl|hd|ray|(?:[se]\d{1,4})+|\d{1,4}p?)$`)
 	plainWordRe = regexp.MustCompile(`^[A-Za-z]+$`)
 	// The year must stand alone: "1920x1080" and "12019" hold no year.
-	yearPattern    = regexp.MustCompile(`\b` + yearRe + `\b`)
-	episodeTagRe   = regexp.MustCompile(`(?i)[Ee](\d{1,3})`)
+	yearPattern  = regexp.MustCompile(`\b` + yearRe + `\b`)
+	episodeTagRe = regexp.MustCompile(`(?i)[Ee](\d{1,3})`)
+	// Anime: a leading "[Group]", then "Title - 1085" (or a batch "- 01-12"),
+	// or "Title.E1085" without a season.
+	leadingGroupRe = regexp.MustCompile(`^\[([^\]]{1,40})\][.\s_]*`)
+	absoluteDashRe = regexp.MustCompile(`\.-\.(\d{1,4})(?:v\d)?(?:-(\d{1,4})(?:v\d)?)?(?:\.|\[|\(|$)`)
+	absoluteERe    = regexp.MustCompile(`(?i)\.E(\d{2,4})(?:v\d)?(?:\.|\[|\(|$)`)
 	leadingDigitRe = regexp.MustCompile(`^(\d{1,3})`)
 )
 
@@ -177,10 +193,15 @@ func Parse(name string) Release {
 	// otherwise flow into the title as they are.
 	name = strings.ToValidUTF8(name, "")
 	name = stripExtension(name)
+	var r Release
+	// "[SubsPlease] Show - 01 (1080p) [ABCD1234]": the group comes first.
+	if m := leadingGroupRe.FindStringSubmatch(name); m != nil {
+		r.Group = strings.TrimSpace(m[1])
+		name = name[len(m[0]):]
+	}
 	working := strings.ReplaceAll(name, "_", ".")
 	working = strings.ReplaceAll(working, " ", ".")
 
-	var r Release
 	titleEnd := len(working)
 
 	for _, t := range tokens {
@@ -222,9 +243,37 @@ func Parse(name string) Release {
 		}
 	}
 
+	// Anime numbering, only when the name has no season marker.
+	if r.Season == 0 && r.AirDate == "" {
+		if loc := absoluteDashRe.FindStringSubmatchIndex(working); loc != nil {
+			first := atoi(working[loc[2]:loc[3]])
+			last := first
+			if loc[4] >= 0 {
+				last = atoi(working[loc[4]:loc[5]])
+			}
+			// "Title - 2019" is a year, not episode 2019.
+			if !(loc[3]-loc[2] == 4 && first >= 1900 && first <= 2099) && first > 0 {
+				if last < first || last-first > 2000 {
+					last = first
+				}
+				for e := first; e <= last; e++ {
+					r.Absolute = append(r.Absolute, e)
+				}
+				if loc[0] < titleEnd {
+					titleEnd = loc[0]
+				}
+			}
+		} else if loc := absoluteERe.FindStringSubmatchIndex(working); loc != nil && loc[0] > 0 {
+			r.Absolute = []int{atoi(working[loc[2]:loc[3]])}
+			if loc[0] < titleEnd {
+				titleEnd = loc[0]
+			}
+		}
+	}
+
 	// The release group is the last thing in the name, and only counts after
 	// something else was read: "Spider-Man" has no group.
-	if loc := groupRe.FindStringSubmatchIndex(working); loc != nil && titleEnd < loc[0] {
+	if loc := groupRe.FindStringSubmatchIndex(working); r.Group == "" && loc != nil && titleEnd < loc[0] {
 		if g := working[loc[2]:loc[3]]; !notGroupRe.MatchString(g) {
 			r.Group = g
 		}

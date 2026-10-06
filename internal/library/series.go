@@ -27,6 +27,9 @@ type Series struct {
 	// DetailsState and DetailsNote work as on Movie.
 	DetailsState string
 	DetailsNote  string
+	// SeriesType is how release names number the episodes: SeriesStandard,
+	// SeriesAnime or SeriesDaily.
+	SeriesType string
 
 	// Populated by GetSeries/ListSeries only, for the library views.
 	EpisodeCount    int
@@ -52,9 +55,9 @@ type Episode struct {
 const seriesSelect = `
 	SELECT s.id, s.tmdb_id, s.title, COALESCE(s.year, 0), COALESCE(s.overview, ''), COALESCE(s.poster_path, ''),
 	       COALESCE(s.first_air_date, ''), s.monitored,
-	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id),
+	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id AND (e.season > 0 OR e.monitored = 1 OR e.status = 'downloaded')),
 	       (SELECT COUNT(*) FROM episodes e WHERE e.series_id = s.id AND e.status = 'downloaded'),
-	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres, s.no_upgrade, s.details_state, s.details_note
+	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres, s.no_upgrade, s.details_state, s.details_note, s.series_type
 	FROM series s`
 
 func scanSeries(scan func(dest ...any) error) (Series, error) {
@@ -62,7 +65,7 @@ func scanSeries(scan func(dest ...any) error) (Series, error) {
 		s      Series
 		genres sql.NullString
 	)
-	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote); err != nil {
+	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote, &s.SeriesType); err != nil {
 		return Series{}, fmt.Errorf("scan series: %w", err)
 	}
 	s.Genres = decodeGenres(genres)
@@ -84,8 +87,8 @@ func (r *Repo) AddSeries(s Series, episodes []Episode) (Series, error) {
 		return Series{}, err
 	}
 	res, err := tx.Exec(
-		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres, no_upgrade) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres, s.NoUpgrade,
+		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres, no_upgrade, series_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres, s.NoUpgrade, ValidSeriesType(s.SeriesType),
 	)
 	if err != nil {
 		return Series{}, fmt.Errorf("insert series: %w", err)
@@ -130,7 +133,9 @@ func upsertEpisodes(tx *sql.Tx, seriesID int64, episodes []Episode, monitorNew b
 	}
 	defer stmt.Close()
 	for _, e := range episodes {
-		if _, err := stmt.Exec(seriesID, e.Season, e.Episode, e.Title, e.Overview, e.AirDate, monitorNew); err != nil {
+		// Specials (season 0) start unmonitored: they are rarely posted in a
+		// searchable form, so they would only ever show as missing.
+		if _, err := stmt.Exec(seriesID, e.Season, e.Episode, e.Title, e.Overview, e.AirDate, monitorNew && e.Season > 0); err != nil {
 			return fmt.Errorf("upsert episode S%02dE%02d: %w", e.Season, e.Episode, err)
 		}
 	}
@@ -211,7 +216,7 @@ func (r *Repo) SetSeriesSourcePref(id int64, pref string) error {
 // a newly added show can track only what is still to come.
 func (r *Repo) MonitorFromDate(seriesID int64, date string) error {
 	_, err := r.db.Exec(
-		`UPDATE episodes SET monitored = CASE WHEN COALESCE(air_date, '') = '' OR air_date >= ? THEN 1 ELSE 0 END WHERE series_id = ?`,
+		`UPDATE episodes SET monitored = CASE WHEN COALESCE(air_date, '') = '' OR air_date >= ? THEN 1 ELSE 0 END WHERE series_id = ? AND season > 0`,
 		date, seriesID)
 	if err != nil {
 		return fmt.Errorf("set series %d episode monitoring: %w", seriesID, err)
@@ -221,7 +226,8 @@ func (r *Repo) MonitorFromDate(seriesID int64, date string) error {
 
 // SetAllEpisodesMonitored sets the monitored flag on every episode of a series.
 func (r *Repo) SetAllEpisodesMonitored(seriesID int64, monitored bool) error {
-	_, err := r.db.Exec(`UPDATE episodes SET monitored = ? WHERE series_id = ?`, monitored, seriesID)
+	// Switching a whole show on leaves its specials as they are.
+	_, err := r.db.Exec(`UPDATE episodes SET monitored = ? WHERE series_id = ? AND (season > 0 OR ? = 0)`, monitored, seriesID, monitored)
 	if err != nil {
 		return fmt.Errorf("set series %d episodes monitored: %w", seriesID, err)
 	}

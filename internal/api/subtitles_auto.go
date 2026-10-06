@@ -241,8 +241,8 @@ func (s *Server) subtitleQuota() subtitles.QuotaState {
 	return subtitles.ComputeQuota(now, s.Subtitles().HasCredentials(), rep, downloads)
 }
 
-func (s *Server) writeSubtitle(ctx context.Context, it subtitleItem, lang string, fileID int) (string, error) {
-	info, err := s.Subtitles().RequestDownloadInfo(ctx, fileID)
+func (s *Server) writeSubtitle(ctx context.Context, it subtitleItem, lang string, pick subtitlePick) (string, error) {
+	info, err := s.Subtitles().RequestDownloadInfo(ctx, pick.fileID)
 	if err != nil {
 		var qe *subtitles.QuotaError
 		if errors.As(err, &qe) {
@@ -261,6 +261,7 @@ func (s *Server) writeSubtitle(ctx context.Context, it subtitleItem, lang string
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return "", fmt.Errorf("write subtitle file: %w", err)
 	}
+	s.recordSubtitle(it, lang, path, pick)
 	movieID := int64(0)
 	if it.kind == "movie" {
 		movieID = it.id
@@ -270,6 +271,9 @@ func (s *Server) writeSubtitle(ctx context.Context, it subtitleItem, lang string
 		name += " " + strings.SplitN(it.subtitle, " ", 2)[0]
 	}
 	subtitleMessage := fmt.Sprintf("Downloaded %s subtitle for %s", lang, name)
+	if pick.upgrade {
+		subtitleMessage = fmt.Sprintf("Swapped the %s subtitle for %s for one made for this exact file", lang, name)
+	}
 	_ = s.QueueRepo.LogActivity(movieID, "subtitle", subtitleMessage)
 	subItem := notify.Item{Media: it.kind, Title: it.title, Language: subtitles.LanguageLabel(lang), Path: path}
 	if it.kind == "movie" {
@@ -284,7 +288,9 @@ func (s *Server) writeSubtitle(ctx context.Context, it subtitleItem, lang string
 // fetchBestSubtitle finds the subtitle that best fits the video file and
 // saves it next to it.
 func (s *Server) fetchBestSubtitle(ctx context.Context, it subtitleItem, lang string) (string, error) {
-	results, err := s.Subtitles().Find(ctx, it.query(lang))
+	q := it.query(lang)
+	q.MovieHash = videoHash(it.filePath)
+	results, err := s.Subtitles().Find(ctx, q)
 	if err != nil {
 		return "", err
 	}
@@ -292,7 +298,7 @@ func (s *Server) fetchBestSubtitle(ctx context.Context, it subtitleItem, lang st
 	if best == nil {
 		return "", errNoSubtitle
 	}
-	return s.writeSubtitle(ctx, it, lang, best.FileID)
+	return s.writeSubtitle(ctx, it, lang, subtitlePick{fileID: best.FileID, hashMatch: best.HashMatch, videoHash: q.MovieHash})
 }
 
 // downloadedSubtitleItems lists every downloaded movie and episode that has
@@ -470,6 +476,11 @@ func (s *Server) subtitleSweepJob(ctx context.Context) {
 	}
 	if _, err := s.subtitleSweep(ctx, false, maxSubtitleDownloadsRun); err != nil && !errors.Is(err, subtitles.ErrQuota) {
 		log.Printf("subtitles: sweep: %v", err)
+	}
+	if s.subtitleUpgradesOn() {
+		if _, err := s.upgradeSubtitles(ctx); err != nil {
+			log.Printf("subtitles: look for better subtitles: %v", err)
+		}
 	}
 }
 

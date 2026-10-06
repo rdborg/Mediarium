@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
-import { api, type MusicDiscoverItem, type MusicProfile } from '../api'
+import { api, can, isRequested, type MusicDiscoverItem, type MusicProfile } from '../api'
+import { useAuth } from '../AuthContext'
 import { artistKind } from './artistKind'
 import Cover from './Cover'
 import Icon from './Icon'
@@ -23,6 +24,7 @@ const TYPE_WORD: Record<string, string> = { album: 'Album', ep: 'EP', single: 'S
 // just the one that was picked; which quality profile to follow; and whether to
 // start looking straight away.
 export default function AddMusicDialog({ target, onClose, onAdded }: { target: AddMusicTarget; onClose: () => void; onAdded: (artistId: number, albumId?: number) => void }) {
+  const { user } = useAuth()
   const toast = useToast()
   const item = target.kind === 'album' ? target.item : undefined
   const artistName = item ? item.artistName : target.kind === 'artist' ? target.name : ''
@@ -67,6 +69,11 @@ export default function AddMusicDialog({ target, onClose, onAdded }: { target: A
           profileId: profileId || undefined,
           searchNow: choice === 'all' && willSearch,
         })
+        if (isRequested(added)) {
+          toast.success(added.message)
+          onClose()
+          return
+        }
         artistId = added.id
         found = added.albums?.find((a) => a.mbid === item?.mbid)
       }
@@ -191,7 +198,7 @@ export default function AddMusicDialog({ target, onClose, onAdded }: { target: A
             Cancel
           </button>
           <button className="primary btn-with-icon" onClick={submit} disabled={busy}>
-            <Icon name="plus" size={16} /> {busy ? 'Adding…' : choice === 'album' ? 'Add album' : 'Add artist'}
+            <Icon name="plus" size={16} /> {busy ? 'Adding…' : can(user, 'addDirect') || existingArtist ? (choice === 'album' ? 'Add album' : 'Add artist') : 'Request artist'}
           </button>
         </div>
       </div>

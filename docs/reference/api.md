@@ -23,6 +23,8 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/auth/logout` | **public** |  |
 | GET | `/api/auth/me` | any account |  |
 | PUT | `/api/auth/profile` | any account | lets the logged-in user change their username, name and email, returning the updated account. |
+| GET | `/api/auth/proxy-signin` | admin |  |
+| PUT | `/api/auth/proxy-signin` | admin |  |
 
 ## blocklist
 
@@ -37,22 +39,28 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/book-authors` | any account | GET /api/book-authors: the authors followed. |
-| DELETE | `/api/book-authors/{key}/follow` | any account | DELETE /api/book-authors/{key}/follow: stop following. |
-| PUT | `/api/book-authors/{key}/follow` | any account | PUT /api/book-authors/{key}/follow: follow an author (or change the formats). |
+| DELETE | `/api/book-authors/{key}/follow` | signed in | DELETE /api/book-authors/{key}/follow: stop following. |
 | GET | `/api/book-authors/{key}/works` | any account | GET /api/book-authors/{key}/works?sort=popular\|newest |
+
+## book-series
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/book-series` | any account | GET /api/book-series: the series followed. |
+| DELETE | `/api/book-series/{source}/{key}/follow` | signed in | DELETE /api/book-series/{source}/{key}/follow: stop following. |
 
 ## book-works
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/book-works/{key}` | any account | GET /api/book-works/{key}: one book from Open Library for its info page, marked when it is already in the library. |
+| GET | `/api/book-works/{key}/series` | any account | GET /api/book-works/{key}/series?title=&author=: the series this book is in ({"series": null} when none is known). |
 
 ## books
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/books` | any account |  |
-| POST | `/api/books` | any account | adds a book with the formats asked for. |
 | GET | `/api/books/discover` | any account | GET /api/books/discover?list=trending&period=weekly&page=1 GET /api/books/discover?list=browse&subject=fantasy&from=2000&to=2010&sort=popular&page=1 |
 | GET | `/api/books/import` | admin |  |
 | POST | `/api/books/import` | admin | starts reading the books folders (administrators). |
@@ -61,16 +69,16 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/books/subjects` | any account | GET /api/books/subjects: the genres the Discover filter offers. |
 | DELETE | `/api/books/{id}` | admin | removes a book; with ?deleteFiles=true its files go to the recycle bin of their folder (or are deleted when the bin is off). |
 | GET | `/api/books/{id}` | any account |  |
-| POST | `/api/books/{id}/grab` | any account |  |
+| POST | `/api/books/{id}/grab` | signed in |  |
 | GET | `/api/books/{id}/links` | any account | GET /api/books/{id}/links: where the book can be read or listened to, the connected Audiobookshelf and Kavita servers that have it. |
-| GET | `/api/books/{id}/listen/{n}` | any account | GET /api/books/{id}/listen/{n}: one track, with ranges for seeking. |
+| GET | `/api/books/{id}/listen/{n}` | signed in | GET /api/books/{id}/listen/{n}: one track, with ranges for seeking. |
 | GET | `/api/books/{id}/progress` | any account | GET /api/books/{id}/progress?format=: where the person is in one format. |
 | PUT | `/api/books/{id}/progress` | any account | PUT /api/books/{id}/progress: saves where the person is. |
-| GET | `/api/books/{id}/read` | any account | GET /api/books/{id}/read: the ebook file. |
-| GET | `/api/books/{id}/releases` | any account |  |
-| POST | `/api/books/{id}/search` | any account |  |
-| GET | `/api/books/{id}/tracks` | any account | GET /api/books/{id}/tracks: the audiobook's tracks in order. |
-| PUT | `/api/books/{id}/want` | any account |  |
+| GET | `/api/books/{id}/read` | signed in | GET /api/books/{id}/read: the ebook file. |
+| GET | `/api/books/{id}/releases` | signed in |  |
+| POST | `/api/books/{id}/search` | signed in |  |
+| GET | `/api/books/{id}/tracks` | signed in | GET /api/books/{id}/tracks: the audiobook's tracks in order. |
+| PUT | `/api/books/{id}/want` | signed in |  |
 
 ## calendar
 
@@ -113,9 +121,9 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| PUT | `/api/episodes/{id}/monitored` | any account |  |
-| GET | `/api/episodes/{id}/subtitles` | any account |  |
-| POST | `/api/episodes/{id}/subtitles/download` | any account |  |
+| PUT | `/api/episodes/{id}/monitored` | signed in |  |
+| GET | `/api/episodes/{id}/subtitles` | signed in |  |
+| POST | `/api/episodes/{id}/subtitles/download` | signed in |  |
 | GET | `/api/episodes/{id}/subtitles/status` | any account |  |
 
 ## exclusions
@@ -130,7 +138,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| GET | `/api/files/stream` | any account | plays a video (or, for an album, an audio track), or shows a picture or text file, from a title's folder in the browser: ?movie={id}&path=<relative path>, ?s... |
+| GET | `/api/files/stream` | signed in | plays a video (or, for an album, an audio track), or shows a picture or text file, from a title's folder in the browser: ?movie={id}&path=<relative path>, ?s... |
 
 ## flaresolverr
 
@@ -242,24 +250,23 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/movies` | any account |  |
-| POST | `/api/movies` | any account | adds a movie to the library as missing, from a search result or a Discover pick, using the choices made in the add dialog: quality profile, whether to monito... |
 | DELETE | `/api/movies/{id}` | admin | removes a movie from the library. |
 | GET | `/api/movies/{id}` | any account |  |
 | GET | `/api/movies/{id}/disk-usage` | admin |  |
 | GET | `/api/movies/{id}/events` | any account | lists a movie's own activity log, newest first (at most 200 events). |
 | GET | `/api/movies/{id}/files` | any account | lists the files in a movie's folder on disk. |
-| POST | `/api/movies/{id}/grab` | any account | queues a release for a movie and starts the download and import in the background. |
-| PUT | `/api/movies/{id}/monitored` | any account |  |
+| POST | `/api/movies/{id}/grab` | signed in | queues a release for a movie and starts the download and import in the background. |
+| PUT | `/api/movies/{id}/monitored` | signed in |  |
 | PUT | `/api/movies/{id}/no-upgrade` | admin | and handleSetSeriesNoUpgrade switch the search for better versions off for one title (or back on). |
 | PUT | `/api/movies/{id}/profile` | admin |  |
-| GET | `/api/movies/{id}/search` | any account | is the interactive search for one library movie: every matching release across the indexers, with the reasons automation would skip it. |
-| POST | `/api/movies/{id}/search-now` | any account | runs the automatic search for one movie right now, even if it is unmonitored, grabbing the best acceptable release. |
+| GET | `/api/movies/{id}/search` | signed in | is the interactive search for one library movie: every matching release across the indexers, with the reasons automation would skip it. |
+| POST | `/api/movies/{id}/search-now` | signed in | runs the automatic search for one movie right now, even if it is unmonitored, grabbing the best acceptable release. |
 | GET | `/api/movies/{id}/similar` | any account | lists movies like one in the library, for the "because you added ..." rail. |
 | PUT | `/api/movies/{id}/sources` | admin |  |
-| GET | `/api/movies/{id}/subtitles` | any account |  |
-| POST | `/api/movies/{id}/subtitles/download` | any account |  |
+| GET | `/api/movies/{id}/subtitles` | signed in |  |
+| POST | `/api/movies/{id}/subtitles/download` | signed in |  |
 | GET | `/api/movies/{id}/subtitles/status` | any account |  |
-| PUT | `/api/movies/{id}/tags` | any account | PUT /api/movies/{id}/tags and /api/series/{id}/tags: replace a title's tags. |
+| PUT | `/api/movies/{id}/tags` | signed in | PUT /api/movies/{id}/tags and /api/series/{id}/tags: replace a title's tags. |
 
 ## music
 
@@ -269,12 +276,11 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/music/albums/{id}/cover` | any account | serves an album's cover image (any account): the cover file in the album's folder, else the front cover from the Cover Art Archive, fetched once and kept. |
 | GET | `/api/music/albums/{id}/events` | any account | lists an album's own activity log, newest first (at most 200 events): searches and why nothing was taken, grabs, download steps, imports and failures. |
 | GET | `/api/music/albums/{id}/files` | any account | lists the files in an album's folder on disk (any account): tracks carry their track id, and cover art, logs and cue sheets are listed too. |
-| POST | `/api/music/albums/{id}/grab` | any account | grabs one release for an album (from the interactive search: {releaseTitle, downloadUrl, sizeBytes, protocol}) through the same download queue as movies and ... |
-| PUT | `/api/music/albums/{id}/monitored` | any account | switches monitoring on or off for one album, with a body of {"monitored": true} or {"monitored": false}. |
-| POST | `/api/music/albums/{id}/search` | any account | is the interactive search for one album: every release the indexers have for "Artist Album" in the audio categories, with what its name says and the reasons ... |
-| POST | `/api/music/albums/{id}/search-now` | any account | runs the automatic search for one album right now, even when it is not monitored, and grabs the best acceptable release. |
+| POST | `/api/music/albums/{id}/grab` | signed in | grabs one release for an album (from the interactive search: {releaseTitle, downloadUrl, sizeBytes, protocol}) through the same download queue as movies and ... |
+| PUT | `/api/music/albums/{id}/monitored` | signed in | switches monitoring on or off for one album, with a body of {"monitored": true} or {"monitored": false}. |
+| POST | `/api/music/albums/{id}/search` | signed in | is the interactive search for one album: every release the indexers have for "Artist Album" in the audio categories, with what its name says and the reasons ... |
+| POST | `/api/music/albums/{id}/search-now` | signed in | runs the automatic search for one album right now, even when it is not monitored, and grabs the best acceptable release. |
 | GET | `/api/music/artists` | any account | lists the artists in the library with album counts. |
-| POST | `/api/music/artists` | any account | adds an artist from MusicBrainz with its albums, EPs and singles (studio releases; live albums and compilations are left out), and monitors them as asked: al... |
 | DELETE | `/api/music/artists/{id}` | admin | removes an artist and its albums from the library. |
 | GET | `/api/music/artists/{id}` | any account | returns one artist with its albums, EPs and singles. |
 | PUT | `/api/music/artists/{id}` | admin | changes an artist (administrators): whether it is followed and which quality profile it uses. |
@@ -337,7 +343,6 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/queue/{id}/pause` | admin | pauses one download. |
 | POST | `/api/queue/{id}/resolve-conflict` | admin | settles a download that is waiting because a file already exists (the "ask me" setting): a person decides, per item, whether the new file replaces the one al... |
 | POST | `/api/queue/{id}/resume` | admin | starts a paused download again. |
-| POST | `/api/queue/{id}/retry` | any account | grabs the same release again after it failed or was stopped. |
 | POST | `/api/queue/{id}/stop` | admin | cancels a running or paused download, and with deleteFiles deletes its partly downloaded files from the downloads folder. |
 
 ## rename
@@ -347,34 +352,51 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/rename` | admin |  |
 | POST | `/api/rename` | admin | renames the chosen files, working out the new name again so it matches the preview. |
 
+## requests
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/requests` | any account | GET /api/requests: an administrator sees every request, anyone else their own. |
+| DELETE | `/api/requests/{id}` | any account | DELETE /api/requests/{id}: someone takes back their own waiting request; an administrator can remove any. |
+| POST | `/api/requests/{id}/approve` | admin | POST /api/requests/{id}/approve: add the title as the person asked. |
+| POST | `/api/requests/{id}/decline` | admin | POST /api/requests/{id}/decline {"note": "..."} |
+
+## scripts
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/scripts` | admin | GET /api/scripts: the scripts folder, what is in it and the choice. |
+| PUT | `/api/scripts` | admin | PUT /api/scripts {"script": "notify.sh", "timeoutSec": 300}; an empty script switches it off. |
+| POST | `/api/scripts/test` | admin | POST /api/scripts/test runs the chosen script once, with MEDIARIUM_EVENT set to "test" and a made-up movie, and says how it went. |
+
 ## search
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| GET | `/api/search` | any account | is the unified search endpoint: one result list across every indexer, clearly tagged by source. |
-| POST | `/api/search/grab` | any account | downloads a release straight from the search results, with no need to add the title to the library first. |
+| GET | `/api/search` | signed in | is the unified search endpoint: one result list across every indexer, clearly tagged by source. |
+| POST | `/api/search/grab` | signed in | downloads a release straight from the search results, with no need to add the title to the library first. |
 
 ## series
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/api/series` | any account |  |
-| POST | `/api/series` | any account | adds a show and its complete episode list (every real season, specials left out) to the library. |
 | DELETE | `/api/series/{id}` | admin | removes a show from the library. |
 | GET | `/api/series/{id}` | any account |  |
 | GET | `/api/series/{id}/disk-usage` | admin |  |
 | GET | `/api/series/{id}/events` | any account | lists a show's own activity log (all its episodes), newest first (at most 200 events). |
 | GET | `/api/series/{id}/files` | any account | lists the files in a show's folder on disk, season folders included; episode files carry their episode id. |
-| POST | `/api/series/{id}/grab` | any account | grabs a release for a series — a single episode, a multi-episode release, or a whole-season pack, decided by the release's own title. |
-| PUT | `/api/series/{id}/monitored` | any account |  |
+| POST | `/api/series/{id}/grab` | signed in | grabs a release for a series — a single episode, a multi-episode release, or a whole-season pack, decided by the release's own title. |
+| PUT | `/api/series/{id}/monitored` | signed in |  |
 | PUT | `/api/series/{id}/no-upgrade` | admin |  |
 | PUT | `/api/series/{id}/profile` | admin |  |
 | POST | `/api/series/{id}/refresh` | any account | re-fetches a show's episode list from TMDB — new seasons appear and air dates get announced or moved over a show's life. |
-| GET | `/api/series/{id}/search` | any account | is the interactive search for one season or one episode of a library show: queries every indexer, then keeps only releases that are actually for this show an... |
-| POST | `/api/series/{id}/search-now` | any account | searches for everything wanted in a series (or one season, or one episode) right now, even if unmonitored. |
-| PUT | `/api/series/{id}/seasons/{season}/monitored` | any account |  |
+| GET | `/api/series/{id}/search` | signed in | is the interactive search for one season or one episode of a library show: queries every indexer, then keeps only releases that are actually for this show an... |
+| POST | `/api/series/{id}/search-now` | signed in | searches for everything wanted in a series (or one season, or one episode) right now, even if unmonitored. |
+| PUT | `/api/series/{id}/seasons/{season}/monitored` | signed in |  |
 | PUT | `/api/series/{id}/sources` | admin |  |
-| PUT | `/api/series/{id}/tags` | any account |  |
+| PUT | `/api/series/{id}/tags` | signed in |  |
+| PUT | `/api/series/{id}/type` | signed in | PUT /api/series/{id}/type {"type": "standard" \| "anime" \| "daily"} |
 
 ## settings
 
@@ -385,6 +407,8 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/settings/filesystem-check` | admin |  |
 | GET | `/api/settings/folder-check` | admin | inspects one folder for the setup screens: does it exist, can Mediarium write to it, how much room is left and — in Docker — was it actually mapped in fr... |
 | POST | `/api/settings/folder-create` | admin | makes a missing library folder (administrators), only where creatableParent allows. |
+| GET | `/api/settings/hardcover` | admin | GET /api/settings/hardcover |
+| PUT | `/api/settings/hardcover` | admin | PUT /api/settings/hardcover {"token": "..."}: checks the token with Hardcover and saves it (encrypted). |
 | GET | `/api/settings/naming-preview` | admin | shows a naming preset or custom format applied to a fixed sample release, so the page can display the exact file name while someone edits the tokens. |
 | POST | `/api/settings/test-service` | admin | checks a key for an outside service without saving it, so the setup wizard and Settings can say whether it works before the person moves on. |
 
@@ -400,9 +424,10 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 |---|---|---|---|
 | DELETE | `/api/subtitles/dismiss` | admin | undoes a dismissal. |
 | POST | `/api/subtitles/dismiss` | admin | marks titles as not needing subtitles. |
-| POST | `/api/subtitles/get` | any account | fetches subtitles now for the named titles (or every title missing one, with all=true), with the same rules as the automatic sweep except that it also tries ... |
+| POST | `/api/subtitles/get` | signed in | fetches subtitles now for the named titles (or every title missing one, with all=true), with the same rules as the automatic sweep except that it also tries ... |
 | GET | `/api/subtitles/quota` | admin | reports today's OpenSubtitles download allowance and how much is waiting to be fetched. |
 | POST | `/api/subtitles/sweep` | admin | looks for missing subtitles now, without waiting out the pause after a recent failure. |
+| POST | `/api/subtitles/timing` | signed in | POST /api/subtitles/timing |
 | GET | `/api/subtitles/wanted` | any account | lists downloaded items that lack a subtitle in one of the configured languages, leaving out titles marked "no subtitles wanted" unless ?includeDismissed=1 is... |
 
 ## system
@@ -515,4 +540,15 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 |---|---|---|---|
 | GET | `/api/wanted` | any account | lists what automation is still looking for: "missing" (monitored, nothing downloaded; episodes only once aired) or "cutoff" (downloaded but below the profile... |
 
-275 routes.
+## watched
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/watched` | any account | GET /api/watched: what's been watched, by movie and by show, for the library pages. |
+| GET | `/api/watched/cleanup/preview` | admin | GET /api/watched/cleanup/preview: what the saved rules (or the rules sent as ?rules=JSON) would remove now. |
+| POST | `/api/watched/cleanup/run` | admin | POST /api/watched/cleanup/run: apply the saved rules once, now. |
+| GET | `/api/watched/settings` | admin | GET /api/watched/settings |
+| PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
+| POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
+
+291 routes.

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"mime/quotedprintable"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ type EmailSender struct {
 	Username string
 	Password string
 	From     string   // "you@example.com" or "Name <you@example.com>"
+	FromName string   // the name emails show as coming from; "" = the name in From, else Mediarium
 	To       []string // one or more addresses
 
 	// TLSConfig overrides the TLS settings (tests use it to trust a
@@ -81,8 +83,30 @@ func oneLine(s string) string {
 	return strings.Join(strings.Fields(strings.NewReplacer("\r", " ", "\n", " ").Replace(s)), " ")
 }
 
+// senderName is shown as who an email is from when neither the From name
+// field nor the From address names anyone, so mail programs don't show the
+// part before the @.
+const senderName = "Mediarium"
+
+// fromHeader is the From header: the From name field when it is filled in,
+// else the name written in the address ("Home <you@example.com>"), else
+// Mediarium.
+func fromHeader(from, name string) string {
+	a, err := mail.ParseAddress(oneLine(from))
+	if err != nil {
+		return oneLine(from)
+	}
+	if n := oneLine(name); n != "" {
+		a.Name = n
+	} else if strings.TrimSpace(a.Name) == "" {
+		a.Name = senderName
+	}
+	return a.String()
+}
+
 // buildMessage renders the RFC 5322 message: UTF-8 subject (RFC 2047) and a
 // quoted-printable plain-text body, CRLF line endings.
+// from is the finished From header (see fromHeader).
 func buildMessage(from string, to []string, ev Event) []byte {
 	var b bytes.Buffer
 	h := func(k, v string) { b.WriteString(k + ": " + v + "\r\n") }

@@ -85,8 +85,8 @@ func (s *Server) handleCalendarFeed(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "calendar unavailable", http.StatusInternalServerError)
 		return
 	}
-	if albums, err := s.albumCalendarEntries(); err == nil && len(albums) > 0 {
-		entries = append(entries, albums...)
+	if more, err := s.moduleCalendarEntries(); err == nil && len(more) > 0 {
+		entries = append(entries, more...)
 		sort.SliceStable(entries, func(i, j int) bool { return entries[i].ReleaseDate < entries[j].ReleaseDate })
 	}
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")

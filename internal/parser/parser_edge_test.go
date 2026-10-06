@@ -52,7 +52,7 @@ func TestParseEdgeCases(t *testing.T) {
 		{"title that is only a year", "1917", parser.Release{Title: "1917"}},
 		{"year first in a title", "2001 A Space Odyssey 1968 1080p BluRay", parser.Release{Title: "2001 A Space Odyssey", Year: 1968, Resolution: "1080p", Source: "BluRay"}},
 		{"year in parentheses", "2012 (2009)", parser.Release{Title: "2012", Year: 2009}},
-		{"resolution written 1920x1080 is no year", "Some Show - 01 [1920x1080]", parser.Release{Title: "Some Show - 01 [1920x1080]"}},
+		{"resolution written 1920x1080 is no year", "Some Show - 01 [1920x1080]", parser.Release{Title: "Some Show"}}, // episode 1, anime style
 		{"digits glued to a year are no year", "Movie.Name.12019.1080p", parser.Release{Title: "Movie Name 12019", Resolution: "1080p"}},
 		{"airdate with dots", "Some.Show.2019.05.14.720p.HDTV.x264-GRP", parser.Release{Title: "Some Show", Year: 2019, Resolution: "720p", Source: "HDTV", Codec: "x264", Group: "GRP"}},
 		{"airdate with dashes", "Late.Night.2021-05-14.1080p.WEB-DL", parser.Release{Title: "Late Night", Year: 2021, Resolution: "1080p", Source: "WEB-DL"}},

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, isAdmin, type ActivityEntry, type BlocklistEntry, type QueueItem } from '../api'
+import { api, can, isAdmin, type ActivityEntry, type BlocklistEntry, type QueueItem } from '../api'
 import { useAuth } from '../AuthContext'
 import Cover from '../components/Cover'
 import Icon, { type IconName } from '../components/Icon'
@@ -10,12 +10,13 @@ import { useToast } from '../components/Toast'
 import { formatBytes, timeAgo } from '../format'
 import { useConfirm } from '../components/ConfirmProvider'
 import RecycleBin from '../components/RecycleBin'
+import RequestsList from '../components/RequestsList'
 import { failureHelp } from '../failureHelp'
 import { useModules } from '../ModulesContext'
 import { bulkState, groupQueue, RUNNING, stateNote, statusLabel, stillWaiting } from '../queueView'
 import { useLive } from '../useLive'
 
-type Tab = 'queue' | 'history' | 'blocklist' | 'bin'
+type Tab = 'queue' | 'history' | 'requests' | 'blocklist' | 'bin'
 
 const EVENT: Record<string, { icon: IconName; tone: string; group: string }> = {
   grabbed: { icon: 'download', tone: 'info', group: 'Downloads' },
@@ -82,6 +83,7 @@ function FailureTips({ q, link }: { q: QueueItem; link?: string | null }) {
 }
 
 function QueueRow({ q, admin, busy, act, stop, remove }: RowProps) {
+  const me = useAuth().user
   const link = itemLink(q)
   const running = RUNNING.has(q.status)
   const working = busy !== null || !!q.pending
@@ -154,7 +156,7 @@ function QueueRow({ q, admin, busy, act, stop, remove }: RowProps) {
             </button>
           </>
         )}
-        {(q.status === 'failed' || q.status === 'stopped') && (
+        {(q.status === 'failed' || q.status === 'stopped') && can(me, 'retry') && (
           <button className="btn-sm btn-with-icon" disabled={working} onClick={() => void act(q, () => api.retryQueueItem(q.id), 'Trying that release again.')}>
             <Icon name="refresh" size={15} /> Retry
           </button>
@@ -188,7 +190,8 @@ export default function Queue() {
   // Members can watch the queue and retry, but pausing, stopping, removing,
   // blocklisting and resolving conflicts are for administrators.
   const admin = isAdmin(useAuth().user)
-  const [tab, setTab] = useState<Tab>('queue')
+  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get('tab') === 'requests' ? 'requests' : 'queue'))
+  const [pendingRequests, setPendingRequests] = useState(0)
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [activity, setActivity] = useState<ActivityEntry[]>([])
   // History: how many lines to show, and the words to look for.
@@ -378,6 +381,9 @@ export default function Queue() {
           <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>
             History {completed.length > 0 && <small>({completed.length})</small>}
           </button>
+          <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>
+            Requests {pendingRequests > 0 && <small>({pendingRequests})</small>}
+          </button>
           {admin && (
             <button className={tab === 'blocklist' ? 'active' : ''} onClick={() => setTab('blocklist')}>
               Blocklist <small>({blocklist.length})</small>
@@ -545,6 +551,7 @@ export default function Queue() {
       )}
 
       {tab === 'bin' && admin && <RecycleBin />}
+      {tab === 'requests' && <RequestsList onCount={setPendingRequests} />}
 
       {tab === 'blocklist' && admin && (
         <>

@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --no-warnings --test src/validate.test.ts src/setupHelpers.test.ts src/importText.test.ts src/busyState.test.ts src/supportReport.test.ts src/librarySelection.test.ts src/queueView.test.ts src/format.test.ts src/updateSteps.test.ts src/problemsView.test.ts src/setupStatus.test.ts src/diskUsage.test.ts src/releaseHint.test.ts src/shortcuts.test.ts src/documentTitle.test.ts src/pages/settings/torrentPort.test.ts src/requestSignal.test.ts src/failureHelp.test.ts src/bookshelf/shelfMath.test.ts src/outsideService.test.ts"
+    "test": "node --experimental-strip-types --no-warnings --test src/validate.test.ts src/setupHelpers.test.ts src/importText.test.ts src/busyState.test.ts src/supportReport.test.ts src/librarySelection.test.ts src/queueView.test.ts src/format.test.ts src/updateSteps.test.ts src/problemsView.test.ts src/setupStatus.test.ts src/diskUsage.test.ts src/releaseHint.test.ts src/shortcuts.test.ts src/documentTitle.test.ts src/pages/settings/torrentPort.test.ts src/requestSignal.test.ts src/failureHelp.test.ts src/bookshelf/shelfMath.test.ts src/outsideService.test.ts src/bookSeries.test.ts"
   },
   "dependencies": {
     "epubjs": "0.3.93",
@@ -17,13 +17,13 @@
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "oxlint": "^1.81.0",
+    "oxlint": "^1.86.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.2"
   },
   "overrides": {
     "@xmldom/xmldom": "0.8.15"

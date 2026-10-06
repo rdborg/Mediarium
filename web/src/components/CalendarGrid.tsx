@@ -12,16 +12,18 @@ function entryLink(e: CalendarEntry): string | undefined {
   if (e.kind === 'episode' && e.seriesId) return `/series/${e.seriesId}`
   if (e.kind === 'movie' && e.tmdbId) return `/title/${e.tmdbId}`
   if (e.kind === 'album' && e.albumId) return `/music/album/${e.albumId}`
+  if (e.kind === 'book' && e.bookId) return `/book/${e.bookId}`
   return undefined
 }
 
 // One badge per kind of media, told apart by shape of the symbol and by
-// colour (movies teal, shows violet, music orange, the same everywhere in the
-// app). Books join this list when that module arrives.
+// colour (movies teal, shows violet, music orange, books green, the same
+// everywhere in the app).
 const KIND = {
   movie: { icon: 'film', label: 'Movie', cls: 'movie' },
   episode: { icon: 'tv', label: 'TV episode', cls: 'tv' },
   album: { icon: 'music', label: 'Album', cls: 'music' },
+  book: { icon: 'book', label: 'Book', cls: 'book' },
 } as const
 
 const STATUS_LABEL: Record<CalendarEntry['status'], string> = { downloaded: 'Have it', downloading: 'Downloading', missing: 'Waiting' }

@@ -12,7 +12,7 @@ Until Mediarium is in the catalog, TrueNAS users can paste the normal compose fi
 
 | File | What it is |
 |---|---|
-| `app.yaml` | Catalog metadata: `app_version: 1.3.0`, catalog `version: 1.0.0`, category `media`, icon/screenshot URLs on `media.sys.truenas.net`, run-as 568:568. |
+| `app.yaml` | Catalog metadata: `app_version: 2.1.0`, catalog `version: 1.0.0`, category `media`, icon/screenshot URLs on `media.sys.truenas.net`, run-as 568:568. |
 | `ix_values.yaml` | The image (`ghcr.io/rdborg/mediarium`, tag to be pinned with a digest) and the permissions helper image. |
 | `questions.yaml` | The install form, based on the catalog's Sonarr app: timezone; the downloads, movies and TV folders (inside `/data`); user and group (568 by default); web port 8264 and torrent port 58264 (TCP+UDP); **Config** storage (ixVolume or host path) and **Data** storage (a host path, the one dataset holding downloads, movies and TV) plus additional storage; labels; resources. |
 | `templates/docker-compose.yaml` | Renders the app with the catalog's library: runs as the chosen user (the image supports starting as a non-root user), sets `DOWNLOADS_DIR`/`MOVIES_DIR`/`TV_DIR`, health check on `/api/version`, ports and storage. |
@@ -25,8 +25,8 @@ The template was rendered with the catalog's own validation image (`ghcr.io/true
 
 ## Requirements
 
-- [ ] The Mediarium repository is public, and `ghcr.io/rdborg/mediarium:1.3.0` is published and **public**, for `amd64` (TrueNAS SCALE is amd64 only).
-- [ ] Pin the image in `ix_values.yaml`: `tag: "1.3.0@sha256:<digest>"` (get it with `docker buildx imagetools inspect ghcr.io/rdborg/mediarium:1.3.0`). Renovate keeps it updated afterwards.
+- [ ] The Mediarium repository is public, and `ghcr.io/rdborg/mediarium:2.1.0` is published and **public**, for `amd64` (TrueNAS SCALE is amd64 only).
+- [ ] Pin the image in `ix_values.yaml`: `tag: "2.1.0@sha256:<digest>"` (get it with `docker buildx imagetools inspect ghcr.io/rdborg/mediarium:2.1.0`). Renovate keeps it updated afterwards.
 - [ ] An icon (PNG, square) and 3 screenshots to attach to the pull request; the TrueNAS team uploads them to `media.sys.truenas.net` and the URLs in `app.yaml` become real. `branding/mediarium-icon-512.png` and `docs/images/*.png` are suitable.
 
 ## Steps

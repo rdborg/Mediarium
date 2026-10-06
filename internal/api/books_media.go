@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"io/fs"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/rdborg/mediarium/internal/books"
@@ -54,6 +56,11 @@ func (s *Server) handleReadBook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(rel)), ".")
+	// The reader asks for Kindle books as EPUB (see books_convert.go).
+	if r.URL.Query().Get("as") == "epub" && kindleFormat(ext) && r.URL.Query().Get("download") == "" {
+		s.serveConverted(w, r, filepath.Join(folder.Dir, filepath.FromSlash(rel)), info, path.Base(rel))
+		return
+	}
 	ct := ebookTypes[ext]
 	if ct == "" {
 		ct = "application/octet-stream"
@@ -90,9 +97,46 @@ func (s *Server) openedOK(w http.ResponseWriter, err error) bool {
 }
 
 type bookTrack struct {
-	Index int    `json:"index"`
-	Name  string `json:"name"`
-	Size  int64  `json:"size"`
+	Index    int             `json:"index"`
+	Name     string          `json:"name"`
+	Size     int64           `json:"size"`
+	Chapters []books.Chapter `json:"chapters,omitempty"` // marks inside the file (an M4B), when it has two or more
+}
+
+// chapterCache keeps the chapters read from each file, by path, size and
+// modification time, so a long book's index is read once.
+var chapterCache sync.Map
+
+type chapterKey struct {
+	path  string
+	size  int64
+	mtime int64
+}
+
+// fileChapters reads the chapter marks of an M4B/M4A/MP4 file (nil for other
+// files, or when it has none).
+func fileChapters(full string, st os.FileInfo) []books.Chapter {
+	switch strings.ToLower(filepath.Ext(full)) {
+	case ".m4b", ".m4a", ".mp4", ".aax":
+	default:
+		return nil
+	}
+	key := chapterKey{full, st.Size(), st.ModTime().UnixNano()}
+	if v, ok := chapterCache.Load(key); ok {
+		return v.([]books.Chapter)
+	}
+	f, err := os.Open(full)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	ch, err := books.ReadChapters(f, st.Size())
+	if err != nil {
+		slog.Info("books: read chapters", "file", filepath.Base(full), "err", err)
+		return nil
+	}
+	chapterCache.Store(key, ch)
+	return ch
 }
 
 // audiobookTracks lists an audiobook's audio files in playing order, with the
@@ -177,8 +221,10 @@ func (s *Server) handleBookTracks(w http.ResponseWriter, r *http.Request) {
 	out := make([]bookTrack, 0, len(rels))
 	for i, rel := range rels {
 		t := bookTrack{Index: i, Name: strings.TrimSuffix(path.Base(rel), path.Ext(rel))}
-		if st, err := os.Stat(filepath.Join(folder.Dir, filepath.FromSlash(rel))); err == nil {
+		full := filepath.Join(folder.Dir, filepath.FromSlash(rel))
+		if st, err := os.Stat(full); err == nil {
 			t.Size = st.Size()
+			t.Chapters = fileChapters(full, st)
 		}
 		out = append(out, t)
 	}

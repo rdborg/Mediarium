@@ -309,7 +309,7 @@ func NewSender(t Target) (Sender, error) {
 		}
 		return &EmailSender{
 			Host: cfg["host"], Port: port, Security: cfg["security"],
-			Username: cfg["username"], Password: cfg["password"], From: cfg["from"], To: SplitAddresses(cfg["to"]),
+			Username: cfg["username"], Password: cfg["password"], From: cfg["from"], FromName: cfg["fromName"], To: SplitAddresses(cfg["to"]),
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown notification type %q", t.Type)

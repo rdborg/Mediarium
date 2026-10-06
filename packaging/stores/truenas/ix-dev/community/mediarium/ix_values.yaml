@@ -1,8 +1,8 @@
 images:
   image:
     repository: ghcr.io/rdborg/mediarium
-    # Replace with "1.3.0@sha256:<multi-arch index digest>" before submitting.
-    tag: "1.3.0"
+    # Replace with "2.1.0@sha256:<multi-arch index digest>" before submitting.
+    tag: "2.1.0"
   container_utils_image:
     repository: ixsystems/container-utils
     # Copy the current value from any other community app's ix_values.yaml.

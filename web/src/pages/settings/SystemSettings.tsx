@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, type Settings } from '../../api'
 import BackupCard from '../../components/BackupCard'
 import CleanupCard from '../../components/CleanupCard'
+import ScriptCard from '../../components/ScriptCard'
 import ServerStatsCard from '../../components/ServerStats'
 import SupportCard from '../../components/SupportCard'
 import { PushCard, RestartCard, UpdatesCard } from '../../components/UpdateCards'
@@ -86,6 +87,7 @@ export default function SystemSettings() {
       <CleanupCard />
       <SupportCard />
       <BackupCard />
+      <ScriptCard />
 
       <fieldset className="group alerts">
         <legend>

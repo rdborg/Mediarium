@@ -1,22 +1,25 @@
-# For people working on Mediarium itself: builds the image from this folder's
-# source instead of downloading the published one. Everyone else: use
-# docker-compose.yml (see docs/INSTALL.md).
+# For people working on Mediarium itself: builds the image from the source
+# instead of downloading the published one. Everyone else: use
+# docker/docker-compose.yml (see docs/INSTALL.md).
 #
-#   cp .env.example .env        # optional: HOST_PORT, PUID/PGID/TZ, build keys
-#   docker compose -f docker-compose.dev.yml up -d --build
+# From the top folder of the repository:
+#   cp docker/.env.example .env   # optional: HOST_PORT, PUID/PGID/TZ, build keys
+#   docker compose up -d --build  # .env points COMPOSE_FILE at this file
 #
-# Tip: put COMPOSE_FILE=docker-compose.dev.yml in your .env and plain
-# "docker compose up -d --build" uses this file.
+# Without a .env: docker compose -f docker/docker-compose.dev.yml up -d --build
 #
-# Folders: ./config, ./downloads, ./movies, ./tv and ./music next to this file (all
+# Folders: config, downloads, movies, tv and music in the top folder (all
 # git-ignored). Separate mounts copy finished downloads instead of hardlinking
 # them, which is fine for development. The public docker-compose.yml maps one
 # /data folder instead, so downloads move into the library instantly.
 
+name: mediarium
+
 services:
   app:
     build:
-      context: .
+      context: ..
+      dockerfile: Dockerfile
       # Optional app-wide keys for an official build (see the Dockerfile);
       # leave them out and the app asks for your own in the setup wizard.
       args:
@@ -38,19 +41,19 @@ services:
       - PGID=${PGID:-1000}
       - TZ=${TZ:-Etc/UTC}
     volumes:
-      - ./config:/config
-      - ./downloads:/downloads
-      - ./movies:/movies
-      - ./tv:/tv
-      - ./music:/music
-      # Optional folders for the ebooks and audiobooks modules (not built yet).
+      - ../config:/config
+      - ../downloads:/downloads
+      - ../movies:/movies
+      - ../tv:/tv
+      - ../music:/music
+      # Optional folders for the ebooks and audiobooks modules.
       # Take off the # to use one. The names on the right are what EBOOKS_DIR
       # and AUDIOBOOKS_DIR expect, so no environment line is needed.
-      # - ./ebooks:/ebooks
-      # - ./audiobooks:/audiobooks
+      # - ../ebooks:/ebooks
+      # - ../audiobooks:/audiobooks
 
   # Optional, for torrent sites behind a Cloudflare check:
-  #   docker compose -f docker-compose.dev.yml --profile cloudflare up -d
+  #   docker compose --profile cloudflare up -d
   # then use http://flaresolverr:8191 under Settings > Indexers & Search.
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest

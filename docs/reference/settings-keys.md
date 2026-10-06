@@ -7,15 +7,19 @@ The keys the app stores in its settings table. You normally change these from th
 | Key | Notes |
 |---|---|
 | `audiobooks.path` | audiobooks library folder; falls back to the AUDIOBOOKS_DIR env default (/audiobooks) when unset |
+| `auth.proxy_header` | the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key |
 | `automation.enabled` | "0" disables; anything else (including unset) enables |
 | `automation.hunt_interval_hours` | hours between searches for missing items and better versions: 1 to 168; unset = 6 |
 | `automation.release_check_minutes` | minutes between checks of each indexer's newest releases: 5 to 1440; unset = 15 |
 | `backup.auto` | "0" turns the nightly backup into /config/backups off; anything else (including unset) leaves it on |
 | `backup.keep` | how many saved backups are kept in /config/backups; unset = 7 |
+| `books.hardcover_token` | encrypted; a personal Hardcover API token for better book series and release dates. Unset = Open Library only |
 | `cleanup.auto` | "0" turns the daily automatic clean-up off; anything else (including unset) leaves it on |
 | `cleanup.history_retention_days` | days finished downloads and activity are kept; unset = 90, "0" = forever |
 | `cleanup.last_run_at` | when clean-up last ran (RFC 3339; set by the app, not user-editable) |
+| `cleanup.rules` | the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true |
 | `downloads.concurrent` | how many downloads run at the same time, Usenet and torrents together: 1 to 5; unset = 1 |
+| `downloads.hours` | when new downloads may start, "1-7" (from 1:00 to 7:00, server time); outside it they wait in line. Unset = any time |
 | `downloads.min_free_gb` | no new download starts while the downloads folder has less free space than this many GB; unset = 5, "0" = off |
 | `downloads.speed_limit_hours` | when the speed limit applies, "8-23" (from 8:00 to 23:00, server time); unset = all day |
 | `downloads.speed_limit_mb` | download speed limit in MB/s for Usenet and torrents together; unset or "0" = no limit |
@@ -54,6 +58,8 @@ The keys the app stores in its settings table. You normally change these from th
 | `notify.quiet_hours` | hours when everyday messages wait, "23-7" (server time); unset = none. Problems are always sent at once |
 | `onboarding.done` | "1" once the first-run wizard completes |
 | `quality.language` | the audio language wanted, as a name like "English" (the default when unset); a release clearly in another language only is not picked automatically |
+| `scripts.after_import` | JSON: script (a file name in /config/scripts; empty = off) and timeoutSec (default 300). Only a signed-in browser session can set it, not an API key |
+| `scripts.last_run` | what the last run did (JSON; set by the app, not user-editable) |
 | `server.public_url` | the address you open Mediarium at from your own devices (like https://mediarium.example.com); links in notification messages use it; unset = no links |
 | `subtitles.auto_download` | "1" fetches subtitles automatically; unset or "0" only offers them ("ask me") |
 | `subtitles.enabled` | the master switch: "1" turns downloading subtitles on; unset or "0" leaves it off (upgrades from a version that had subtitles in use are switched on once, by a migration) |
@@ -61,6 +67,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `subtitles.opensubtitles_api_key` | encrypted |
 | `subtitles.opensubtitles_password` | encrypted |
 | `subtitles.opensubtitles_username` | optional account for a higher download quota |
+| `subtitles.upgrade` | "0" stops swapping a subtitle for one made for the exact video file later; on by default, and only while subtitles download automatically |
 | `system.auto_restart_when_stuck` | "0" stops Mediarium restarting itself when it has not answered for three minutes; anything else (including unset) leaves it on |
 | `torrent.enabled` | "0" turns torrents off entirely; anything else (including unset) leaves them on |
 | `torrent.listen_port` | TCP+UDP port for incoming peers; unset or "0" = 58264 |
@@ -73,3 +80,5 @@ The keys the app stores in its settings table. You normally change these from th
 | `updates.latest` | the newest release the last check found (JSON; set by the app, not user-editable) |
 | `updates.notified_version` | the version the "new version" message was last sent for (set by the app, not user-editable) |
 | `vpn.require_for_torrents` |  |
+| `watched.status` | the last read and cleanup (JSON; set by the app, not user-editable) |
+| `watched.sync` | "1" reads what's been watched from Plex, Jellyfin and Emby every six hours; unset or "0" leaves it off |

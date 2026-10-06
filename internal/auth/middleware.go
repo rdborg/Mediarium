@@ -57,6 +57,16 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 	})
 }
 
+// UserFromRequest is the account behind the request's X-API-Key header or
+// session cookie.
+func (s *Service) UserFromRequest(r *http.Request) (*User, error) { return s.userFromRequest(r) }
+
+// WithUser returns ctx carrying user, as Middleware does, for callers that
+// sign a request in another way (a trusted reverse proxy).
+func WithUser(ctx context.Context, user *User) context.Context {
+	return context.WithValue(ctx, userContextKey, user)
+}
+
 func (s *Service) userFromRequest(r *http.Request) (*User, error) {
 	if key := r.Header.Get("X-API-Key"); key != "" {
 		return s.UserForAPIKey(key)

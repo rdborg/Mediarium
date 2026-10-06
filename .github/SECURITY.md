@@ -32,12 +32,12 @@ In scope: the Mediarium server, its web interface, its API, the Docker image
 Mediarium serves plain HTTP and is meant for your home network. Exposing
 port 8264 directly to the internet is not supported: use a VPN or a reverse
 proxy with HTTPS
-([docs/security.md](docs/security.md) has the checklist).
+([docs/security.md](../docs/security.md) has the checklist).
 
 Out of scope: problems in the sites, indexers, Usenet providers or VPN
 services you connect Mediarium to, and anything that needs an admin account
 to already be compromised. An administrator is powerful by design
-(see "Who can do what" in [docs/security.md](docs/security.md)), so "an
+(see "Who can do what" in [docs/security.md](../docs/security.md)), so "an
 administrator can do X" is not a vulnerability by itself. "A basic user, a
 stranger, an API key, a release or a web page can do X" is.
 

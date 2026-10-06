@@ -47,6 +47,7 @@ func (s *Server) StartAutomation() *automation.Scheduler {
 		automation.Job{Name: "import-details", Interval: importDetailsInterval, Run: s.importDetailsJob},
 		automation.Job{Name: "episode-quality", Interval: 24 * time.Hour, Run: func(context.Context) { s.backfillEpisodeQuality() }},
 		automation.Job{Name: "import-added-dates", Interval: 24 * time.Hour, Run: func(context.Context) { s.backfillImportedAddedDates() }},
+		automation.Job{Name: "watched", Interval: watchedJobTick, Run: s.watchedJob}, // does nothing until switched on
 	)
 	// The first minute belongs to the pages: the loops start once the app has
 	// had time to answer its first requests.

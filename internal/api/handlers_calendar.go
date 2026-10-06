@@ -5,16 +5,19 @@ import (
 	"net/http"
 	"sort"
 	"time"
+
+	"github.com/rdborg/mediarium/internal/books"
 )
 
 type calendarEntryPayload struct {
-	Kind        string `json:"kind"` // "movie", "episode" or "album" (music module)
+	Kind        string `json:"kind"` // "movie", "episode", "album" (music module) or "book" (ebooks and audiobooks)
 	ID          int64  `json:"id"`
 	MovieID     int64  `json:"movieId,omitempty"`
 	TMDBID      int    `json:"tmdbId,omitempty"` // movies: the movie page is addressed by TMDB id
 	SeriesID    int64  `json:"seriesId,omitempty"`
 	AlbumID     int64  `json:"albumId,omitempty"`  // albums
 	ArtistID    int64  `json:"artistId,omitempty"` // albums
+	BookID      int64  `json:"bookId,omitempty"`   // books
 	Season      int    `json:"season,omitempty"`
 	Episode     int    `json:"episode,omitempty"`
 	Title       string `json:"title"`
@@ -38,18 +41,100 @@ func (s *Server) handleCalendar(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// Album releases of the monitored artists, while the music module is on
-	// (the dashboard's "coming up" list stays movies and episodes).
-	albums, err := s.albumCalendarEntries()
+	// Album and book releases, while their modules are on (the dashboard's
+	// "coming up" list stays movies and episodes).
+	more, err := s.moduleCalendarEntries()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if len(albums) > 0 {
-		entries = append(entries, albums...)
+	if len(more) > 0 {
+		entries = append(entries, more...)
 		sort.SliceStable(entries, func(i, j int) bool { return entries[i].ReleaseDate < entries[j].ReleaseDate })
 	}
 	writeJSON(w, http.StatusOK, entries)
+}
+
+// moduleCalendarEntries are the album and book releases on the calendar.
+func (s *Server) moduleCalendarEntries() ([]calendarEntryPayload, error) {
+	albums, err := s.albumCalendarEntries()
+	if err != nil {
+		return nil, err
+	}
+	bookEntries, err := s.bookCalendarEntries()
+	if err != nil {
+		return nil, err
+	}
+	return append(albums, bookEntries...), nil
+}
+
+// bookCalendarEntries lists the library's books with a release date in the
+// calendar's window (30 days back, 120 ahead), while ebooks or audiobooks are
+// on. Release dates come from Hardcover (see books_series.go).
+func (s *Server) bookCalendarEntries() ([]calendarEntryPayload, error) {
+	if !s.booksEnabled() {
+		return nil, nil
+	}
+	list, err := s.BookRepo.List()
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	from := now.Add(-calendarEpisodeLookback).Format("2006-01-02")
+	to := now.Add(calendarEpisodeLookahead).Format("2006-01-02")
+	var out []calendarEntryPayload
+	for _, b := range list {
+		if len(b.ReleaseDate) != len("2006-01-02") || b.ReleaseDate < from || b.ReleaseDate > to || (!b.WantEbook && !b.WantAudiobook) {
+			continue
+		}
+		subtitle := bookFormatsLabel(b)
+		if b.SeriesName != "" && b.SeriesPosition != "" {
+			subtitle = fmt.Sprintf("Book %s of %s · %s", b.SeriesPosition, b.SeriesName, subtitle)
+		}
+		title := b.Title
+		if b.Author != "" {
+			title = b.Author + " — " + b.Title
+		}
+		out = append(out, calendarEntryPayload{Kind: "book", ID: b.ID, BookID: b.ID, Title: title, Subtitle: subtitle, ReleaseDate: b.ReleaseDate, Status: bookCalendarStatus(b)})
+	}
+	return out, nil
+}
+
+// bookFormatsLabel says which formats of a book are wanted.
+func bookFormatsLabel(b books.Book) string {
+	switch {
+	case b.WantEbook && b.WantAudiobook:
+		return "Ebook and audiobook"
+	case b.WantAudiobook:
+		return "Audiobook"
+	default:
+		return "Ebook"
+	}
+}
+
+// bookCalendarStatus is "downloaded" when every wanted format is there,
+// "downloading" while one is on its way, else "missing".
+func bookCalendarStatus(b books.Book) string {
+	all, busy := true, false
+	for _, f := range []books.Format{books.Ebook, books.Audiobook} {
+		if !b.Wants(f) {
+			continue
+		}
+		switch b.Status(f) {
+		case books.StatusDownloaded:
+		case books.StatusDownloading:
+			busy, all = true, false
+		default:
+			all = false
+		}
+	}
+	switch {
+	case all:
+		return "downloaded"
+	case busy:
+		return "downloading"
+	}
+	return "missing"
 }
 
 // albumCalendarEntries lists the monitored albums that

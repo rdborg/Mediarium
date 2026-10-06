@@ -133,9 +133,10 @@ func (s *EmailSender) Send(ctx context.Context, ev Event) error {
 		st.Add(false, "The server would not take the message: %s", smtpReason(err))
 		return fmt.Errorf("start message: %w", err)
 	}
-	msg := buildMessage(s.From, s.To, ev)
+	header := fromHeader(s.From, s.FromName)
+	msg := buildMessage(header, s.To, ev)
 	if ev.rich() {
-		msg = buildRichMessage(s.From, s.To, ev)
+		msg = buildRichMessage(header, s.To, ev)
 	}
 	if _, err := w.Write(msg); err != nil {
 		st.Add(false, "Could not send the message: %s", plainerror.Message(err))

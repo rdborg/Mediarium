@@ -303,6 +303,10 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	if !s.requireModule(w, moduleMovies) {
 		return
 	}
+	if s.mustRequest(r) {
+		s.fileRequest(w, r, "movie")
+		return
+	}
 	var req addMovieRequest
 	if err := decodeJSON(r, &req); err != nil || req.TMDBID <= 0 {
 		writeError(w, http.StatusBadRequest, "Pick a movie from the search results to add.")

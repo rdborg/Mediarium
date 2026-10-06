@@ -112,12 +112,16 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 // a single episode of series. With current == nil (nothing on disk) it tries
 // the profile and then, only when nothing is acceptable to it, each of its
 // fallback profiles in order; upgrades (current set) use the profile alone.
-func pickTVResult(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *quality.Tier) *indexers.Result {
+func pickTVResult(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *quality.Tier, mapper ...func(parser.Release) parser.Release) *indexers.Result {
+	var m func(parser.Release) parser.Release
+	if len(mapper) > 0 {
+		m = mapper[0]
+	}
 	if current != nil {
-		return pickTVResultFor(results, series, season, episode, profile, current)
+		return pickTVResultFor(results, series, season, episode, profile, current, m)
 	}
 	for _, p := range profile.Chain() {
-		if best := pickTVResultFor(results, series, season, episode, p, nil); best != nil {
+		if best := pickTVResultFor(results, series, season, episode, p, nil, m); best != nil {
 			return best
 		}
 	}
@@ -128,11 +132,11 @@ func pickTVResult(results []indexers.Result, series library.Series, season, epis
 // takes the highest-ranked profile-accepted release; otherwise only genuine
 // upgrades over current. Season packs are never offered for a single
 // episode — that would download a whole season to fill one gap.
-func pickTVResultFor(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *quality.Tier) *indexers.Result {
+func pickTVResultFor(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *quality.Tier, mapper func(parser.Release) parser.Release) *indexers.Result {
 	var best *indexers.Result
 	var bestKey pickKey
 	for i := range results {
-		rel := parser.Parse(results[i].Title)
+		rel := parseFor(mapper, results[i].Title)
 		if ok, _ := profile.TitleAllowed(results[i].Title); !ok {
 			continue
 		}
@@ -198,7 +202,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 			return grabs
 		}
 		if w.wholeSeason {
-			if best := pickTVResult(searcher(w.series, w.season, 0), w.series, w.season, 0, w.profile, nil); best != nil {
+			if best := pickTVResult(searcher(w.series, w.season, 0), w.series, w.season, 0, w.profile, nil, s.releaseMapper(w.series)); best != nil {
 				if ok, _ := grab(w.series, w.season, best); ok {
 					s.noteFallbackGrab(0, w.series.ID, w.series.Title, w.profile, best.Title)
 					continue
@@ -214,7 +218,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 				holdBack(logPrefix)
 				return grabs
 			}
-			best := pickTVResult(searcher(w.series, w.season, ep.Episode), w.series, w.season, ep.Episode, w.profile, nil)
+			best := pickTVResult(searcher(w.series, w.season, ep.Episode), w.series, w.season, ep.Episode, w.profile, nil, s.releaseMapper(w.series))
 			if best == nil {
 				continue
 			}
@@ -234,7 +238,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 			return grabs
 		}
 		current := quality.Tier(u.episode.Quality)
-		best := pickTVResult(searcher(u.series, u.episode.Season, u.episode.Episode), u.series, u.episode.Season, u.episode.Episode, u.profile, &current)
+		best := pickTVResult(searcher(u.series, u.episode.Season, u.episode.Episode), u.series, u.episode.Season, u.episode.Episode, u.profile, &current, s.releaseMapper(u.series))
 		if best == nil {
 			continue
 		}
@@ -252,6 +256,9 @@ func (s *Server) targetedTVSearcher(ctx context.Context, instances []indexers.In
 		}
 		budget--
 		outcomes := indexers.SearchAll(ctx, instances, tvSearchQuery(series.Title, season, episode), tvCategory)
+		for _, q := range s.extraTVQueries(series, season, episode) {
+			outcomes = append(outcomes, indexers.SearchAll(ctx, instances, q, tvCategory)...)
+		}
 		s.noteTVSearch(series, season, episode, outcomes)
 		return indexers.MergeResults(outcomes)
 	}

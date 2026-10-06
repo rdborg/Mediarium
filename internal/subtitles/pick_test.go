@@ -32,6 +32,29 @@ func TestPickPrefersTheSameRelease(t *testing.T) {
 	}
 }
 
+func TestPickPrefersASubtitleMadeForTheFile(t *testing.T) {
+	results := []subtitles.Result{
+		{FileID: 1, Release: "Movie.2001.1080p.BluRay.x264-GRP", DownloadsAll: 90000, Rating: 10},
+		{FileID: 2, Release: "something else", HashMatch: true},
+	}
+	if best := subtitles.Pick(results, "Movie.2001.1080p.BluRay.x264-GRP.mkv"); best == nil || best.FileID != 2 {
+		t.Fatalf("expected the subtitle made for this exact file, got %+v", best)
+	}
+}
+
+func TestFindSendsTheMovieHashAndReadsTheMatch(t *testing.T) {
+	var hash string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hash = r.URL.Query().Get("moviehash")
+		w.Write([]byte(`{"data":[{"attributes":{"language":"en","release":"x","moviehash_match":true,"files":[{"file_id":7}]}},{"attributes":{"language":"en","release":"y","files":[{"file_id":8}]}}]}`))
+	}))
+	defer srv.Close()
+	got, err := subtitles.NewWithBaseURL("k", srv.URL).Find(context.Background(), subtitles.Query{TMDBID: 1, MovieHash: "8e245d9679d31e12"})
+	if err != nil || hash != "8e245d9679d31e12" || len(got) != 2 || !got[0].HashMatch || got[1].HashMatch {
+		t.Fatalf("hash %q, results %+v, err %v", hash, got, err)
+	}
+}
+
 func TestFindSendsTMDBAndEpisodeParams(t *testing.T) {
 	var got map[string]string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

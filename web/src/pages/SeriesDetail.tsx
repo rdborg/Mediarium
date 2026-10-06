@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
 import ProfilePicker from '../components/ProfilePicker'
 import TitleTags from '../components/Tags'
+import WatchedLine from '../components/WatchedLine'
+import SeriesTypePicker from '../components/SeriesTypePicker'
 import Switch from '../components/Switch'
 import TitleHero from '../components/TitleHero'
 import WatchLinks from '../components/WatchLinks'
@@ -257,8 +259,10 @@ function SeriesPage() {
         <div className="title-controls">
           <Switch checked={series.monitored} onChange={toggleSeries} label="Monitored" description="Keeps looking for missing episodes." />
           <ProfilePicker kind="series" itemId={seriesId} />
+          <SeriesTypePicker id={seriesId} value={series.seriesType ?? 'standard'} onChange={(t) => setSeries((cur) => (cur ? { ...cur, seriesType: t } : cur))} />
         </div>
         <TitleTags kind="tv" id={seriesId} />
+        <WatchedLine kind="tv" id={seriesId} />
       </TitleHero>
 
       {error && <p className="error-text">{error}</p>}

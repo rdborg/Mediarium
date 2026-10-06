@@ -34,6 +34,12 @@ Nothing spends your small daily allowance unless you ask, or tick the automatic 
 
 To let Mediarium do it for you, tick **Download after each import, and look again every few hours for anything missing** under **Languages** on the Subtitles page, then press **Save languages**. It fetches after each import and sweeps every six hours, always within the daily limit. **Search for missing subtitles now** starts a sweep at once (it needs an OpenSubtitles key).
 
+## Subtitles made for your exact file
+
+When Mediarium searches, it also sends a fingerprint of the video file (OpenSubtitles' file hash, read from the first and last 64 KB). A subtitle someone timed against that exact file is marked **made for this file** in the search list and is always picked first, because it is in sync.
+
+Often there is no such subtitle yet, and Mediarium picks the one whose release name fits best. With automatic downloading on, the box **For a month after, swap a subtitle for one made for that exact video file if one turns up** (on by default) has it look again every three days for a month. When one appears it replaces the earlier pick and the swap is written to Activity. It only touches subtitles it picked itself: one you chose by hand, moved in time or edited, or one next to a video that was replaced, is left alone. A run swaps at most five and keeps a few of the day's downloads free for new imports.
+
 ## Daily limits and the free account
 
 OpenSubtitles allows about **5** downloads per 24 hours per internet address without an account and about **20** with a free OpenSubtitles.com account (VIP accounts get more). Requests are also paced to under 5 per second.
@@ -45,6 +51,16 @@ To add your account, enter your OpenSubtitles.com username and password under **
 ## Shared keys
 
 Official builds include an OpenSubtitles key (and a Trakt key) that everyone shares. When one reaches its limit, the dashboard says so and suggests your own free key. Enter yours in the OpenSubtitles card on the Subtitles page (Trakt's is on **Movie info and lists**). **Switch back to the shared key** on the same card undoes it. `GET /api/usage` shows the requests made and limits reached per service in the last 24 hours.
+
+## Fixing a subtitle that is out of time
+
+On a movie's or show's page, open **Files**. Each `.srt` or `.vtt` subtitle has a **Timing** button:
+
+- **Move by ... seconds**, then **Earlier** or **Later**, shifts every line by that much (tenths of a second work, for example 1.5).
+- **Line up with** another subtitle of the same title that is in time (for example the English one that came with the release): Mediarium compares when the lines start, finds the best offset, and also fixes a subtitle made for another frame rate (25 against 23.976 frames a second), which drifts further out as the film goes on. If the two don't fit together well (less than 40% of the lines match, for example subtitles for another cut of the film), nothing is changed and it says so.
+- **Put the original back** undoes all of it. The first time a subtitle is changed, the original is kept next to it as `<name>.srt.bak`.
+
+Only the times change; the text, styling and numbering stay as they are. Accounts need the **Subtitles** permission. Scripts: `POST /api/subtitles/timing` with `kind` (`movie` or `series`), `id`, `file` (relative to the title's folder) and one of `shiftMs`, `reference` or `undo: true`.
 
 ## Marking a title "no subtitles wanted"
 

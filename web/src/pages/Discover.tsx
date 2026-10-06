@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, ApiError, type BookFound, type DiscoverMovie, type MusicType } from '../api'
+import { api, isRequested, ApiError, type BookFound, type DiscoverMovie, type MusicType } from '../api'
 import { PicksProvider, pickKey, usePicks } from '../discoverPicks'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import type { AddMusicTarget } from '../components/AddMusicDialog'
@@ -141,18 +141,20 @@ function PickBar({ onAdded }: { onAdded: () => void }) {
   async function addAll() {
     setBusy({ done: 0, total: list.length })
     let failed = 0
+    let asked = 0
     for (let i = 0; i < list.length; i++) {
       const t = list[i]
       try {
-        if (t.kind === 'movie') await api.addMovie(t.tmdbId, { searchNow: true })
-        else await api.addSeries(t.tmdbId, { searchNow: true })
+        const res = t.kind === 'movie' ? await api.addMovie(t.tmdbId, { searchNow: true }) : await api.addSeries(t.tmdbId, { searchNow: true })
+        if (isRequested(res)) asked++
       } catch {
         failed++
       }
       setBusy({ done: i + 1, total: list.length })
     }
     setBusy(null)
-    if (failed === 0) toast.success(`Added ${list.length} ${list.length === 1 ? 'title' : 'titles'}. Mediarium is looking for them now.`)
+    if (failed === 0 && asked > 0) toast.success(`Asked for ${asked} ${asked === 1 ? 'title' : 'titles'}. An administrator will look at ${asked === 1 ? 'it' : 'them'} under Activity > Requests.`)
+    else if (failed === 0) toast.success(`Added ${list.length} ${list.length === 1 ? 'title' : 'titles'}. Mediarium is looking for them now.`)
     else toast.error(`${failed} of ${list.length} could not be added.`)
     picks?.setSelecting(false)
     onAdded()

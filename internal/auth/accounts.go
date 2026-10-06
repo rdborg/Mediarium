@@ -20,7 +20,8 @@ var (
 type Account struct {
 	User
 	CreatedAt   time.Time
-	LastLoginAt *time.Time // nil until the account first signs in
+	LastLoginAt *time.Time  // nil until the account first signs in
+	Permissions Permissions // what a basic account may do (all, for an administrator)
 }
 
 // AccountUpdate lists the changes an administrator makes to an account; a nil
@@ -33,16 +34,21 @@ type AccountUpdate struct {
 	Password  *string // a new password; the account's sessions are signed out
 }
 
-const accountColumns = `id, username, is_admin, first_name, last_name, email, created_at, last_login_at`
+const accountColumns = `id, username, is_admin, first_name, last_name, email, created_at, last_login_at, permissions`
 
 func scanAccount(scan func(dest ...any) error) (Account, error) {
 	var (
 		a       Account
 		created string
 		last    sql.NullString
+		perms   string
 	)
-	if err := scan(&a.ID, &a.Username, &a.IsAdmin, &a.FirstName, &a.LastName, &a.Email, &created, &last); err != nil {
+	if err := scan(&a.ID, &a.Username, &a.IsAdmin, &a.FirstName, &a.LastName, &a.Email, &created, &last, &perms); err != nil {
 		return Account{}, err
+	}
+	a.Permissions = parsePermissions(perms)
+	if a.IsAdmin {
+		a.Permissions = DefaultPermissions()
 	}
 	t, err := time.Parse(time.RFC3339Nano, created)
 	if err != nil {

@@ -15,7 +15,7 @@ Notifications tell you when something happens: a download started or finished, a
 
 | Method | What it needs |
 |---|---|
-| Email | The outgoing (SMTP) server of your email account, a login if it needs one, a "from" and a "to" address. Gmail and Outlook need an app password. |
+| Email | The outgoing (SMTP) server of your email account, a login if it needs one, a "from" and a "to" address. Gmail and Outlook need an app password. The **From name** box sets the name emails show as coming from (Mediarium unless you change it). |
 | ntfy | A topic name, nothing else. Free push messages to your phone; use your own ntfy server if you have one. |
 | Gotify | The address of your Gotify server and an application token. |
 | Pushover | Your user key and an application token from pushover.net. |
@@ -58,7 +58,7 @@ Every message has a clear subject and the same details, made from one template, 
 | Needs a decision | `Needs your decision: Titanic (1997)` |
 | Subtitles | `Subtitles added: Titanic (1997)` |
 | Something is wrong | `Mediarium needs attention: your Usenet login was refused` |
-| New version | `Mediarium 1.3.0 is available` |
+| New version | `Mediarium 2.1.0 is available` |
 | Test | `Mediarium test message` |
 
 Under the subject is one sentence and a small table: title, year, quality, size, where it was saved (or the reason it failed, or the release name) and the time.

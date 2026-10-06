@@ -25,7 +25,7 @@ Runtipi's official app store no longer accepts new apps; its README asks develop
 
 ## Requirements
 
-- [ ] Image `ghcr.io/rdborg/mediarium:1.3.0` published and public (Runtipi discourages `latest`).
+- [ ] Image `ghcr.io/rdborg/mediarium:2.1.0` published and public (Runtipi discourages `latest`).
 - [ ] A Runtipi install to test on.
 
 ## What only the maintainer can do

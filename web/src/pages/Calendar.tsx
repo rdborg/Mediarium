@@ -5,11 +5,11 @@ import Icon from '../components/Icon'
 import Loading from '../components/Loading'
 import { useToast } from '../components/Toast'
 import { copyText } from '../components/CopyBox'
-import { useKinds } from '../ModulesContext'
+import { useKinds, useModules } from '../ModulesContext'
 import { useLive } from '../useLive'
 
-type Show = 'all' | 'movie' | 'episode' | 'album'
-const SHOW_LABEL: Record<Show, string> = { all: 'All', movie: 'Movies', episode: 'TV', album: 'Music' }
+type Show = 'all' | 'movie' | 'episode' | 'album' | 'book'
+const SHOW_LABEL: Record<Show, string> = { all: 'All', movie: 'Movies', episode: 'TV', album: 'Music', book: 'Books' }
 
 // Monitored movie releases, episode airs and album releases on one month
 // view, with simple filters and a link to add it to a calendar app.
@@ -20,6 +20,7 @@ export default function Calendar() {
   const [missingOnly, setMissingOnly] = useState(false)
   const [feedOpen, setFeedOpen] = useState(false)
   const kinds = useKinds()
+  const { on } = useModules()
 
   useEffect(() => {
     api
@@ -29,7 +30,7 @@ export default function Calendar() {
   }, [])
   useLive(() => api.calendar().then(setEntries).catch(() => undefined), 30000)
 
-  const options: Show[] = ['all', ...(kinds.includes('movie') ? (['movie'] as const) : []), ...(kinds.includes('tv') ? (['episode'] as const) : []), ...(kinds.includes('music') ? (['album'] as const) : [])]
+  const options: Show[] = ['all', ...(kinds.includes('movie') ? (['movie'] as const) : []), ...(kinds.includes('tv') ? (['episode'] as const) : []), ...(kinds.includes('music') ? (['album'] as const) : []), ...(on('ebooks') || on('audiobooks') ? (['book'] as const) : [])]
   const shown = (entries ?? []).filter((e) => (show === 'all' || e.kind === show) && (!missingOnly || e.status !== 'downloaded'))
 
   return (

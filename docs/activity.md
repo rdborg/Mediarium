@@ -69,7 +69,7 @@ The **History** tab lists the newest 100 events. **Show older lines** loads 200 
 
 ## The calendar
 
-**Upcoming > Calendar** shows releases, episode air dates and album releases on their day. Chips at the top show only movies, TV or music (when more than one is switched on), and **Not downloaded yet only** hides what you already have.
+**Upcoming > Calendar** shows releases, episode air dates, album releases and book releases on their day. Chips at the top show only movies, TV, music or books (when more than one is switched on), and **Not downloaded yet only** hides what you already have.
 
 **Add to your calendar app** gives you a private address (an `.ics` link) to subscribe to in Google Calendar (*Other calendars > From URL*), on an iPhone (*Settings > Calendar > Accounts > Add Subscribed Calendar*) or in Outlook. Releases then show up in your own calendar and update by themselves. The address works without signing in, so anyone who has it can see your calendar: keep it to yourself. **Make a new address** replaces it (the old one stops working) and **Turn it off** removes it. Each account has its own. The calendar app must be able to reach Mediarium, so for an app on your phone outside your home this needs your reverse proxy. Scripts: `GET`, `POST` and `DELETE /api/calendar/feed`; the feed itself is `GET /api/calendar/feed/{token}.ics`.
 

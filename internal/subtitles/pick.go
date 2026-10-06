@@ -12,13 +12,17 @@ func normalizeRelease(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
+// HashMatchScore is what being made for the exact video file adds to Score.
+const HashMatchScore = 500
+
 func hasToken(normalizedRelease, token string) bool {
 	token = normalizeRelease(token)
 	return token != "" && strings.Contains(normalizedRelease, token)
 }
 
-// Score rates how well a subtitle result fits a video file: a subtitle timed
-// against the same release (matching group, source, resolution, codec) is
+// Score rates how well a subtitle result fits a video file: one made for the
+// exact file (a hash match) beats everything; a subtitle timed against the
+// same release (matching group, source, resolution, codec) is
 // far more likely to be in sync than one for a different rip, so those
 // matches dominate; rating and popularity break ties.
 func Score(r Result, videoName string) float64 {
@@ -26,6 +30,9 @@ func Score(r Result, videoName string) float64 {
 	rel := normalizeRelease(r.Release)
 
 	score := 0.0
+	if r.HashMatch {
+		score += HashMatchScore
+	}
 	if hasToken(rel, video.Group) {
 		score += 100
 	}

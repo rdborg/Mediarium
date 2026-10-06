@@ -1,6 +1,8 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useState } from 'react'
-import { api, type TitleFile } from '../api'
+import { api, can, type TitleFile } from '../api'
+import { useAuth } from '../AuthContext'
+import SubtitleTiming from './SubtitleTiming'
 import { formatBytes, timeAgo } from '../format'
 import { useLive } from '../useLive'
 import Icon from './Icon'
@@ -16,6 +18,8 @@ export default function FilesPanel({ kind, id }: { kind: 'movie' | 'series' | 'a
   const [error, setError] = useState('')
   const [playing, setPlaying] = useState<TitleFile | null>(null)
   const [viewing, setViewing] = useState<TitleFile | null>(null)
+  const [timing, setTiming] = useState('')
+  const me = useAuth().user
 
   const load = useCallback(() => {
     ;(kind === 'movie' ? api.movieFiles(id) : kind === 'album' ? api.albumFiles(id) : api.seriesFiles(id))
@@ -59,6 +63,20 @@ export default function FilesPanel({ kind, id }: { kind: 'movie' | 'series' | 'a
               <button className="btn-sm btn-with-icon" onClick={() => setViewing(f)}>
                 <Icon name="eye" size={14} /> View
               </button>
+            )}
+            {f.kind === 'subtitle' && kind !== 'album' && /\.(srt|vtt)$/i.test(f.path) && can(me, 'subtitles') && (
+              <button className={`btn-sm btn-with-icon${timing === f.path ? ' primary' : ''}`} onClick={() => setTiming(timing === f.path ? '' : f.path)} aria-expanded={timing === f.path}>
+                <Icon name="clock" size={14} /> Timing
+              </button>
+            )}
+            {timing === f.path && kind !== 'album' && (
+              <SubtitleTiming
+                kind={kind}
+                id={id}
+                file={f.path}
+                others={sorted.filter((o) => o.kind === 'subtitle' && o.path !== f.path && /\.(srt|vtt)$/i.test(o.path)).map((o) => o.path)}
+                onDone={load}
+              />
             )}
           </li>
         ))}

@@ -226,6 +226,10 @@ func (s *Server) importOneBook(res bookImportResult) bookImportResult {
 		return res
 	}
 	res.Status, res.BookID = bookImported, b.ID
+	if updated, err := s.BookRepo.Get(b.ID); err == nil {
+		s.lookUpAudioDetailsLater(updated) // narrator and length, for an audiobook
+		s.convertLater(updated)            // an EPUB copy of a Kindle book, for the reader
+	}
 	return res
 }
 

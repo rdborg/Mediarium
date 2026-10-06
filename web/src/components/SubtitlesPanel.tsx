@@ -95,7 +95,7 @@ export default function SubtitlesPanel({ kind, id }: { kind: 'movie' | 'episode'
             {results.map((r, i) => (
               <tr key={r.fileId}>
                 <td style={{ wordBreak: 'break-all' }}>
-                  {r.release || '—'} {i === 0 && <span className="badge downloaded">best match</span>}
+                  {r.release || '—'} {r.hashMatch ? <span className="badge downloaded" title="Timed for this exact video file">made for this file</span> : i === 0 && <span className="badge downloaded">best match</span>}
                 </td>
                 <td>{r.rating}</td>
                 <td>{Math.round(r.score)}</td>

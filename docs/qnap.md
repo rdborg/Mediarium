@@ -71,7 +71,7 @@ services:
 
 ## Optional folders: music, ebooks and audiobooks
 
-Music works today (switch it on under **Settings → Media types**). Ebooks and audiobooks aren't ready yet, but you can set their folders now.
+Music, ebooks and audiobooks each switch on under **Settings → Media types**.
 
 - **Inside `data`:** create the folder (for example `music`), then take the `#` off the matching `environment` line above. Nothing else to map.
 - **In another shared folder:** add a line under `volumes:`, for example `- /share/music:/music` (or `/ebooks`, `/audiobooks` on the right). No `environment` line is needed when the right side keeps those names.

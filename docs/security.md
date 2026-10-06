@@ -69,7 +69,7 @@ Point the public hostname at `http://mediarium:8264`. `cloudflared` runs as a co
 
 ### Synology (Control Panel, Login Portal, Reverse Proxy)
 
-Create a rule: source HTTPS, your hostname, port 443; destination HTTP, `localhost`, port 8264. Then open *Custom Header*, press *Create* and add `X-Forwarded-Proto` with the value `$scheme` (and `X-Forwarded-For` with `$proxy_add_x_forwarded_for` if your DSM version does not send it). The Synology proxy runs on the NAS itself, so its address is trusted by default. Without `X-Forwarded-Proto` everything works, but the session cookie is not marked HTTPS-only and no HSTS header is sent.
+Step by step, with the certificate and router: [Reach it from outside your home](./synology.md#reach-it-from-outside-your-home). In short: create a rule with source HTTPS, your hostname, port 443; destination HTTP, `localhost`, port 8264. Then open *Custom Header*, press *Create* and add `X-Forwarded-Proto` with the value `$scheme` (and `X-Forwarded-For` with `$proxy_add_x_forwarded_for` if your DSM version does not send it). The Synology proxy runs on the NAS itself, so its address is trusted by default. Without `X-Forwarded-Proto` everything works, but the session cookie is not marked HTTPS-only and no HSTS header is sent.
 
 ## What Mediarium does about it
 
@@ -104,6 +104,24 @@ environment:
 The caller's address is taken from the *right* end of `X-Forwarded-For`, skipping trusted proxies, so entries the visitor typed themselves are never used. If you chain proxies (for example Cloudflare, then your own proxy), add the outer proxy's ranges as well; otherwise every visitor looks like the outer proxy's address and shares one sign-in limit. Cloudflare publishes its ranges at <https://www.cloudflare.com/ips/>.
 
 **Docker Desktop and some NAS setups make every connection look like it comes from the Docker gateway** (a private address), so Mediarium then believes forwarding headers from everyone. If you publish the port straight to the internet in such a setup, a visitor could fake their address. The fix is in the checklist: publish only the proxy, not port 8264.
+
+## Sign in through your reverse proxy
+
+Some proxies ask for the login themselves before anyone reaches the app: Authelia, Authentik, Cloudflare Access, oauth2-proxy and the like. They can pass the signed-in user name on in a header (often `Remote-User`). Mediarium can use it so people don't sign in twice.
+
+It is **off** by default. A plain reverse proxy (the one on a Synology, Nginx Proxy Manager, Caddy, Traefik without an auth middleware) doesn't log anyone in, so leave it off for those.
+
+To switch it on, as an administrator open **Settings > Accounts**, find **Sign in through your reverse proxy**, type the header name your proxy sends and press **Turn on**. The card then shows whether this page came through a trusted proxy and what the proxy put in the header, so you can check it works before you rely on it.
+
+How it behaves:
+
+- The header is only believed from a proxy listed in [TRUSTED_PROXIES](#trusted_proxies). From anyone else it is ignored.
+- The name must match an existing Mediarium account (upper and lower case don't matter). Unknown names are refused; accounts are not created by themselves. Make the accounts under Settings > Accounts with the same user names your proxy uses.
+- An API key or a normal Mediarium session still works and comes first. A wrong API key is refused even if the header is there.
+- It can only be switched on from a signed-in browser, not with an API key. Every change is written to the log.
+- Signing out of Mediarium doesn't sign you out of the proxy. Use your proxy's own sign-out.
+
+**Important:** the proxy must remove the header from whatever the visitor sends, and set it itself (Authelia, Authentik and oauth2-proxy do). And Mediarium's port must only be reachable through the proxy. If a visitor could reach port 8264 directly from an address Mediarium trusts (see the Docker gateway note under TRUSTED_PROXIES), they could claim to be anyone. When in doubt, set `TRUSTED_PROXIES` to your proxy's exact address.
 
 ## ALLOWED_ORIGINS
 
@@ -172,5 +190,5 @@ If you lose the code, restart the container: it prints a new one. To read it on 
 - **Reporting a bug with a log.** The log is cleaned of passwords, keys and tokens as it is written, but read it before you post it. It can still show your folder paths, the names of your indexers and the titles you download.
 - **Forgot the password.** Reset it from the command line on the machine running Mediarium ([accounts.md](./accounts.md#a-forgotten-administrator-password)). Nothing can reset it over the web.
 - **API keys** (Settings > Accounts > API keys) act as the account that made them, are stored hashed and can be revoked. Treat them like a password. A key cannot make new keys or accounts, change accounts, download or restore a backup (it holds the encryption key) or switch on pushed updates (those answer `403` and need a signed-in browser), so a leaked key does not survive being revoked.
-- **Logs** never contain passwords, API keys or tokens (they are cleaned as they are written, both what `docker logs` shows and the copy under Settings > System; if you ever spot a secret in a log, report it, see [SECURITY.md](../SECURITY.md)). Failed sign-ins are logged with the account name and the address they came from, which is what tools such as fail2ban need.
-- **Reporting a problem:** see [SECURITY.md](../SECURITY.md).
+- **Logs** never contain passwords, API keys or tokens (they are cleaned as they are written, both what `docker logs` shows and the copy under Settings > System; if you ever spot a secret in a log, report it, see [SECURITY.md](../.github/SECURITY.md)). Failed sign-ins are logged with the account name and the address they came from, which is what tools such as fail2ban need.
+- **Reporting a problem:** see [SECURITY.md](../.github/SECURITY.md).

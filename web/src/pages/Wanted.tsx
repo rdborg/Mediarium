@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, isAdmin, type Book, type BookFormat, type Movie, type MusicWanted, type Series, type SubtitleQuota, type SubtitleWanted, type WantedItem } from '../api'
+import { releaseLabel } from '../bookSeries'
 import { useAuth } from '../AuthContext'
 import { useConfirm } from '../components/ConfirmProvider'
 import Cover from '../components/Cover'
@@ -336,6 +337,7 @@ export default function Wanted() {
   const rows = groupRows(shownItems)
   const pagedRows = rows.slice(0, limit)
   const musicRoom = Math.max(0, limit - rows.length)
+  const today = new Date().toISOString().slice(0, 10)
   const shownBooks = kind === 'missing' && (sel === 'all' || sel === 'book') ? missingBooks.filter((x) => matches(`${x.book.author} ${x.book.title}`)) : []
   const bookRoom = Math.max(0, musicRoom - shownMusic.length)
   const loadingList = items === null || (musicOn && music === null) || (booksOn && bookList === null)
@@ -544,14 +546,22 @@ export default function Wanted() {
                 <small>{[f === 'ebook' ? 'Ebook' : 'Audiobook', b.author, b.year].filter(Boolean).join(' · ')}</small>
               </div>
               <div className="wmeta">
-                <span className={`state-tag st-${missingState.key}`} title={missingState.hint}>
-                  <Icon name={missingState.icon} size={12} /> {missingState.label}
-                </span>
+                {b.releaseDate && b.releaseDate > today ? (
+                  <span className="state-tag st-upcoming" title="Mediarium starts looking for it on the day it comes out.">
+                    <Icon name="calendar" size={12} /> Out {releaseLabel(b.releaseDate)}
+                  </span>
+                ) : (
+                  <span className={`state-tag st-${missingState.key}`} title={missingState.hint}>
+                    <Icon name={missingState.icon} size={12} /> {missingState.label}
+                  </span>
+                )}
               </div>
               <div className="row-actions">
-                <button className="primary btn-sm btn-with-icon" disabled={busy === `book-${b.id}-${f}`} onClick={() => void searchBookNow(b, f)}>
-                  <Icon name="search" size={14} /> {busy === `book-${b.id}-${f}` ? 'Searching…' : 'Search now'}
-                </button>
+                {!(b.releaseDate && b.releaseDate > today) && (
+                  <button className="primary btn-sm btn-with-icon" disabled={busy === `book-${b.id}-${f}`} onClick={() => void searchBookNow(b, f)}>
+                    <Icon name="search" size={14} /> {busy === `book-${b.id}-${f}` ? 'Searching…' : 'Search now'}
+                  </button>
+                )}
                 <Link className="icon-btn" to={`/book/${b.id}`} title="Open" aria-label="Open">
                   <Icon name="open" size={17} />
                 </Link>

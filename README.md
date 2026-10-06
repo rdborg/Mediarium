@@ -22,14 +22,17 @@ Mediarium is a self-hosted media manager. Find a movie or show, and it searches 
 
 It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Bazarr in **one app**: one container, one web page, one search bar, one thing to update and back up.
 
-- **Movies and TV**, plus **music**, **ebooks** and **audiobooks** if you switch them on.
-- **Mediarium Books**, a built-in reader and audiobook player that opens as an app of its own and remembers your place on every device.
+- **Movies and TV** (anime, daily shows and specials included), plus **music**, **ebooks** and **audiobooks** if you switch them on.
+- **Mediarium Books**, a built-in reader and audiobook player that opens as an app of its own and remembers your place on every device. It reads Kindle books too, jumps between audiobook chapters, and follows book series.
 - **Tags** such as Kids or 4K, which also show up as collections in Plex, Jellyfin and Emby.
 - **Discover and search** everything from one place, across all your indexers.
 - **Built-in downloaders** for Usenet and torrents, with repair and unpacking.
 - **Built-in VPN** for torrents (WireGuard), with no special container permissions.
 - **Quality profiles** with upgrades and fallbacks, automatic searching and retries.
-- **Subtitles**, notifications, media-server refresh (Plex, Jellyfin, Emby, Audiobookshelf, Kavita), family accounts and backups.
+- **Family accounts with permissions and requests**: choose what each person can do, and anyone who can't add titles sends a request for you to approve.
+- **Subtitles** picked to match your exact file, with a timing fix when one is out of sync.
+- **What's been watched**, read from Plex, Jellyfin and Emby, with watch statistics and optional cleanup rules (all off until you switch them on).
+- Notifications, media-server refresh (Plex, Jellyfin, Emby, Audiobookshelf, Kavita), download hours, backups, and your own script after each import.
 - **Move over from Radarr, Sonarr, Prowlarr, SABnzbd** and eight other apps without redoing your setup. They are only read, never changed.
 - Runs on **Synology, Unraid, QNAP, any Linux server** and 64-bit Raspberry Pi.
 
@@ -58,14 +61,14 @@ Mediarium runs in Docker on any 64-bit Linux server or NAS (`amd64` or `arm64`).
 
 ```bash
 mkdir mediarium && cd mediarium
-curl -fsSLO https://raw.githubusercontent.com/rdborg/Mediarium/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/rdborg/Mediarium/main/docker/docker-compose.yml
 # open docker-compose.yml and set PUID, PGID, TZ and your folders
 docker compose up -d
 ```
 
 Then open `http://<your-server-ip>:8264` and follow the setup wizard.
 
-The [install guide](docs/INSTALL.md) covers every line of [`docker-compose.yml`](docker-compose.yml): folders, PUID/PGID, why one `/data` folder makes imports instant, updating, backups and a `docker run` alternative.
+The [install guide](docs/INSTALL.md) covers every line of [`docker-compose.yml`](docker/docker-compose.yml): folders, PUID/PGID, why one `/data` folder makes imports instant, updating, backups and a `docker run` alternative.
 
 Step-by-step guides: **[Synology](docs/synology.md)** (including running next to Radarr, Sonarr and SABnzbd) · **[Unraid](docs/unraid.md)** · **[QNAP](docs/qnap.md)** · **[Linux](docs/linux.md)**. Coming from the *arr apps? See [Move from Radarr, Sonarr, Prowlarr and SABnzbd](docs/migrate.md).
 
@@ -89,7 +92,7 @@ Everything is in [`docs/`](docs/README.md): installing, indexers, downloads and 
 ## Getting help
 
 - **Something not working?** Check [troubleshooting](docs/INSTALL.md#troubleshooting), then [open an issue](https://github.com/rdborg/Mediarium/issues/new/choose). Include your version (Settings > System > About and credits), or better, the text that **Copy for support** puts on your clipboard (Settings > System > Server and backup > Help and support). It has no passwords or keys in it.
-- **Security problem?** Report it privately, as described in [SECURITY.md](SECURITY.md).
+- **Security problem?** Report it privately, as described in [SECURITY.md](.github/SECURITY.md).
 - **Ideas and feature requests** are welcome as [issues](https://github.com/rdborg/Mediarium/issues/new/choose).
 
 ## Support the project
@@ -98,7 +101,7 @@ Mediarium is free, open source and has no ads. If it saves you time, you can [bu
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Start with [CONTRIBUTING.md](.github/CONTRIBUTING.md) and follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
 ## Responsible use
 

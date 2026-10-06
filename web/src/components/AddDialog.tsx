@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom'
 import { sortProfiles } from './qualityBlurb'
 import { useEffect, useRef, useState } from 'react'
-import { api, type DashboardData, type QualityProfile, type SourcePref } from '../api'
+import { api, can, isRequested, type DashboardData, type QualityProfile, type SourcePref } from '../api'
+import { useAuth } from '../AuthContext'
 import Icon from './Icon'
 import { TagChips, TagInput } from './Tags'
 import { PosterFallback } from './PosterCard'
@@ -56,6 +57,7 @@ export default function AddDialog({
   onClose: () => void
   onAdded: (libraryId: number) => void
 }) {
+  const asks = !can(useAuth().user, 'addDirect')
   const toast = useToast()
   const isMovie = target.kind === 'movie'
   const [profiles, setProfiles] = useState<QualityProfile[]>([])
@@ -109,13 +111,15 @@ export default function AddDialog({
     setError('')
     try {
       let libraryId: number
-      if (isMovie) {
-        const m = await api.addMovie(target.tmdbId, { profileId: profileId || undefined, monitored, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
-        libraryId = m.id
-      } else {
-        const s = await api.addSeries(target.tmdbId, { profileId: profileId || undefined, monitor, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
-        libraryId = s.id
+      const res = isMovie
+        ? await api.addMovie(target.tmdbId, { profileId: profileId || undefined, monitored, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
+        : await api.addSeries(target.tmdbId, { profileId: profileId || undefined, monitor, sources, searchNow: searchNow && !cannotSearch, noUpgrade: !keepBetter })
+      if (isRequested(res)) {
+        toast.success(res.message)
+        onClose()
+        return
       }
+      libraryId = res.id
       if (tags.length > 0) {
         await api.setTitleTags(isMovie ? 'movie' : 'tv', libraryId, tags).catch(() => undefined)
       }
@@ -240,7 +244,7 @@ export default function AddDialog({
         <div className="modal-foot">
           <button onClick={onClose}>Cancel</button>
           <button className="primary btn-with-icon" onClick={submit} disabled={busy}>
-            <Icon name="plus" size={16} /> {busy ? 'Adding…' : `Add ${isMovie ? 'movie' : 'show'}`}
+            <Icon name="plus" size={16} /> {busy ? (asks ? 'Sending…' : 'Adding…') : `${asks ? 'Request' : 'Add'} ${isMovie ? 'movie' : 'show'}`}
           </button>
         </div>
       </div>

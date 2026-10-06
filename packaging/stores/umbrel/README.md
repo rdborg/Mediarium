@@ -14,15 +14,15 @@ Laid out as the root of a community app store repo:
 | File | What it is |
 |---|---|
 | `umbrel-app-store.yml` | Store id `rdborg`, name "Mediarium" (shown as "Mediarium App Store"). |
-| `rdborg-mediarium/umbrel-app.yml` | The app manifest: id, category `media`, version `1.3.0`, tagline, description, port `8264`, gallery and icon URLs, `STORAGE_DOWNLOADS` permission. |
+| `rdborg-mediarium/umbrel-app.yml` | The app manifest: id, category `media`, version `2.1.0`, tagline, description, port `8264`, gallery and icon URLs, `STORAGE_DOWNLOADS` permission. |
 | `rdborg-mediarium/docker-compose.yml` | Umbrel's `app_proxy` in front of the `web` service on port 8264; `/config` in the app's data folder; Umbrel's shared Downloads folder mounted once as `/data` (with `mediarium`, `movies` and `tv` inside, so imports hardlink); torrent port 58264 TCP+UDP. |
 | `rdborg-mediarium/data/config/.gitkeep` | Keeps the empty config folder in git. |
 
 ## Requirements
 
 - [ ] The Mediarium repository is public (the icon and gallery URLs point at `raw.githubusercontent.com/rdborg/Mediarium/main/...`).
-- [ ] The image `ghcr.io/rdborg/mediarium:1.3.0` is published and **public**, with both `amd64` and `arm64` (Umbrel Home is amd64, Raspberry Pi installs are arm64).
-- [ ] **Pin the image by digest** (required for the official store, strongly recommended for a community store). After the release, get the multi-arch index digest with `docker buildx imagetools inspect ghcr.io/rdborg/mediarium:1.3.0` (the `Digest:` line at the top) and set `image: ghcr.io/rdborg/mediarium:1.3.0@sha256:<digest>`.
+- [ ] The image `ghcr.io/rdborg/mediarium:2.1.0` is published and **public**, with both `amd64` and `arm64` (Umbrel Home is amd64, Raspberry Pi installs are arm64).
+- [ ] **Pin the image by digest** (required for the official store, strongly recommended for a community store). After the release, get the multi-arch index digest with `docker buildx imagetools inspect ghcr.io/rdborg/mediarium:2.1.0` (the `Digest:` line at the top) and set `image: ghcr.io/rdborg/mediarium:2.1.0@sha256:<digest>`.
 - [ ] Tested on an Umbrel device.
 
 ## Steps: community app store

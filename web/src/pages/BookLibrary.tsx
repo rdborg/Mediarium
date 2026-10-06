@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type Book, type BookFormat, type BookFound, type QueueItem } from '../api'
+import { api, isRequested, type Book, type BookFormat, type BookFound, type QueueItem } from '../api'
 import BookImport from '../components/BookImport'
 import { listenPath, openBookApp, readPath } from '../bookshelf/open'
 import Dropdown from '../components/Dropdown'
@@ -226,6 +226,10 @@ function AddBook({ format, onAdded }: { format: BookFormat; onAdded: () => void 
         audiobook: format === 'audiobook' || wantOther,
         searchNow: true,
       })
+      if (isRequested(b)) {
+        toast.success(b.message)
+        return
+      }
       toast.success(`${b.title} added. Mediarium is looking for it now.`)
       setResults((r) => r?.map((x) => (x.key === f.key ? { ...x, libraryId: b.id } : x)) ?? r)
       onAdded()

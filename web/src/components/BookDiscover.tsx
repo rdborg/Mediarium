@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { api, type BookFormat, type BookFound } from '../api'
+import { api, can, isRequested, type BookFormat, type BookFound } from '../api'
+import { useAuth } from '../AuthContext'
 import { useModules } from '../ModulesContext'
 import { useFocusTrap } from '../useFocusTrap'
 import { useGridColumns } from '../useGridColumns'
@@ -184,21 +185,25 @@ export function editionRibbon(b: { hasEbook?: boolean; hasAudio?: boolean }): Ca
   return undefined
 }
 
-export function BookCard({ book, onAdd }: { book: BookFound; onAdd: (b: BookFound) => void }) {
+// meta replaces the "author · year" line (a series shows "Book 2 · 1998").
+// A book without an Open Library entry can't be opened or added.
+export function BookCard({ book, onAdd, meta }: { book: BookFound; onAdd: (b: BookFound) => void; meta?: string }) {
   const navigate = useNavigate()
   const inLibrary = !!book.libraryId
   return (
     <PosterCard
-      to={inLibrary ? `/book/${book.libraryId}` : `/books/work/${book.key}`}
+      to={inLibrary ? `/book/${book.libraryId}` : book.key ? `/books/work/${book.key}` : undefined}
       ribbon={editionRibbon(book)}
       poster={book.coverUrl}
       title={book.title}
-      meta={[book.author, book.year].filter(Boolean).join(' · ')}
+      meta={meta ?? [book.author, book.year].filter(Boolean).join(' · ')}
       state={inLibrary ? { ...describeState('downloaded'), label: 'In library' } : undefined}
       actions={
         inLibrary
           ? [{ icon: 'open', label: 'Open', onClick: () => navigate(`/book/${book.libraryId}`) }]
-          : [{ icon: 'plus', label: 'Add', onClick: () => onAdd(book), primary: true }]
+          : book.key
+            ? [{ icon: 'plus', label: 'Add', onClick: () => onAdd(book), primary: true }]
+            : []
       }
     />
   )
@@ -212,6 +217,7 @@ export function BookAddDialog({ target, onClose, prefer }: { target: BookFound |
 }
 
 function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: () => void; prefer?: BookFormat }) {
+  const asks = !can(useAuth().user, 'addDirect')
   const toast = useToast()
   const navigate = useNavigate()
   const { on } = useModules()
@@ -261,6 +267,11 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
         audiobook: chosen.has('audiobook'),
         searchNow: true,
       })
+      if (isRequested(b)) {
+        toast.success(b.message)
+        onClose()
+        return
+      }
       window.dispatchEvent(new CustomEvent('mediarium:book-added', { detail: { key: target.key, id: b.id } }))
       toast.success(`${b.title} added. Mediarium is looking for it now.`)
       onClose()
@@ -311,7 +322,7 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
             Cancel
           </button>
           <button className="primary btn-with-icon" onClick={() => void submit()} disabled={busy || formats.length === 0}>
-            <Icon name="plus" size={16} /> {busy ? 'Adding…' : 'Add book'}
+            <Icon name="plus" size={16} /> {busy ? 'Adding…' : asks ? 'Request book' : 'Add book'}
           </button>
         </div>
       </div>

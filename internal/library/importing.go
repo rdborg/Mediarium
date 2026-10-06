@@ -422,7 +422,7 @@ func (r *Repo) StartWatchingImport(batchID int64, watch, missing bool) (ImportWa
 				return out, fmt.Errorf("watch show %d: %w", t.id, err)
 			}
 			changed, _ = res.RowsAffected()
-			if _, err := tx.Exec(`UPDATE episodes SET monitored = 1 WHERE series_id = ? AND (status = 'downloaded' OR COALESCE(air_date, '') = '' OR air_date > ?)`, t.id, today); err != nil {
+			if _, err := tx.Exec(`UPDATE episodes SET monitored = 1 WHERE series_id = ? AND season > 0 AND (status = 'downloaded' OR COALESCE(air_date, '') = '' OR air_date > ?)`, t.id, today); err != nil {
 				return out, fmt.Errorf("watch episodes of show %d: %w", t.id, err)
 			}
 		}
@@ -434,7 +434,7 @@ func (r *Repo) StartWatchingImport(batchID int64, watch, missing bool) (ImportWa
 			if n, _ := res.RowsAffected(); n > changed {
 				changed = n
 			}
-			if _, err := tx.Exec(`UPDATE episodes SET monitored = 1 WHERE series_id = ? AND status != 'downloaded'`, t.id); err != nil {
+			if _, err := tx.Exec(`UPDATE episodes SET monitored = 1 WHERE series_id = ? AND season > 0 AND status != 'downloaded'`, t.id); err != nil {
 				return out, fmt.Errorf("want missing episodes of show %d: %w", t.id, err)
 			}
 		}
@@ -640,7 +640,7 @@ func (r *Repo) CompleteSeriesImport(item ImportItem, d SeriesDetails, episodes [
 	}
 	if newShow && watch && !wantMissing {
 		// Nothing missing is wanted, but what has yet to air is.
-		if _, err := tx.Exec(`UPDATE episodes SET monitored = 1 WHERE series_id = ? AND (COALESCE(air_date, '') = '' OR air_date > ?)`,
+		if _, err := tx.Exec(`UPDATE episodes SET monitored = 1 WHERE series_id = ? AND season > 0 AND (COALESCE(air_date, '') = '' OR air_date > ?)`,
 			item.TitleID, time.Now().UTC().Format("2006-01-02")); err != nil {
 			return out, fmt.Errorf("watch episodes that have not aired: %w", err)
 		}

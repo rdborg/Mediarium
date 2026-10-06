@@ -84,6 +84,7 @@ A torrent that gets no data at all for 2 hours counts as stalled: usually no one
 **Settings > Downloading > Usenet and torrents** has a **Speed and space** box:
 
 - **Limit download speed to** caps Usenet and torrents together (no limit by default; 1 to 100 MB/s). Tick **Only from ... to ...** to apply it only between two hours, for example from 8:00 to 23:00 so downloads run at full speed at night. The hours are server time and may cross midnight (22:00 to 6:00). Running downloads follow a change at once. Stored as `downloads.speed_limit_mb` and `downloads.speed_limit_hours` ("8-23"); scripts use `speedLimitMB` and `speedLimitHours` in `PUT /api/settings`.
+- **Only start downloads from ... to ...** (off by default) sets the hours new downloads may start, for example from 1:00 to 7:00 to download only at night. Outside them, grabbed releases wait in line and start by themselves when the window opens; a download that is already running finishes. Server time, and it may cross midnight. Stored as `downloads.hours` ("1-7"); scripts use `downloadHours` in `PUT /api/settings` ("" for any time).
 - **Keep at least ... free in the downloads folder** (5 GB by default, or no minimum): with less free space than that, no new download starts. Running downloads carry on, the rest wait in line and start by themselves once there is room, and Logs and errors says why ("Downloads are waiting: the disk is nearly full"). Stored as `downloads.min_free_gb`; scripts use `minFreeGB`.
 
 ## Pausing and stopping

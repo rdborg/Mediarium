@@ -61,6 +61,19 @@ func inHours(h, from, to int) bool {
 	return h >= from || h < to
 }
 
+// downloadHours is the window new downloads may start in ("1-7"), if any.
+func (s *Server) downloadHours() (from, to int, ok bool) {
+	v, _ := s.Settings.Get(settings.KeyDownloadHours)
+	return parseHours(v)
+}
+
+// outsideDownloadHours reports whether new downloads have to wait for their
+// window to open. Downloads already running carry on.
+func (s *Server) outsideDownloadHours() bool {
+	from, to, ok := s.downloadHours()
+	return ok && !inHours(time.Now().Hour(), from, to)
+}
+
 // applySpeedLimit sets the shared limit for this moment.
 func (s *Server) applySpeedLimit(now time.Time) {
 	mb := s.speedLimitMB()

@@ -14,6 +14,7 @@ import { firstError, maxLength, required } from '../../validate'
 function SubtitlesSection() {
   const [languages, setLanguages] = useState<string[]>(['en'])
   const [auto, setAuto] = useState(false)
+  const [upgrade, setUpgrade] = useState(true)
   const [hasKey, setHasKey] = useState(false)
   const [status, setStatus] = useState('')
   const [sweeping, setSweeping] = useState(false)
@@ -31,6 +32,7 @@ function SubtitlesSection() {
         setHasKey(!!s.hasOpenSubtitlesApiKey)
         setLanguages(s.subtitleLanguages?.length ? s.subtitleLanguages : ['en'])
         setAuto(s.subtitleAutoDownload ?? false)
+        setUpgrade(s.subtitleUpgrade ?? true)
         setLoaded(true)
       })
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)))
@@ -44,7 +46,7 @@ function SubtitlesSection() {
     if (!v.attempt()) return
     setSaving(true)
     try {
-      await api.putSettings({ subtitleLanguages: languages, subtitleAutoDownload: auto })
+      await api.putSettings({ subtitleLanguages: languages, subtitleAutoDownload: auto, subtitleUpgrade: upgrade })
       toast.success('Saved.')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
@@ -84,6 +86,10 @@ function SubtitlesSection() {
       <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
         Download after each import, and look again every few hours for anything missing
+      </label>
+      <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 22, opacity: auto ? 1 : 0.55 }}>
+        <input type="checkbox" checked={upgrade} disabled={!auto} onChange={(e) => setUpgrade(e.target.checked)} />
+        For a month after, swap a subtitle for one made for that exact video file if one turns up
       </label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="primary" onClick={save} disabled={!loaded || saving}>

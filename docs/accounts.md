@@ -37,6 +37,28 @@ When a basic user tries something only an admin can do, Mediarium says "Only an 
 
 The [HTTP API reference](./reference/api.md) marks every route as **public**, **any account** or **admin**.
 
+## Permissions for basic users
+
+When you add or edit a basic user, **Permissions** lets you choose what they may do. Everything is on to start with, which is what a basic user could always do, so you only switch off what you don't want:
+
+- **They can add or ask for:** Movies, TV shows, Music, Books (only the types switched on are listed). A type that's off can't be added or asked for at all.
+- **Add titles themselves.** Off: what they add becomes a **request** instead (see below). Good for children's accounts.
+- **Pick releases.** Search your indexers and choose what to download.
+- **Search now and monitoring.** Start searches, change what is monitored and the tags, follow authors and series.
+- **Retry downloads.** Try a failed or stopped download again.
+- **Subtitles.** Find and download subtitles.
+- **Play, read and listen.** Play videos, preview files, and read and listen in Mediarium Books.
+
+Buttons for things an account may not do are hidden, and the server refuses them anyway ("Your account isn't allowed to do this."). Admins can always do everything.
+
+## Requests
+
+A basic user without **Add titles themselves** still sees Discover and the search box, but their Add button says **Request**. What they pick is kept as a request, exactly as they chose it (quality, formats and so on), and they're told it was sent to an administrator.
+
+- **Activity > Requests** lists them. Admins see everyone's, with **Approve** (the title is added for that person, as they asked, and the library says who asked) and **Decline** (with an optional note the person sees). Everyone else sees their own, and can take back a request that is still waiting.
+- New requests can reach you by notification: tick **Requests** on a notification under Settings > Connections > Notifications.
+- Asking twice for the same title, or for something already in the library, is refused with a message.
+
 ## What a basic user sees
 
 - Under **Settings** there are two pages: their own profile (name, email, password and API keys) and About and credits. Any other settings address lands on their profile. The profile menu in the top-right corner calls it **Your profile**.
@@ -76,6 +98,10 @@ Two rules stop you from locking yourself out:
 - There is always at least one admin. The last admin can't be deleted or made a basic user.
 - An admin can't delete their own account or remove their own admin role. Ask another admin, or make someone else an admin first. On your own card, Remove is greyed out and the role can't be changed.
 
+## Signing in through your reverse proxy
+
+If a proxy such as Authelia or Authentik already asks everyone to log in, Mediarium can take the user name from it so nobody signs in twice. It is off by default and set under **Sign in through your reverse proxy** on this page. The names must match the accounts here. See [security.md](./security.md#sign-in-through-your-reverse-proxy).
+
 ## A forgotten administrator password
 
 The sign-in page has a **Forgot your password?** line. There's no email reset. Another administrator can set a new password in **Settings > Accounts**, and the command below is for the only administrator.
@@ -99,6 +125,10 @@ mediarium reset-password <username>
 It asks for the new password twice (at least 8 characters) and signs that account out of every open session. It works for any account, admin or basic user.
 
 ## For developers
+
+- `POST /api/users` and `PUT /api/users/{id}` take `permissions` (`addDirect`, `movies`, `tv`, `music`, `books`, `releases`, `manage`, `retry`, `subtitles`, `play`, all true or false; any left out stays on). Accounts and `GET /api/auth/me` include them.
+- An add from an account that has to ask answers `202` with `{"requested": true, "request": {...}, "message": "..."}`.
+- `GET /api/requests` (an admin gets everyone's, anyone else their own, with a `pending` count), `POST /api/requests/{id}/approve` and `POST /api/requests/{id}/decline` with `{"note": "..."}` (admins), `DELETE /api/requests/{id}` (an admin, or the person for their own waiting request).
 
 - Roles are stored in `users.is_admin` (1 for an admin, 0 for a basic user). The API reports both `role` (`"admin"` or `"member"`) and `isAdmin`.
 - Accounts: `GET /api/users`, `POST /api/users`, `PUT /api/users/{id}`, `DELETE /api/users/{id}` (administrators only).

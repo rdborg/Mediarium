@@ -1,6 +1,8 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, displayName, isAdmin, type Account, type AccountChanges, type APIKey, type Role } from '../api'
+import { api, DEFAULT_PERMISSIONS, displayName, isAdmin, type Account, type AccountChanges, type APIKey, type Permissions, type Role } from '../api'
+import PermissionsChoice from '../components/PermissionsChoice'
+import ProxySignIn from '../components/ProxySignIn'
 import { useAuth } from '../AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useConfirm } from '../components/ConfirmProvider'
@@ -345,6 +347,7 @@ function EditAccountDialog({ a, self, onClose, onSaved }: { a: Account; self: bo
   const [name, setName] = useState(a.name)
   const [email, setEmail] = useState(a.email)
   const [role, setRole] = useState<Role>(a.role)
+  const [perms, setPerms] = useState<Permissions>(a.permissions ?? DEFAULT_PERMISSIONS)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -371,6 +374,7 @@ function EditAccountDialog({ a, self, onClose, onSaved }: { a: Account; self: bo
     if (name.trim() !== a.name) changes.name = name.trim()
     if (email.trim() !== a.email) changes.email = email.trim()
     if (role !== a.role) changes.role = role
+    if (role === 'member' && JSON.stringify(perms) !== JSON.stringify(a.permissions ?? DEFAULT_PERMISSIONS)) changes.permissions = perms
     if (password) changes.password = password
     if (Object.keys(changes).length === 0) {
       onClose()
@@ -416,6 +420,7 @@ function EditAccountDialog({ a, self, onClose, onSaved }: { a: Account; self: bo
           <div>
             <span className="field-title">Role</span>
             <RoleChoice value={role} onChange={setRole} disabled={self} />
+            {role === 'member' && <PermissionsChoice value={perms} onChange={setPerms} />}
             {self && <p className="field-note">You can&apos;t remove your own admin role. Ask another admin to do it.</p>}
           </div>
           {self ? (
@@ -453,6 +458,7 @@ function AddAccountForm({ onAdded }: { onAdded: (a: Account) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('member')
+  const [perms, setPerms] = useState<Permissions>(DEFAULT_PERMISSIONS)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const v = useValidation({
@@ -467,7 +473,7 @@ function AddAccountForm({ onAdded }: { onAdded: (a: Account) => void }) {
     setBusy(true)
     setError('')
     try {
-      const created = await api.createAccount({ username: username.trim(), password, name: name.trim() || undefined, email: email.trim() || undefined, role })
+      const created = await api.createAccount({ username: username.trim(), password, name: name.trim() || undefined, email: email.trim() || undefined, role, permissions: role === 'member' ? perms : undefined })
       onAdded(created)
       toast.success(`Account added for ${accountName(created)}. Tell them their username and password.`)
       setUsername('')
@@ -525,6 +531,7 @@ function AddAccountForm({ onAdded }: { onAdded: (a: Account) => void }) {
           <div>
             <span className="field-title">What can they do?</span>
             <RoleChoice value={role} onChange={setRole} />
+            {role === 'member' && <PermissionsChoice value={perms} onChange={setPerms} />}
           </div>
         </div>
         {error && <p className="error-text">{error}</p>}
@@ -628,6 +635,7 @@ export default function Profile() {
         <PasswordForm />
       </div>
       {admin && <Accounts />}
+      {admin && <ProxySignIn />}
       <APIKeys />
     </div>
   )

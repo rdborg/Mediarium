@@ -33,9 +33,10 @@ type Client struct {
 	UserAgent string
 	HTTP      *http.Client
 
-	mu    sync.Mutex
-	lists map[string]cachedList // Discover lists, kept for an hour
-	works map[string]cachedWork // book info pages, kept for an hour
+	mu     sync.Mutex
+	lists  map[string]cachedList // Discover lists, kept for an hour
+	works  map[string]cachedWork // book info pages, kept for an hour
+	series seriesCache           // series answers, kept for an hour
 }
 
 type cachedList struct {

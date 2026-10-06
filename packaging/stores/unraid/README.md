@@ -14,7 +14,7 @@ Community Applications (CA) lists apps from template repositories on GitHub. Sub
 ## Requirements
 
 - [ ] The Mediarium GitHub repository is **public**.
-- [ ] The image `ghcr.io/rdborg/mediarium` is **published** (tag `v1.3.0` pushed, release workflow green) and its GitHub package visibility is **Public** (GitHub → your profile → Packages → mediarium → Package settings → Change visibility). Check from a logged-out machine: `docker pull ghcr.io/rdborg/mediarium:latest`.
+- [ ] The image `ghcr.io/rdborg/mediarium` is **published** (tag `v2.1.0` pushed, release workflow green) and its GitHub package visibility is **Public** (GitHub → your profile → Packages → mediarium → Package settings → Change visibility). Check from a logged-out machine: `docker pull ghcr.io/rdborg/mediarium:latest`.
 - [ ] The image is multi-arch; Unraid only needs `linux/amd64`.
 - [ ] The icon URL in both files opens in a private browser window: `https://raw.githubusercontent.com/rdborg/Mediarium/main/branding/mediarium-icon-512.png`.
 - [ ] A **template repository**: CA wants `ca_profile.xml` at the repository root, so use a small separate public repo rather than the Mediarium repo. The files here assume **`github.com/rdborg/unraid-templates`**; if you choose another name, change `<TemplateURL>` in `templates/mediarium.xml`.
@@ -42,6 +42,6 @@ Community Applications (CA) lists apps from template repositories on GitHub. Sub
 
 ## What only the maintainer can do
 
-- Make the repo and the GHCR package public, push the `v1.3.0` tag.
+- Make the repo and the GHCR package public, push the `v2.1.0` tag.
 - Create the `unraid-templates` repo, sign in to the CA portal and submit.
 - Optionally create the forum support thread.

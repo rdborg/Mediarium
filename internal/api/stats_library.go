@@ -37,6 +37,8 @@ type libraryStatsPayload struct {
 	Months          []statMonth `json:"months"`
 	UsenetShare     int         `json:"usenetShare"` // % of completed downloads that came from Usenet
 	HistoryKeptDays int         `json:"historyKeptDays"`
+	// What gets watched; only while "Read what's been watched" is on.
+	Watched *watchStatsPayload `json:"watched,omitempty"`
 }
 
 func fileBytes(path string) int64 {
@@ -71,7 +73,10 @@ func (s *Server) handleLibraryStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out.Movies = len(movies)
+	names := map[watchKey]statName{}
+	var movieFiles, episodeFiles []statFile
 	for _, m := range movies {
+		names[watchKey{kind: "movie", id: m.ID}] = statName{Title: m.Title, TMDBID: m.TMDBID}
 		if m.FilePath == "" {
 			continue
 		}
@@ -79,6 +84,7 @@ func (s *Server) handleLibraryStats(w http.ResponseWriter, r *http.Request) {
 		size := fileBytes(m.FilePath)
 		out.MovieBytes += size
 		addQuality(m.Quality, size)
+		movieFiles = append(movieFiles, statFile{TitleID: m.ID, Bytes: size})
 	}
 
 	shows, err := s.MovieRepo.ListSeries()
@@ -89,6 +95,7 @@ func (s *Server) handleLibraryStats(w http.ResponseWriter, r *http.Request) {
 	out.Shows = len(shows)
 	seen := map[string]bool{} // a multi-episode file counts once for space
 	for _, sr := range shows {
+		names[watchKey{kind: "series", id: sr.ID}] = statName{Title: sr.Title}
 		eps, err := s.MovieRepo.ListEpisodes(sr.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -110,6 +117,7 @@ func (s *Server) handleLibraryStats(w http.ResponseWriter, r *http.Request) {
 				out.EpisodeBytes += size
 			}
 			addQuality(ep.Quality, size)
+			episodeFiles = append(episodeFiles, statFile{TitleID: sr.ID, Season: ep.Season, Episode: ep.Episode, Bytes: size})
 		}
 	}
 
@@ -140,6 +148,16 @@ func (s *Server) handleLibraryStats(w http.ResponseWriter, r *http.Request) {
 	_ = s.db.QueryRow(`SELECT COALESCE(SUM(CASE WHEN protocol = 'usenet' THEN 1 ELSE 0 END), 0), COUNT(*) FROM download_queue WHERE status = 'completed'`).Scan(&usenet, &total)
 	if total > 0 {
 		out.UsenetShare = usenet * 100 / total
+	}
+	if s.watchedSyncOn() {
+		played, err := s.MovieRepo.ListWatched()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		ws := watchStats(movieFiles, episodeFiles, names, played)
+		ws.LastSync = s.watchedStatus().LastSync
+		out.Watched = &ws
 	}
 	writeJSON(w, http.StatusOK, out)
 }

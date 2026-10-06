@@ -55,6 +55,26 @@ Each book has a page with its cover, author, year and description, and a panel f
 
 ![A book's info page from Discover: the description, subjects, which formats exist and an Add button](images/book-info.png)
 
+## Series
+
+When a book is part of a series, its page (and its info page from Discover) shows **Book 2 of Harry Potter** with every book of the series in reading order, each with **Add**. Books you already have say so. A book that isn't out yet shows the day it comes out.
+
+Switch on **Follow this series** and Mediarium:
+
+- adds the books of the series you don't have yet, in the formats that are switched on (ebook first), and starts looking for the ones that are out;
+- checks the series twice a day and adds new books as they appear;
+- waits for a book's release date before it looks for it. Until then the book page says when it comes out.
+
+Books with a release date show up on **Upcoming > Calendar** (a green square badge with a book) and in the calendar feed, from 30 days back to 120 days ahead. Clicking one opens the book. On **Upcoming > Wanted**, a book that isn't out yet says **Out** and the day, without a Search now button. Release dates mostly come from Hardcover (see below); Open Library rarely knows them.
+
+Only whole books count: a novella in between (book 2.5), box sets and collections are left out, but you can still add them by hand. Switching **Follow this series** off keeps the books you have.
+
+**Where series come from.** Out of the box, from Open Library. It knows most big series, but not all of them, and rarely knows a book before it is out. For more series and release dates, connect **Hardcover** under **Settings > Info, lists and subtitles**: make a free account at [hardcover.app](https://hardcover.app), copy your token from Settings, Hardcover API, and paste it there. Mediarium checks it before saving and keeps it encrypted. A Hardcover token belongs to your own account and can't be shared, which is why none comes built in. If Hardcover doesn't know a book, or is down, Open Library is used instead.
+
+## Audiobook details
+
+For a book you want as an audiobook, Mediarium looks up who reads it and how long it runs, and shows it in the audiobook panel ("Read by Ray Porter · 16 h 10 min") and in the Mediarium Books player. The details come from [Audnexus](https://audnex.us), which reads Audible's catalogue; Audible's public search finds the book first. When there are several editions it takes the full, unabridged reading, not a translation or a short dramatisation. It is looked up once per book, when you add it or first open its page. If Audnexus knows the series and Mediarium didn't, the book gets it too, and an audiobook that isn't out yet waits for its release day. Nothing needs setting up.
+
 ## Authors
 
 A book's page ends with **More by** its author: their other books on Open Library, the most read first, each with **Add**. Box sets, collections and summaries are left out.
@@ -103,17 +123,17 @@ Downloading a better ebook later (an EPUB after a PDF) replaces the file. A wors
 - **Contents** (the list button) jumps to a chapter. The slider at the bottom jumps to any place in the book and shows how far through you are. The first time a book is opened the percentages take a moment to work out; they're kept in that browser after that.
 - **Aa** sets the text size, the page colour (light, sepia or dark) and the font (book or plain). Your choice is remembered in that browser. The screen button goes full screen.
 - PDF books open in the browser's own PDF viewer.
-- MOBI and AZW3 can't be shown in a browser: the reader offers them as a download for your e-reader instead. EPUB is the format Mediarium prefers when it downloads, so most books open in the reader.
+- Kindle books (MOBI, AZW and AZW3) open in the reader too. Mediarium turns them into EPUB with its own converter the first time (in well under a second, one book at a time) and keeps that copy in its cache folder (`/config/cache/epub`), so your library folder is never changed and your e-reader or Kavita see no extra files. A freshly downloaded Kindle book is converted straight away in the background. Copies nobody opens for 90 days are removed. Books locked with DRM can't be converted; the reader says so and offers the original as a download.
 - Scripts inside a book never run.
 
 ![The reader showing a page of an EPUB, with the contents, text size and page colour buttons at the top](images/reader.png)
 
 ### The player
 
-- An audiobook's files play in order as its chapters (named after the files, with "01 - " and the like left off). The list button shows them all.
+- An audiobook's files play in order as its chapters (named after the files, with "01 - " and the like left off). A whole book in one M4B file uses the chapter marks stored inside it instead, with their own titles; the slider and the time left are then for the chapter, not the whole file. The list button shows them all.
 - **−30** and **+30** skip half a minute; the arrows go to the previous or next chapter. Space plays and pauses, and the arrow keys skip.
 - The speed button goes round 0.8×, 1×, 1.2×, 1.5×, 1.75× and 2× (remembered in that browser).
-- **Sleep timer** goes round 15, 30, 45 and 60 minutes, **End of chapter**, and off.
+- **Sleep timer** goes round 15, 30, 45 and 60 minutes, **End of chapter** (also inside a one-file M4B), and off.
 - On a phone, the lock screen and headphone buttons work, with the cover showing.
 - How far through the book you are is worked out from the files' sizes, so it's close rather than exact.
 
@@ -137,6 +157,15 @@ The search box at the top of every page finds books too (under **Books**, after 
 The dashboard has an **Ebooks** and an **Audiobooks** card with how many books you have in each format and how many are missing, and the missing ones count in the greeting card's **wanted** number. A card is dimmed with "Off" while its format is switched off. Book downloads show in **Activity** like everything else, named after the book with "Ebook" or "Audiobook" and the author underneath.
 
 ## For developers
+
+- `GET /api/book-works/{key}/series?title=&author=` is the series a book is in (`{"series": null}` when none is known), with `source` (`openlibrary` or `hardcover`), `key`, `name`, the book's `position`, whether it is `followed`, and its `entries` (`position`, `releaseDate`, `libraryId`...).
+- `PUT /api/book-series/{source}/{key}/follow` with `{"name", "ebook", "audiobook"}` follows a series and answers how many books were `added`; `DELETE` on the same address stops following. `GET /api/book-series` lists the series followed.
+- `GET`/`PUT /api/settings/hardcover` (administrators) shows whether a Hardcover token is saved, and saves one (`{"token": "..."}`, empty to remove) after checking it. Stored as `books.hardcover_token`.
+- A book's `seriesName`, `seriesPosition` and `releaseDate` are part of `GET /api/books`.
+- `GET /api/books/{id}/tracks` gives each audio file's `chapters` (`title`, `start` in seconds) when the file (an M4B or M4A) carries two or more chapter marks, read from its QuickTime chapter track or Nero chapter list.
+- `GET /api/books/{id}/read?as=epub` answers a Kindle book (MOBI, AZW, AZW3) as an EPUB copy, made once and cached; `422` with a reason when it can't be converted (DRM, an unusual compression). Without `as=epub`, or with `download=1`, the original file is sent.
+- A book's `narrators`, `runtimeMin` and `asin` (its Audible id) are part of `GET /api/books` once looked up.
+- `GET /api/calendar` lists books with a release date in the window as `kind: "book"` entries with a `bookId`, while ebooks or audiobooks are on.
 
 | Method | Path | What it does |
 |---|---|---|

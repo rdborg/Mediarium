@@ -67,6 +67,21 @@ Tags are your own words for sorting a library that lives in one folder: **Kids**
 - **On your media server** every tag becomes a collection of the same name: in Plex the title's collection field, in Jellyfin and Emby a collection (box set) named after the tag. So a "Kids" tag gives a Kids collection to browse, or to share with a child's account. A title that isn't on the server yet gets its tags a few minutes after it's downloaded. Taking a tag off takes the title out of that collection. Collections you made yourself on the server are never touched. See [media-servers.md](./media-servers.md#tags-as-collections).
 - Tags live in Mediarium's database and go when the title is removed.
 
+## Anime and daily shows
+
+Most TV releases name episodes by season (`Show.S02E05`). Two kinds of show don't:
+
+- **Anime** counts episodes from the very first one: `[SubsPlease] One Piece - 1085 (1080p)`, `Show E105`, or a batch `Show - 01-12`.
+- **Daily shows** (talk shows, news) go by the day: `The.Daily.Show.2024.03.15`.
+
+A show's page has **Episode numbering**: *Seasons (S01E05)*, *Anime (episode 105)* or *Daily (by air date)*. Mediarium sets it when the show is added (Japanese animation is Anime; talk shows and news are Daily) and you can change it. For an Anime show, episode 105 is found by counting the show's episodes season by season from the first one (specials left out); for a Daily show, by matching the air date. Searches then also look for "Show 105" or "Show 2024 03 15", and releases and downloaded files named that way are matched to the right episode. A release that does carry a season marker is always taken as it says.
+
+The counting follows TMDB's seasons. When a show's seasons on TMDB are split differently from how a fansub group counts, an episode can come out a few places off; Choose a release on the episode always works as a fallback. Scripts: `seriesType` on a show, and `PUT /api/series/{id}/type` with `{"type": "standard" | "anime" | "daily"}`.
+
+## Specials
+
+A show's specials (TMDB's season 0: behind-the-scenes episodes, Christmas specials, OVAs) are listed on its page as **Specials**, below the other seasons. They start **unmonitored**, because they are rarely posted in a form that can be found, and they don't count towards how much of the show you have until you ask for them. Switch on the Specials season, or a single special, and Mediarium looks for it like any other episode (as "Show S00E03"). Switching a whole show on or off leaves the specials as they are. Shows already in your library pick up their specials at the next refresh.
+
 ## One folder per kind
 
 Each kind of media has one library folder (Settings > Library > Folders and file names). To keep kids' films, 4K copies or anything else apart, use tags (above) instead of separate folders. To see how full the disk is, the folder boxes show the free space, and Settings > System shows storage.
@@ -78,6 +93,8 @@ Files keep the name they had when they arrived. After you change the naming pres
 ## Statistics
 
 **See statistics** under the dashboard's cards opens the Statistics page: how many movies, shows, episodes and albums you have and how many are downloaded, how much space the library takes, the number of titles at each quality (with their size), and how many downloads finished or failed each month, with how much came from Usenet. The months go back as far as the history is kept (90 days unless changed). Scripts: `GET /api/stats/library`.
+
+With **What's been watched** on (Settings > Media servers, see [media-servers.md](./media-servers.md#whats-been-watched)), the page also has **What gets watched**: how many of the movies and episodes you have were played, how much space the never-played ones take, the most watched titles and the ones watched lately. It counts what your media servers last said, so it is as fresh as the last read.
 
 ## Music
 

@@ -81,7 +81,7 @@ ENV PUID=1000     PGID=1000     TZ=Etc/UTC     APP_PORT=8264     BUNDLED_FLARESO
 # from /config/update instead (docs/INSTALL.md, "Updating without rebuilding").
 ENV MEDIARIUM_IMAGE_BIN=/opt/mediarium/app
 COPY --from=build /out/app /opt/mediarium/app
-COPY docker-entrypoint.sh /opt/mediarium/docker-entrypoint.sh
+COPY docker/entrypoint.sh /opt/mediarium/docker-entrypoint.sh
 COPY docker/run-full.sh /opt/mediarium/run-full.sh
 RUN chmod +x /opt/mediarium/app /opt/mediarium/docker-entrypoint.sh /opt/mediarium/run-full.sh
 # FlareSolverr patches its chromedriver in place, and here it runs as whatever
@@ -118,7 +118,7 @@ ENV PUID=1000 \
     MEDIARIUM_IMAGE_BIN=/app/app
 
 COPY --from=build /out/app /app/app
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY docker/entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Only /config is declared as a volume. Media folders are whatever you map

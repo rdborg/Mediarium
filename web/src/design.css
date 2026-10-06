@@ -419,6 +419,7 @@ a.hero-pill:hover { text-decoration: none; transform: translateY(-2px); }
 
 .wide-tile { width: 100%; }
 .rail-head h2 { margin: 0; }
+.rail-head h2 .rail-hint { margin-left: 10px; color: var(--text-dim); font-size: 0.85rem; font-weight: 500; }
 .mini-poster.kind-tv .mini-art { border-color: color-mix(in srgb, var(--c-tv) 55%, var(--border)); }
 .mini-poster.kind-movie .mini-art { border-color: color-mix(in srgb, var(--c-movie) 45%, var(--border)); }
 
@@ -441,6 +442,7 @@ a.hero-pill:hover { text-decoration: none; transform: translateY(-2px); }
 .cal-kind.kind-movie { --kc: var(--c-movie); }
 .cal-kind.kind-tv { --kc: var(--c-tv); }
 .cal-kind.kind-music { --kc: var(--c-music); border-radius: 50%; }
+.cal-kind.kind-book { --kc: var(--c-book); border-radius: 4px; }
 
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .cal-dow { text-align: center; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); padding: 4px 0; }
@@ -480,6 +482,7 @@ a.hero-pill:hover { text-decoration: none; transform: translateY(-2px); }
 .cal-chip.kind-movie { --kc: var(--c-movie); }
 .cal-chip.kind-tv { --kc: var(--c-tv); }
 .cal-chip.kind-music { --kc: var(--c-music); }
+.cal-chip.kind-book { --kc: var(--c-book); }
 .cal-chip-title { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: anywhere; }
 a.cal-chip { cursor: pointer; }
 a.cal-chip:hover { text-decoration: none; border-color: var(--kc); background: color-mix(in srgb, var(--kc) 10%, var(--surface-2)); }
@@ -600,6 +603,7 @@ button.danger-ghost:hover { background: color-mix(in srgb, var(--danger) 12%, tr
 .state-tag.st-added { --stc: var(--text-dim); }
 .state-tag.st-failed { --stc: var(--danger); }
 .state-tag.st-partial { --stc: var(--info); }
+.state-tag.st-upcoming { --stc: var(--c-book); }
 .state-tag.st-details { --stc: var(--c-activity); }
 .state-tag.st-nodetails { --stc: var(--warning); }
 .title-controls { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; padding-top: 6px; border-top: 1px dashed var(--border); margin-top: 6px; }
@@ -2655,6 +2659,9 @@ tr.is-default > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .bar-fill { display: block; height: 100%; background: var(--accent); }
 .bar-fill.bad { background: var(--danger); }
 .bar-value { color: var(--text-dim); white-space: nowrap; }
+a.bar-label { color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.bar-label:hover { color: var(--accent); }
+.bar-row.recent-row { grid-template-columns: minmax(0, 1fr) auto; }
 @media (max-width: 600px) { .bar-row { grid-template-columns: 1fr; } }
 
 /* Rename existing files */
@@ -2829,3 +2836,39 @@ tr.is-default > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 @media (max-width: 600px) {
   .top-link { display: none; }
 }
+
+/* The audiobook panel: who reads it and how long it runs */
+.book-audio-details { margin: 0; color: var(--text-dim); font-size: 0.9rem; }
+
+/* Cleanup rules (Settings > Media servers) */
+.cleanup-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.cleanup-days { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); }
+.cleanup-days input { width: 80px; }
+.cleanup-keep { display: grid; gap: 4px; margin-top: 12px; max-width: 420px; }
+.cleanup-preview { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.cleanup-preview ul { margin: 8px 0 12px; padding-left: 4px; list-style: none; display: grid; gap: 4px; max-height: 320px; overflow: auto; }
+.watched-line { margin: 6px 0 0; color: var(--text-dim); font-size: 0.88rem; display: flex; align-items: center; gap: 6px; }
+
+/* Account permissions (Settings > Accounts) */
+.perm-choice { display: grid; gap: 8px; margin-top: 12px; }
+.perm-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.perm-choice .perm-kind { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; }
+.perm-choice .perm-kind input, .perm-choice .perm-row input { width: auto; margin: 2px 0 0; flex: none; }
+.perm-rows { display: grid; gap: 6px; }
+.perm-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.perm-row strong { display: block; font-size: 0.92rem; }
+.perm-row small { color: var(--text-dim); line-height: 1.35; }
+/* Activity > Requests */
+.request-list { display: grid; gap: 8px; }
+.request-row { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.request-row .wmain { display: grid; gap: 2px; min-width: 0; }
+.request-row .wmain small { color: var(--text-dim); }
+.request-decline { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.request-decline input { flex: 1 1 240px; }
+@media (max-width: 640px) { .request-row { grid-template-columns: 44px 1fr; } }
+/* Subtitle timing (Files panel) */
+.file-list li:has(.sub-timing) { flex-wrap: wrap; }
+.file-list li .sub-timing { flex-basis: 100%; display: grid; gap: 8px; padding: 10px 12px; margin-top: 6px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+.sub-timing-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sub-timing-row input[type='number'] { width: 90px; }
+.sub-timing-row select { max-width: 320px; }

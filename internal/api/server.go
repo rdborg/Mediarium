@@ -29,6 +29,7 @@ import (
 	"github.com/rdborg/mediarium/internal/problems"
 	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/queue"
+	"github.com/rdborg/mediarium/internal/requests"
 	"github.com/rdborg/mediarium/internal/settings"
 	"github.com/rdborg/mediarium/internal/subtitles"
 	"github.com/rdborg/mediarium/internal/trakt"
@@ -54,6 +55,7 @@ type Server struct {
 	QualityRepo       *quality.Repo
 	Blocklist         *blocklist.Repo
 	SubtitleAttempts  *subtitles.AttemptRepo
+	SubtitleFiles     *subtitles.FileRepo
 	SubtitleDismissed *subtitles.DismissRepo
 	SubtitleQuota     *subtitles.QuotaRepo
 	Usage             *usage.Tracker // requests and limit hits per third-party service
@@ -62,8 +64,12 @@ type Server struct {
 	MusicRepo         *music.Repo // artists, albums, tracks (the music module, music*.go)
 	BookRepo          *books.Repo // ebooks and audiobooks (books_api.go)
 	OpenLibrary       *books.Client
-	bookImport        bookImports // the "import books already on disk" job (books_import.go)
-	authorCheck       authorCheck // when followed authors were last checked (books_authors.go)
+	Requests          *requests.Repo
+	Audnexus          *books.Audnexus
+	bookImport        bookImports    // the "import books already on disk" job (books_import.go)
+	authorCheck       authorCheck    // when followed authors were last checked (books_authors.go)
+	seriesCheck       authorCheck    // when followed series were last checked (books_series.go)
+	hc                hardcoverState // the Hardcover client for the saved token (books_series.go)
 
 	mediaClient    *mediaservers.Client
 	mediaRefresher *mediaservers.Refresher // rescans Plex/Jellyfin/Emby after imports
@@ -166,6 +172,7 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 		QualityRepo:       quality.NewRepo(db),
 		Blocklist:         blocklist.NewRepo(db),
 		SubtitleAttempts:  subtitles.NewAttemptRepo(db),
+		SubtitleFiles:     subtitles.NewFileRepo(db),
 		SubtitleDismissed: subtitles.NewDismissRepo(db),
 		SubtitleQuota:     subtitles.NewQuotaRepo(db),
 		tmdb:              metadata.New(tmdbKey),
@@ -198,6 +205,8 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 	s.MusicRepo = music.NewRepo(db)
 	s.BookRepo = books.NewRepo(db)
 	s.OpenLibrary = books.NewClient("Mediarium/" + version + " (https://mediarium.app)")
+	s.Audnexus = books.NewAudnexus(s.OpenLibrary.UserAgent)
+	s.Requests = requests.NewRepo(db)
 	s.mb = musicbrainz.New(version)
 	if err := s.MusicRepo.SeedPresets(); err != nil {
 		return nil, fmt.Errorf("init music profiles: %w", err)
@@ -281,7 +290,7 @@ func (s *Server) Routes() http.Handler {
 	// Calendar apps read the feed without signing in; the secret address is the key.
 	public.HandleFunc("GET /api/calendar/feed/{file}", s.handleCalendarFeed)
 
-	public.Handle("/api/", s.Auth.Middleware(s.protectedRoutes()))
+	public.Handle("/api/", s.signedIn(s.protectedRoutes()))
 
 	root := http.NewServeMux()
 	root.Handle("/api/", s.busyGuard(noStore(public)))
@@ -299,8 +308,14 @@ func (s *Server) Routes() http.Handler {
 func (s *Server) protectedRoutes() *routeTable {
 	t := newRouteTable()
 	t.gate = s.moduleRouteOpen // /api/music/ and /api/books/ answer 404 while their module is off
+	t.permsOf = s.Auth.PermissionsOf
 	member := t.group(accessMember)
 	admin := t.group(accessAdmin)
+	// What a basic account needs for a route (Settings > Accounts).
+	releases := member.Need(auth.PermReleases)
+	manage := member.Need(auth.PermManage)
+	play := member.Need(auth.PermPlay)
+	subs := member.Need(auth.PermSubtitles)
 
 	// ---- Members and administrators ----
 
@@ -326,6 +341,9 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/wanted", s.handleWanted)
 	member.HandleFunc("GET /api/activity", s.handleListActivity)
 	member.HandleFunc("GET /api/modules", s.handleModules)
+	member.HandleFunc("GET /api/watched", s.handleWatched)
+	member.HandleFunc("GET /api/requests", s.handleListRequests)
+	member.HandleFunc("DELETE /api/requests/{id}", s.handleDeleteRequest)
 
 	// Finding things.
 	member.HandleFunc("GET /api/discover/trending", s.handleTrending)
@@ -343,39 +361,40 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/tmdb/movies/{tmdbId}", s.handleTMDBMovieDetail)
 	member.HandleFunc("GET /api/tmdb/movies/{tmdbId}/similar", s.handleTMDBSimilarMovies)
 	member.HandleFunc("GET /api/tmdb/tv/{tmdbId}", s.handleTMDBTVDetail)
-	member.HandleFunc("GET /api/search", s.handleSearch)
-	member.HandleFunc("POST /api/search/grab", s.handleSearchGrab)
+	releases.HandleFunc("GET /api/search", s.handleSearch)
+	releases.HandleFunc("POST /api/search/grab", s.handleSearchGrab)
 	// The add dialog lists the profiles to choose from.
 	member.HandleFunc("GET /api/quality-profiles", s.handleListProfiles)
 
 	// Movies: browse, add (choosing profile and downloaders), search, grab, monitor.
 	member.HandleFunc("GET /api/movies", revalidated(s.handleListMovies))
-	member.HandleFunc("POST /api/movies", s.handleAddMovie)
+	member.Need(auth.PermMovies).HandleFunc("POST /api/movies", s.handleAddMovie)
 	member.HandleFunc("GET /api/movies/{id}", s.handleGetMovie)
 	member.HandleFunc("GET /api/movies/{id}/similar", s.handleSimilarMovies)
-	member.HandleFunc("GET /api/movies/{id}/search", s.handleMovieSearch)
-	member.HandleFunc("POST /api/movies/{id}/search-now", s.handleMovieSearchNow)
-	member.HandleFunc("POST /api/movies/{id}/grab", s.handleGrab)
+	releases.HandleFunc("GET /api/movies/{id}/search", s.handleMovieSearch)
+	manage.HandleFunc("POST /api/movies/{id}/search-now", s.handleMovieSearchNow)
+	releases.HandleFunc("POST /api/movies/{id}/grab", s.handleGrab)
 	member.HandleFunc("GET /api/tags", s.handleListTags)
-	member.HandleFunc("PUT /api/movies/{id}/tags", s.handleSetMovieTags)
-	member.HandleFunc("PUT /api/series/{id}/tags", s.handleSetSeriesTags)
-	member.HandleFunc("PUT /api/movies/{id}/monitored", s.handleSetMovieMonitored)
+	manage.HandleFunc("PUT /api/movies/{id}/tags", s.handleSetMovieTags)
+	manage.HandleFunc("PUT /api/series/{id}/tags", s.handleSetSeriesTags)
+	manage.HandleFunc("PUT /api/movies/{id}/monitored", s.handleSetMovieMonitored)
 
 	// Shows: the same.
 	member.HandleFunc("GET /api/series", revalidated(s.handleListSeries))
-	member.HandleFunc("POST /api/series", s.handleAddSeries)
+	member.Need(auth.PermTV).HandleFunc("POST /api/series", s.handleAddSeries)
 	member.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
 	member.HandleFunc("POST /api/series/{id}/refresh", s.handleRefreshSeries)
-	member.HandleFunc("GET /api/series/{id}/search", s.handleSeriesSearch)
-	member.HandleFunc("POST /api/series/{id}/search-now", s.handleSeriesSearchNow)
-	member.HandleFunc("POST /api/series/{id}/grab", s.handleGrabSeries)
-	member.HandleFunc("PUT /api/series/{id}/monitored", s.handleSetSeriesMonitored)
-	member.HandleFunc("PUT /api/series/{id}/seasons/{season}/monitored", s.handleSetSeasonMonitored)
-	member.HandleFunc("PUT /api/episodes/{id}/monitored", s.handleSetEpisodeMonitored)
+	releases.HandleFunc("GET /api/series/{id}/search", s.handleSeriesSearch)
+	manage.HandleFunc("POST /api/series/{id}/search-now", s.handleSeriesSearchNow)
+	releases.HandleFunc("POST /api/series/{id}/grab", s.handleGrabSeries)
+	manage.HandleFunc("PUT /api/series/{id}/monitored", s.handleSetSeriesMonitored)
+	manage.HandleFunc("PUT /api/series/{id}/type", s.handleSetSeriesType)
+	manage.HandleFunc("PUT /api/series/{id}/seasons/{season}/monitored", s.handleSetSeasonMonitored)
+	manage.HandleFunc("PUT /api/episodes/{id}/monitored", s.handleSetEpisodeMonitored)
 
 	// Books: ebooks and audiobooks (404 while both are off).
 	member.HandleFunc("GET /api/books", s.handleListBooks)
-	member.HandleFunc("POST /api/books", s.handleAddBook)
+	member.Need(auth.PermBooks).HandleFunc("POST /api/books", s.handleAddBook)
 	member.HandleFunc("GET /api/books/search", s.handleBookSearch)
 	member.HandleFunc("GET /api/books/discover", s.handleBookDiscover)
 	member.HandleFunc("GET /api/books/subjects", s.handleBookSubjects)
@@ -384,21 +403,25 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/book-authors", s.handleFollowedAuthors)
 	member.HandleFunc("GET /api/book-works/{key}", s.handleBookWork)
 	member.HandleFunc("GET /api/book-authors/{key}/works", s.handleAuthorWorks)
-	member.HandleFunc("PUT /api/book-authors/{key}/follow", s.handleFollowAuthor)
-	member.HandleFunc("DELETE /api/book-authors/{key}/follow", s.handleUnfollowAuthor)
+	member.Need(auth.PermBooks, auth.PermManage).HandleFunc("PUT /api/book-authors/{key}/follow", s.handleFollowAuthor)
+	manage.HandleFunc("DELETE /api/book-authors/{key}/follow", s.handleUnfollowAuthor)
+	member.HandleFunc("GET /api/book-works/{key}/series", s.handleBookSeries)
+	member.HandleFunc("GET /api/book-series", s.handleFollowedSeries)
+	member.Need(auth.PermBooks, auth.PermManage).HandleFunc("PUT /api/book-series/{source}/{key}/follow", s.handleFollowSeries)
+	manage.HandleFunc("DELETE /api/book-series/{source}/{key}/follow", s.handleUnfollowSeries)
 	member.HandleFunc("GET /api/books/{id}/progress", s.handleGetBookProgress)
 	member.HandleFunc("PUT /api/books/{id}/progress", s.handleSetBookProgress)
-	member.HandleFunc("GET /api/books/{id}/read", s.handleReadBook)
-	member.HandleFunc("GET /api/books/{id}/tracks", s.handleBookTracks)
-	member.HandleFunc("GET /api/books/{id}/listen/{n}", s.handleListenBook)
+	play.HandleFunc("GET /api/books/{id}/read", s.handleReadBook)
+	play.HandleFunc("GET /api/books/{id}/tracks", s.handleBookTracks)
+	play.HandleFunc("GET /api/books/{id}/listen/{n}", s.handleListenBook)
 	admin.HandleFunc("GET /api/books/import", s.handleBookImportStatus)
 	admin.HandleFunc("POST /api/books/import", s.handleStartBookImport)
 	member.HandleFunc("GET /api/books/{id}", s.handleGetBook)
-	member.HandleFunc("PUT /api/books/{id}/want", s.handleSetBookWant)
-	member.HandleFunc("POST /api/books/{id}/search", s.handleSearchBookNow)
+	manage.HandleFunc("PUT /api/books/{id}/want", s.handleSetBookWant)
+	manage.HandleFunc("POST /api/books/{id}/search", s.handleSearchBookNow)
 	admin.HandleFunc("DELETE /api/books/{id}", s.handleDeleteBook)
-	member.HandleFunc("GET /api/books/{id}/releases", s.handleBookReleases)
-	member.HandleFunc("POST /api/books/{id}/grab", s.handleGrabBook)
+	releases.HandleFunc("GET /api/books/{id}/releases", s.handleBookReleases)
+	releases.HandleFunc("POST /api/books/{id}/grab", s.handleGrabBook)
 
 	// Music: the same for artists and albums (404 while the music module is off).
 	member.HandleFunc("GET /api/music/profiles", s.handleMusicProfiles)
@@ -408,16 +431,16 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/music/discover/artists", s.handleMusicDiscoverArtists)
 	member.HandleFunc("GET /api/music/covers/release-group/{mbid}", s.handleReleaseGroupCover)
 	member.HandleFunc("GET /api/music/artists", s.handleListArtists)
-	member.HandleFunc("POST /api/music/artists", s.handleAddArtist)
+	member.Need(auth.PermMusic).HandleFunc("POST /api/music/artists", s.handleAddArtist)
 	member.HandleFunc("GET /api/music/artists/{id}", s.handleGetArtist)
 	member.HandleFunc("GET /api/music/albums/{id}", s.handleGetAlbum)
 	member.HandleFunc("GET /api/music/albums/{id}/files", s.handleAlbumFiles)
 	member.HandleFunc("GET /api/music/albums/{id}/cover", s.handleAlbumCover)
 	member.HandleFunc("GET /api/music/artists/{id}/cover", s.handleArtistCover)
-	member.HandleFunc("PUT /api/music/albums/{id}/monitored", s.handleSetAlbumMonitored)
-	member.HandleFunc("POST /api/music/albums/{id}/search", s.handleAlbumSearch)
-	member.HandleFunc("POST /api/music/albums/{id}/search-now", s.handleAlbumSearchNow)
-	member.HandleFunc("POST /api/music/albums/{id}/grab", s.handleAlbumGrab)
+	manage.HandleFunc("PUT /api/music/albums/{id}/monitored", s.handleSetAlbumMonitored)
+	releases.HandleFunc("POST /api/music/albums/{id}/search", s.handleAlbumSearch)
+	manage.HandleFunc("POST /api/music/albums/{id}/search-now", s.handleAlbumSearchNow)
+	releases.HandleFunc("POST /api/music/albums/{id}/grab", s.handleAlbumGrab)
 	member.HandleFunc("GET /api/music/albums/{id}/events", s.handleAlbumEvents)
 	member.HandleFunc("GET /api/music/wanted", s.handleMusicWanted)
 
@@ -426,23 +449,24 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/series/{id}/files", s.handleSeriesFiles)
 	member.HandleFunc("GET /api/movies/{id}/events", s.handleMovieEvents)
 	member.HandleFunc("GET /api/series/{id}/events", s.handleSeriesEvents)
-	member.HandleFunc("GET /api/files/stream", s.handleStreamFile)
+	play.HandleFunc("GET /api/files/stream", s.handleStreamFile)
 
 	// "Watch in Plex/Jellyfin/Emby" and "Open my media server" links.
 	member.HandleFunc("GET /api/media-servers/links", s.handleMediaServerLinks)
 
 	// Downloads: watch and retry.
 	member.HandleFunc("GET /api/queue", s.handleListQueue)
-	member.HandleFunc("POST /api/queue/{id}/retry", s.handleRetryQueueItem)
+	member.Need(auth.PermRetry).HandleFunc("POST /api/queue/{id}/retry", s.handleRetryQueueItem)
 
 	// Subtitles for titles in the library.
 	member.HandleFunc("GET /api/subtitles/wanted", s.handleSubtitlesWanted)
-	member.HandleFunc("POST /api/subtitles/get", s.handleSubtitlesGet)
-	member.HandleFunc("GET /api/movies/{id}/subtitles", s.handleSearchMovieSubtitles)
-	member.HandleFunc("POST /api/movies/{id}/subtitles/download", s.handleDownloadMovieSubtitle)
+	subs.HandleFunc("POST /api/subtitles/get", s.handleSubtitlesGet)
+	subs.HandleFunc("POST /api/subtitles/timing", s.handleSubtitleTiming)
+	subs.HandleFunc("GET /api/movies/{id}/subtitles", s.handleSearchMovieSubtitles)
+	subs.HandleFunc("POST /api/movies/{id}/subtitles/download", s.handleDownloadMovieSubtitle)
 	member.HandleFunc("GET /api/movies/{id}/subtitles/status", s.handleMovieSubtitleStatus)
-	member.HandleFunc("GET /api/episodes/{id}/subtitles", s.handleSearchEpisodeSubtitles)
-	member.HandleFunc("POST /api/episodes/{id}/subtitles/download", s.handleDownloadEpisodeSubtitle)
+	subs.HandleFunc("GET /api/episodes/{id}/subtitles", s.handleSearchEpisodeSubtitles)
+	subs.HandleFunc("POST /api/episodes/{id}/subtitles/download", s.handleDownloadEpisodeSubtitle)
 	member.HandleFunc("GET /api/episodes/{id}/subtitles/status", s.handleEpisodeSubtitleStatus)
 
 	// ---- Administrators only ----
@@ -616,6 +640,20 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("POST /api/system/update/install", s.handleInstallUpdate)
 	admin.HandleFunc("GET /api/system/options", s.handleGetOptions)
 	admin.HandleFunc("PUT /api/system/options", s.handlePutOptions)
+	admin.HandleFunc("GET /api/auth/proxy-signin", s.handleGetProxySignIn)
+	admin.HandleFunc("PUT /api/auth/proxy-signin", s.handlePutProxySignIn)
+	admin.HandleFunc("GET /api/scripts", s.handleGetScripts)
+	admin.HandleFunc("PUT /api/scripts", s.handlePutScripts)
+	admin.HandleFunc("POST /api/scripts/test", s.handleTestScript)
+	admin.HandleFunc("POST /api/requests/{id}/approve", s.handleApproveRequest)
+	admin.HandleFunc("POST /api/requests/{id}/decline", s.handleDeclineRequest)
+	admin.HandleFunc("GET /api/watched/settings", s.handleGetWatchedSettings)
+	admin.HandleFunc("PUT /api/watched/settings", s.handlePutWatchedSettings)
+	admin.HandleFunc("POST /api/watched/sync", s.handleSyncWatched)
+	admin.HandleFunc("GET /api/watched/cleanup/preview", s.handleLibraryCleanupPreview)
+	admin.HandleFunc("POST /api/watched/cleanup/run", s.handleLibraryCleanupRun)
+	admin.HandleFunc("GET /api/settings/hardcover", s.handleGetHardcover)
+	admin.HandleFunc("PUT /api/settings/hardcover", s.handlePutHardcover)
 	admin.HandleFunc("POST /api/system/restart", s.handleRestart)
 	admin.HandleFunc("POST /api/system/shutdown", s.handleShutdown)
 	admin.HandleFunc("GET /api/flaresolverr/status", s.handleFlareSolverrStatus)

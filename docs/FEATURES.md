@@ -61,12 +61,12 @@ What is thin or missing: the things that make the *arr apps manageable at scale 
 | Media server connection (Plex, Jellyfin, Emby) | **Yes** | `internal/mediaservers`, `/api/media-servers`: find servers on the network, sign in with Plex, Jellyfin Quick Connect or a Jellyfin/Emby login (or add one with a token or API key), test, partial library scan of the imported folder after each import (debounced, with path mapping, full-scan fallback), **Refresh now**, "Watch in" links found by TMDB id (`GET /api/media-servers/links`, open to members), dashboard item when a server fails. See [media-servers.md](./media-servers.md) | Rad, Son (Connect: Plex, Emby/Jellyfin library update) |
 | History | **Yes** | `GET /api/activity`, Activity page; per title `GET /api/movies/{id}/events` and `GET /api/series/{id}/events`: each search with how many releases were acceptable and why not, the grab and the profile used, download and post-processing steps, failures, blocklisting and retries (see [activity.md](./activity.md)) | Rad, Son, Pro |
 | Blocklist (auto on bad release, manual, retry next best) | **Yes** | `internal/blocklist`, `/api/blocklist`, `POST /api/queue/{id}/blocklist`. **Retry** on a failed Usenet download repeats post-processing on the files it already has instead of downloading again; one download at a time per movie or episode (a grab by hand while one runs gets 409) | Rad, Son |
-| Updates and restarts | **Yes** | new-version notice (daily GitHub check, notes, steps for Docker and native), signed **Update now** and overnight install, pushed updates (opt-in, `POST /api/system/update`), restart and safe restart, self-restart when stuck, Docker health check (`internal/updatecheck`, `internal/selfupdate`, `docker-entrypoint.sh`); see [INSTALL.md](./INSTALL.md#updating) and [security.md](./security.md#updating-the-program) | Rad, Son (built-in updater) |
+| Updates and restarts | **Yes** | new-version notice (daily GitHub check, notes, steps for Docker and native), signed **Update now** and overnight install, pushed updates (opt-in, `POST /api/system/update`), restart and safe restart, self-restart when stuck, Docker health check (`internal/updatecheck`, `internal/selfupdate`, `docker/entrypoint.sh`); see [INSTALL.md](./INSTALL.md#updating) and [security.md](./security.md#updating-the-program) | Rad, Son (built-in updater) |
 | Backup / restore | **Partial** | admin-only `GET /api/system/backup` (consistent `VACUUM INTO` snapshot + `secret.key` + manifest, as a zip) and `POST /api/system/restore` (strict validation, staged, applied on the next start; old files kept in `before-restore-*`), `internal/backup`. No scheduled backup | Rad, Son, Pro, Sab, Baz |
 | API keys and authentication | **Yes** | local accounts, cookie sessions, rate-limited login, `X-API-Key` (`internal/auth`, `/api/auth/api-keys`) | all |
 | External auth (OIDC, proxy header, basic) | **No** | not built | Rad, Son, Pro (forms/basic/external) |
 | Prometheus metrics | **Partial** | `GET /api/metrics` (behind auth, three gauge families: `mediarium_up`, movies by status, queue items by status). The usual path would be `/metrics` | Rad, Son via exporters |
-| Statistics / disk-space overview | **Yes** | Statistics page: library size, titles per quality, downloads per month (`GET /api/stats/library`), plus the dashboard's folder health | Rad, Son |
+| Statistics / disk-space overview | **Yes** | Statistics page: library size, titles per quality, downloads per month and, with watched status on, what gets watched (`GET /api/stats/library`), plus the dashboard's folder health | Rad, Son |
 | A title's files on disk, playing a video in the browser | **Partial** | `GET /api/movies/{id}/files` and `GET /api/series/{id}/files` list the title's folder (relative path, size, date, kind: video, subtitle, image, nfo, other). `GET /api/files/stream?movie={id}&path=...` (or `series=`) sends a video file as it is, with seeking, for a `<video>` player. It also previews pictures (jpg, png, webp, gif, with their image type) and text files (nfo, srt, ass, ssa, vtt, txt, up to 2 MB, always as `text/plain`). Anything else, html, svg and scripts included, is refused with 415, and every file is sent with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox` and `Content-Disposition: inline`. Only files inside the movies and TV folders can be reached (no `../`, no symlinks leading out). No transcoding: MP4 and WebM play in every browser, MKV only where the browser supports it (`internal/mediafiles`) | Plex, Jellyfin, Emby (with transcoding) |
 | Discover, recommendations | **Yes** | `/api/discover/*`, "More like your library" (recent, popular titles that several of your titles point to; a paged "Browse more" list with a switch for older titles, `list=similar` on `/api/discover/list`), browse by genre, year and sort order (`/api/discover/browse`, `/api/discover/genres`), pageable trending, popular and coming-soon rails for movies and shows (`/api/discover/list`) (`pages/Discover.tsx`) | Overseerr / Jellyseerr-style, partly Rad, Son |
 | First-run wizard with live folder checks | **Yes** | `pages/Onboarding.tsx`, `/api/settings/folder-check` | none of them as such |
@@ -85,7 +85,7 @@ What is thin or missing: the things that make the *arr apps manageable at scale 
 | Speed limit, scheduling | **Yes** | one limit for Usenet and torrents, optionally only between two hours (`downloads.speed_limit_mb`, `downloads.speed_limit_hours`), and a free-space floor | Sab, qB |
 | Queue ordering / priority per item | **Partly** | downloads wait in one line: what a person started goes before what the automatic searches added, then first come, first served; a resumed download goes to the front of its group (`priority` and `line_seq` on `download_queue`, `internal/queue/dispatch.go`). There is no drag to reorder | Sab, qB |
 | Categories | **No** | movies vs TV is tracked in the queue row, but there is no user-visible category concept and no per-category folder or script | Sab, qB |
-| Post-processing scripts | **No** | none | Sab |
+| Post-processing scripts | **Yes, after import** | `internal/api/scripts.go`: one script from `/config/scripts`, picked in Settings > System (not with an API key), run after each import with `MEDIARIUM_*` variables, one at a time with a time limit ([scripts.md](./scripts.md)) | Sab, Rad, Son |
 | Retention / article-age handling, duplicate detection, direct unpack | **No** | none | Sab |
 | Failed download handling (blocklist and pick next release) | **Yes** | `internal/api/pipeline.go`, `blocklist.go` | Rad, Son (Sab reports failure) |
 | Add an NZB by upload or URL directly | **No** | grabs only come from indexer results (`POST /api/search/grab`, `/api/movies/{id}/grab`) | Sab |
@@ -121,11 +121,11 @@ What is thin or missing: the things that make the *arr apps manageable at scale 
 | Daily download limit awareness | **Yes** | downloads and OpenSubtitles' reported `remaining` are tracked; `GET /api/subtitles/quota` warns when more is wanted than the day allows | Baz |
 | "No subtitles wanted" per title | **Yes** | `POST` / `DELETE /api/subtitles/dismiss`, left out of Wanted, the offer and every fetch | Baz (per-series profiles) |
 | Manual search and choose per movie or episode | **Yes** | `/api/movies/{id}/subtitles`, `/api/episodes/{id}/subtitles` | Baz |
-| Best-fit ranking (release group, source, codec) | **Yes** | `internal/subtitles/pick.go` | Baz (scored) |
+| Best-fit ranking (file hash, release group, source, codec) | **Yes** | `internal/subtitles/pick.go`, `hash.go`: a subtitle made for the exact video file (OpenSubtitles hash) comes first | Baz (scored) |
 | Multiple languages | **Yes, global list** | `subtitles.languages` | Baz (per-language profiles) |
 | Per-language profiles (forced, hearing impaired, per series) | **No** | none. Existing and imported `.forced` files are kept but do not count as a full subtitle in that language; `.sdh` files do | Baz |
-| Upgrade existing subtitles | **No** | none | Baz |
-| Sync / re-time subtitles | **No** | none | Baz |
+| Upgrade existing subtitles | **Yes** | `internal/api/subtitles_upgrade.go`: for 30 days after an automatic pick, looks every three days for one made for the exact file and swaps it in; never a hand-picked or edited subtitle; `subtitles.upgrade` (on, only with automatic downloading) | Baz |
+| Sync / re-time subtitles | **Yes** | `internal/subtitles/timing.go`, `POST /api/subtitles/timing`: shift, or line up with another subtitle in time (frame-rate drift included); the original is kept | Baz |
 | Embedded-subtitle detection | **No** | not found | Baz |
 
 ### 2.4b Music (Lidarr territory)
@@ -156,7 +156,7 @@ Switch it on in Settings > Media types ([modules.md](./modules.md), [music.md](.
 |---|---|---|---|
 | Multiple users and roles | **Partly** | admin and basic-user roles (`member` in the API), accounts managed by an administrator (`/api/users`); one route table decides who may call what (`internal/api/server.go`, `access.go`); no read-only role, no per-user libraries or quotas | Overseerr, Jellyseerr (users, roles); *arr apps are single-login |
 | Request portal (family asks, admin approves) | **No** | not found | Overseerr, Jellyseerr |
-| Books (Readarr) | **Partly** | ebooks and audiobooks by book (Open Library), format preference, search, grab and filing by author ([books.md](./books.md)); following authors (their new books are added by themselves); no series following yet | Readarr |
+| Books (Readarr) | **Partly** | ebooks and audiobooks by book (Open Library), format preference, search, grab and filing by author ([books.md](./books.md)); following authors and series (their missing and new books are added by themselves); release dates on the calendar; narrators and running times from Audnexus; MOBI/AZW3 open in the reader through a built-in converter | Readarr |
 | Adult (Whisparr) | **No** | not planned | Whisparr |
 | Play-state stats | **No** | | Tautulli |
 | Archive extraction helper for other apps | **n/a** (built in) | | Unpackerr |
@@ -202,20 +202,20 @@ Effort: **S** = days or less, **M** = about 1 to 2 weeks, **L** = weeks. Priorit
 
 | # | Item | Effort |
 |---|---|---|
-| 19 | Usenet scheduling and categories, post-processing scripts | M |
+| 19 | ~~Download scheduling~~ **Done**: download hours (see [downloads.md](./downloads.md#speed-and-space)) and post-processing scripts (see [scripts.md](./scripts.md)) | M |
 | 20 | OIDC / reverse-proxy header auth | M |
-| 21 | Anime handling (absolute numbering, series types, daily shows), specials | M to L |
-| 22 | Subtitle upgrade and sync | M |
+| 21 | ~~Anime handling (absolute numbering, series types, daily shows)~~ **Done** and specials (see [library.md](./library.md#anime-and-daily-shows)) | M to L |
+| 22 | Subtitle ~~sync~~ **Done** (shift and line up with another subtitle; see [subtitles.md](./subtitles.md#fixing-a-subtitle-that-is-out-of-time)). Still open: upgrades | M |
 | 23 | Quality size limits, editions, movie collections | M |
-| 24 | Bulk rename of an existing library | M |
+| 24 | ~~Bulk rename of an existing library~~ **Done**: Rename existing files (see [library.md](./library.md#renaming-existing-files)) | M |
 
 ### P3: later
 
 | # | Item | Effort |
 |---|---|---|
 | 26 | Request portal (needs #17) | L |
-| 27 | Play-state sync and stats from Plex, Jellyfin, Emby | L |
-| 28 | Library cleanup rules | M |
+| 27 | ~~Play-state sync from Plex, Jellyfin, Emby~~ **Done** (off by default; see [media-servers.md](./media-servers.md#whats-been-watched)), with watch statistics on the Statistics page | L |
+| 28 | ~~Library cleanup rules~~ **Done**, with a preview and keep tags (off by default) | M |
 
 ## 4. Optional modules for later
 
@@ -224,7 +224,7 @@ Each of these could become a module of its own. The projects named are for ideas
 | Module | What it would do | Projects to study |
 |---|---|---|
 | Music | Metadata, release matching, per-track naming and tagging, quality profiles for FLAC/MP3. Everything except writing tags is built (see 2.4b) | Lidarr (the *arr way), Picard (metadata and tagging), beets (tagging and organizing library tool) |
-| Books and audiobooks | Built: ebooks and audiobooks with Open Library details, authors, Discover, import and the Mediarium Books reader and player (see [books.md](./books.md)). Still open: following a book series | Readarr (same family), Calibre-Web (library), Audiobookshelf (audiobooks and podcasts server) |
+| Books and audiobooks | Built: ebooks and audiobooks with Open Library details, authors, Discover, import and the Mediarium Books reader and player (see [books.md](./books.md)). Also built: following series, release dates on the calendar, narrators and running times | Readarr (same family), Calibre-Web (library), Audiobookshelf (audiobooks and podcasts server) |
 | Comics | Volume/issue tracking with a comics metadata source | Mylar3, Kapowarr |
 | Podcasts | Subscribe to feeds, download episodes, retention rules | Audiobookshelf also handles podcasts |
 | Anime specifics | Absolute numbering, AniDB or similar IDs, release-group preferences, dual audio | Sonarr's anime handling, Shoko |

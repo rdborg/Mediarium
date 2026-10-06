@@ -141,6 +141,11 @@ func (s *Server) runBookPipeline(queueID int64, b books.Book, f books.Format, re
 	if err := s.BookRepo.SetState(b.ID, f, books.StatusDownloaded, fileFormat, path); err != nil {
 		return fail(err)
 	}
+	if f == books.Ebook {
+		withFile := b
+		withFile.EbookPath = path
+		s.convertLater(withFile)
+	}
 	if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, ""); err != nil {
 		return fail(err)
 	}

@@ -6,14 +6,14 @@ body:
     attributes:
       value: |
         Thanks for taking the time to report a problem. The more of this you fill in, the quicker it can be fixed.
-        **Security problem?** Don't open an issue. Report it privately as described in [SECURITY.md](https://github.com/rdborg/Mediarium/blob/main/SECURITY.md).
+        **Security problem?** Don't open an issue. Report it privately as described in [SECURITY.md](https://github.com/rdborg/Mediarium/blob/main/.github/SECURITY.md).
 
   - type: input
     id: version
     attributes:
       label: Mediarium version
       description: Shown in Mediarium under **Settings > System > About and credits**.
-      placeholder: "1.3.0"
+      placeholder: "2.1.0"
     validations:
       required: true
 

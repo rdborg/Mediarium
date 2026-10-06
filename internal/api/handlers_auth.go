@@ -245,7 +245,11 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "You need to sign in first.")
 		return
 	}
-	writeJSON(w, http.StatusOK, userPayload(user))
+	out := userPayload(user)
+	if p, err := s.Auth.PermissionsOf(user.ID); err == nil {
+		out["permissions"] = p // the app hides what the account may not do
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 type updateProfileRequest struct {

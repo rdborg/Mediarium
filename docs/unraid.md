@@ -68,7 +68,7 @@ Add one more **Variable** for each kind of media you use. The folder must exist 
 | Variable | Ebooks folder | `EBOOKS_DIR` | `/data/media/ebooks` |
 | Variable | Audiobooks folder | `AUDIOBOOKS_DIR` | `/data/media/audiobooks` |
 
-Music works today (switch it on under **Settings → Media types**). Ebooks and audiobooks aren't ready yet, but you can set their folders now. If a folder lives in another share, add a **Path** instead: Container Path `/music` (or `/ebooks`, `/audiobooks`) and the Host Path of that share, and skip the variable.
+Music, ebooks and audiobooks each switch on under **Settings → Media types**. If a folder lives in another share, add a **Path** instead: Container Path `/music` (or `/ebooks`, `/audiobooks`) and the Host Path of that share, and skip the variable.
 
 ### Adding one later
 

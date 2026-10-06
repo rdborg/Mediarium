@@ -176,6 +176,27 @@ Matching needs the TMDB id on the media server's side:
 
 A server that can't be reached is simply left out of the links.
 
+## What's been watched
+
+Under the list of servers, **What's been watched** is a switch, **off** until you turn it on. With it on, Mediarium asks Plex, Jellyfin and Emby every six hours which movies and episodes have been played, and shows it on title pages ("Watched 2 times · last on 3 Mar 2026", or "12 episodes watched" for a show) and on the Statistics page (how much of your library gets watched, and the space taken by what nobody played). **Read now** asks straight away.
+
+- Plex tells Mediarium what the account whose token you connected has watched. Jellyfin and Emby tell it about all their users together (up to 25), so a title counts as watched when anyone watched it.
+- Titles are matched by their TMDB id, episodes by their show, season and number. Nothing is changed on the media server.
+- Switching it off clears nothing on the server and switches cleanup off too.
+
+## Cleanup rules
+
+Once **What's been watched** is on, **Cleanup rules** can free up space. Each rule has its own switch and a number of days:
+
+- **Movies watched a while ago**: a movie last watched that many days ago.
+- **Movies nobody watched**: a movie never watched, that many days after it was added.
+- **Episodes watched a while ago**: an episode last watched that many days ago.
+- **Always keep titles tagged**: tags (for example `Keep, Kids`) that protect a movie or a whole show from every rule.
+
+**Preview** lists what the rules match right now and changes nothing. **Remove these now** removes the previewed titles straight away. **Run once a day** (off by default, and it asks first) applies the rules every day.
+
+What a removal does: the title's files are deleted, or moved to the recycle bin when it is on (Settings > System). The title stays in your library as missing and stops being looked for, so it isn't downloaded again; switch monitoring back on to get it again. Every removal is written to Activity. A run removes at most 50 titles, and nothing runs when what's been watched hasn't been read in the last two days.
+
 ## Troubleshooting
 
 | Message | What to check |
@@ -192,6 +213,10 @@ A server that can't be reached is simply left out of the links.
 | ... is not an administrator on this server | Sign in with an administrator account. |
 
 ## For developers
+
+- `GET`/`PUT /api/watched/settings` (administrators): `sync` (read what's been watched), `status` (last read, how many movies and episodes, the last problem, the last cleanup) and `cleanup` (`enabled`, `moviesWatchedDays`, `moviesUnwatchedDays`, `episodesWatchedDays`, `keepTags`; 0 days switches a rule off). Stored as `watched.sync`, `watched.status` and `cleanup.rules`.
+- `POST /api/watched/sync` reads now. `GET /api/watched/cleanup/preview` (optionally `?rules=` with the rules as JSON) lists what would be removed; `POST /api/watched/cleanup/run` applies the saved rules once.
+- `GET /api/watched` (every account) gives play counts and last-played dates by movie id and, for shows, by series id with how many episodes were watched. Empty while reading is off.
 
 Endpoints (administrators, except the links): `GET/POST /api/media-servers`, `PUT/DELETE /api/media-servers/{id}`, `POST /api/media-servers/test`, `POST /api/media-servers/{id}/test`, `POST /api/media-servers/{id}/refresh`, and `GET /api/media-servers/links?tmdbId=&kind=movie|tv` for every account. Details are in [reference/api.md](./reference/api.md). The code is in `internal/mediaservers`.
 

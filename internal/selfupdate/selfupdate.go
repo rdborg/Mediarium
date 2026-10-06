@@ -2,7 +2,7 @@
 // container image's own, without Docker access and without extra privileges.
 //
 // The container image starts /app/app. When a newer program file sits in
-// <config>/update/app, the image's entrypoint (docker-entrypoint.sh) starts
+// <config>/update/app, the image's entrypoint (docker/entrypoint.sh in the repository) starts
 // that one instead, and falls back to the image's own program if the new one
 // keeps failing. This package is the app's half: it receives a file (from an
 // administrator's upload, or from a signed GitHub release), checks it, puts it

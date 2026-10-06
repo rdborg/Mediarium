@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// These tests run the real docker-entrypoint.sh against real Mediarium
+// These tests run the real docker/entrypoint.sh against real Mediarium
 // programs (built from this tree with different version numbers) in a fake
 // container: a temporary config folder and a temporary "image" folder. They
 // check which program the entrypoint chooses, and that a bad installed update
@@ -131,7 +131,7 @@ func (e *entry) script(body string, withSum bool) {
 // with a user: setting) with args; IMAGE is replaced by the image's program.
 func (e *entry) run(env []string, args ...string) (stdout, stderr string, code int) {
 	e.t.Helper()
-	script, err := filepath.Abs("../../docker-entrypoint.sh")
+	script, err := filepath.Abs("../../docker/entrypoint.sh")
 	if err != nil {
 		e.t.Fatal(err)
 	}

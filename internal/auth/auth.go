@@ -253,6 +253,21 @@ func (s *Service) GetUser(id int64) (*User, error) {
 	return u, nil
 }
 
+// UserByName looks an account up by its user name, ignoring case.
+// ErrInvalidCredentials when there is none.
+func (s *Service) UserByName(username string) (*User, error) {
+	u := &User{}
+	err := s.db.QueryRow(`SELECT id, username, is_admin, first_name, last_name, email FROM users WHERE username = ? COLLATE NOCASE`, username).
+		Scan(&u.ID, &u.Username, &u.IsAdmin, &u.FirstName, &u.LastName, &u.Email)
+	if err == sql.ErrNoRows {
+		return nil, ErrInvalidCredentials
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lookup user by name: %w", err)
+	}
+	return u, nil
+}
+
 // UpdateProfile changes a user's username and profile details, returning the
 // updated account. ErrUsernameTaken when another account already has the name.
 func (s *Service) UpdateProfile(userID int64, username, firstName, lastName, email string) (*User, error) {

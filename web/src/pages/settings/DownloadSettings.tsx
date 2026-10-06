@@ -268,8 +268,15 @@ function SpeedAndSpaceCard() {
     (v) => (v === 0 ? 'Saved: downloads start whatever the free space.' : `Saved: no new download starts with less than ${v} GB free.`),
     5,
   )
+  const dlWindow = useAutosaveSetting<string>(
+    (s) => s.downloadHours ?? '',
+    (v) => ({ downloadHours: v }),
+    (v) => (v === '' ? 'Saved: downloads start at any time.' : `Saved: new downloads start from ${v.split('-')[0]}:00 to ${v.split('-')[1]}:00.`),
+    '',
+  )
   const [from, to] = hours.value ? hours.value.split('-').map(Number) : [8, 23]
-  const busy = !limit.loaded || limit.saving || hours.saving || free.saving
+  const [wFrom, wTo] = dlWindow.value ? dlWindow.value.split('-').map(Number) : [1, 7]
+  const busy = !limit.loaded || limit.saving || hours.saving || free.saving || dlWindow.saving
   return (
     <div>
       <label className="inline-field">
@@ -306,6 +313,28 @@ function SpeedAndSpaceCard() {
         </div>
       )}
       <p className="field-hint">Usenet and torrents share the limit. Outside the hours you choose, downloads run at full speed.</p>
+      <div className="inline-field" style={{ marginTop: 14 }}>
+        <label className="inline-field">
+          <input type="checkbox" checked={dlWindow.value !== ''} disabled={busy} onChange={(e) => void dlWindow.change(e.target.checked ? '1-7' : '')} />
+          Only start downloads from
+        </label>
+        <select aria-label="Downloads start from" value={wFrom} disabled={busy || dlWindow.value === ''} onChange={(e) => void dlWindow.change(`${e.target.value}-${wTo === Number(e.target.value) ? (wTo + 1) % 24 : wTo}`)}>
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}:00
+            </option>
+          ))}
+        </select>
+        to
+        <select aria-label="Downloads start until" value={wTo} disabled={busy || dlWindow.value === ''} onChange={(e) => void dlWindow.change(`${wFrom === Number(e.target.value) ? (wFrom + 23) % 24 : wFrom}-${e.target.value}`)}>
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}:00
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="field-hint">Outside these hours new downloads wait in line and start when the time comes, for example to download only at night. A download that is already running finishes.</p>
       <label className="inline-field" style={{ marginTop: 14 }}>
         Keep at least
         <select value={free.value} disabled={busy} onChange={(e) => void free.change(Number(e.target.value))}>

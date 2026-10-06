@@ -55,6 +55,8 @@ export default function Reader() {
   if (book.ebook.status !== 'downloaded') return <ReaderMessage title={book.title} text="There is no ebook for this book yet. Once Mediarium has downloaded it, it opens here." />
   const format = (book.ebook.format ?? '').toLowerCase()
   if (format === 'pdf') return <PdfReader book={book} />
+  // Kindle books open as an EPUB copy Mediarium makes for the reader.
+  if (KINDLE.has(format)) return <EpubReader book={book} src={`${api.bookFileUrl(book.id)}?as=epub`} />
   if (format !== 'epub') {
     return (
       <ReaderMessage
@@ -68,8 +70,10 @@ export default function Reader() {
       />
     )
   }
-  return <EpubReader book={book} />
+  return <EpubReader book={book} src={api.bookFileUrl(book.id)} />
 }
+
+const KINDLE = new Set(['mobi', 'azw', 'azw3', 'prc'])
 
 function ReaderMessage({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
   return (
@@ -108,7 +112,7 @@ function PdfReader({ book }: { book: Book }) {
   )
 }
 
-function EpubReader({ book }: { book: Book }) {
+function EpubReader({ book, src }: { book: Book; src: string }) {
   const viewer = useRef<HTMLDivElement>(null)
   const epub = useRef<EpubBook | null>(null)
   const rendition = useRef<Rendition | null>(null)
@@ -144,7 +148,8 @@ function EpubReader({ book }: { book: Book }) {
       try {
         const [{ default: ePub }, data, saved] = await Promise.all([
           import('epubjs'),
-          fetch(api.bookFileUrl(book.id), { credentials: 'include' }).then((r) => {
+          fetch(src, { credentials: 'include' }).then(async (r) => {
+            if (r.status === 422) throw new Error(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "This book couldn't be opened here.")
             if (!r.ok) throw new Error(r.status === 404 ? "Couldn't find the book's file. It may have been moved or deleted." : `The book didn't load (error ${r.status}).`)
             return r.arrayBuffer()
           }),
@@ -243,7 +248,7 @@ function EpubReader({ book }: { book: Book }) {
       epub.current = null
       rendition.current = null
     }
-  }, [book.id, save])
+  }, [book.id, save, src])
 
   useEffect(() => {
     try {
@@ -255,7 +260,18 @@ function EpubReader({ book }: { book: Book }) {
   }, [prefs])
 
   const theme = THEMES[prefs.theme]
-  if (error) return <ReaderMessage title={book.title} text={error} />
+  if (error)
+    return (
+      <ReaderMessage
+        title={book.title}
+        text={error}
+        action={
+          <a className="primary btn-with-icon" href={api.bookFileUrl(book.id, true)}>
+            <Icon name="download" size={16} /> Download
+          </a>
+        }
+      />
+    )
   return (
     <div className={`rdr theme-${prefs.theme}`} style={{ ['--rdr-bg' as string]: theme.bg, ['--rdr-fg' as string]: theme.fg }}>
       <header className="rdr-top">

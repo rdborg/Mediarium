@@ -192,6 +192,10 @@ type addArtistRequest struct {
 // singles (studio releases; live albums and compilations are left out), and
 // monitors them as asked: all, only future releases, or none.
 func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
+	if s.mustRequest(r) {
+		s.fileRequest(w, r, "music")
+		return
+	}
 	var req addArtistRequest
 	if err := decodeJSON(r, &req); err != nil || strings.TrimSpace(req.MBID) == "" {
 		writeError(w, http.StatusBadRequest, "mbid is required")

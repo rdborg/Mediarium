@@ -17,14 +17,14 @@ Ready-to-submit files for app stores and one-click installers. **Nothing here ha
 
 1. **The GitHub repository must be public** (the icon, screenshots, templates and stack files are fetched from `raw.githubusercontent.com/rdborg/Mediarium/main/...`).
 2. **Set the release secrets** if official images should ship with the built-in TMDB, OpenSubtitles and Trakt keys: repository secrets `TMDB_API_KEY`, `OPENSUBTITLES_API_KEY`, `TRAKT_CLIENT_ID` (see `.github/workflows/release.yml`). Without them users are asked for their own keys in the setup wizard.
-3. **Push the `v1.3.0` tag** so the release workflow publishes `ghcr.io/rdborg/mediarium:1.3.0`, `:1.3` and `:latest` (and `:1.3.0-full`, `:1.3-full` and `:latest-full`) for `linux/amd64` and `linux/arm64`. Check the workflow run is green. The kits use the plain image, not `-full`.
+3. **Push the `v2.1.0` tag** so the release workflow publishes `ghcr.io/rdborg/mediarium:2.1.0`, `:2.1` and `:latest` (and `:2.1.0-full`, `:2.1-full` and `:latest-full`) for `linux/amd64` and `linux/arm64`. Check the workflow run is green. The kits use the plain image, not `-full`.
 4. **Make the container package public**: GitHub → Packages → `mediarium` → Package settings → Change visibility → Public. (New GHCR packages start private, and every store pulls anonymously.)
 5. **Check from a machine that is not logged in to GitHub**:
    ```bash
    docker pull ghcr.io/rdborg/mediarium:latest
-   docker buildx imagetools inspect ghcr.io/rdborg/mediarium:1.3.0   # shows amd64 + arm64, and the digest
+   docker buildx imagetools inspect ghcr.io/rdborg/mediarium:2.1.0   # shows amd64 + arm64, and the digest
    ```
-6. **Pin digests** where a store requires it (Umbrel, TrueNAS; recommended elsewhere): use the `Digest:` from step 5 as `1.3.0@sha256:...`.
+6. **Pin digests** where a store requires it (Umbrel, TrueNAS; recommended elsewhere): use the `Digest:` from step 5 as `2.1.0@sha256:...`.
 
 ## For every new release
 

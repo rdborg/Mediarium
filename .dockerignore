@@ -6,7 +6,6 @@
 .claude
 .env
 .env.*
-!.env.example
 config/
 downloads/
 movies/

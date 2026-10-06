@@ -53,7 +53,7 @@ That's it. With the file exactly as below, Mediarium keeps its settings in `medi
 
 ## The compose file
 
-This is the same file as [`docker-compose.yml`](../docker-compose.yml) in the repository.
+This is the same file as [`docker/docker-compose.yml`](../docker/docker-compose.yml) in the repository.
 
 ```yaml
 # Mediarium: movies, TV shows and music, from search to your library, in one app.
@@ -368,17 +368,17 @@ That downloads the newest image and restarts Mediarium with it. Your settings an
 
   | Tag | Moves when |
   |---|---|
-  | `ghcr.io/rdborg/mediarium:1.3.0` (`:1.3.0-full`) | never |
-  | `ghcr.io/rdborg/mediarium:1.3` (`:1.3-full`) | a bug-fix release of 1.3 comes out (1.3.1, 1.3.2...) |
+  | `ghcr.io/rdborg/mediarium:2.1.0` (`:2.1.0-full`) | never |
+  | `ghcr.io/rdborg/mediarium:2.1` (`:2.1-full`) | a bug-fix release of 2.1 comes out (2.1.1, 2.1.2...) |
   | `ghcr.io/rdborg/mediarium:latest` (`:latest-full`) | any new release |
 
-  A pre-release (for example `1.3.0-beta.1`) only gets its exact tag. What the numbers mean: [RELEASING.md](./RELEASING.md#what-the-version-numbers-mean).
+  A pre-release (for example `2.1.0-beta.1`) only gets its exact tag. What the numbers mean: [RELEASING.md](./RELEASING.md#what-the-version-numbers-mean).
 
 ### Knowing when there is a new version
 
 Once a day Mediarium asks GitHub for the newest release (the first time about two minutes after it starts, and again in an hour after a failed try). If yours is older, administrators see a card on the dashboard and in the **Updates** box under **Settings > System > Server and backup**. It shows what is new and the steps for your kind of install (Synology Container Manager, Unraid or Docker Compose, plus a note for the `-full` image; a program you run yourself gets its own steps). The card has **Hide until the next version**. If a [notification](./notifications.md) target has **New version** ticked, you also get one message per new version. A pre-release is only offered to someone already running one.
 
-- **What it sends:** one plain web request to `api.github.com` with the program name and version (`Mediarium/1.3.0`) and nothing else: no account, no library, no settings. GitHub sees your address, as any website does.
+- **What it sends:** one plain web request to `api.github.com` with the program name and version (`Mediarium/2.1.0`) and nothing else: no account, no library, no settings. GitHub sees your address, as any website does.
 - **Turning it off:** untick **Look for new versions once a day** in the Updates box (stored as `updates.check`). Then Mediarium never contacts GitHub by itself. **Check now** still works when you press it.
 - If GitHub cannot be reached or is limiting requests, the card says "Couldn't check just now." with the reason (for example that GitHub is limiting requests, or that the address could not be found), and Mediarium tries again later. A failed check (other than one held back by GitHub's limit) is also listed under Settings > System > Logs and errors. Nothing else is affected.
 
@@ -534,12 +534,13 @@ For people working on Mediarium itself. You need Docker and a copy of the source
 ```bash
 git clone https://github.com/rdborg/Mediarium.git
 cd Mediarium
-docker compose -f docker-compose.dev.yml up -d --build
+cp docker/.env.example .env
+docker compose up -d --build
 ```
 
-[`docker-compose.dev.yml`](../docker-compose.dev.yml) builds the image from the source (the frontend and the Go program are built inside Docker, so you need nothing else installed) and uses `./config`, `./downloads`, `./movies`, `./tv` and `./music` next to it (with commented lines for `./ebooks` and `./audiobooks`). Copy `.env.example` to `.env` to set the port and other values. Or build the image alone with `docker build -t mediarium:local .` and use `image: mediarium:local` in your compose file.
+[`docker/docker-compose.dev.yml`](../docker/docker-compose.dev.yml) builds the image from the source (the frontend and the Go program are built inside Docker, so you need nothing else installed) and uses `config`, `downloads`, `movies`, `tv` and `music` folders in the top folder of the repository (with commented lines for ebooks and audiobooks folders). The `.env` file (copied from `docker/.env.example`) points Docker at that file and sets the port and other values. Or build the image alone with `docker build -t mediarium:local .` and use `image: mediarium:local` in your compose file.
 
-Optional build arguments `TMDB_API_KEY`, `OPENSUBTITLES_API_KEY` and `TRAKT_CLIENT_ID` build in app-wide keys; without them the wizard asks for your own. Coding conventions and running the tests: [CONTRIBUTING.md](../CONTRIBUTING.md).
+Optional build arguments `TMDB_API_KEY`, `OPENSUBTITLES_API_KEY` and `TRAKT_CLIENT_ID` build in app-wide keys; without them the wizard asks for your own. Coding conventions and running the tests: [CONTRIBUTING.md](../.github/CONTRIBUTING.md).
 
 ---
 

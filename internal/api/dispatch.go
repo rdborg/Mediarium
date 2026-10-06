@@ -92,7 +92,7 @@ func (s *Server) newDispatcher() *queue.Dispatcher {
 		ManualOnly:   func() bool { return s.cfg.PauseAutomation },
 		Start:        s.startQueued,
 		OnStartError: s.startRefused,
-		Hold:         s.diskTooFull,
+		Hold:         func() bool { return s.diskTooFull() || s.outsideDownloadHours() },
 	})
 }
 

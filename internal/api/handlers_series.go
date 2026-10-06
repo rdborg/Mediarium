@@ -35,6 +35,8 @@ type seriesPayload struct {
 	// "problem" when that failed (DetailsNote says why); empty otherwise.
 	DetailsState string `json:"detailsState,omitempty"`
 	DetailsNote  string `json:"detailsNote,omitempty"`
+	// SeriesType is how releases number the episodes: standard, anime or daily.
+	SeriesType string `json:"seriesType"`
 }
 
 // toSeriesPayload builds a library show's JSON; who resolves the account
@@ -49,7 +51,7 @@ func toSeriesPayload(s library.Series, who func(int64) *userRef) seriesPayload {
 		PosterURL: metadata.PosterURL(s.PosterPath), Monitored: s.Monitored,
 		EpisodeCount: s.EpisodeCount, DownloadedCount: s.DownloadedCount, ProfileID: s.ProfileID, Sources: s.SourcePref,
 		Genres: genres, Tags: []string{}, AddedBy: who(s.AddedBy),
-		NoUpgrade: s.NoUpgrade, DetailsState: s.DetailsState, DetailsNote: s.DetailsNote,
+		NoUpgrade: s.NoUpgrade, DetailsState: s.DetailsState, DetailsNote: s.DetailsNote, SeriesType: library.ValidSeriesType(s.SeriesType),
 	}
 }
 
@@ -172,6 +174,10 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 	if !s.requireModule(w, moduleTV) {
 		return
 	}
+	if s.mustRequest(r) {
+		s.fileRequest(w, r, "tv")
+		return
+	}
 	var req addSeriesRequest
 	if err := decodeJSON(r, &req); err != nil || req.TMDBID == 0 {
 		writeError(w, http.StatusBadRequest, "tmdbId is required")
@@ -243,6 +249,7 @@ func (s *Server) addSeriesFromTMDB(ctx context.Context, tmdbID int, userID int64
 		TMDBID: detail.TMDBID, Title: detail.Name, Year: detail.Year(), Overview: detail.Overview,
 		PosterPath: detail.PosterPath, FirstAirDate: detail.FirstAirDate, Monitored: true,
 		NoUpgrade: noUpgrade, AddedBy: userID, Genres: s.TMDB().ShowGenres(ctx, detail.Show),
+		SeriesType: guessSeriesType(detail.Show),
 	}, toLibraryEpisodes(infos))
 }
 

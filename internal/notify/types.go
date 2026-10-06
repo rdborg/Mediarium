@@ -22,6 +22,7 @@ const (
 	EventSubtitle = "subtitle" // a subtitle was downloaded
 	EventHealth   = "health"   // something is wrong with the app (or recovered)
 	EventUpdate   = "update"   // a new version of Mediarium is available
+	EventRequest  = "request"  // someone asked for a title (see Activity > Requests)
 )
 
 // EventInfo describes one subscribable event for the UI.
@@ -41,6 +42,7 @@ func EventKinds() []EventInfo {
 		{EventSubtitle, "Subtitles", "A subtitle file was downloaded."},
 		{EventHealth, "Health", "A Usenet server or indexer stopped working, or came back."},
 		{EventUpdate, "New version", "A new version of Mediarium is available."},
+		{EventRequest, "Requests", "Someone asked for a movie, show, artist or book."},
 	}
 }
 
@@ -140,8 +142,10 @@ func Types() []TypeInfo {
 				Help: "Usually your full email address. Empty if no login is needed."},
 			{Name: "password", Label: "Password", Kind: "password",
 				Help: "Gmail and Outlook need an \"app password\" from your account's security settings."},
-			{Name: "from", Label: "From address", Kind: "text", Required: true, Placeholder: "Mediarium <you@example.com>",
-				Help: "Who the message comes from. Most providers need your own address."},
+			{Name: "fromName", Label: "From name", Kind: "text", Placeholder: "Mediarium", Default: "Mediarium",
+				Help: "The name your emails show as coming from. Leave it empty to use Mediarium."},
+			{Name: "from", Label: "From address", Kind: "text", Required: true, Placeholder: "you@example.com",
+				Help: "The address emails are sent from. Most providers need your own address."},
 			{Name: "to", Label: "Send to", Kind: "text", Required: true, Placeholder: "you@example.com",
 				Help: "Where notifications go. Separate several addresses with commas."},
 		}},
@@ -253,6 +257,9 @@ func Validate(typeName string, cfg map[string]string) error {
 		}
 		if (get("username") == "") != (get("password") == "") {
 			return errors.New("Fill in both the username and the password, or leave both empty.")
+		}
+		if n := get("fromName"); len(n) > 100 || strings.ContainsAny(n, "\r\n") {
+			return errors.New("Keep the From name on one line and under 100 characters.")
 		}
 		if a, err := mail.ParseAddress(get("from")); err != nil || !inputcheck.ValidEmail(a.Address) {
 			return errors.New("The From address doesn't look right. It should look like you@example.com or Mediarium <you@example.com>.")

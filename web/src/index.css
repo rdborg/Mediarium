@@ -334,6 +334,19 @@ button:focus-visible {
   color: var(--text-dim);
 }
 
+/* A tick box sits beside its words, not above them. */
+.grid-form label:has(> input[type='checkbox']):not(.check-hint) {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-form label > input[type='checkbox'] {
+  width: auto;
+  flex: none;
+  margin: 0;
+}
+
 
 /* Status colors follow the brand guide's own mapping (branding/
    Mediarium-Brand-Guide.pdf p.3): success = imported/complete, warning =

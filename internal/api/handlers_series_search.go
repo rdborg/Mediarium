@@ -82,7 +82,11 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outcomes := indexers.SearchAll(r.Context(), instances, tvSearchQuery(series.Title, season, episode), tvCategory)
+	for _, q := range s.extraTVQueries(series, season, episode) {
+		outcomes = append(outcomes, indexers.SearchAll(r.Context(), instances, q, tvCategory)...)
+	}
 	merged := indexers.MergeResults(outcomes)
+	mapper := s.releaseMapper(series)
 
 	profiles, err := s.loadProfiles()
 	if err != nil {
@@ -93,7 +97,7 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	blocked := s.blockedKeys()
 	out := []searchResultPayload{}
 	for _, res := range merged {
-		if !matchesShow(res.Title, series) || !coversTarget(parser.Parse(res.Title), season, episode) {
+		if !matchesShow(res.Title, series) || !coversTarget(parseFor(mapper, res.Title), season, episode) {
 			continue
 		}
 		payload := s.toSearchResultPayload(res)

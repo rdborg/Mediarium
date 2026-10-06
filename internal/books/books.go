@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Format is one of the two ways a book can be had.
@@ -49,6 +50,21 @@ type Book struct {
 	AudioStatus   string
 	AudioFormat   string // m4b, mp3, ...
 	AudioPath     string // the book's folder
+
+	SeriesName     string // "Harry Potter"; "" when not known
+	SeriesPosition string // "2"; "" when not known
+	ReleaseDate    string // "2026-11-04" when known; "" = out already or unknown
+
+	ASIN           string // Audible id of the audiobook, when found
+	Narrators      string // "Ray Porter, Jane Doe"
+	RuntimeMin     int    // the audiobook's length in minutes
+	AudioCheckedAt string // when the audiobook details were looked up ("" = not yet)
+}
+
+// Released reports whether the book is out on day now: no release date is
+// known, or the date has come.
+func (b Book) Released(now time.Time) bool {
+	return b.ReleaseDate == "" || b.ReleaseDate <= now.Format("2006-01-02")
 }
 
 // Wants reports whether the book is wanted in format f.
@@ -93,12 +109,14 @@ type Repo struct{ db *sql.DB }
 func NewRepo(db *sql.DB) *Repo { return &Repo{db: db} }
 
 const columns = `id, ol_key, title, author, author_key, year, cover_id, description, added_at, COALESCE(added_by, 0),
-	want_ebook, ebook_status, ebook_format, ebook_path, want_audiobook, audiobook_status, audiobook_format, audiobook_path`
+	want_ebook, ebook_status, ebook_format, ebook_path, want_audiobook, audiobook_status, audiobook_format, audiobook_path,
+	series_name, series_position, release_date, asin, narrators, runtime_min, audio_checked_at`
 
 func scan(sc interface{ Scan(...any) error }) (Book, error) {
 	var b Book
 	err := sc.Scan(&b.ID, &b.OLKey, &b.Title, &b.Author, &b.AuthorKey, &b.Year, &b.CoverID, &b.Description, &b.AddedAt, &b.AddedBy,
-		&b.WantEbook, &b.EbookStatus, &b.EbookFormat, &b.EbookPath, &b.WantAudiobook, &b.AudioStatus, &b.AudioFormat, &b.AudioPath)
+		&b.WantEbook, &b.EbookStatus, &b.EbookFormat, &b.EbookPath, &b.WantAudiobook, &b.AudioStatus, &b.AudioFormat, &b.AudioPath,
+		&b.SeriesName, &b.SeriesPosition, &b.ReleaseDate, &b.ASIN, &b.Narrators, &b.RuntimeMin, &b.AudioCheckedAt)
 	return b, err
 }
 
@@ -109,9 +127,11 @@ func (r *Repo) Add(b Book) (Book, error) {
 	if b.AddedBy > 0 {
 		nullBy = b.AddedBy
 	}
-	res, err := r.db.Exec(`INSERT INTO books (ol_key, title, author, author_key, year, cover_id, description, want_ebook, want_audiobook, added_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.OLKey, b.Title, b.Author, b.AuthorKey, b.Year, b.CoverID, b.Description, b.WantEbook, b.WantAudiobook, nullBy)
+	res, err := r.db.Exec(`INSERT INTO books (ol_key, title, author, author_key, year, cover_id, description, want_ebook, want_audiobook, added_by,
+		series_name, series_position, release_date)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.OLKey, b.Title, b.Author, b.AuthorKey, b.Year, b.CoverID, b.Description, b.WantEbook, b.WantAudiobook, nullBy,
+		b.SeriesName, b.SeriesPosition, b.ReleaseDate)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return Book{}, ErrExists

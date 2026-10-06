@@ -25,15 +25,16 @@ func newTVFixtureServer(t *testing.T) *httptest.Server {
 		json.NewEncoder(w).Encode(map[string]any{
 			"id": 1399, "name": "Fixture Show", "first_air_date": "2011-04-17",
 			"seasons": []map[string]any{
-				{"season_number": 0, "episode_count": 1}, // Specials — must be skipped
+				{"season_number": 0, "episode_count": 1}, // Specials: fetched too
 				{"season_number": 1, "episode_count": 2},
 				{"season_number": 2, "episode_count": 1},
 			},
 		})
 	})
 	mux.HandleFunc("/tv/1399/season/0", func(w http.ResponseWriter, r *http.Request) {
-		t.Errorf("season 0 (specials) must not be fetched")
-		http.NotFound(w, r)
+		json.NewEncoder(w).Encode(map[string]any{"episodes": []map[string]any{
+			{"season_number": 0, "episode_number": 1, "name": "Behind the Scenes", "air_date": "2011-04-10"},
+		}})
 	})
 	mux.HandleFunc("/tv/1399/season/1", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{"episodes": []map[string]any{
@@ -64,7 +65,7 @@ func TestSearchTV(t *testing.T) {
 	}
 }
 
-func TestGetShowEpisodesSkipsSpecialsAndFillsSeason(t *testing.T) {
+func TestGetShowEpisodesFetchesSpecialsAndFillsSeason(t *testing.T) {
 	srv := newTVFixtureServer(t)
 	c := metadata.NewWithBaseURL("k", srv.URL)
 	detail, eps, err := c.GetShowEpisodes(context.Background(), 1399)
@@ -74,9 +75,10 @@ func TestGetShowEpisodesSkipsSpecialsAndFillsSeason(t *testing.T) {
 	if detail.Name != "Fixture Show" || detail.Year() != 2011 {
 		t.Fatalf("unexpected detail: %+v", detail)
 	}
-	if len(eps) != 3 {
-		t.Fatalf("expected 3 episodes (specials skipped), got %d: %+v", len(eps), eps)
+	if len(eps) != 4 || eps[0].Season != 0 {
+		t.Fatalf("expected 4 episodes, specials first, got %d: %+v", len(eps), eps)
 	}
+	eps = eps[1:]
 	// Order follows season order regardless of fetch concurrency.
 	want := [][2]int{{1, 1}, {1, 2}, {2, 1}}
 	for i, w := range want {

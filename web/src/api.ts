@@ -130,6 +130,29 @@ export interface LibraryStats {
   months: { month: string; completed: number; failed: number; bytes: number }[]
   usenetShare: number
   historyKeptDays: number
+  watched?: WatchStats // only while reading what's been watched is on
+}
+
+export interface WatchedStatTitle {
+  kind: 'movie' | 'series'
+  id: number
+  tmdbId?: number
+  title: string
+  plays: number
+  episodes?: number
+  lastPlayed?: string
+}
+
+export interface WatchStats {
+  lastSync?: string
+  moviesWatched: number
+  moviesUnwatched: number
+  episodesWatched: number
+  episodesUnwatched: number
+  unwatchedBytes: number
+  plays: number
+  top: WatchedStatTitle[]
+  recent: WatchedStatTitle[]
 }
 
 export interface RenameItem {
@@ -154,6 +177,26 @@ export interface OnboardingStatus {
 
 export type Role = 'admin' | 'member'
 
+// How release names number a show's episodes.
+export type SeriesType = 'standard' | 'anime' | 'daily'
+
+// What a basic account may do (Settings > Accounts). Administrators may do everything.
+export interface Permissions {
+  addDirect: boolean // add titles straight away; off = ask an administrator
+  movies: boolean
+  tv: boolean
+  music: boolean
+  books: boolean
+  releases: boolean // search indexers and pick releases
+  manage: boolean // search now, monitoring, tags, following
+  retry: boolean
+  subtitles: boolean
+  play: boolean // play, preview, read and listen
+}
+export type Permission = keyof Permissions
+
+export const DEFAULT_PERMISSIONS: Permissions = { addDirect: true, movies: true, tv: true, music: true, books: true, releases: true, manage: true, retry: true, subtitles: true, play: true }
+
 export interface User {
   id: number
   username: string
@@ -161,6 +204,15 @@ export interface User {
   role?: Role
   name?: string
   email?: string
+  permissions?: Permissions
+}
+
+// can reports whether the signed-in account may do something. Administrators
+// may do everything; an older server that sends no permissions allows all.
+export function can(u: User | null | undefined, p: Permission): boolean {
+  if (!u) return false
+  if (isAdmin(u)) return true
+  return u.permissions ? u.permissions[p] !== false : true
 }
 
 // True for administrators. Older servers sent only isAdmin, and a missing
@@ -181,6 +233,7 @@ export interface Account {
   isAdmin: boolean
   createdAt: string
   lastLoginAt: string | null
+  permissions?: Permissions
 }
 
 export interface NewAccount {
@@ -189,6 +242,7 @@ export interface NewAccount {
   name?: string
   email?: string
   role: Role
+  permissions?: Permissions
 }
 
 export interface AccountChanges {
@@ -196,6 +250,31 @@ export interface AccountChanges {
   email?: string
   role?: Role
   password?: string
+  permissions?: Permissions
+}
+
+// What an add answers for an account that has to ask (Settings > Accounts).
+export interface Requested {
+  requested: true
+  message: string
+}
+export function isRequested(x: unknown): x is Requested {
+  return typeof x === 'object' && x !== null && (x as { requested?: unknown }).requested === true
+}
+
+// A title a basic account asked for (Activity > Requests).
+export interface TitleRequest {
+  id: number
+  kind: 'movie' | 'tv' | 'music' | 'book'
+  title: string
+  year?: number
+  poster?: string
+  requestedBy?: number
+  requester?: string
+  status: 'pending' | 'approved' | 'declined'
+  note?: string
+  createdAt: string
+  decidedAt?: string
 }
 
 // The name to greet someone by: their name, or their username when no name is set.
@@ -247,6 +326,7 @@ export interface Settings {
   traktClientIdBuiltIn?: boolean
   subtitleLanguages?: string[]
   subtitleAutoDownload?: boolean
+  subtitleUpgrade?: boolean // later swap a subtitle for one made for the exact file (with automatic downloading)
   // The master switch for subtitles; off until switched on.
   subtitlesEnabled?: boolean
   illegalCharMode?: string
@@ -264,6 +344,7 @@ export interface Settings {
   backupKeep?: number
   speedLimitMB?: number
   speedLimitHours?: string
+  downloadHours?: string // when new downloads may start, "1-7"; "" = any time
   minFreeGB?: number
   notifyQuietHours?: string
   // How often, in minutes, the connection watch checks your providers and indexers; 0 is off.
@@ -475,6 +556,7 @@ export interface Series {
   noUpgrade?: boolean // Mediarium does not look for better versions of what is there
   detailsState?: 'pending' | 'problem' // an import is still getting the details, or could not
   detailsNote?: string
+  seriesType?: SeriesType // how releases number the episodes
 }
 
 export interface Episode {
@@ -979,6 +1061,7 @@ export interface SubtitleResult {
   language: string
   release: string
   rating: number
+  hashMatch?: boolean // made for this exact video file
 }
 
 export interface VPNConfig {
@@ -1224,13 +1307,14 @@ export interface DashboardData {
 }
 
 export interface CalendarEntry {
-  kind: 'movie' | 'episode' | 'album'
+  kind: 'movie' | 'episode' | 'album' | 'book'
   id: number
   movieId?: number
   tmdbId?: number
   seriesId?: number
   albumId?: number
   artistId?: number
+  bookId?: number
   title: string
   subtitle?: string
   releaseDate: string
@@ -1258,6 +1342,45 @@ export interface Book {
   addedAt: string
   ebook: BookFormatState
   audiobook: BookFormatState
+  seriesName?: string
+  seriesPosition?: string
+  releaseDate?: string // "2026-11-04" when known; a date ahead means it isn't out yet
+  narrators?: string // the audiobook's readers, "Ray Porter, Jane Doe"
+  runtimeMin?: number // the audiobook's length
+  asin?: string // its Audible id
+}
+
+// A book's series (from Open Library, or Hardcover with a token).
+export interface BookSeriesEntry {
+  key?: string // Open Library work key; missing when only Hardcover knows it
+  title: string
+  author: string
+  authorKey?: string
+  year?: number
+  position: string
+  releaseDate?: string
+  hasEbook: boolean
+  hasAudio: boolean
+  coverUrl?: string
+  libraryId?: number
+}
+export interface BookSeries {
+  source: 'openlibrary' | 'hardcover'
+  key: string
+  name: string
+  position?: string // the book the page is about
+  followed: boolean
+  ebook: boolean
+  audiobook: boolean
+  entries: BookSeriesEntry[]
+}
+export interface FollowedSeries {
+  source: string
+  key: string
+  name: string
+  ebook: boolean
+  audiobook: boolean
+  followedAt: string
 }
 export interface BookImportResult {
   path: string
@@ -1293,6 +1416,7 @@ export interface BookTrack {
   index: number
   name: string
   size: number
+  chapters?: { title: string; start: number }[] // marks inside the file (an M4B)
 }
 export interface BookWork extends BookFound {
   description?: string
@@ -1554,6 +1678,68 @@ export interface UpdateNotice {
   job?: UpdateJob
 }
 
+// What's been watched and the cleanup rules (Settings > Media servers).
+export interface CleanupRules {
+  enabled: boolean
+  moviesWatchedDays: number // 0 = rule off
+  moviesUnwatchedDays: number
+  episodesWatchedDays: number
+  keepTags: string[]
+}
+export interface WatchedStatus {
+  lastSync?: string
+  lastError?: string
+  servers: number
+  movies: number
+  episodes: number
+  lastCleanup?: string
+}
+export interface WatchedSettings {
+  sync: boolean
+  status: WatchedStatus
+  cleanup: CleanupRules
+}
+export interface LibraryCleanupItem {
+  kind: 'movie' | 'episode'
+  id: number
+  seriesId?: number
+  title: string
+  reason: string
+}
+export interface WatchedTitle {
+  plays: number
+  lastPlayed?: string
+  episodes?: number
+}
+
+// Sign-in through a reverse proxy (Settings > Accounts).
+export interface ProxySignIn {
+  header: string // "" = off
+  viaTrustedProxy: boolean // this request came through a proxy in TRUSTED_PROXIES
+  seen: string // what the proxy put in the header for this request
+}
+
+// Settings > System: the script run after each import.
+export interface ScriptRun {
+  at: string
+  script: string
+  event: 'imported' | 'test'
+  title?: string
+  exitCode: number
+  timedOut?: boolean
+  seconds: number
+  output?: string // the end of what it printed, when it failed
+  problem?: string
+}
+
+export interface ScriptsState {
+  folder: string
+  scripts: string[] // executable files in the folder
+  script: string // "" = off
+  timeoutSec: number
+  lastRun?: ScriptRun
+}
+
 export interface SystemOptions {
   updateCheck: boolean
   autoInstall: boolean
@@ -1601,6 +1787,11 @@ export const api = {
   // Accounts (administrators only).
   listAccounts: () => get<Account[]>('/users'),
   createAccount: (data: NewAccount) => post<Account>('/users', data),
+  listRequests: () => get<{ requests: TitleRequest[]; pending: number }>('/requests'),
+  subtitleTiming: (body: { kind: 'movie' | 'series'; id: number; file: string; shiftMs?: number; reference?: string; undo?: boolean }) => post<{ message: string }>('/subtitles/timing', body),
+  approveRequest: (id: number) => post<TitleRequest>(`/requests/${id}/approve`, {}),
+  declineRequest: (id: number, note: string) => post<TitleRequest>(`/requests/${id}/decline`, { note }),
+  deleteRequest: (id: number) => del<null>(`/requests/${id}`),
   updateAccountById: (id: number, data: AccountChanges) => put<Account>(`/users/${id}`, data),
   deleteAccount: (id: number) => del<null>(`/users/${id}`),
 
@@ -1633,7 +1824,7 @@ export const api = {
   // The two big lists are asked with 'no-cache': the browser sends the tag it has and the server answers 304 when nothing changed.
   listMovies: () => request<Movie[]>('/movies', { cache: 'no-cache' }),
   getMovie: (id: number) => get<Movie>(`/movies/${id}`),
-  addMovie: (tmdbId: number, options: AddMovieOptions = {}) => post<Movie>('/movies', { tmdbId, ...options }),
+  addMovie: (tmdbId: number, options: AddMovieOptions = {}) => post<Movie | Requested>('/movies', { tmdbId, ...options }),
   discoverSearch: (q: string, signal?: AbortSignal) => request<TitleResult[]>(`/discover/search?q=${encodeURIComponent(q)}`, { signal }),
   setMovieSources: (id: number, sources: SourcePref) => put<null>(`/movies/${id}/sources`, { sources }),
   setSeriesSources: (id: number, sources: SourcePref) => put<null>(`/series/${id}/sources`, { sources }),
@@ -1694,6 +1885,7 @@ export const api = {
   movieSearch: (id: number) => get<SearchAnswer<SearchResult>>(`/movies/${id}/search?detail=1`),
   setMovieMonitored: (id: number, monitored: boolean) => put<null>(`/movies/${id}/monitored`, { monitored }),
   setSeriesMonitored: (id: number, monitored: boolean) => put<null>(`/series/${id}/monitored`, { monitored }),
+  setSeriesType: (id: number, type: SeriesType) => put<{ type: SeriesType }>(`/series/${id}/type`, { type }),
   setSeasonMonitored: (id: number, season: number, monitored: boolean) =>
     put<null>(`/series/${id}/seasons/${season}/monitored`, { monitored }),
   setEpisodeMonitored: (id: number, monitored: boolean) => put<null>(`/episodes/${id}/monitored`, { monitored }),
@@ -1751,12 +1943,20 @@ export const api = {
   followedAuthors: () => get<{ key: string; name: string; ebook: boolean; audiobook: boolean; followedAt: string }[]>('/book-authors'),
   followAuthor: (key: string, data: { name: string; ebook: boolean; audiobook: boolean }) => put<null>(`/book-authors/${encodeURIComponent(key)}/follow`, data),
   unfollowAuthor: (key: string) => del<null>(`/book-authors/${encodeURIComponent(key)}/follow`),
+  bookSeries: (key: string, title = '', author = '') =>
+    get<{ series: BookSeries | null }>(`/book-works/${encodeURIComponent(key)}/series?${new URLSearchParams({ title, author })}`),
+  followedSeries: () => get<FollowedSeries[]>('/book-series'),
+  followSeries: (source: string, key: string, body: { name: string; ebook: boolean; audiobook: boolean }) =>
+    put<{ added: number; message?: string }>(`/book-series/${source}/${encodeURIComponent(key)}/follow`, body),
+  unfollowSeries: (source: string, key: string) => del<null>(`/book-series/${source}/${encodeURIComponent(key)}/follow`),
+  getHardcover: () => get<{ set: boolean; username?: string }>('/settings/hardcover'),
+  putHardcover: (token: string) => put<{ set: boolean; username?: string }>('/settings/hardcover', { token }),
   bookWork: (key: string) => get<BookWork>(`/book-works/${encodeURIComponent(key)}`),
   bookImportStatus: () => get<BookImportState>('/books/import'),
   startBookImport: (format?: BookFormat) => post<BookImportState>('/books/import', { format: format ?? '' }),
   bookSubjects: () => get<{ label: string; subject: string }[]>('/books/subjects'),
   addBook: (data: { olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
-    post<Book>('/books', data),
+    post<Book | Requested>('/books', data),
   setBookWanted: (id: number, format: BookFormat, wanted: boolean) => put<Book>(`/books/${id}/want`, { format, wanted }),
   deleteBook: (id: number, deleteFiles: boolean) => del<null>(`/books/${id}?deleteFiles=${deleteFiles}`),
   bookReleases: (id: number, format: BookFormat) => get<SearchResult[]>(`/books/${id}/releases?format=${format}`),
@@ -1765,7 +1965,7 @@ export const api = {
   searchNowBook: (id: number, format: BookFormat) => post<{ grabbed: number; message: string }>(`/books/${id}/search?format=${format}`),
   listArtists: () => get<MusicArtist[]>('/music/artists'),
   getArtist: (id: number) => get<MusicArtist>(`/music/artists/${id}`),
-  addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean }) => post<MusicArtist>('/music/artists', data),
+  addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean }) => post<MusicArtist | Requested>('/music/artists', data),
   updateArtist: (id: number, changes: { monitored?: boolean; profileId?: number }) => put<MusicArtist>(`/music/artists/${id}`, changes),
   deleteArtist: (id: number, deleteFiles: boolean) => del<null>(`/music/artists/${id}?deleteFiles=${deleteFiles}`),
   getAlbum: (id: number) => get<MusicAlbum>(`/music/albums/${id}`),
@@ -1784,7 +1984,7 @@ export const api = {
   searchTV: (q: string) => get<DiscoverMovie[]>(`/tv/search?q=${encodeURIComponent(q)}`),
   listSeries: () => request<Series[]>('/series', { cache: 'no-cache' }),
   getSeries: (id: number) => get<SeriesDetail>(`/series/${id}`),
-  addSeries: (tmdbId: number, options: AddSeriesOptions = {}) => post<Series>('/series', { tmdbId, ...options }),
+  addSeries: (tmdbId: number, options: AddSeriesOptions = {}) => post<Series | Requested>('/series', { tmdbId, ...options }),
   refreshSeries: (id: number) => post<Series>(`/series/${id}/refresh`),
   deleteSeries: (id: number, deleteFiles = false) => del<null>(`/series/${id}?deleteFiles=${deleteFiles}`),
   seriesSearch: (id: number, season: number, episode?: number) =>
@@ -1834,6 +2034,17 @@ export const api = {
   removeUpdate: (restart = false) => del<{ removed: string; image: string; runningPushed: boolean; restarting: boolean; restartNeeded: boolean }>(`/system/update${restart ? '?restart=true' : ''}`),
   systemOptions: () => get<SystemOptions>('/system/options'),
   putSystemOptions: (o: Partial<SystemOptions>) => put<SystemOptions>('/system/options', o),
+  getProxySignIn: () => get<ProxySignIn>('/auth/proxy-signin'),
+  getScripts: () => get<ScriptsState>('/scripts'),
+  putScripts: (body: { script: string; timeoutSec: number }) => put<ScriptsState>('/scripts', body),
+  testScript: () => post<ScriptRun>('/scripts/test', {}),
+  watchedSettings: () => get<WatchedSettings>('/watched/settings'),
+  putWatchedSettings: (body: { sync?: boolean; cleanup?: CleanupRules }) => put<WatchedSettings>('/watched/settings', body),
+  syncWatched: () => post<WatchedStatus>('/watched/sync', {}),
+  cleanupPreview: (rules: CleanupRules) => get<{ items: LibraryCleanupItem[]; limit: number }>(`/watched/cleanup/preview?${new URLSearchParams({ rules: JSON.stringify(rules) })}`),
+  runLibraryCleanup: () => post<{ removed: LibraryCleanupItem[]; failed: LibraryCleanupItem[]; more: number }>('/watched/cleanup/run', {}),
+  watched: () => get<{ movies: Record<string, WatchedTitle>; series: Record<string, WatchedTitle> }>('/watched'),
+  putProxySignIn: (header: string) => put<ProxySignIn>('/auth/proxy-signin', { header }),
   restartApp: (safe = false) => post<{ ok: boolean; restarting: boolean; safe: boolean }>(`/system/restart${safe ? '?safe=true' : ''}`),
   shutdownApp: () => post<{ ok: boolean }>('/system/shutdown'),
   movieEvents: (id: number) => get<TitleEvent[]>(`/movies/${id}/events`),

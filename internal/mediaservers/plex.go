@@ -30,6 +30,13 @@ type plexEntry struct {
 	GUID      string         `json:"guid" xml:"guid,attr"`
 	Guids     []plexGuid     `json:"Guid" xml:"Guid"`
 	Locations []plexLocation `json:"Location" xml:"Location"`
+
+	// Play state, and an episode's place (watched.go).
+	ViewCount            int    `json:"viewCount" xml:"viewCount,attr"`
+	LastViewedAt         int64  `json:"lastViewedAt" xml:"lastViewedAt,attr"`
+	GrandparentRatingKey string `json:"grandparentRatingKey" xml:"grandparentRatingKey,attr"`
+	ParentIndex          int    `json:"parentIndex" xml:"parentIndex,attr"`
+	Index                int    `json:"index" xml:"index,attr"`
 }
 
 type plexContainer struct {

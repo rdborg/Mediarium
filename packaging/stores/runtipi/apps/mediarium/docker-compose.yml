@@ -1,6 +1,6 @@
 services:
   mediarium:
-    image: ghcr.io/rdborg/mediarium:1.3.0
+    image: ghcr.io/rdborg/mediarium:2.1.0
     environment:
       - TZ=${TZ}
       - PUID=1000

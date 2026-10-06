@@ -53,3 +53,39 @@ export function trackLabel(name: string, index: number): string {
   if (cleaned === '' || /^\d+$/.test(cleaned)) return `Part ${index + 1}`
   return cleaned
 }
+
+// A chapter of an audiobook: a whole file, or a part of one when the file
+// (an M4B) carries its own chapter marks. end is undefined when the chapter
+// runs to the end of its file.
+export interface Chapter {
+  track: number
+  start: number
+  end?: number
+  title: string
+}
+
+// buildChapters lists the book's chapters in order: the marks inside a file
+// when it has two or more, otherwise one chapter per file.
+export function buildChapters(tracks: { name: string; chapters?: { title: string; start: number }[] }[]): Chapter[] {
+  const out: Chapter[] = []
+  tracks.forEach((t, i) => {
+    const marks = (t.chapters ?? []).filter((c) => Number.isFinite(c.start) && c.start >= 0).sort((a, b) => a.start - b.start)
+    if (marks.length < 2) {
+      out.push({ track: i, start: 0, title: trackLabel(t.name, i) })
+      return
+    }
+    marks.forEach((c, j) => {
+      out.push({ track: i, start: j === 0 ? 0 : c.start, end: marks[j + 1]?.start, title: c.title.trim() || `Chapter ${out.length + 1}` })
+    })
+  })
+  return out
+}
+
+// chapterAt is the chapter playing at a place in a file.
+export function chapterAt(chapters: Chapter[], track: number, seconds: number): number {
+  let found = -1
+  chapters.forEach((c, i) => {
+    if (c.track === track && (found === -1 || c.start <= seconds + 0.25)) found = i
+  })
+  return Math.max(0, found)
+}

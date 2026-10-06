@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api, isAdmin, type Book, type BookFormat, type QueueItem, type SearchResult } from '../api'
+import { api, can, isAdmin, type Book, type BookFormat, type QueueItem, type SearchResult } from '../api'
 import { useAuth } from '../AuthContext'
 import { useConfirm } from '../components/ConfirmProvider'
 import Icon from '../components/Icon'
@@ -9,6 +9,8 @@ import ReleaseTable from '../components/ReleaseTable'
 import Switch from '../components/Switch'
 import { useToast } from '../components/Toast'
 import AuthorBooks from '../components/AuthorBooks'
+import BookSeries from '../components/BookSeries'
+import { audioDetails } from '../bookSeries'
 import { useDocumentTitle } from '../documentTitle'
 import { useModules } from '../ModulesContext'
 import { useLive } from '../useLive'
@@ -84,7 +86,14 @@ export default function BookDetail() {
             </span>
           </div>
           <h1>{book.title}</h1>
-          <p className="title-tagline">{[book.author, book.year].filter(Boolean).join(' · ')}</p>
+          <p className="title-tagline">
+            {[book.author, book.year, book.seriesName && (book.seriesPosition ? `Book ${book.seriesPosition} of ${book.seriesName}` : book.seriesName)].filter(Boolean).join(' · ')}
+          </p>
+          {book.releaseDate && book.releaseDate > new Date().toISOString().slice(0, 10) && (
+            <p className="notice notice-info" style={{ marginTop: 8 }}>
+              Comes out on {new Date(book.releaseDate + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}. Mediarium starts looking for it then.
+            </p>
+          )}
           {book.description && <p className="title-overview">{book.description}</p>}
           <div className="title-links">
             {links.map((l) => (
@@ -111,6 +120,7 @@ export default function BookDetail() {
           <FormatPanel key={f} book={book} format={f} queue={queue} onChanged={load} />
         ))}
       </div>
+      <BookSeries workKey={book.olKey} title={book.title} author={book.author} />
       {book.authorKey && <AuthorBooks authorKey={book.authorKey} author={book.author} exclude={book.olKey} />}
       {formats.length === 0 && (
         <p className="hint">
@@ -122,6 +132,7 @@ export default function BookDetail() {
 }
 
 function FormatPanel({ book, format, queue, onChanged }: { book: Book; format: BookFormat; queue: QueueItem[]; onChanged: () => void }) {
+  const me = useAuth().user
   const toast = useToast()
   const st = book[format]
   const state = bookState(book, format, queue)
@@ -188,6 +199,7 @@ function FormatPanel({ book, format, queue, onChanged }: { book: Book; format: B
           <Icon name={state.icon} size={13} /> {state.label}
         </span>
       </header>
+      {format === 'audiobook' && audioDetails(book.narrators, book.runtimeMin) && <p className="book-audio-details">{audioDetails(book.narrators, book.runtimeMin)}</p>}
       {st.status === 'downloaded' ? (
         <p className="book-file">
           {st.format ? <strong>{st.format.toUpperCase()}</strong> : null}
@@ -198,17 +210,21 @@ function FormatPanel({ book, format, queue, onChanged }: { book: Book; format: B
       )}
       <Switch checked={st.wanted} onChange={(v) => void setWanted(v)} label={`Want the ${FORMAT_WORD[format]}`} />
       <div className="row-actions">
-        {st.status === 'downloaded' && (
+        {st.status === 'downloaded' && can(me, 'play') && (
           <button className="primary btn-with-icon" onClick={() => openBookApp(format === 'ebook' ? readPath(book.id) : listenPath(book.id))}>
             <Icon name={format === 'ebook' ? 'book' : 'play'} size={16} /> {format === 'ebook' ? 'Read' : 'Listen'}
           </button>
         )}
-        <button className={`${st.status === 'downloaded' ? '' : 'primary '}btn-with-icon`} disabled={searching || !st.wanted} onClick={() => void searchNow()}>
-          <Icon name="search" size={16} /> {searching ? 'Searching…' : 'Search now'}
-        </button>
-        <button className="btn-with-icon" onClick={() => (open ? setOpen(false) : showReleases())}>
-          <Icon name="list" size={16} /> {open ? 'Hide releases' : 'Choose a release'}
-        </button>
+        {can(me, 'manage') && (
+          <button className={`${st.status === 'downloaded' ? '' : 'primary '}btn-with-icon`} disabled={searching || !st.wanted} onClick={() => void searchNow()}>
+            <Icon name="search" size={16} /> {searching ? 'Searching…' : 'Search now'}
+          </button>
+        )}
+        {can(me, 'releases') && (
+          <button className="btn-with-icon" onClick={() => (open ? setOpen(false) : showReleases())}>
+            <Icon name="list" size={16} /> {open ? 'Hide releases' : 'Choose a release'}
+          </button>
+        )}
       </div>
       {open && (
         <div className="book-releases">

@@ -2,7 +2,7 @@ manifestVersion: 1
 id: rdborg-mediarium
 category: media
 name: Mediarium
-version: "1.3.0"
+version: "2.1.0"
 tagline: Movies and TV, from search to library, in one app
 icon: https://raw.githubusercontent.com/rdborg/Mediarium/main/branding/mediarium-icon-512.png
 description: >-

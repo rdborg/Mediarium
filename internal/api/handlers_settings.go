@@ -63,6 +63,7 @@ type settingsPayload struct {
 	// them automatically after import and on a schedule.
 	SubtitleLanguages    []string `json:"subtitleLanguages,omitempty"`
 	SubtitleAutoDownload *bool    `json:"subtitleAutoDownload,omitempty"`
+	SubtitleUpgrade      *bool    `json:"subtitleUpgrade,omitempty"`
 	// SubtitlesEnabled is the master switch. While it is off nothing searches
 	// for or downloads subtitles and the app stops mentioning them.
 	SubtitlesEnabled *bool `json:"subtitlesEnabled,omitempty"`
@@ -144,6 +145,8 @@ type settingsPayload struct {
 	SpeedLimitMB    *int    `json:"speedLimitMB,omitempty"`
 	SpeedLimitHours *string `json:"speedLimitHours,omitempty"`
 	MinFreeGB       *int    `json:"minFreeGB,omitempty"`
+	// DownloadHours is when new downloads may start ("1-7", "" = any time).
+	DownloadHours *string `json:"downloadHours,omitempty"`
 	// NotifyQuietHours is when everyday messages wait ("23-7", "" = never).
 	NotifyQuietHours *string `json:"notifyQuietHours,omitempty"`
 
@@ -209,6 +212,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	monitorMinutes := s.monitorMinutes()
 	legalAt, _ := s.Settings.Get(settings.KeyLegalAcknowledgedAt)
 	subtitleAuto := s.autoSubtitleSetting()
+	subtitleUpgrade := s.subtitleUpgradeSetting()
 	subtitlesOn := s.subtitlesEnabled()
 	osUser, _ := s.Settings.Get(settings.KeyOpenSubtitlesUsername)
 	illegalCharMode, _ := s.Settings.Get(settings.KeyIllegalCharMode)
@@ -235,6 +239,10 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	if from, to, ok := s.speedLimitHours(); ok {
 		speedHours = strconv.Itoa(from) + "-" + strconv.Itoa(to)
 	}
+	dlHours := ""
+	if from, to, ok := s.downloadHours(); ok {
+		dlHours = strconv.Itoa(from) + "-" + strconv.Itoa(to)
+	}
 	musicEnabled := s.musicEnabled()
 	downloadsAtOnce := s.downloadsAtOnce()
 	huntHours, releaseMinutes := s.huntHours(), s.releaseCheckMinutes()
@@ -260,6 +268,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		DefaultSources:           s.defaultSources(),
 		SubtitleLanguages:        s.subtitleLanguages(),
 		SubtitleAutoDownload:     &subtitleAuto,
+		SubtitleUpgrade:          &subtitleUpgrade,
 		SubtitlesEnabled:         &subtitlesOn,
 		HasOpenSubtitlesAPIKey:   s.Subtitles().HasAPIKey(),
 		HasOpenSubtitlesAccount:  s.Subtitles().HasCredentials(),
@@ -286,6 +295,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		BackupKeep:               &backupKeep,
 		SpeedLimitMB:             &speedMB,
 		SpeedLimitHours:          &speedHours,
+		DownloadHours:            &dlHours,
 		MinFreeGB:                &minFree,
 		NotifyQuietHours:         &quiet,
 		DownloadsAtOnce:          &downloadsAtOnce,
@@ -376,6 +386,16 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			value = "0"
 		}
 		if err := s.Settings.Set(settings.KeySubtitleAutoDownload, value, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if req.SubtitleUpgrade != nil {
+		value := "1"
+		if !*req.SubtitleUpgrade {
+			value = "0"
+		}
+		if err := s.Settings.Set(settings.KeySubtitleUpgrade, value, false); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -535,6 +555,18 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		s.applySpeedLimit(time.Now())
+	}
+	if req.DownloadHours != nil {
+		h := strings.TrimSpace(*req.DownloadHours)
+		if _, _, ok := parseHours(h); h != "" && !ok {
+			writeError(w, http.StatusBadRequest, `Give the download hours as "from-to", for example "1-7", or leave it empty for any time.`)
+			return
+		}
+		if err := s.Settings.Set(settings.KeyDownloadHours, h, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		s.kickDownloads()
 	}
 	if req.NotifyQuietHours != nil {
 		h := strings.TrimSpace(*req.NotifyQuietHours)

@@ -184,12 +184,13 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		return fail(ctx.Err()) // cancelled: never import for a show that was removed
 	}
 
+	mapper := s.releaseMapper(series) // anime and daily file names
 	imported, skipped := 0, 0
 	var importedFiles []string // for the media server refresh
 	var importedEps []library.Episode
 	var subtitleItems []subtitleItem
 	for _, file := range files {
-		fileSeason, fileEpisodes := s.tvFileEpisodes(file, season, targets)
+		fileSeason, fileEpisodes := s.tvFileEpisodes(file, season, targets, mapper)
 		if len(fileEpisodes) == 0 {
 			continue // e.g. an extra that isn't recognisably an episode of this show
 		}
@@ -364,8 +365,8 @@ func (s *Server) tvVideoFiles(dir string, singleEpisode bool) ([]string, error) 
 // tvFileEpisodes decides which season/episodes one downloaded file holds:
 // its own filename wins; if the filename has no marker and the grab was for
 // exactly one episode, that's the answer; otherwise the file is unknown.
-func (s *Server) tvFileEpisodes(file string, grabSeason int, targets []library.Episode) (int, []int) {
-	rel := parser.Parse(filepath.Base(file))
+func (s *Server) tvFileEpisodes(file string, grabSeason int, targets []library.Episode, mapper func(parser.Release) parser.Release) (int, []int) {
+	rel := parseFor(mapper, filepath.Base(file))
 	if rel.Season > 0 && len(rel.Episodes) > 0 {
 		return rel.Season, rel.Episodes
 	}

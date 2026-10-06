@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, type MediaServer, type MediaServerKind, type MediaServerTest, type PathMapping } from '../../api'
 import { useConfirm } from '../../components/ConfirmProvider'
 import Icon from '../../components/Icon'
+import WatchedSettings from '../../components/WatchedSettings'
 import { MEDIA_SERVER_BRAND, MediaServerMark } from '../../components/mediaServerBrand'
 import { FindServers, JellyfinEmbySignIn, PlexSignIn } from '../../components/MediaServerSignIn'
 import Switch from '../../components/Switch'
@@ -544,6 +545,7 @@ export default function MediaServerSettings() {
         </legend>
         <AddForm onAdded={reload} />
       </fieldset>
+      {list && list.some((s) => s.kind === 'plex' || s.kind === 'jellyfin' || s.kind === 'emby') && <WatchedSettings />}
     </div>
   )
 }

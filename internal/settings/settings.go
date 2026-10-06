@@ -45,12 +45,14 @@ const (
 	KeyOpenSubtitlesPassword = "subtitles.opensubtitles_password" // encrypted
 	KeySubtitleLanguages     = "subtitles.languages"              // comma-separated OpenSubtitles codes; default "en"
 	KeySubtitleAutoDownload  = "subtitles.auto_download"          // "1" fetches subtitles automatically; unset or "0" only offers them ("ask me")
+	KeySubtitleUpgrade       = "subtitles.upgrade"                // "0" stops swapping a subtitle for one made for the exact video file later; on by default, and only while subtitles download automatically
 	KeyOpenSubtitlesAPIKey   = "subtitles.opensubtitles_api_key"  // encrypted
 
 	// Phase 3 — curated/public list import (Discover). Trakt's
 	// public list-items endpoint only needs a client ID (an app
 	// registration on trakt.tv), no OAuth user login — see internal/trakt.
-	KeyTraktClientID = "metadata.trakt_client_id" // encrypted
+	KeyTraktClientID  = "metadata.trakt_client_id" // encrypted
+	KeyHardcoverToken = "books.hardcover_token"    // encrypted; a personal Hardcover API token for better book series and release dates. Unset = Open Library only
 
 	// Illegal filename character handling ("configurable
 	// (replace vs. strip)"). The engine (internal/organizer.Sanitize) has
@@ -98,6 +100,7 @@ const (
 	// Clean-up of the downloads working folder and of old history.
 	KeySpeedLimitMB         = "downloads.speed_limit_mb"       // download speed limit in MB/s for Usenet and torrents together; unset or "0" = no limit
 	KeySpeedLimitHours      = "downloads.speed_limit_hours"    // when the speed limit applies, "8-23" (from 8:00 to 23:00, server time); unset = all day
+	KeyDownloadHours        = "downloads.hours"                // when new downloads may start, "1-7" (from 1:00 to 7:00, server time); outside it they wait in line. Unset = any time
 	KeyMinFreeGB            = "downloads.min_free_gb"          // no new download starts while the downloads folder has less free space than this many GB; unset = 5, "0" = off
 	KeyNotifyQuietHours     = "notify.quiet_hours"             // hours when everyday messages wait, "23-7" (server time); unset = none. Problems are always sent at once
 	KeyBackupAuto           = "backup.auto"                    // "0" turns the nightly backup into /config/backups off; anything else (including unset) leaves it on
@@ -144,6 +147,18 @@ const (
 	KeyUpdatesCheckedAt   = "updates.last_checked_at"        // when the last check ran (RFC 3339; set by the app, not user-editable)
 	KeyUpdatesNotified    = "updates.notified_version"       // the version the "new version" message was last sent for (set by the app, not user-editable)
 	KeyAutoRestartStuck   = "system.auto_restart_when_stuck" // "0" stops Mediarium restarting itself when it has not answered for three minutes; anything else (including unset) leaves it on
+
+	// Watched status and cleanup rules (Settings > Connections > Media servers). Both off by default.
+	KeyWatchedSync   = "watched.sync"   // "1" reads what's been watched from Plex, Jellyfin and Emby every six hours; unset or "0" leaves it off
+	KeyWatchedStatus = "watched.status" // the last read and cleanup (JSON; set by the app, not user-editable)
+	KeyCleanupRules  = "cleanup.rules"  // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
+
+	// Sign-in through a reverse proxy (Settings > Accounts). See docs/security.md.
+	KeyAuthProxyHeader = "auth.proxy_header" // the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key
+
+	// A script to run after each import (Settings > System > Scripts). See docs/scripts.md.
+	KeyScriptAfterImport = "scripts.after_import" // JSON: script (a file name in /config/scripts; empty = off) and timeoutSec (default 300). Only a signed-in browser session can set it, not an API key
+	KeyScriptLastRun     = "scripts.last_run"     // what the last run did (JSON; set by the app, not user-editable)
 )
 
 type Store struct {

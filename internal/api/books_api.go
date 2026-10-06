@@ -63,13 +63,24 @@ type bookPayload struct {
 	AddedAt     string            `json:"addedAt"`
 	Ebook       bookFormatPayload `json:"ebook"`
 	Audiobook   bookFormatPayload `json:"audiobook"`
+
+	SeriesName     string `json:"seriesName,omitempty"`
+	SeriesPosition string `json:"seriesPosition,omitempty"`
+	ReleaseDate    string `json:"releaseDate,omitempty"` // "2026-11-04" when known
+
+	// The audiobook's details (Audnexus).
+	Narrators  string `json:"narrators,omitempty"`
+	RuntimeMin int    `json:"runtimeMin,omitempty"`
+	ASIN       string `json:"asin,omitempty"`
 }
 
 func toBookPayload(b books.Book, admin bool) bookPayload {
 	p := bookPayload{ID: b.ID, OLKey: b.OLKey, Title: b.Title, Author: b.Author, AuthorKey: b.AuthorKey, Year: b.Year, CoverURL: books.CoverURL(b.CoverID, "M"),
 		Description: b.Description, AddedAt: b.AddedAt,
-		Ebook:     bookFormatPayload{Wanted: b.WantEbook, Status: b.EbookStatus, Format: b.EbookFormat},
-		Audiobook: bookFormatPayload{Wanted: b.WantAudiobook, Status: b.AudioStatus, Format: b.AudioFormat}}
+		Ebook:      bookFormatPayload{Wanted: b.WantEbook, Status: b.EbookStatus, Format: b.EbookFormat},
+		Audiobook:  bookFormatPayload{Wanted: b.WantAudiobook, Status: b.AudioStatus, Format: b.AudioFormat},
+		SeriesName: b.SeriesName, SeriesPosition: b.SeriesPosition, ReleaseDate: b.ReleaseDate,
+		Narrators: b.Narrators, RuntimeMin: b.RuntimeMin, ASIN: b.ASIN}
 	if admin {
 		p.Ebook.Path, p.Audiobook.Path = b.EbookPath, b.AudioPath
 	}
@@ -110,6 +121,7 @@ func (s *Server) bookFromPath(w http.ResponseWriter, r *http.Request) (books.Boo
 
 func (s *Server) handleGetBook(w http.ResponseWriter, r *http.Request) {
 	if b, ok := s.bookFromPath(w, r); ok {
+		s.lookUpAudioDetailsLater(b)
 		writeJSON(w, http.StatusOK, toBookPayload(b, isAdminRequest(r)))
 	}
 }
@@ -150,6 +162,10 @@ type addBookRequest struct {
 // handleAddBook adds a book with the formats asked for. Details (the
 // description, a cover) are fetched from Open Library when it answers.
 func (s *Server) handleAddBook(w http.ResponseWriter, r *http.Request) {
+	if s.mustRequest(r) {
+		s.fileRequest(w, r, "book")
+		return
+	}
 	var req addBookRequest
 	if err := decodeJSON(r, &req); err != nil || strings.TrimSpace(req.OLKey) == "" || strings.TrimSpace(req.Title) == "" {
 		writeError(w, http.StatusBadRequest, "Pick a book from the search results to add.")
@@ -193,6 +209,7 @@ func (s *Server) handleAddBook(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	s.lookUpAudioDetailsLater(created)
 	writeJSON(w, http.StatusCreated, toBookPayload(created, isAdminRequest(r)))
 }
 
@@ -390,6 +407,9 @@ func (s *Server) searchBook(bookID int64, f books.Format, retry bool) bool {
 	if err != nil || !b.Wants(f) || b.Status(f) == books.StatusDownloaded && !retry {
 		return false
 	}
+	if !b.Released(time.Now()) {
+		return false // not out yet: nothing to find
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	results, err := s.bookReleases(ctx, b, f)
@@ -436,6 +456,7 @@ func (s *Server) huntBooks(ctx context.Context) {
 		return
 	}
 	s.huntAuthors(ctx)
+	s.huntSeries(ctx)
 	wanted, err := s.BookRepo.Wanted()
 	if err != nil {
 		return

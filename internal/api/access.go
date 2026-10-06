@@ -20,6 +20,10 @@ const (
 // forbiddenMessage is the 403 body for a member calling an admin route.
 const forbiddenMessage = "Only an administrator can do this."
 
+// notAllowedMessage is the 403 body for a basic account calling a route its
+// permissions leave out.
+const notAllowedMessage = "Your account isn't allowed to do this. An administrator can change that in Settings > Accounts."
+
 // routeTable is the signed-in half of the API. A route can only be added
 // through one of its two groups (member or admin), so every route carries an
 // explicit access level and Routes reads as the single, auditable list of
@@ -31,16 +35,28 @@ type routeTable struct {
 	// answers the request itself and returns false to stop it (a module
 	// that is switched off).
 	gate func(http.ResponseWriter, *http.Request) bool
+	// perms lists, for member routes, the permissions a basic account needs
+	// (see auth.Permissions); permsOf reads an account's.
+	perms   map[string][]string
+	permsOf func(userID int64) (auth.Permissions, error)
 }
 
 func newRouteTable() *routeTable {
-	return &routeTable{mux: http.NewServeMux(), access: map[string]access{}}
+	return &routeTable{mux: http.NewServeMux(), access: map[string]access{}, perms: map[string][]string{}}
 }
 
 // routeGroup registers routes at one access level.
 type routeGroup struct {
 	t     *routeTable
 	level access
+	need  []string
+}
+
+// Need returns the group with permissions a basic account must have for the
+// routes registered through it. Administrators always pass.
+func (g routeGroup) Need(perms ...string) routeGroup {
+	g.need = append(append([]string(nil), g.need...), perms...)
+	return g
 }
 
 func (t *routeTable) group(level access) routeGroup { return routeGroup{t: t, level: level} }
@@ -52,6 +68,9 @@ func (g routeGroup) HandleFunc(pattern string, h http.HandlerFunc) {
 	}
 	g.t.mux.HandleFunc(pattern, h)
 	g.t.access[pattern] = g.level
+	if len(g.need) > 0 {
+		g.t.perms[pattern] = g.need
+	}
 }
 
 // ServeHTTP checks the caller's role against the matched route before the
@@ -74,6 +93,23 @@ func (t *routeTable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case level == accessAdmin && !user.IsAdmin:
 			writeError(w, http.StatusForbidden, forbiddenMessage)
 			return
+		}
+		if need := t.perms[pattern]; len(need) > 0 && !user.IsAdmin {
+			if t.permsOf == nil {
+				writeError(w, http.StatusForbidden, notAllowedMessage)
+				return
+			}
+			p, err := t.permsOf(user.ID)
+			if err != nil {
+				writeError(w, http.StatusForbidden, notAllowedMessage)
+				return
+			}
+			for _, n := range need {
+				if !p.Allows(n) {
+					writeError(w, http.StatusForbidden, notAllowedMessage)
+					return
+				}
+			}
 		}
 		if t.gate != nil && !t.gate(w, r) {
 			return

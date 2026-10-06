@@ -20,6 +20,8 @@ type subtitleResultPayload struct {
 	// Score is how well the subtitle fits the video file's release (higher
 	// is better); results are returned best-first.
 	Score float64 `json:"score"`
+	// HashMatch: made for this exact video file, so it is in sync.
+	HashMatch bool `json:"hashMatch,omitempty"`
 }
 
 // errSubtitleItemNotFound means a movie or episode id matches nothing.
@@ -101,7 +103,9 @@ func (s *Server) searchSubtitles(w http.ResponseWriter, r *http.Request, kind st
 	if language == "" {
 		language = s.subtitleLanguages()[0]
 	}
-	results, err := s.Subtitles().Find(r.Context(), it.query(language))
+	q := it.query(language)
+	q.MovieHash = videoHash(it.filePath)
+	results, err := s.Subtitles().Find(r.Context(), q)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "Couldn't search for subtitles: "+err.Error())
 		return
@@ -114,7 +118,7 @@ func (s *Server) searchSubtitles(w http.ResponseWriter, r *http.Request, kind st
 	for i, res := range results {
 		out[i] = subtitleResultPayload{
 			FileID: res.FileID, Language: res.Language, Release: res.Release, Rating: res.Rating,
-			Score: subtitles.Score(res, videoName),
+			Score: subtitles.Score(res, videoName), HashMatch: res.HashMatch,
 		}
 	}
 	sortSubtitleResults(out)
@@ -164,7 +168,7 @@ func (s *Server) downloadSubtitle(w http.ResponseWriter, r *http.Request, kind s
 		writeError(w, http.StatusBadRequest, "That isn't a language code Mediarium can use. Pick one from the list.")
 		return
 	}
-	path, err := s.writeSubtitle(r.Context(), it, req.Language, req.FileID)
+	path, err := s.writeSubtitle(r.Context(), it, req.Language, subtitlePick{fileID: req.FileID, chosen: true, videoHash: videoHash(it.filePath)})
 	switch {
 	case errors.Is(err, subtitles.ErrQuota):
 		writeError(w, http.StatusTooManyRequests, err.Error())

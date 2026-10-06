@@ -10,7 +10,7 @@ The CasaOS App Store ([IceWhaleTech/CasaOS-AppStore](https://github.com/IceWhale
 
 | File | What it is |
 |---|---|
-| `docker-compose.yml` | The app: image `ghcr.io/rdborg/mediarium:1.3.0`, ports 8264 and 58264 (TCP+UDP), `/DATA/AppData/$AppID/config` as `/config`, `/DATA/Media` as `/data`, and the top-level `x-casaos` block (id, title, tagline, description, category `Media`, version, icon, screenshots, tips). |
+| `docker-compose.yml` | The app: image `ghcr.io/rdborg/mediarium:2.1.0`, ports 8264 and 58264 (TCP+UDP), `/DATA/AppData/$AppID/config` as `/config`, `/DATA/Media` as `/data`, and the top-level `x-casaos` block (id, title, tagline, description, category `Media`, version, icon, screenshots, tips). |
 | `icon.svg` | The Mediarium icon (from `branding/mediarium-icon.svg`). |
 | `thumbnail.png` | 784 x 442. |
 | `screenshot-1.png` ... `screenshot-3.png` | 1280 x 720 (Dashboard, Discover, Library, from the demo data). |
@@ -19,7 +19,7 @@ The icon and screenshot URLs point at the store's own jsDelivr mirror (`cdn.jsde
 
 ## Requirements
 
-- [ ] The Mediarium repository is public and the image `ghcr.io/rdborg/mediarium:1.3.0` is published and **public** (GitHub package visibility). The store does not accept `latest`: use a version tag, and update `image`, `version` and `update_at` in the compose file for each release you want the store to carry.
+- [ ] The Mediarium repository is public and the image `ghcr.io/rdborg/mediarium:2.1.0` is published and **public** (GitHub package visibility). The store does not accept `latest`: use a version tag, and update `image`, `version` and `update_at` in the compose file for each release you want the store to carry.
 - [ ] Both architectures in `architectures` (`amd64`, `arm64`) exist in the image (the release workflow builds both).
 - [ ] Tested on a real CasaOS or ZimaOS device: App Store → **+** → **Install a customized app** → import this compose file.
 - [ ] Check the default media folder names on your device. This file assumes `/DATA/Media/Movies` and `/DATA/Media/TV Shows` (created if missing) and downloads in `/DATA/Media/Downloads/mediarium`. If your CasaOS uses other names, adjust `MOVIES_DIR`/`TV_DIR` to match what Jellyfin's CasaOS app expects.

@@ -14,7 +14,7 @@ Docker is the one way to install Mediarium today, and it covers most home server
 | Raspberry Pi 3, 4 or 5 with a **64-bit** OS | Docker Compose | [linux.md](./linux.md#raspberry-pi) |
 | Windows or Mac with Docker Desktop | Docker Compose, fine for trying it out | [INSTALL.md](./INSTALL.md#using-a-docker-app) |
 
-The image is `ghcr.io/rdborg/mediarium:latest`, built for `linux/amd64` and `linux/arm64`. `ghcr.io/rdborg/mediarium:latest-full` is the same with a Cloudflare helper built in (see [INSTALL.md](./INSTALL.md#optional-getting-past-cloudflare-checks)). Every release also has tags with its version number, for example `:1.3.0` and `:1.3` (and `:1.3.0-full` and `:1.3-full`): see [Updating](./INSTALL.md#updating).
+The image is `ghcr.io/rdborg/mediarium:latest`, built for `linux/amd64` and `linux/arm64`. `ghcr.io/rdborg/mediarium:latest-full` is the same with a Cloudflare helper built in (see [INSTALL.md](./INSTALL.md#optional-getting-past-cloudflare-checks)). Every release also has tags with its version number, for example `:2.1.0` and `:2.1` (and `:2.1.0-full` and `:2.1-full`): see [Updating](./INSTALL.md#updating).
 
 ## Coming soon
 

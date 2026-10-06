@@ -23,6 +23,9 @@ func (s *Server) publicLinks() notify.Links {
 // size, where it went), a poster and a link.
 func (s *Server) notifyItem(eventType string, it notify.Item) {
 	s.sendNotification(notify.Compose(eventType, it, s.publicLinks(), time.Now()))
+	if eventType == "imported" {
+		s.scriptAfterImport(it)
+	}
 }
 
 // smallPoster is the poster at the size an email or a phone message needs:

@@ -213,6 +213,7 @@ type Result struct {
 	Release      string // release name the subtitle was synced to, e.g. "Movie.2024.1080p.BluRay-GROUP"
 	DownloadsAll int
 	Rating       float64
+	HashMatch    bool // timed against the exact video file searched with (Query.MovieHash)
 }
 
 type searchResponse struct {
@@ -222,6 +223,7 @@ type searchResponse struct {
 			Release       string  `json:"release"`
 			DownloadCount int     `json:"download_count"`
 			Ratings       float64 `json:"ratings"`
+			HashMatch     bool    `json:"moviehash_match"`
 			Files         []struct {
 				FileID int `json:"file_id"`
 			} `json:"files"`
@@ -239,6 +241,7 @@ type Query struct {
 	Episode      int    // episodes only
 	Type         string // "movie" or "episode"; empty = any
 	Language     string // e.g. "en", "pt-BR"
+	MovieHash    string // the video's FileHash: results made for that exact file come back marked
 }
 
 // Find searches for subtitles matching q.
@@ -264,6 +267,9 @@ func (c *Client) Find(ctx context.Context, q Query) ([]Result, error) {
 	}
 	if q.Language != "" {
 		v.Set("languages", q.Language)
+	}
+	if q.MovieHash != "" {
+		v.Set("moviehash", q.MovieHash)
 	}
 	return c.search(ctx, v)
 }
@@ -322,6 +328,7 @@ func (c *Client) search(ctx context.Context, q url.Values) ([]Result, error) {
 			Release:      d.Attributes.Release,
 			DownloadsAll: d.Attributes.DownloadCount,
 			Rating:       d.Attributes.Ratings,
+			HashMatch:    d.Attributes.HashMatch,
 		})
 	}
 	return out, nil

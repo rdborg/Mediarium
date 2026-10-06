@@ -8,6 +8,7 @@ import (
 	"github.com/rdborg/mediarium/internal/crypto"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/notify"
 	"github.com/rdborg/mediarium/internal/settings"
 	"github.com/rdborg/mediarium/internal/subtitles"
 	"github.com/rdborg/mediarium/internal/trakt"
@@ -74,6 +75,17 @@ func (s *Server) TestSetSubtitlesBaseURL(apiKey, baseURL string) {
 
 func (s *Server) TestSubtitleSweepJob(ctx context.Context) { s.subtitleSweepJob(ctx) }
 
+// TestScriptsDir is the folder scripts are picked from; TestNotifyImported
+// sends an "imported" event as an import does (and runs the chosen script).
+func (s *Server) TestScriptsDir() string { return s.scriptsDir() }
+func (s *Server) TestNotifyImported(it notify.Item) { s.notifyItem("imported", it) }
+
+// TestAgeSubtitleFiles makes the saved subtitles look downloaded and checked d ago.
+func (s *Server) TestAgeSubtitleFiles(d time.Duration) {
+	at := time.Now().Add(-d).UTC().Format("2006-01-02T15:04:05.000Z")
+	_, _ = s.db.Exec(`UPDATE subtitle_files SET downloaded_at = ?, checked_at = ?`, at, at)
+}
+
 // TestRouteAccess reports every signed-in route pattern with its access
 // level ("member" or "admin"), for the role tests in accounts_test.go.
 func (s *Server) TestRouteAccess() map[string]string {
@@ -116,3 +128,23 @@ func (s *Server) TestReopen() (*Server, error) {
 // TestAutoSubtitlesForMovie runs what happens after a movie is imported: the
 // automatic subtitle download, when it is on.
 func (s *Server) TestAutoSubtitlesForMovie(m library.Movie) { s.autoSubtitlesFor(movieSubtitleItem(m)) }
+
+// TestSetHardcover points the Hardcover client at a fake server.
+func (s *Server) TestSetHardcover(url string) {
+	s.hc.mu.Lock()
+	defer s.hc.mu.Unlock()
+	s.hc.base, s.hc.client = url, nil
+}
+
+// TestCheckFollowedSeries runs the twice-a-day series check now.
+func (s *Server) TestCheckFollowedSeries(ctx context.Context) {
+	s.seriesCheck.mu.Lock()
+	s.seriesCheck.last = time.Time{}
+	s.seriesCheck.mu.Unlock()
+	s.huntSeries(ctx)
+}
+
+// TestSetBookReleaseDate sets a book's release date.
+func (s *Server) TestSetBookReleaseDate(id int64, date string) {
+	_ = s.BookRepo.SetReleaseDate(id, date)
+}

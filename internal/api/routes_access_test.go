@@ -34,6 +34,9 @@ var memberRoutes = []string{
 	"GET /api/wanted",
 	"GET /api/activity",
 	"GET /api/modules",
+	"GET /api/watched",
+	"GET /api/requests",
+	"DELETE /api/requests/{id}",
 	"GET /api/discover/trending",
 	"GET /api/discover/popular",
 	"GET /api/discover/tv/trending",
@@ -71,6 +74,7 @@ var memberRoutes = []string{
 	"POST /api/series/{id}/search-now",
 	"POST /api/series/{id}/grab",
 	"PUT /api/series/{id}/monitored",
+	"PUT /api/series/{id}/type",
 	"PUT /api/series/{id}/seasons/{season}/monitored",
 	"PUT /api/episodes/{id}/monitored",
 	"GET /api/books",
@@ -85,6 +89,10 @@ var memberRoutes = []string{
 	"GET /api/book-authors/{key}/works",
 	"PUT /api/book-authors/{key}/follow",
 	"DELETE /api/book-authors/{key}/follow",
+	"GET /api/book-works/{key}/series",
+	"GET /api/book-series",
+	"PUT /api/book-series/{source}/{key}/follow",
+	"DELETE /api/book-series/{source}/{key}/follow",
 	"GET /api/books/{id}/progress",
 	"PUT /api/books/{id}/progress",
 	"GET /api/books/{id}/read",
@@ -124,6 +132,7 @@ var memberRoutes = []string{
 	"POST /api/queue/{id}/retry",
 	"GET /api/subtitles/wanted",
 	"POST /api/subtitles/get",
+	"POST /api/subtitles/timing",
 	"GET /api/movies/{id}/subtitles",
 	"POST /api/movies/{id}/subtitles/download",
 	"GET /api/movies/{id}/subtitles/status",
@@ -207,6 +216,18 @@ func TestEveryRouteIsClassified(t *testing.T) {
 					return true
 				}
 				recv, _ := sel.X.(*ast.Ident)
+				// member.Need(...).HandleFunc and the named permission groups
+				// (releases, manage, play, subs) are member routes too.
+				if c, ok := sel.X.(*ast.CallExpr); ok {
+					if fs, ok := c.Fun.(*ast.SelectorExpr); ok && fs.Sel.Name == "Need" {
+						if id, ok := fs.X.(*ast.Ident); ok && id.Name == "member" {
+							recv = id
+						}
+					}
+				}
+				if recv != nil && (recv.Name == "releases" || recv.Name == "manage" || recv.Name == "play" || recv.Name == "subs") {
+					recv = &ast.Ident{Name: "member"}
+				}
 				switch {
 				case recv != nil && recv.Name == "public":
 					// signed-out routes and the hand-off to the auth middleware

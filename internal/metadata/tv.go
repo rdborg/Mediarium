@@ -20,6 +20,10 @@ type Show struct {
 	Popularity   float64 `json:"popularity"`
 	GenreIDs     []int   `json:"genre_ids"`
 	Genres       []Genre `json:"genres"` // only on the single-show endpoint
+	// Only on the single-show endpoint: the producing countries ("JP") and
+	// TMDB's kind of show ("Scripted", "Talk Show", "News", ...).
+	OriginCountry []string `json:"origin_country"`
+	Type          string   `json:"type"`
 }
 
 // Year extracts the 4-digit first-air year, or 0 if unknown.
@@ -123,10 +127,10 @@ func (c *Client) GetSeason(ctx context.Context, tmdbID, season int) ([]EpisodeIn
 // simultaneous connections to TMDB.
 const maxSeasonFetchConcurrency = 5
 
-// GetShowEpisodes fetches a show's details plus every episode of every real
-// season. Season 0 ("Specials") is skipped: specials are rarely posted in a
-// searchable form and would show up as permanently "missing" noise in every
-// library — same default Sonarr uses (specials unmonitored).
+// GetShowEpisodes fetches a show's details plus every episode of every
+// season, season 0 ("Specials") included. Specials are stored unmonitored
+// (see library.upsertEpisodes), so they never show up as missing until
+// someone asks for them.
 func (c *Client) GetShowEpisodes(ctx context.Context, tmdbID int) (*ShowDetail, []EpisodeInfo, error) {
 	detail, err := c.GetShow(ctx, tmdbID)
 	if err != nil {
@@ -135,7 +139,7 @@ func (c *Client) GetShowEpisodes(ctx context.Context, tmdbID int) (*ShowDetail, 
 
 	var seasons []int
 	for _, s := range detail.Seasons {
-		if s.SeasonNumber > 0 {
+		if s.SeasonNumber >= 0 {
 			seasons = append(seasons, s.SeasonNumber)
 		}
 	}
@@ -157,6 +161,9 @@ func (c *Client) GetShowEpisodes(ctx context.Context, tmdbID int) (*ShowDetail, 
 
 	var all []EpisodeInfo
 	for i := range seasons {
+		if errs[i] != nil && seasons[i] == 0 {
+			continue // specials are a nice extra: a show is added without them
+		}
 		if errs[i] != nil {
 			return nil, nil, fmt.Errorf("fetch season %d: %w", seasons[i], errs[i])
 		}

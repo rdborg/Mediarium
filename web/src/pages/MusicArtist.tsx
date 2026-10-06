@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { api, isAdmin, type MusicAlbum, type MusicArtist as MusicArtistData, type MusicProfile, type MusicRelease, type QueueItem, type SearchResult } from '../api'
+import { api, can, isAdmin, type MusicAlbum, type MusicArtist as MusicArtistData, type MusicProfile, type MusicRelease, type QueueItem, type SearchResult } from '../api'
 import { useAuth } from '../AuthContext'
 import { useConfirm } from '../components/ConfirmProvider'
 import Cover from '../components/Cover'
@@ -361,6 +361,7 @@ function AlbumCard({
   onOpen: (tab: Tab) => void
   onChanged: () => void
 }) {
+  const me = useAuth().user
   const state = albumState(album, live)
   return (
     <article id={`album-${album.id}`} className={`album-card${open ? ' open' : ''}${album.monitored ? '' : ' dim'}`}>
@@ -396,12 +397,16 @@ function AlbumCard({
         </div>
       )}
       <div className="album-actions">
-        <button className="btn-sm btn-with-icon" onClick={onSearchNow} disabled={busy || album.status === 'downloading' || !!live}>
-          <Icon name="search" size={14} /> {busy ? 'Searching…' : album.status === 'downloaded' ? 'Look for better' : 'Search now'}
-        </button>
-        <button className={`btn-sm btn-with-icon${open === 'releases' ? ' primary' : ''}`} onClick={() => onOpen('releases')}>
-          <Icon name="list" size={14} /> Choose a release
-        </button>
+        {can(me, 'manage') && (
+          <button className="btn-sm btn-with-icon" onClick={onSearchNow} disabled={busy || album.status === 'downloading' || !!live}>
+            <Icon name="search" size={14} /> {busy ? 'Searching…' : album.status === 'downloaded' ? 'Look for better' : 'Search now'}
+          </button>
+        )}
+        {can(me, 'releases') && (
+          <button className={`btn-sm btn-with-icon${open === 'releases' ? ' primary' : ''}`} onClick={() => onOpen('releases')}>
+            <Icon name="list" size={14} /> Choose a release
+          </button>
+        )}
         <button className={`btn-sm btn-with-icon${open === 'tracks' || open === 'events' || open === 'files' ? ' primary' : ''}`} onClick={() => onOpen(open === 'events' || open === 'files' ? open : 'tracks')} aria-expanded={!!open}>
           <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} /> Details
         </button>

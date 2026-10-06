@@ -22,12 +22,14 @@ type accountPayload struct {
 	IsAdmin     bool       `json:"isAdmin"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	LastLoginAt *time.Time `json:"lastLoginAt"` // null until the first sign-in
+	// What a basic account may do (everything, for an administrator).
+	Permissions auth.Permissions `json:"permissions"`
 }
 
 func toAccountPayload(a *auth.Account) accountPayload {
 	return accountPayload{
 		ID: a.ID, Username: a.Username, Name: a.Name(), Email: a.Email,
-		Role: a.Role(), IsAdmin: a.IsAdmin, CreatedAt: a.CreatedAt, LastLoginAt: a.LastLoginAt,
+		Role: a.Role(), IsAdmin: a.IsAdmin, CreatedAt: a.CreatedAt, LastLoginAt: a.LastLoginAt, Permissions: a.Permissions,
 	}
 }
 
@@ -119,6 +121,9 @@ type createUserRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Role     string `json:"role"`
+	// Permissions for a basic account; left out, it may do everything a
+	// basic account could always do.
+	Permissions *auth.Permissions `json:"permissions"`
 }
 
 // handleCreateUser adds an account for someone else, for example a family
@@ -148,14 +153,24 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeAccountError(w, err)
 		return
 	}
+	if req.Permissions != nil && !isAdmin {
+		if err := s.Auth.SetPermissions(created.ID, *req.Permissions); err != nil {
+			writeAccountError(w, err)
+			return
+		}
+		if again, err := s.Auth.GetAccount(created.ID); err == nil {
+			created = again
+		}
+	}
 	writeJSON(w, http.StatusCreated, toAccountPayload(created))
 }
 
 type updateUserRequest struct {
-	Name     *string `json:"name"`
-	Email    *string `json:"email"`
-	Role     *string `json:"role"`
-	Password *string `json:"password"`
+	Name        *string           `json:"name"`
+	Email       *string           `json:"email"`
+	Role        *string           `json:"role"`
+	Password    *string           `json:"password"`
+	Permissions *auth.Permissions `json:"permissions"`
 }
 
 func accountID(w http.ResponseWriter, r *http.Request) (int64, bool) {
@@ -220,6 +235,15 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeAccountError(w, err)
 		return
+	}
+	if req.Permissions != nil {
+		if err := s.Auth.SetPermissions(id, *req.Permissions); err != nil {
+			writeAccountError(w, err)
+			return
+		}
+		if again, err := s.Auth.GetAccount(id); err == nil {
+			updated = again
+		}
 	}
 	writeJSON(w, http.StatusOK, toAccountPayload(updated))
 }

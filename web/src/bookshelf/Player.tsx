@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, type Book, type BookTrack } from '../api'
 import Icon from '../components/Icon'
 import { PosterFallback } from '../components/PosterCard'
 import { useDocumentTitle } from '../documentTitle'
-import { formatAudioPosition, formatClock, nextSpeed, overallPercent, parseAudioPosition, trackLabel } from './shelfMath'
+import { buildChapters, chapterAt, formatAudioPosition, formatClock, nextSpeed, overallPercent, parseAudioPosition } from './shelfMath'
 
 const SPEED_KEY = 'mediarium.player.speed'
 const SLEEP_CHOICES = [0, 15, 30, 45, 60, -1] // minutes; -1 = end of this chapter
@@ -18,8 +18,9 @@ function savedSpeed(): number {
   }
 }
 
-// The audiobook player: one book, its chapters (the audio files) in order,
-// with skips, speed, a sleep timer and the phone's lock-screen controls. Your
+// The audiobook player: one book, its chapters in order (the audio files, or
+// the chapter marks inside a single M4B file), with skips, speed, a sleep
+// timer and the phone's lock-screen controls. Your
 // place is kept on the server, so the book carries on where you stopped on
 // any device.
 export default function Player() {
@@ -63,6 +64,11 @@ export default function Player() {
 
   const sizes = (tracks ?? []).map((t) => t.size)
   const percent = overallPercent(sizes, track, duration > 0 ? time / duration : 0)
+  const chapters = useMemo(() => buildChapters(tracks ?? []), [tracks])
+  const cur = chapterAt(chapters, track, time)
+  const chapter = chapters[cur]
+  const chStart = chapter?.start ?? 0
+  const chEnd = chapter?.end ?? duration
 
   const save = useCallback(
     (keepalive = false) => {
@@ -112,22 +118,39 @@ export default function Player() {
     if (a) a.currentTime = Math.max(0, Math.min((a.duration || 0) - 0.5, a.currentTime + s))
   }, [])
   const goTrack = useCallback(
-    (n: number, autoplay = true) => {
+    (n: number, autoplay = true, at = 0) => {
       if (!tracks || n < 0 || n >= tracks.length) return
       save()
-      resumeAt.current = 0
-      setTime(0)
+      resumeAt.current = at
+      setTime(at)
       setTrack(n)
       if (autoplay) window.setTimeout(play, 0)
     },
     [tracks, play, save],
+  )
+  // goChapter jumps to the start of chapter n: within the file that is
+  // playing, or by opening the file it is in.
+  const goChapter = useCallback(
+    (n: number) => {
+      const c = chapters[n]
+      if (!c) return
+      const a = audio.current
+      if (c.track === track && a) {
+        a.currentTime = c.start
+        setTime(c.start)
+        play()
+        return
+      }
+      goTrack(c.track, true, c.start)
+    },
+    [chapters, track, goTrack, play],
   )
 
   // The lock screen and headphone buttons.
   useEffect(() => {
     if (!('mediaSession' in navigator) || !book || !tracks) return
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: trackLabel(tracks[track]?.name ?? '', track),
+      title: chapter?.title ?? book.title,
       artist: book.author,
       album: book.title,
       artwork: book.coverUrl ? [{ src: book.coverUrl.replace('-M.jpg', '-L.jpg'), sizes: '500x750', type: 'image/jpeg' }] : [],
@@ -137,12 +160,12 @@ export default function Player() {
     ms.setActionHandler('pause', pause)
     ms.setActionHandler('seekbackward', () => seekBy(-30))
     ms.setActionHandler('seekforward', () => seekBy(30))
-    ms.setActionHandler('previoustrack', () => goTrack(track - 1))
-    ms.setActionHandler('nexttrack', () => goTrack(track + 1))
+    ms.setActionHandler('previoustrack', () => goChapter(cur - 1))
+    ms.setActionHandler('nexttrack', () => goChapter(cur + 1))
     return () => {
       for (const a of ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'] as MediaSessionAction[]) ms.setActionHandler(a, null)
     }
-  }, [book, tracks, track, play, pause, seekBy, goTrack])
+  }, [book, tracks, chapter, cur, play, pause, seekBy, goChapter])
 
   // The sleep timer.
   useEffect(() => {
@@ -214,7 +237,7 @@ export default function Player() {
         </Link>
         <span className="rdr-title">
           <strong>{book.title}</strong>
-          <small>{book.author}</small>
+          <small>{[book.author, book.narrators && `read by ${book.narrators.split(',').slice(0, 2).join(',').trim()}`].filter(Boolean).join(' · ')}</small>
         </span>
         <button className={`icon-btn${showChapters ? ' active' : ''}`} onClick={() => setShowChapters((v) => !v)} title="Chapters" aria-label="Chapters">
           <Icon name="list" size={18} />
@@ -225,18 +248,18 @@ export default function Player() {
         <div className="ply-main">
           <div className="ply-cover">{book.coverUrl ? <img src={book.coverUrl.replace('-M.jpg', '-L.jpg')} alt="" /> : <PosterFallback />}</div>
           <div className="ply-chapter">
-            <strong>{trackLabel(tracks[track].name, track)}</strong>
+            <strong>{chapter?.title}</strong>
             <small>
-              Chapter {track + 1} of {tracks.length} · {Math.round(percent)}% of the book
+              Chapter {cur + 1} of {chapters.length} · {Math.round(percent)}% of the book
             </small>
           </div>
           <div className="ply-scrub">
             <input
               type="range"
-              min={0}
-              max={duration || 1}
+              min={chStart}
+              max={chEnd || chStart + 1}
               step={1}
-              value={duration ? Math.min(time, duration) : 0}
+              value={duration ? Math.min(Math.max(time, chStart), chEnd) : chStart}
               disabled={!duration}
               onChange={(e) => {
                 const v = Number(e.target.value)
@@ -246,12 +269,12 @@ export default function Player() {
               aria-label="Place in this chapter"
             />
             <div className="ply-times">
-              <span>{formatClock(time)}</span>
-              <span>{duration ? `-${formatClock(Math.max(0, (duration - time) / speed))}` : '–'}</span>
+              <span>{formatClock(Math.max(0, time - chStart))}</span>
+              <span>{duration ? `-${formatClock(Math.max(0, (chEnd - time) / speed))}` : '–'}</span>
             </div>
           </div>
           <div className="ply-controls">
-            <button className="icon-btn" onClick={() => goTrack(track - 1)} disabled={track === 0} title="Previous chapter" aria-label="Previous chapter">
+            <button className="icon-btn" onClick={() => goChapter(cur - 1)} disabled={cur === 0} title="Previous chapter" aria-label="Previous chapter">
               <Icon name="chevron-left" size={22} />
             </button>
             <button className="ply-skip" onClick={() => seekBy(-30)} title="Back 30 seconds" aria-label="Back 30 seconds">
@@ -263,7 +286,7 @@ export default function Player() {
             <button className="ply-skip" onClick={() => seekBy(30)} title="Forward 30 seconds" aria-label="Forward 30 seconds">
               +30
             </button>
-            <button className="icon-btn" onClick={() => goTrack(track + 1)} disabled={track >= tracks.length - 1} title="Next chapter" aria-label="Next chapter">
+            <button className="icon-btn" onClick={() => goChapter(cur + 1)} disabled={cur >= chapters.length - 1} title="Next chapter" aria-label="Next chapter">
               <Icon name="chevron-right" size={22} />
             </button>
           </div>
@@ -279,10 +302,10 @@ export default function Player() {
 
         {showChapters && (
           <ol className="ply-list">
-            {tracks.map((t, i) => (
-              <li key={t.index}>
-                <button className={i === track ? 'active' : ''} onClick={() => goTrack(i)}>
-                  <span className="ply-n">{i + 1}</span> {trackLabel(t.name, i)}
+            {chapters.map((c, i) => (
+              <li key={`${c.track}-${c.start}`}>
+                <button className={i === cur ? 'active' : ''} onClick={() => goChapter(i)}>
+                  <span className="ply-n">{i + 1}</span> {c.title}
                 </button>
               </li>
             ))}
@@ -302,8 +325,15 @@ export default function Player() {
           resumeAt.current = 0
         }}
         onTimeUpdate={(e) => {
-          setTime(e.currentTarget.currentTime)
-          if (!e.currentTarget.paused && Date.now() - lastSaved.current > 15_000) save()
+          const a = e.currentTarget
+          setTime(a.currentTime)
+          // "End of chapter" inside one file: stop where the next chapter starts.
+          if (sleep === -1 && chapter?.end !== undefined && a.currentTime >= chapter.end - 0.3 && !a.paused) {
+            a.pause()
+            a.currentTime = chapter.end
+            setSleep(0)
+          }
+          if (!a.paused && Date.now() - lastSaved.current > 15_000) save()
         }}
         onPlay={() => setPlaying(true)}
         onPause={() => {

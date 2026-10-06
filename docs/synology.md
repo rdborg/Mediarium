@@ -15,9 +15,10 @@ General background (folders, hardlinks, updating) is in the main [install guide]
 5. [Create the project](#5-create-the-project)
 6. [First run](#6-first-run)
 7. [Troubleshooting](#7-troubleshooting)
-8. [If you already run other apps](#if-you-already-run-other-apps)
-9. [Updating](#updating)
-10. [Backing up](#backing-up)
+8. [Reach it from outside your home](#reach-it-from-outside-your-home)
+9. [If you already run other apps](#if-you-already-run-other-apps)
+10. [Updating](#updating)
+11. [Backing up](#backing-up)
 
 ## 1. What you need
 
@@ -196,11 +197,35 @@ More answers: [install guide troubleshooting](./INSTALL.md#troubleshooting). Sti
 
 ## Adding music, ebooks or audiobooks later
 
-Music works today. Ebooks and audiobooks aren't ready yet, but you can set their folders now.
+Music, ebooks and audiobooks each switch on under **Settings, Media types**. If your movies, TV and downloads share one folder (like `/data`), Mediarium offers to create the new folder inside it for you, so often you don't need to change the project at all.
 
 - **Inside your one shared folder:** create the folder (for example `Music`), add `MUSIC_DIR=/data/Music`, `EBOOKS_DIR=/data/Ebooks` or `AUDIOBOOKS_DIR=/data/Audiobooks` to the `environment:` lines, then stop the project, choose **Action, Build** and **Start**. Nothing else to map.
 - **A folder somewhere else:** add a line under `volumes:`, for example `- /volume1/music:/music`, and rebuild the same way. No `environment:` line is needed when the right side is `/music`, `/ebooks` or `/audiobooks`.
 - Then switch the type on in **Settings, Media types** and check the folder in **Settings, Library, Folders and file names**.
+
+## Reach it from outside your home
+
+To open Mediarium on your phone away from home, or to share it with family, use the reverse proxy built into DSM. It gives Mediarium a proper web address with HTTPS (for example `https://mediarium.example.com`). Mediarium needs nothing special from it: no WebSocket option and no extra headers beyond the one below.
+
+**Before you start:** you need a host name that points at your home internet address. Synology's free DDNS (**Control Panel, External Access, DDNS**, for example `yourname.synology.me`) works, or a name from your own domain.
+
+1. **Open port 443 on your router** and forward it to the NAS. Forward only 443 (and 80 if you want Let's Encrypt to renew over HTTP). **Never forward port 8264**: Mediarium should only be reachable through the proxy.
+2. **Get a certificate.** **Control Panel, Security, Certificate, Add, Add a new certificate, Get a certificate from Let's Encrypt.** Use your host name (for example `mediarium.yourname.synology.me`).
+3. **Create the proxy rule.** **Control Panel, Login Portal, Advanced, Reverse Proxy, Create.**
+   - **Source:** Protocol `HTTPS`, Hostname `mediarium.yourname.synology.me`, Port `443`.
+   - **Destination:** Protocol `HTTP`, Hostname `localhost`, Port `8264` (the port on the left of `8264:8264` in your project).
+4. **Add one header.** In the same window, open **Custom Header, Create** and add `X-Forwarded-Proto` with the value `$scheme`. If your DSM version lists only the WebSocket option, choose **Create** and type the name and value yourself. Mediarium works without this header, but with it your sign-in cookie is marked HTTPS-only.
+5. **Give the rule the certificate.** **Control Panel, Security, Certificate, Settings**, find your proxy entry and pick the certificate from step 2.
+6. Open `https://mediarium.yourname.synology.me` and sign in.
+
+**You don't need to change Mediarium's settings for this.** The DSM proxy runs on the NAS itself, so Mediarium already trusts it to pass on your visitors' real addresses (`TRUSTED_PROXIES` covers it by default). Sign-in limits, HTTPS-only cookies and the cross-site checks all keep working.
+
+**If something isn't right:**
+- **"Blocked: this request came from another web site" when you save something:** the proxy changed the `Host` header. Leave the Destination host name as `localhost` and don't add a `Host` custom header. See [ALLOWED_ORIGINS](./security.md#allowed_origins) if you must.
+- **Updates pushed through the API or large backup restores fail:** DSM's proxy allows fairly big uploads, but if a restore stops part way, restore from your home network instead (`http://<NAS-IP>:8264`).
+- **Firewall:** if the Synology firewall is on, allow 443 from anywhere and 8264 only from your home network.
+
+The [security guide](./security.md) has the full checklist, and other proxies (Nginx Proxy Manager, Traefik, Caddy, Cloudflare Tunnel) if you use one of those instead. The **Sign in through your reverse proxy** option under Settings, Accounts is only for proxies that do the login themselves (Authelia, Authentik); the DSM proxy doesn't, so leave it off.
 
 ## If you already run other apps
 

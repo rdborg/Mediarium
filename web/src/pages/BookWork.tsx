@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, type BookFormat, type BookWork as Work } from '../api'
 import AuthorBooks from '../components/AuthorBooks'
+import BookSeries from '../components/BookSeries'
 import { BookAddDialog } from '../components/BookDiscover'
 import Icon from '../components/Icon'
 import { PosterFallback } from '../components/PosterCard'
@@ -110,6 +111,7 @@ export default function BookWork() {
         </div>
       </section>
 
+      <BookSeries workKey={work.key} title={work.title} author={work.author} />
       {work.authorKey && <AuthorBooks authorKey={work.authorKey} author={work.author} exclude={work.key} />}
 
       <BookAddDialog

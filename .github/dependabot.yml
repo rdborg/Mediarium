@@ -1,6 +1,7 @@
-# Dependabot keeps dependencies current and opens a pull request when one of
-# them has a known security problem. Updates are grouped per ecosystem and
-# checked weekly so the pull request list stays short.
+# Dependabot checks the dependencies every week, but routine version updates
+# don't open pull requests (open-pull-requests-limit: 0): they are taken in
+# with each release instead. A dependency with a known security problem is
+# still reported (security alerts), so nothing urgent is missed.
 version: 2
 updates:
   - package-ecosystem: gomod
@@ -8,6 +9,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 0
     groups:
       go:
         patterns: ["*"]
@@ -19,6 +21,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 0
     groups:
       web:
         patterns: ["*"]
@@ -30,6 +33,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 0
     groups:
       actions:
         patterns: ["*"]
@@ -41,5 +45,6 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "build(deps)"

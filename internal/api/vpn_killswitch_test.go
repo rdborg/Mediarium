@@ -107,7 +107,15 @@ func TestVPNKillSwitchBlocksTorrentGrabWhenDisconnected(t *testing.T) {
 
 	// The movie must go back to "missing", not get stuck on "downloading"
 	// forever — same fail-closed contract as any other pipeline failure.
-	finalMovie := getJSON[map[string]any](t, client, fmt.Sprintf("%s/api/movies/%d", httpSrv.URL, movie.ID))
+	// The queue row is marked failed a moment before the movie is reset, so
+	// give it a little time.
+	var finalMovie map[string]any
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		finalMovie = getJSON[map[string]any](t, client, fmt.Sprintf("%s/api/movies/%d", httpSrv.URL, movie.ID))
+		if finalMovie["status"] == "missing" {
+			break
+		}
+	}
 	if finalMovie["status"] != "missing" {
 		t.Fatalf("expected movie status missing after a failed grab, got %+v", finalMovie)
 	}

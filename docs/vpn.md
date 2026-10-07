@@ -11,9 +11,9 @@ Find it under **Settings > Downloading > VPN protection**. It's optional: nothin
 
 ## Add a connection
 
-1. Pick your provider in **Add a VPN connection**: Mullvad, ProtonVPN, Private Internet Access, Surfshark, NordVPN, or **Custom / other provider**. The list only changes the hint and the link shown. Every provider ends up with the same fields, and a WireGuard server of your own works too.
+1. Pick your provider in **Add a VPN connection**: Mullvad, ProtonVPN, Private Internet Access, Surfshark, NordVPN, Windscribe, or **Custom / other provider**. The list only changes the hint and the link shown. Every provider ends up with the same fields, and a WireGuard server of your own works too.
 2. Get your WireGuard details from your provider, using the link and short notes on the page. Mediarium never asks for your VPN account login. You copy the values from your provider's own page.
-3. Fill in the form:
+3. The quickest way: paste your whole WireGuard `.conf` file into **Paste your .conf file**, or press **Or choose the file**. Every field below is filled in from it, including the preshared key, DNS servers and allowed IPs. Only the first `[Peer]` is used. Or fill in the form by hand:
 
 | Field | What to enter |
 |---|---|
@@ -21,11 +21,14 @@ Find it under **Settings > Downloading > VPN protection**. It's optional: nothin
 | Endpoint | The server's address and port, like `vpn.example.com:51820`. |
 | Private key | Your WireGuard private key (44 characters). |
 | Peer public key | The server's public key (44 characters). |
-| Local tunnel address | The address your provider gives you, like `10.2.0.2/32`. |
+| Preshared key | Optional. Only if your config has a `PresharedKey` line (Windscribe's do). Without it the tunnel never connects. |
+| Local tunnel address | The address your provider gives you, like `10.2.0.2/32`. Several can be separated by commas. |
+| DNS servers | Optional. The `DNS` line of your config, like `10.2.0.1`. |
+| Allowed IPs | Optional. Leave empty to send everything through the tunnel (`0.0.0.0/0, ::/0`). |
 
 4. Press **Add connection**, then **Activate** on its row. The status at the top says **Connected** followed by the connection's label in brackets, once the VPN server has answered. **Disconnect** turns the tunnel off again.
 
-You can store several connections; one is active at a time. Private keys are stored encrypted (with the key in `secret.key`) and are never shown again or written to the log.
+You can store several connections; one is active at a time. Private and preshared keys are stored encrypted (with the key in `secret.key`) and are never shown again or written to the log.
 
 ## What the status means
 

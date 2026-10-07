@@ -6,6 +6,7 @@ import { useLive } from '../../useLive'
 import { useConfirm } from '../../components/ConfirmProvider'
 import { firstError, hostPort, ipWithPrefix, maxLength, required, wireguardKey } from '../../validate'
 import { FieldError, FormProblem, useValidation } from '../../useValidation'
+import { parseWireGuardConf } from '../../wgConf'
 
 // Named providers are a convenience wrapper, not a separate integration —
 // every one of these still reduces to "paste a generic WireGuard config"
@@ -47,6 +48,12 @@ const VPN_PROVIDERS = [
     note: 'Get an access token first, then use it to get your WireGuard private key. Their page has the steps. Then paste the fields below.',
   },
   {
+    id: 'windscribe',
+    name: 'Windscribe',
+    helpUrl: 'https://windscribe.com/getconfig/wireguard',
+    note: 'Sign in, pick a location and a port, and download the config. It includes a preshared key, so paste the whole file below.',
+  },
+  {
     id: 'custom',
     name: 'Custom / other provider',
     helpUrl: '',
@@ -65,6 +72,11 @@ function VPNSection() {
   const [peerPublicKey, setPeerPublicKey] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [localAddress, setLocalAddress] = useState('')
+  const [presharedKey, setPresharedKey] = useState('')
+  const [dns, setDns] = useState('')
+  const [allowedIps, setAllowedIps] = useState('')
+  const [confText, setConfText] = useState('')
+  const [confNote, setConfNote] = useState('')
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
   const kill = useAutosaveSetting<boolean>(
@@ -87,12 +99,53 @@ function VPNSection() {
 
   const provider = VPN_PROVIDERS.find((p) => p.id === providerId) ?? VPN_PROVIDERS[0]
 
+  // A pasted or chosen .conf file fills in every field below.
+  function fillFromConf(text: string) {
+    setConfText(text)
+    if (text.trim() === '') {
+      setConfNote('')
+      return
+    }
+    const c = parseWireGuardConf(text)
+    if (!c) {
+      setConfNote("That doesn't look like a WireGuard config. It should have an [Interface] and a [Peer] part.")
+      return
+    }
+    setPrivateKey(c.privateKey)
+    setPeerPublicKey(c.peerPublicKey)
+    setPresharedKey(c.presharedKey)
+    setEndpoint(c.endpoint)
+    setLocalAddress(c.localAddresses.join(', '))
+    setDns(c.dns.join(', '))
+    setAllowedIps(c.allowedIps.join(', '))
+    setConfNote(c.presharedKey ? 'Filled in from your config, including the preshared key. Check the fields below and add a label.' : 'Filled in from your config. Check the fields below and add a label.')
+  }
+
+  function readConfFile(file: File | undefined) {
+    if (!file) return
+    if (file.size > 64 * 1024) {
+      setConfNote('That file is too big to be a WireGuard config.')
+      return
+    }
+    file.text().then(fillFromConf, () => setConfNote("Couldn't read that file."))
+  }
+
+  const split = (v: string) =>
+    v
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
+  const eachOf = (v: string, check: (x: string) => string | null) => split(v).map(check).find((m) => m) ?? null
+
   const errors = {
     label: firstError(required(label, 'Give this connection a name, for example My VPN.'), maxLength(label, 60, 'The name')),
     endpoint: firstError(required(endpoint, 'Add your VPN server address and port, for example vpn.example.com:51820.'), hostPort(endpoint)),
     privateKey: firstError(required(privateKey, "Paste the private key from your provider's WireGuard config."), wireguardKey(privateKey, 'The private key')),
     peerPublicKey: firstError(required(peerPublicKey, "Paste the server's public key from your provider's WireGuard config."), wireguardKey(peerPublicKey, 'The public key')),
-    localAddress: firstError(required(localAddress, 'Add the tunnel address from your config, for example 10.2.0.2/32.'), ipWithPrefix(localAddress)),
+    localAddress: firstError(required(localAddress, 'Add the tunnel address from your config, for example 10.2.0.2/32.'), eachOf(localAddress, (x) => ipWithPrefix(x))),
+    presharedKey: wireguardKey(presharedKey, 'The preshared key'),
+    dns: eachOf(dns, (x) => (x.includes('/') ? 'Write DNS servers without a /, for example 10.2.0.1.' : ipWithPrefix(x, '10.2.0.1'))),
+    allowedIps: eachOf(allowedIps, (x) => ipWithPrefix(x, '0.0.0.0/0')),
   }
   const v = useValidation(errors)
 
@@ -106,14 +159,22 @@ function VPNSection() {
         provider: providerId,
         privateKey,
         peerPublicKey,
+        presharedKey: presharedKey.trim() || undefined,
         endpoint,
-        localAddresses: [localAddress],
+        localAddresses: split(localAddress),
+        dns: split(dns),
+        allowedIps: split(allowedIps),
       })
       setLabel('')
       setPrivateKey('')
       setPeerPublicKey('')
+      setPresharedKey('')
       setEndpoint('')
       setLocalAddress('')
+      setDns('')
+      setAllowedIps('')
+      setConfText('')
+      setConfNote('')
       v.reset()
       reload()
     } catch (e) {
@@ -251,6 +312,25 @@ function VPNSection() {
           )}{' '}
           Every provider uses the same WireGuard fields below.
         </p>
+        <label className="span-all">
+          Paste your .conf file (optional)
+          <textarea
+            value={confText}
+            onChange={(e) => fillFromConf(e.target.value)}
+            rows={5}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder={'[Interface]\nPrivateKey = ...\nAddress = 10.2.0.2/32\n\n[Peer]\nPublicKey = ...\nEndpoint = vpn.example.com:51820'}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}
+          />
+        </label>
+        <div className="span-all" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          <label className="btn-with-icon" style={{ display: 'inline-flex', cursor: 'pointer' }}>
+            <input type="file" accept=".conf,text/plain" onChange={(e) => readConfFile(e.target.files?.[0])} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+            Or choose the file
+          </label>
+          {confNote && <small style={{ color: 'var(--text-dim)' }}>{confNote}</small>}
+        </div>
         <label>
           Label
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="My VPN" {...v.bind('label', label, setLabel)} />
@@ -272,9 +352,24 @@ function VPNSection() {
           <FieldError v={v} name="peerPublicKey" />
         </label>
         <label>
+          Preshared key (optional)
+          <input type="password" value={presharedKey} onChange={(e) => setPresharedKey(e.target.value)} placeholder="only if your config has one" autoComplete="off" spellCheck={false} {...v.bind('presharedKey', presharedKey, setPresharedKey)} />
+          <FieldError v={v} name="presharedKey" />
+        </label>
+        <label>
           Local tunnel address
           <input value={localAddress} onChange={(e) => setLocalAddress(e.target.value)} placeholder="10.2.0.2/32" {...v.bind('localAddress', localAddress, setLocalAddress)} />
           <FieldError v={v} name="localAddress" />
+        </label>
+        <label>
+          DNS servers (optional)
+          <input value={dns} onChange={(e) => setDns(e.target.value)} placeholder="10.2.0.1" spellCheck={false} {...v.bind('dns', dns, setDns)} />
+          <FieldError v={v} name="dns" />
+        </label>
+        <label>
+          Allowed IPs (optional)
+          <input value={allowedIps} onChange={(e) => setAllowedIps(e.target.value)} placeholder="0.0.0.0/0" spellCheck={false} {...v.bind('allowedIps', allowedIps, setAllowedIps)} />
+          <FieldError v={v} name="allowedIps" />
         </label>
         <div>
           <button className="primary" onClick={add} disabled={adding}>

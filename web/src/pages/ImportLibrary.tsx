@@ -36,6 +36,16 @@ function startingKind(asked: string | null): Kind {
 // (posters, summaries, episode lists) are filled in by the server in the
 // background, so leaving this page is safe and coming back picks up where
 // the import is. Files are left exactly where they are.
+// The review list can show just one kind of row, so a second pass over a big
+// library goes straight to what still needs a hand.
+const REVIEW_FILTERS: { id: string; label: string; test: (i: ImportItem) => boolean }[] = [
+  { id: 'all', label: 'All', test: () => true },
+  { id: 'unmatched', label: 'Unmatched', test: (i) => !i.inLibrary && i.match === 'unmatched' },
+  { id: 'check', label: 'Check match', test: (i) => !i.inLibrary && i.match === 'ambiguous' },
+  { id: 'matched', label: 'Matched', test: (i) => !i.inLibrary && i.match === 'matched' },
+  { id: 'library', label: 'Already in library', test: (i) => i.inLibrary },
+]
+
 export default function ImportLibrary() {
   const [params, setParams] = useSearchParams()
   const [kind, setKind] = useState<Kind>(() => startingKind(params.get('kind')))
@@ -59,6 +69,7 @@ export default function ImportLibrary() {
 
   // Per-row review state, keyed by item key.
   const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [reviewFilter, setReviewFilter] = useState('all')
   const [chosen, setChosen] = useState<Record<string, number>>({})
   const [candidates, setCandidates] = useState<Record<string, ImportCandidate[]>>({})
 
@@ -336,6 +347,14 @@ export default function ImportLibrary() {
                 {confirming ? 'Adding…' : `Import ${selectedCount} selected`}
               </button>
 
+              <div className="chip-row" role="group" aria-label="Show" style={{ margin: '14px 0 10px' }}>
+                {REVIEW_FILTERS.map((f) => (
+                  <button key={f.id} className={`chip${reviewFilter === f.id ? ' active' : ''}`} aria-pressed={reviewFilter === f.id} onClick={() => setReviewFilter(f.id)}>
+                    {f.label} <small>{job.items.filter(f.test).length}</small>
+                  </button>
+                ))}
+              </div>
+
               <table className="data-table">
                 <thead>
                   <tr>
@@ -346,7 +365,7 @@ export default function ImportLibrary() {
                   </tr>
                 </thead>
                 <tbody>
-                  {job.items.map((item) => (
+                  {job.items.filter(REVIEW_FILTERS.find((f) => f.id === reviewFilter)?.test ?? (() => true)).map((item) => (
                     <ReviewRow
                       key={item.key}
                       item={item}

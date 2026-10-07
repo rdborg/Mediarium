@@ -242,3 +242,34 @@ func TestImportExistingTVLibrary(t *testing.T) {
 		}
 	}
 }
+
+// A title matched by hand is recognised by its file on the next scan, even
+// though its name still matches nothing (GitHub #24).
+func TestImportRescanKnowsHandMatchedTitles(t *testing.T) {
+	srv, httpSrv, client := newHuntTestServer(t)
+	srv.TestSetTMDBBaseURL("fixture-tmdb-key", newImportTMDBServer(t).URL)
+	postJSON[map[string]any](t, client, httpSrv.URL+"/api/onboarding/admin", map[string]string{
+		"username": "ryan", "password": "correct-horse-battery-staple", "firstName": "Ryan", "lastName": "Tester",
+	}, http.StatusCreated)
+
+	root := t.TempDir()
+	writeFile(t, root, "Qqq Odd Name/qqq.mkv")
+	first := postJSON[map[string]any](t, client, httpSrv.URL+"/api/library/scan", map[string]any{"path": root, "kind": "movie"}, http.StatusAccepted)
+	job := waitForImportPhase(t, client, httpSrv.URL, first["jobId"].(string), "ready")
+	odd := itemByTitle(t, job, "qqq")
+	if odd["match"] != "unmatched" {
+		t.Fatalf("expected the odd name to be unmatched first, got %+v", odd)
+	}
+	confirmed := postJSON[map[string]any](t, client, httpSrv.URL+"/api/library/import", map[string]any{
+		"jobId": first["jobId"], "selections": []map[string]any{{"key": odd["key"], "tmdbId": 27205}},
+	}, http.StatusAccepted)
+	waitForImportBatch(t, client, httpSrv.URL, confirmed["batchId"].(float64))
+
+	second := postJSON[map[string]any](t, client, httpSrv.URL+"/api/library/scan", map[string]any{"path": root, "kind": "movie"}, http.StatusAccepted)
+	rescan := waitForImportPhase(t, client, httpSrv.URL, second["jobId"].(string), "ready")
+	again := itemByTitle(t, rescan, "qqq")
+	cands := again["candidates"].([]any)
+	if again["inLibrary"] != true || again["match"] != "matched" || len(cands) == 0 || cands[0].(map[string]any)["tmdbId"] != float64(27205) {
+		t.Fatalf("the hand-matched title should come back as already in the library under Inception, got %+v", again)
+	}
+}

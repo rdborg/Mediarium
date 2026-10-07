@@ -33,9 +33,11 @@
   gap: 6px;
   min-width: 0;
 }
-.wizard .form-cols > label > input,
+/* Text fields fill their column; checkboxes and radios keep their own size
+   (a stretched checkbox squeezed its label into a one-letter column). */
+.wizard .form-cols > label > input:not([type='checkbox']):not([type='radio']),
 .wizard .form-cols > label > select,
-.wizard .fbox > label > input {
+.wizard .fbox > label > input:not([type='checkbox']):not([type='radio']) {
   width: 100%;
   box-sizing: border-box;
 }

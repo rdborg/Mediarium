@@ -7,7 +7,7 @@ Open **Library** and press **Import existing** (or **Import what you already hav
 ## The steps
 
 1. **Scan.** Pick Movies or TV shows, check the folder (the path as the container sees it; with Docker the folder has to be mapped into the container first) and press **Scan folder**. Mediarium reads the file and folder names and looks each title up in the movie database. A movie can be `Night Harbour (2010)/Night Harbour.mkv` or a flat folder of release names. A show is read from its folder and from `S01E02` style numbers in the file names. Episodes in a `Specials` folder (`S00E01`) count as season 0. Sample clips, extras folders and hidden files (such as the `._Movie.mkv` stubs macOS leaves on a drive) are skipped.
-2. **Review.** Every title shows what was found on disk and the match Mediarium picked. Confident matches are ticked. If a match is wrong, pick another from the list or press **Search...** and look it up by hand. Files Mediarium couldn't read are listed under the table.
+2. **Review.** Every title shows what was found on disk and the match Mediarium picked. Confident matches are ticked. If a match is wrong, pick another from the list or press **Search...** and look it up by hand. Files Mediarium couldn't read are listed under the table. The buttons above the table show just one kind of row: **Unmatched**, **Check match**, **Matched** or **Already in library**, handy on a second pass over a big library.
 3. **Choose what happens next** (see below), or just press **Import**.
 4. **Confirm.** This answers in about a second, however many titles you chose. Every title is added to the library straight away with what the scan already knows: its name, year, the file, and the quality read from the file name. The titles show in the Library at once, with a "Getting details..." mark until their posters and summaries arrive.
 
@@ -51,7 +51,7 @@ Titles that were in the library before the import are left as they were. After a
 
 ## The report
 
-The import page starts with the **What was set** box, then a table of every title with **Added**, **Already in library** and notes, and a total line under it, for example "188 movies added, 0 already in library, 0 problems". For shows the two columns count episodes. **Already in library** means the title was there before, so nothing changed. Importing the same folder twice is safe: what's already there is counted, not added again.
+The import page starts with the **What was set** box, then a table of every title with **Added**, **Already in library** and notes, and a total line under it, for example "188 movies added, 0 already in library, 0 problems". For shows the two columns count episodes. **Already in library** means the title was there before, so nothing changed. Importing the same folder twice is safe: what's already there is counted, not added again. A scan recognises files that are already in your library by where they are, so a title you matched by hand comes back as **Already in library** under the right name, not as unmatched, and that works for shows too.
 
 ![The import report for three shows: the What was set box with Start monitoring these titles and Look for missing episodes, and a table of episodes added](images/import-report.png)
 

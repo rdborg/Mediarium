@@ -101,7 +101,7 @@ func (s *Server) folderPayloadFor(path string) folderPayload {
 			p.Warnings = []string{fmt.Sprintf("This folder doesn't exist yet. Mediarium can create it inside %s, which is mapped to your device.", parent)}
 		}
 	}
-	if p.Exists && p.Writable {
+	if p.Exists && p.Writable && insideWorthChecking(path) {
 		if bad, _ := unwritableInside(path); len(bad) > 0 {
 			p.Warnings = append(p.Warnings, insideWarning(bad))
 		}
@@ -114,6 +114,26 @@ func insideWarning(bad []string) string {
 	return fmt.Sprintf("%s inside can't be written to, such as %s. Mediarium can't add or upgrade files there. Give the user Mediarium runs as (its PUID and PGID) write access to them, for example by changing their owner.", plural(len(bad), "folder"), bad[0])
 }
 
+// insideWorthChecking is false for the root of the filesystem and the
+// system's own folders: the look inside is for library folders, and an
+// administrator checking "/" or "/proc" shouldn't set off a walk through them.
+func insideWorthChecking(path string) bool {
+	clean := filepath.Clean(path)
+	if !filepath.IsAbs(clean) || clean == string(filepath.Separator) {
+		return false
+	}
+	for _, sys := range []string{"/proc", "/sys", "/dev", "/etc", "/usr", "/bin", "/sbin", "/lib", "/lib64", "/boot", "/run", "/root"} {
+		if clean == sys || strings.HasPrefix(clean, sys+"/") {
+			return false
+		}
+	}
+	return true
+}
+
+// insideCacheMax caps how many folders the look inside remembers, so checking
+// many different paths can't grow it without end.
+const insideCacheMax = 64
+
 // unwritableInside is fsinfo.UnwritableInside, remembered for a few minutes
 // so the health list doesn't walk a big library on every visit.
 func unwritableInside(root string) ([]string, int) {
@@ -123,7 +143,7 @@ func unwritableInside(root string) ([]string, int) {
 		return c.bad, c.checked
 	}
 	bad, checked := fsinfo.UnwritableInside(root, 5000)
-	if insideCache.byRoot == nil {
+	if insideCache.byRoot == nil || len(insideCache.byRoot) >= insideCacheMax {
 		insideCache.byRoot = map[string]insideResult{}
 	}
 	insideCache.byRoot[root] = insideResult{bad: bad, checked: checked, at: time.Now()}

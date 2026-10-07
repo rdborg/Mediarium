@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -221,6 +222,7 @@ func (s *Server) runImportScan(job *importJob) {
 	job.mu.Unlock()
 	job.setPhase(importMatching, 0, len(items))
 
+	known := s.libraryFiles(job.kind)
 	ctx := context.Background()
 	var (
 		wg   sync.WaitGroup
@@ -234,8 +236,20 @@ func (s *Server) runImportScan(job *importJob) {
 		go func(i int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			status, cands, matchErr := s.matchGroup(ctx, job.kind, res.Groups[i])
-			inLibrary := status == libimport.MatchMatched && len(cands) > 0 && s.alreadyInLibrary(job.kind, cands[0].TMDBID)
+			var (
+				status    libimport.MatchStatus
+				cands     []libimport.Candidate
+				matchErr  error
+				inLibrary bool
+			)
+			if title, all, ok := known.lookup(res.Groups[i]); ok {
+				// Its files already belong to a library title (matched by hand
+				// earlier, perhaps): show it as that title, without asking TMDB.
+				status, cands, inLibrary = libimport.MatchMatched, []libimport.Candidate{title}, all
+			} else {
+				status, cands, matchErr = s.matchGroup(ctx, job.kind, res.Groups[i])
+				inLibrary = status == libimport.MatchMatched && len(cands) > 0 && s.alreadyInLibrary(job.kind, cands[0].TMDBID)
+			}
 
 			payload := make([]importCandidatePayload, len(cands))
 			for c, cand := range cands {
@@ -304,6 +318,61 @@ func (s *Server) matchGroup(ctx context.Context, kind libimport.Kind, g libimpor
 	}
 	status, ordered := libimport.Decide(g.Title, g.Year, cands)
 	return status, ordered, nil
+}
+
+// knownFiles maps the files already in the library to their title, so a
+// re-scan recognises them by path whatever their names say.
+type knownFiles struct {
+	byPath map[string]libimport.Candidate
+}
+
+// lookup finds the library title a group's files belong to. all is true when
+// every file in the group is already in the library.
+func (k knownFiles) lookup(g libimport.Group) (libimport.Candidate, bool, bool) {
+	var (
+		title libimport.Candidate
+		found int
+	)
+	for _, f := range g.Files {
+		if c, ok := k.byPath[filepath.Clean(f.Path)]; ok {
+			title = c
+			found++
+		}
+	}
+	return title, found > 0 && found == len(g.Files), found > 0
+}
+
+// libraryFiles lists the files the library already has for one kind.
+func (s *Server) libraryFiles(kind libimport.Kind) knownFiles {
+	k := knownFiles{byPath: map[string]libimport.Candidate{}}
+	if kind == libimport.KindMovie {
+		movies, err := s.MovieRepo.List()
+		if err != nil {
+			return k
+		}
+		for _, m := range movies {
+			if m.FilePath != "" {
+				k.byPath[filepath.Clean(m.FilePath)] = libimport.Candidate{TMDBID: m.TMDBID, Title: m.Title, Year: m.Year, PosterPath: m.PosterPath}
+			}
+		}
+		return k
+	}
+	shows, err := s.MovieRepo.ListSeries()
+	if err != nil {
+		return k
+	}
+	for _, sh := range shows {
+		eps, err := s.MovieRepo.ListEpisodes(sh.ID)
+		if err != nil {
+			continue
+		}
+		for _, e := range eps {
+			if e.FilePath != "" {
+				k.byPath[filepath.Clean(e.FilePath)] = libimport.Candidate{TMDBID: sh.TMDBID, Title: sh.Title, Year: sh.Year, PosterPath: sh.PosterPath}
+			}
+		}
+	}
+	return k
 }
 
 // alreadyInLibrary reports whether registering this match would add nothing

@@ -76,7 +76,7 @@ Signing in again to a server that is already added (by any of these methods) upd
 
 ## Adding a server
 
-You can always add a server by hand, with its address and a token or API key. Go to **Settings > Connections > Media servers** and pick the kind on the left of **Add a media server**. For Plex, open **Or enter the address and token by hand**; for Jellyfin or Emby, open **Or enter an API key by hand**. **Address you open in your browser** and **Folder mapping** are under **More options**.
+You can always add a server by hand, with its address and a token or API key. You can paste the address straight from your browser's address bar: the end that only opens the server's web app (`/web/#/home` for Jellyfin, `/web/index.html#!/home` for Emby and Plex) is dropped for you. Go to **Settings > Connections > Media servers** and pick the kind on the left of **Add a media server**. For Plex, open **Or enter the address and token by hand**; for Jellyfin or Emby, open **Or enter an API key by hand**. **Address you open in your browser** and **Folder mapping** are under **More options**.
 
 | Field | What to enter |
 |---|---|

@@ -8,6 +8,11 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [2.1.9] - 2026-10-07
+
+### Fixed
+- Adding a media server by pasting the address from your browser (`https://host/web/#/home` for Jellyfin, `.../web/index.html#!/home` for Emby and Plex) failed. The part that only opens the server's web app is now dropped, so it becomes `https://host`; an address with a folder before it, like `https://host/jellyfin/web/#/home`, becomes `https://host/jellyfin` (suggested by msholly on GitHub, #29).
+
 ## [2.1.8] - 2026-10-07
 
 ### Fixed

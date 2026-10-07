@@ -10,6 +10,7 @@ package mediaservers
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -123,8 +124,16 @@ func userErr(err error, format string, args ...any) error {
 	return &UserError{Message: fmt.Sprintf(format, args...), Err: err}
 }
 
+// webClientPath matches the end of an address copied from the browser's
+// address bar while using a server's web app: Jellyfin sits at /web/#/home,
+// Emby and Plex at /web/index.html#!/home. The server's API is never under
+// that path, so it is not part of the server's address.
+var webClientPath = regexp.MustCompile(`(?i)/web(?:/index\.html)?/?$`)
+
 // NormalizeURL checks an http(s) address and returns it without a trailing
-// slash. An address typed without a scheme gets http://.
+// slash. An address typed without a scheme gets http://. The part of the
+// address that only opens the server's web app (/web/#/home and the like) is
+// dropped, so pasting the address from the browser works.
 func NormalizeURL(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -141,6 +150,9 @@ func NormalizeURL(raw string) (string, error) {
 		return "", fmt.Errorf("the address must start with http:// or https://")
 	}
 	u.RawQuery, u.Fragment, u.ForceQuery = "", "", false
+	if trimmed := webClientPath.ReplaceAllString(u.Path, ""); trimmed != u.Path {
+		u.Path, u.RawPath = trimmed, ""
+	}
 	return strings.TrimRight(u.String(), "/"), nil
 }
 

@@ -30,6 +30,11 @@ type Result struct {
 	Peers       int    // torrent-only (Torznab attr), 0 for usenet results
 	InfoHash    string // torrent-only, when the indexer reports it
 	Priority    int    // the indexer's priority (1 preferred, 2 normal, 3 last resort); set by the engine
+	// Torrent is true when the feed itself says this result is a torrent
+	// (a torrent enclosure, an info hash, a magnet link). It wins over the
+	// protocol the indexer was added with: a Torznab feed from Prowlarr that
+	// was added as a Usenet indexer still hands out torrents.
+	Torrent bool
 }
 
 // NewznabClient talks to a single Newznab/Torznab-compatible API endpoint.
@@ -205,6 +210,7 @@ type newznabItem struct {
 type newznabEnclosure struct {
 	URL    string `xml:"url,attr"`
 	Length int64  `xml:"length,attr"`
+	Type   string `xml:"type,attr"`
 }
 
 type newznabAttr struct {
@@ -232,6 +238,13 @@ func (item newznabItem) toResult(indexerName string) Result {
 	if r.DownloadURL == "" {
 		r.DownloadURL = item.Link
 	}
+	if magnet := item.attr("magneturl"); magnet != "" && strings.HasPrefix(magnet, "magnet:") {
+		r.DownloadURL = magnet
+	}
+	r.Torrent = strings.Contains(strings.ToLower(item.Enclosure.Type), "bittorrent") ||
+		strings.HasPrefix(r.DownloadURL, "magnet:") ||
+		item.attr("infohash") != "" ||
+		item.attr("seeders") != ""
 	if size := item.attr("size"); size != "" {
 		if n, err := strconv.ParseInt(size, 10, 64); err == nil {
 			r.SizeBytes = n

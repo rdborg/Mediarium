@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -215,9 +216,15 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 // enabled Usenet server, primary first. It returns how many articles no
 // server had: those are left for PAR2 repair rather than failing outright.
 func (s *Server) downloadUsenet(ctx context.Context, queueID int64, nzbURL, incompleteDir string) (int, error) {
+	if isMagnetURI(nzbURL) {
+		return 0, errors.New("this is a torrent (a magnet link), but its indexer is set up as a Usenet indexer. Open Settings > Indexers & Search, remove it and add it again on the Torrent tab")
+	}
 	nzbBytes, err := s.fetchRelease(ctx, nzbURL)
 	if err != nil {
 		return 0, fmt.Errorf("couldn't get the NZB file: %w", err)
+	}
+	if looksLikeTorrentFile(nzbBytes) {
+		return 0, errors.New("this is a .torrent file, but its indexer is set up as a Usenet indexer. Open Settings > Indexers & Search, remove it and add it again on the Torrent tab")
 	}
 	nzb, err := download.ParseNZB(nzbBytes)
 	if err != nil {
@@ -471,6 +478,20 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 
 func isMagnetURI(s string) bool {
 	return strings.HasPrefix(s, "magnet:")
+}
+
+// looksLikeTorrentFile reports whether the bytes are a bencoded .torrent file
+// (a dictionary that starts with d and holds an "announce" or "info" key)
+// rather than an NZB, which is XML.
+func looksLikeTorrentFile(b []byte) bool {
+	if len(b) < 8 || b[0] != 'd' {
+		return false
+	}
+	head := b
+	if len(head) > 256 {
+		head = head[:256]
+	}
+	return bytes.Contains(head, []byte("announce")) || bytes.Contains(head, []byte("4:info")) || bytes.Contains(head, []byte("8:encoding"))
 }
 
 // torrentSource turns a grab's download URL into either a magnet link or a

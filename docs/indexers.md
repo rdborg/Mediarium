@@ -33,6 +33,8 @@ Under **Add an indexer** on Settings > Indexers & Search, choose the **Usenet (N
 
 **Indexers from Prowlarr or Jackett:** add each one with its own Torznab (or Newznab) feed address, not Prowlarr's main page. In Prowlarr, open the indexer and copy its feed address, which looks like `http://192.168.1.10:9696/5/api`, and use Prowlarr's API key (Settings > General). An address that gives back a web page instead of a feed is refused with a message saying so. To bring over all of them at once, use **Settings > System > Move from other apps** ([migrate.md](./migrate.md)). A few indexers are built into Prowlarr's own code rather than the shared definition list (Toloka, for example). Those can only be added through Prowlarr's feed address.
 
+If you added a torrent indexer on the **Usenet (NZB)** tab by mistake, Mediarium still tells torrents from NZB files by what the feed sends and downloads them as torrents. Still, add torrent sites on the **Torrent** tab: that's where the seeders, the VPN and the torrent client settings apply to them.
+
 Each saved indexer has **Test**, **Edit**, **Disable** and **Remove**. **Edit** changes the name, address and API key, and a blank API key keeps the saved one. A failed test says what went wrong in plain words (address not found, connection refused, no answer in time, certificate problem, wrong API key, IP address not allowed). The key is never sent back to the browser. The indexer list only says whether one is saved (`hasApiKey`).
 
 ## Adding a site from the definition list

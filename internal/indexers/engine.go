@@ -119,6 +119,9 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 			}
 			for j := range results {
 				results[j].Protocol = inst.Protocol
+				if results[j].Torrent {
+					results[j].Protocol = ProtocolTorrent
+				}
 				results[j].Priority = inst.Priority
 			}
 			outcomes[i] = Outcome{IndexerName: inst.Name, Results: results, Err: err}

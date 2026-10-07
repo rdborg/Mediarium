@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/rdborg/mediarium/internal/fsinfo"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -99,7 +101,44 @@ func (s *Server) folderPayloadFor(path string) folderPayload {
 			p.Warnings = []string{fmt.Sprintf("This folder doesn't exist yet. Mediarium can create it inside %s, which is mapped to your device.", parent)}
 		}
 	}
+	if p.Exists && p.Writable {
+		if bad, _ := unwritableInside(path); len(bad) > 0 {
+			p.Warnings = append(p.Warnings, insideWarning(bad))
+		}
+	}
 	return p
+}
+
+// insideWarning says which folders inside a library folder can't be written to.
+func insideWarning(bad []string) string {
+	return fmt.Sprintf("%s inside can't be written to, such as %s. Mediarium can't add or upgrade files there. Give the user Mediarium runs as (its PUID and PGID) write access to them, for example by changing their owner.", plural(len(bad), "folder"), bad[0])
+}
+
+// unwritableInside is fsinfo.UnwritableInside, remembered for a few minutes
+// so the health list doesn't walk a big library on every visit.
+func unwritableInside(root string) ([]string, int) {
+	insideCache.Lock()
+	defer insideCache.Unlock()
+	if c, ok := insideCache.byRoot[root]; ok && time.Since(c.at) < 10*time.Minute {
+		return c.bad, c.checked
+	}
+	bad, checked := fsinfo.UnwritableInside(root, 5000)
+	if insideCache.byRoot == nil {
+		insideCache.byRoot = map[string]insideResult{}
+	}
+	insideCache.byRoot[root] = insideResult{bad: bad, checked: checked, at: time.Now()}
+	return bad, checked
+}
+
+type insideResult struct {
+	bad     []string
+	checked int
+	at      time.Time
+}
+
+var insideCache struct {
+	sync.Mutex
+	byRoot map[string]insideResult
 }
 
 // creatableParent reports whether path can be created safely: one level
@@ -167,4 +206,34 @@ func (s *Server) handleCreateFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.folderPayloadFor(path))
+}
+
+// destWritable checks, before anything is downloaded, that Mediarium may
+// write where the file will go: the destination folder, or the closest folder
+// above it that exists. A folder owned by another user (often one an older
+// app created) used to be found only after the whole download, which was
+// then thrown away. Other errors don't stop a download.
+func destWritable(destDir string) error {
+	dir := destDir
+	for {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return nil
+		}
+		dir = parent
+	}
+	f, err := os.CreateTemp(dir, ".mediarium-write-check-*")
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			return fmt.Errorf("Mediarium may not write to %s, so nothing was downloaded. The folder belongs to another user: give the user Mediarium runs as (PUID and PGID) write access to it: %w", dir, os.ErrPermission)
+		}
+		return nil
+	}
+	name := f.Name()
+	_ = f.Close()
+	_ = os.Remove(name)
+	return nil
 }

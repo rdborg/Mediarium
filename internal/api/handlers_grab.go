@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/rdborg/mediarium/internal/auth"
@@ -157,6 +158,11 @@ func (s *Server) grabRelease(movie library.Movie, releaseTitle, downloadURL stri
 func (s *Server) grabMovie(movie library.Movie, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind) (int64, error) {
 	if protocol == indexers.ProtocolTorrent && !s.torrentsEnabled() {
 		return 0, errTorrentsDisabled
+	}
+	if dest, err := s.buildDestPath(s.moviesRoot(), movie.Title, movie.Year, movie.TMDBID, releaseTitle, "check.mkv"); err == nil {
+		if err := destWritable(filepath.Dir(dest)); err != nil {
+			return 0, err
+		}
 	}
 	s.grabMu.Lock()
 	if !kind.refusesDuplicates() {

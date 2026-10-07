@@ -237,6 +237,15 @@ func (s *Server) collectHealth() []healthItem {
 			}
 		}
 	}
+	for _, f := range []struct{ id, label, path string }{{"movies", "Movies", movies}, {"tv", "TV", tv}} {
+		if f.path == "" {
+			continue
+		}
+		if bad, _ := unwritableInside(f.path); len(bad) > 0 {
+			add(f.id+"-folders-inside", "warn", "Some folders inside "+f.label+" can't be written to",
+				insideWarning(bad), "See folders", "/settings/media")
+		}
+	}
 	if same, supported, err := organizer.SameFilesystem(dl, movies); err == nil && supported && !same {
 		add("no-hardlinks", "info", "Downloads and Movies are on different drives",
 			"Imports copy files instead of hardlinking them, which briefly uses double the space. Put both on the same drive to avoid that.",

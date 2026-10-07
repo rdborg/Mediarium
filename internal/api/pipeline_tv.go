@@ -63,6 +63,11 @@ func (s *Server) grabTV(series library.Series, hintSeason, hintEpisode int, rele
 	if len(episodes) > 0 {
 		firstEpisode = episodes[0]
 	}
+	if dest, err := s.buildTVDestPath(series, library.Episode{Season: season, Episode: firstEpisode}, parser.Parse(releaseTitle), "check.mkv"); err == nil {
+		if err := destWritable(filepath.Dir(dest)); err != nil {
+			return 0, err
+		}
+	}
 
 	s.grabMu.Lock()
 	if !kind.refusesDuplicates() {

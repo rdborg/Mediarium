@@ -8,6 +8,15 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-10-07
+
+### Fixed
+- Obfuscated Usenet releases (random file names) failed PAR2 repair and were blocklisted, even when nothing was wrong with them. Mediarium now gives the files their real names back from the PAR2 data before repairing, and hands par2 every file in the download (reported by u/Wiwer on Reddit).
+- A failed repair now says in one line why ("it needs 12 more recovery blocks than the release has") instead of pages of par2 progress output.
+- A download is no longer started when Mediarium can't write to the folder the file will go in; the reason names the folder. Before, the file was downloaded in full and then failed to import (reported by u/Wiwer on Reddit).
+- Setup, Settings and the dashboard warn about folders inside Movies and TV that Mediarium can't write to, such as ones another app created under a different user, with an example path.
+- Obfuscated releases with many PAR2 files are verified once, not once per file.
+
 ## [2.1.3] - 2026-10-06
 
 ### Fixed

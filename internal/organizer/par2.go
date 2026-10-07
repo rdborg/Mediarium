@@ -61,7 +61,64 @@ func FindMainPar2Files(dir string) ([]string, error) {
 		}
 		mains = append(mains, filepath.Join(dir, name))
 	}
-	return mains, nil
+	return onePerSet(mains), nil
+}
+
+// onePerSet keeps one PAR2 file per recovery set. In an obfuscated release
+// every volume has a random name without ".vol", so each looks like a main
+// index; verifying the whole release once per volume would take hours.
+func onePerSet(files []string) []string {
+	if len(files) < 2 {
+		return files
+	}
+	type pick struct {
+		path string
+		size int64
+	}
+	best := map[string]pick{}
+	var order []string
+	var unknown []string
+	for _, f := range files {
+		set := par2SetID(f)
+		if set == "" {
+			unknown = append(unknown, f)
+			continue
+		}
+		info, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		cur, ok := best[set]
+		if !ok {
+			order = append(order, set)
+		}
+		if !ok || info.Size() < cur.size {
+			best[set] = pick{f, info.Size()}
+		}
+	}
+	out := make([]string, 0, len(order)+len(unknown))
+	for _, set := range order {
+		out = append(out, best[set].path)
+	}
+	return append(out, unknown...)
+}
+
+// otherFiles lists every other file in par2File's folder. par2 is given
+// them all, so it also finds data and recovery volumes that don't carry the
+// names it expects.
+func otherFiles(par2File string) []string {
+	dir := filepath.Dir(par2File)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if e.Type().IsRegular() && e.Name() != filepath.Base(par2File) {
+			out = append(out, e.Name())
+		}
+	}
+	return out
 }
 
 // VerifyResult reports whether the recovery set thinks its target files
@@ -75,7 +132,7 @@ type VerifyResult struct {
 func (r *Repairer) Verify(par2File string) (VerifyResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), par2Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, r.binary(), "verify", par2File)
+	cmd := exec.CommandContext(ctx, r.binary(), append([]string{"verify", "--", par2File}, otherFiles(par2File)...)...)
 	cmd.Dir = filepath.Dir(par2File)
 	cmd.WaitDelay = 5 * time.Second
 	out, err := cmd.CombinedOutput()
@@ -97,7 +154,7 @@ func (r *Repairer) Verify(par2File string) (VerifyResult, error) {
 func (r *Repairer) Repair(par2File string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), par2Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, r.binary(), "repair", par2File)
+	cmd := exec.CommandContext(ctx, r.binary(), append([]string{"repair", "--", par2File}, otherFiles(par2File)...)...)
 	cmd.Dir = filepath.Dir(par2File)
 	cmd.WaitDelay = 5 * time.Second
 	out, err := cmd.CombinedOutput()
@@ -105,7 +162,45 @@ func (r *Repairer) Repair(par2File string) error {
 		return fmt.Errorf("par2 repair %s: it took too long and was stopped: %w", par2File, ctx.Err())
 	}
 	if err != nil {
-		return fmt.Errorf("par2 repair %s: %w: %s", par2File, err, truncateOutput(out))
+		return fmt.Errorf("%s (par2: %w)", par2Problem(out), err)
 	}
 	return nil
+}
+
+// par2Problem turns par2's output into one plain sentence. The tool prints
+// a progress line for every percent, which said nothing useful in a log.
+func par2Problem(out []byte) string {
+	text := strings.ReplaceAll(string(out), "\r", "\n")
+	var need string
+	notPossible := false
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "You need ") && strings.Contains(line, "recovery block"):
+			need = strings.TrimSuffix(strings.TrimPrefix(line, "You need "), " to be able to repair.")
+		case strings.Contains(line, "Repair is not possible"):
+			notPossible = true
+		}
+	}
+	switch {
+	case need != "":
+		return "PAR2 can't repair this download: it needs " + need + " than the release has"
+	case notPossible:
+		return "PAR2 can't repair this download: too much of it is missing"
+	}
+	var last []string
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasSuffix(line, "%") || strings.HasPrefix(line, "Loading") || strings.HasPrefix(line, "Scanning") {
+			continue
+		}
+		last = append(last, line)
+	}
+	if len(last) > 3 {
+		last = last[len(last)-3:]
+	}
+	if len(last) == 0 {
+		return "PAR2 couldn't repair this download"
+	}
+	return "PAR2 couldn't repair this download: " + strings.Join(last, " ")
 }

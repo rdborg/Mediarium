@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -600,6 +601,13 @@ func fetchURL(ctx context.Context, url string) ([]byte, error) {
 // PAR2 cannot rebuild the file the release is unusable, so the step fails
 // rather than quietly passing on a file with holes in it.
 func verifyAndRepair(dir string, missing int) error {
+	// Obfuscated releases first get their real names back from the PAR2
+	// data, so repair, unpacking and import all see the names they expect.
+	if n, err := organizer.Deobfuscate(dir); err != nil {
+		log.Printf("pipeline: restoring real file names in %s: %v", dir, err)
+	} else if n > 0 {
+		log.Printf("pipeline: gave %d obfuscated file(s) their real names in %s", n, dir)
+	}
 	repairer := organizer.NewRepairer()
 	if !repairer.Available() {
 		if missing > 0 {

@@ -1376,6 +1376,17 @@ fieldset.group .card, fieldset.group table { max-width: 100%; }
 /* Naming preview reads like the other hints under a field. */
 .naming-preview { color: var(--text-dim); line-height: 1.5; }
 .naming-preview code { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text); background: var(--surface-2); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+.naming-builder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.naming-builder-forms { display: flex; flex-direction: column; gap: 10px; }
+.naming-builder-forms label { display: flex; flex-direction: column; gap: 6px; }
+.naming-builder-forms input { font-family: var(--font-mono); font-size: 0.85rem; }
+.naming-tokens { display: flex; flex-direction: column; gap: 12px; }
+.naming-token-group { display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: start; }
+.naming-token-group > span { font-size: 0.78rem; color: var(--text-dim); padding-top: 5px; }
+.naming-token-group .chip-row { gap: 6px; }
+.chip.naming-token { font-family: var(--font-mono); font-size: 0.75rem; padding: 4px 9px; border: 1px solid var(--border); cursor: pointer; }
+.chip.naming-token:hover { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 900px) { .naming-builder { grid-template-columns: 1fr; } }
 
 /* Selected main item: a soft pill in its own colour instead of a tab that
    runs into the page, with room around every item so hover and selection

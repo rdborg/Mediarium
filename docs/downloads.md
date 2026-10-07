@@ -50,7 +50,7 @@ Every field in Settings points out a mistake under the box when you leave it, or
 - **Torrents:** the listen port is 0 (use the default) or 1 to 65535, the seed ratio is 0 to 1000 and the seed time is 0 to 87,600 hours. 0 means unlimited for both.
 - **Downloads at the same time:** a whole number from 1 to 5.
 - **VPN:** the endpoint is `host:port` with a port from 1 to 65535, the two keys are 44-character WireGuard keys, and the tunnel address is an IP address with an optional `/prefix`.
-- **Folders:** each folder must be a full path, starting with `/`, a drive letter such as `D:\`, or a network path such as `\\server\share`. A custom file name format must include `{Movie Title}`, use only known tokens, and can't contain `/` or `\`.
+- **Folders:** each folder must be a full path, starting with `/`, a drive letter such as `D:\`, or a network path such as `\\server\share`. A custom movie file name must include the movie's title and an episode file name its season and episode; both use only known tokens and can't contain `/` or `\` (see [library.md](./library.md#file-names)).
 
 Only what you change is checked, so a value an older version saved never stops you saving something else.
 

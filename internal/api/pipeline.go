@@ -719,6 +719,8 @@ func (s *Server) buildDestPath(root, movieTitle string, year, tmdbID int, releas
 		MovieTitle: movieTitle, Year: year, TMDBID: tmdbID,
 		Quality: release.Resolution, Source: release.Source, Codec: release.Codec,
 		Edition: release.Edition, ReleaseGroup: release.Group,
+		AudioCodec: release.AudioCodec, HDR: release.HDR, Is3D: release.Is3D,
+		Proper: release.Proper, Repack: release.Repack, Languages: release.Languages,
 	}
 
 	sanitizeMode, replacement := s.illegalCharSettings()

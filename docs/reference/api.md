@@ -409,7 +409,8 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/settings/folder-create` | admin | makes a missing library folder (administrators), only where creatableParent allows. |
 | GET | `/api/settings/hardcover` | admin | GET /api/settings/hardcover |
 | PUT | `/api/settings/hardcover` | admin | PUT /api/settings/hardcover {"token": "..."}: checks the token with Hardcover and saves it (encrypted). |
-| GET | `/api/settings/naming-preview` | admin | shows a naming preset or custom format applied to a fixed sample release, so the page can display the exact file name while someone edits the tokens. |
+| GET | `/api/settings/naming-preview` | admin | shows a naming preset or custom format applied to a fixed sample release (kind=movie, the default, or kind=tv), so the page can display the exact file name w... |
+| GET | `/api/settings/naming-tokens` | admin | lists the tokens a custom format can use and the ready-made formats to start from, for the builder in Settings. |
 | POST | `/api/settings/test-service` | admin | checks a key for an outside service without saving it, so the setup wizard and Settings can say whether it works before the person moves on. |
 
 ## stats
@@ -551,4 +552,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-291 routes.
+292 routes.

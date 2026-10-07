@@ -418,9 +418,11 @@ func (s *Server) buildTVDestPath(series library.Series, ep library.Episode, rele
 
 	ctx := organizer.NamingContext{
 		SeriesTitle: series.Title, EpisodeTitle: ep.Title, Year: series.Year, TMDBID: series.TMDBID,
-		Season: ep.Season, Episode: ep.Episode,
+		Season: ep.Season, Episode: ep.Episode, AirDate: ep.AirDate,
 		Quality: release.Resolution, Source: release.Source, Codec: release.Codec,
 		Edition: release.Edition, ReleaseGroup: release.Group,
+		AudioCodec: release.AudioCodec, HDR: release.HDR, Is3D: release.Is3D,
+		Proper: release.Proper, Repack: release.Repack, Languages: release.Languages,
 	}
 	mode, replacement := s.illegalCharSettings()
 	clean := func(f string) string { return organizer.Sanitize(organizer.Render(f, ctx), mode, replacement) }

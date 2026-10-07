@@ -19,9 +19,11 @@ type settingsPayload struct {
 	DownloadsPath   string `json:"downloadsPath"`
 	NamingPreset    string `json:"namingPreset"`
 	MovieNameFormat string `json:"movieNameFormat"`
-	TMDBAPIKey      string `json:"tmdbApiKey,omitempty"`
-	HasTMDBAPIKey   bool   `json:"hasTmdbApiKey"`
-	OnboardingDone  bool   `json:"onboardingDone"`
+	// EpisodeNameFormat is the custom file name format for episodes.
+	EpisodeNameFormat string `json:"episodeNameFormat"`
+	TMDBAPIKey        string `json:"tmdbApiKey,omitempty"`
+	HasTMDBAPIKey     bool   `json:"hasTmdbApiKey"`
+	OnboardingDone    bool   `json:"onboardingDone"`
 
 	// TorrentEnabled is the torrent on/off switch. A pointer so a partial PUT
 	// that leaves it out doesn't switch torrents off (or on).
@@ -203,6 +205,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	downloadsPath := s.downloadsRoot()
 	namingPreset, _ := s.Settings.Get(settings.KeyNamingPreset)
 	movieFormat, _ := s.Settings.Get(settings.KeyMovieNameFormat)
+	episodeFormat, _ := s.Settings.Get(settings.KeyEpisodeNameFormat)
 	onboardingDone, _ := s.Settings.GetBool(settings.KeyOnboardingDone)
 	torrentPort := strconv.Itoa(s.torrentListenPort()) // the port in use, 58264 unless changed
 	torrentRatio, _ := s.Settings.Get(settings.KeyTorrentSeedRatioLimit)
@@ -253,6 +256,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		DownloadsPath:            downloadsPath,
 		NamingPreset:             namingPreset,
 		MovieNameFormat:          movieFormat,
+		EpisodeNameFormat:        episodeFormat,
 		HasTMDBAPIKey:            s.TMDB().HasAPIKey(),
 		OnboardingDone:           onboardingDone,
 		TorrentListenPort:        torrentPort,
@@ -343,6 +347,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		{settings.KeyDownloadsPath, req.DownloadsPath},
 		{settings.KeyNamingPreset, req.NamingPreset},
 		{settings.KeyMovieNameFormat, req.MovieNameFormat},
+		{settings.KeyEpisodeNameFormat, req.EpisodeNameFormat},
 		{settings.KeyTorrentListenPort, req.TorrentListenPort},
 		{settings.KeyTorrentSeedRatioLimit, req.TorrentSeedRatioLimit},
 		{settings.KeyTorrentSeedTimeLimitH, req.TorrentSeedTimeLimitH},
@@ -673,31 +678,57 @@ type filesystemCheckPayload struct {
 type namingPreviewPayload struct {
 	Folder   string `json:"folder"`
 	Filename string `json:"filename"`
+	// Problem says what's wrong with a custom format, empty when it's fine.
+	Problem string `json:"problem,omitempty"`
 }
 
+// namingSamples are the made-up releases the preview names.
+var (
+	namingMovieSample = organizer.NamingContext{
+		MovieTitle: "Example Movie", Year: 2024, Quality: "1080p", Source: "BluRay",
+		Codec: "x265", AudioCodec: "DTS", HDR: "HDR10", Edition: "Extended", ReleaseGroup: "GROUP", TMDBID: 12345,
+	}
+	namingEpisodeSample = organizer.NamingContext{
+		SeriesTitle: "Example Show", Year: 2023, Season: 1, Episode: 2, EpisodeTitle: "The Second One", AirDate: "2023-03-14",
+		Quality: "1080p", Source: "WEB-DL", Codec: "x264", AudioCodec: "AAC", ReleaseGroup: "GROUP", TMDBID: 67890,
+	}
+)
+
 // handleNamingPreview shows a naming preset or custom format applied to a
-// fixed sample release, so the page can display the exact file name while
-// someone edits the tokens. It uses the same organizer.Render and Sanitize
-// the pipeline calls, so the preview always matches what is really produced.
+// fixed sample release (kind=movie, the default, or kind=tv), so the page can
+// display the exact file name while someone edits the tokens. It uses the
+// same organizer.Render and Sanitize the pipeline calls, so the preview always
+// matches what is really produced.
 func (s *Server) handleNamingPreview(w http.ResponseWriter, r *http.Request) {
+	tv := r.URL.Query().Get("kind") == "tv"
+	presets, sample, kind := organizer.Presets, namingMovieSample, organizer.TokenMovie
+	if tv {
+		presets, sample, kind = organizer.TVPresets, namingEpisodeSample, organizer.TokenTV
+	}
 	format := r.URL.Query().Get("format")
+	problem := ""
 	if format == "" {
-		if preset, ok := organizer.Presets[r.URL.Query().Get("preset")]; ok {
+		if preset, ok := presets[r.URL.Query().Get("preset")]; ok {
 			format = preset
 		} else {
-			format = organizer.Presets["plex"]
+			format = presets["plex"]
 		}
-	}
-
-	sample := organizer.NamingContext{
-		MovieTitle: "Example Movie", Year: 2024, Quality: "1080p", Source: "BluRay",
-		Codec: "x264", Edition: "Extended", ReleaseGroup: "GROUP",
+	} else {
+		problem = organizer.CheckFormat(format, kind)
 	}
 	mode, replacement := s.illegalCharSettings()
-	folder := organizer.Sanitize(organizer.Render(organizer.Presets["plex"], sample), mode, replacement)
-	filename := organizer.Sanitize(organizer.Render(format, sample), mode, replacement) + ".mkv"
+	clean := func(f string) string { return organizer.Sanitize(organizer.Render(f, sample), mode, replacement) }
+	out := namingPreviewPayload{Folder: clean(organizer.Presets["plex"]), Filename: clean(format) + ".mkv", Problem: problem}
+	if tv {
+		out.Folder = clean(organizer.TVSeriesFolder) + "/" + clean(organizer.TVSeasonFolder)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
 
-	writeJSON(w, http.StatusOK, namingPreviewPayload{Folder: folder, Filename: filename})
+// handleNamingTokens lists the tokens a custom format can use and the
+// ready-made formats to start from, for the builder in Settings.
+func (s *Server) handleNamingTokens(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"tokens": organizer.Tokens(), "schemes": organizer.Schemes})
 }
 
 // nearestExisting walks up from path to the closest folder that exists, and

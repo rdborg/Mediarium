@@ -7,14 +7,14 @@ import FolderStatus from '../../components/FolderStatus'
 import Icon from '../../components/Icon'
 import HardlinkWarning from '../../components/HardlinkWarning'
 import NamingPreview from '../../components/NamingPreview'
+import NamingBuilder from '../../components/NamingBuilder'
 import { useModules } from '../../ModulesContext'
 import { firstError, folderPath, required } from '../../validate'
 import { coreParent, pathInside, type FolderKind } from '../../setupHelpers'
 import { FieldError, FormProblem, useValidation } from '../../useValidation'
 
-// The tokens the naming engine understands (internal/organizer/naming.go).
-const NAME_TOKENS = ['movie title', 'year', 'quality', 'source', 'codec', 'release group', 'tmdb id', 'custom formats']
-
+// A quick check while typing; the full one (known tokens, padding, a title
+// in every name) comes from the server with the preview and on save.
 function namingFormat(value: string): string | null {
   const v = value.trim()
   if (v === '') return null
@@ -22,11 +22,6 @@ function namingFormat(value: string): string | null {
   const opens = (v.match(/\{/g) ?? []).length
   const closes = (v.match(/\}/g) ?? []).length
   if (opens !== closes) return 'A { or } is missing. Wrap each token in curly braces, like {Movie Title}.'
-  for (const m of v.matchAll(/\{([^{}:]*)(?::([^{}]*))?\}/g)) {
-    if (!NAME_TOKENS.includes(m[1].trim().toLowerCase())) return `{${m[1]}} isn't a known token. Try {Movie Title}, {Year}, {Quality}, {Source}, {Codec} or {Release Group}.`
-    if (m[2] !== undefined && !/^0+$/.test(m[2])) return `After the colon, use zeros to set padding, like {Year:0000}. "${m[2]}" won't work.`
-  }
-  if (!/\{movie title\}/i.test(v)) return 'Include {Movie Title} so each file is named after its movie.'
   return null
 }
 
@@ -40,6 +35,7 @@ function LibrarySection() {
   const [downloadsPath, setDownloadsPath] = useState('')
   const [namingPreset, setNamingPreset] = useState('plex')
   const [customFormat, setCustomFormat] = useState('')
+  const [episodeFormat, setEpisodeFormat] = useState('')
   const [illegalCharMode, setIllegalCharMode] = useState('strip')
   const [illegalCharReplacement, setIllegalCharReplacement] = useState('-')
   const [importConflictPolicy, setImportConflictPolicy] = useState('skip')
@@ -59,6 +55,7 @@ function LibrarySection() {
     audiobooksPath: audiobooksOn ? firstError(required(audiobooksPath, 'Add the folder your audiobooks go in, for example /audiobooks.'), folderPath(audiobooksPath, '/audiobooks')) : null,
     downloadsPath: firstError(required(downloadsPath, 'Add the folder downloads should go to, for example /downloads.'), folderPath(downloadsPath, '/downloads')),
     customFormat: namingPreset === 'custom' ? firstError(required(customFormat, 'Add a naming format, for example {Movie Title} ({Year}).'), namingFormat(customFormat)) : null,
+    episodeFormat: namingPreset === 'custom' ? namingFormat(episodeFormat) : null,
     illegalCharReplacement:
       illegalCharMode === 'replace'
         ? firstError(
@@ -90,6 +87,7 @@ function LibrarySection() {
         setDownloadsPath(s.downloadsPath)
         setNamingPreset(s.namingPreset || 'plex')
         setCustomFormat(s.movieNameFormat)
+        setEpisodeFormat(s.episodeNameFormat ?? '')
         setIllegalCharMode(s.illegalCharMode || 'strip')
         setIllegalCharReplacement(s.illegalCharReplacement || '-')
         setImportConflictPolicy(s.importConflictPolicy || 'skip')
@@ -111,6 +109,7 @@ function LibrarySection() {
         downloadsPath,
         namingPreset,
         movieNameFormat: customFormat,
+        episodeNameFormat: episodeFormat,
         illegalCharMode,
         illegalCharReplacement,
         importConflictPolicy,
@@ -228,14 +227,14 @@ function LibrarySection() {
                 <option value="custom">Custom</option>
               </select>
             </label>
-            {namingPreset === 'custom' && (
-              <label>
-                Custom format
-                <input value={customFormat} onChange={(e) => setCustomFormat(e.target.value)} placeholder="{Movie Title} ({Year}) [{Quality}]" {...v.bind('customFormat', customFormat, setCustomFormat)} />
-                <FieldError v={v} name="customFormat" />
-              </label>
+            {namingPreset === 'custom' ? (
+              <small style={{ color: 'var(--text-dim)' }}>Build your own movie and episode file names below.</small>
+            ) : (
+              <>
+                <NamingPreview preset={namingPreset} />
+                <NamingPreview preset={namingPreset} kind="tv" />
+              </>
             )}
-            <NamingPreview preset={namingPreset} format={namingPreset === 'custom' ? customFormat : undefined} />
           </div>
           <div className="grid-form">
             <label>
@@ -267,6 +266,7 @@ function LibrarySection() {
             <small style={{ color: 'var(--text-dim)' }}>What to do when a download would replace a file already in your library.</small>
           </div>
         </div>
+        {namingPreset === 'custom' && <NamingBuilder movieFormat={customFormat} setMovieFormat={setCustomFormat} episodeFormat={episodeFormat} setEpisodeFormat={setEpisodeFormat} v={v} />}
         <div style={{ marginTop: 14 }}>
           <button className="primary" onClick={save} disabled={saving}>
             Save

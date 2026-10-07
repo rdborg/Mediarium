@@ -298,12 +298,20 @@ export interface NotifyTestStep {
   ok: boolean
 }
 
+// The tokens a custom file name can use and the ready-made formats to start
+// from (GET /api/settings/naming-tokens).
+export interface NamingTokens {
+  tokens: { token: string; kind: 'movie' | 'tv' | 'both'; group: string }[]
+  schemes: { id: string; name: string; movie: string; episode: string }[]
+}
+
 export interface Settings {
   moviesPath: string
   tvPath?: string
   downloadsPath: string
   namingPreset: string
   movieNameFormat: string
+  episodeNameFormat?: string
   hasTmdbApiKey: boolean
   traktClientId?: string
   hasTraktClientId: boolean
@@ -2136,10 +2144,12 @@ export const api = {
       `/settings/filesystem-check?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
     ),
 
-  namingPreview: (preset: string, format?: string) =>
-    get<{ folder: string; filename: string }>(
-      `/settings/naming-preview?preset=${encodeURIComponent(preset)}${format ? `&format=${encodeURIComponent(format)}` : ''}`,
+  namingPreview: (preset: string, format?: string, kind: 'movie' | 'tv' = 'movie') =>
+    get<{ folder: string; filename: string; problem?: string }>(
+      `/settings/naming-preview?preset=${encodeURIComponent(preset)}&kind=${kind}${format ? `&format=${encodeURIComponent(format)}` : ''}`,
     ),
+
+  namingTokens: () => get<NamingTokens>('/settings/naming-tokens'),
 }
 
 export interface FlareSolverrStatus {

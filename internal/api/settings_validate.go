@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/rdborg/mediarium/internal/organizer"
 	"path"
 	"regexp"
 	"slices"
@@ -37,42 +38,10 @@ var (
 	badNameChar = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)
 )
 
-// namingTokens are the names a custom file name format understands
-// (internal/organizer/naming.go).
-var namingTokens = map[string]bool{
-	"movie title": true, "series title": true, "episode title": true, "year": true, "season": true, "episode": true,
-	"quality": true, "source": true, "codec": true, "release group": true, "tmdb id": true, "custom formats": true,
-}
-
-var namingToken = regexp.MustCompile(`\{([^{}:]*)(?::([^{}]*))?\}`)
-
-// checkNamingFormat checks a custom file name format like
-// "{Movie Title} ({Year}) [{Quality}]". It mirrors the check the Settings page
-// makes before saving.
-func checkNamingFormat(v string) string {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return ""
-	}
-	if strings.ContainsAny(v, `/\`) {
-		return `A file name can't contain / or \. The folder is chosen for you, so only write the name of the file itself.`
-	}
-	if strings.Count(v, "{") != strings.Count(v, "}") {
-		return "A { or } is missing. Each token should be wrapped in curly braces, like {Movie Title}."
-	}
-	for _, m := range namingToken.FindAllStringSubmatch(v, -1) {
-		if !namingTokens[strings.ToLower(strings.TrimSpace(m[1]))] {
-			return fmt.Sprintf("{%s} isn't a token Mediarium knows. Try {Movie Title}, {Year}, {Quality}, {Source}, {Codec} or {Release Group}.", m[1])
-		}
-		if m[2] != "" && strings.Trim(m[2], "0") != "" {
-			return fmt.Sprintf(`After the colon, use zeros to set padding, like {Year:0000}. "%s" won't work.`, m[2])
-		}
-	}
-	if !strings.Contains(strings.ToLower(v), "{movie title}") {
-		return "Include {Movie Title} so every file gets a name that says which movie it is."
-	}
-	return ""
-}
+// checkNamingFormat checks a custom movie file name format; the rules live
+// with the naming engine (organizer.CheckFormat), which the Settings page's
+// preview uses too.
+func checkNamingFormat(v string) string { return organizer.CheckFormat(v, organizer.TokenMovie) }
 
 // changed reports whether v differs from what is saved under key. A value
 // that is already saved is never re-checked, so an old install whose saved
@@ -151,6 +120,21 @@ func (s *Server) validateSettings(req *settingsPayload) string {
 		// while another style is picked the box is just a saved draft.
 		if preset == "custom" {
 			if m := checkNamingFormat(req.MovieNameFormat); m != "" {
+				return m
+			}
+		}
+	}
+	req.EpisodeNameFormat = strings.TrimSpace(req.EpisodeNameFormat)
+	if req.EpisodeNameFormat != "" && s.changed(settings.KeyEpisodeNameFormat, req.EpisodeNameFormat) {
+		if m := firstProblem(checkMaxLen(req.EpisodeNameFormat, "The episode file name format", maxNameFormatLen), checkNoControl(req.EpisodeNameFormat, "The episode file name format")); m != "" {
+			return m
+		}
+		preset := req.NamingPreset
+		if preset == "" {
+			preset, _ = s.Settings.Get(settings.KeyNamingPreset)
+		}
+		if preset == "custom" {
+			if m := organizer.CheckFormat(req.EpisodeNameFormat, organizer.TokenTV); m != "" {
 				return m
 			}
 		}

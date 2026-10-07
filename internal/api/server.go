@@ -486,6 +486,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("GET /api/settings/folder-check", s.handleFolderCheck)
 	admin.HandleFunc("POST /api/settings/folder-create", s.handleCreateFolder)
 	admin.HandleFunc("GET /api/settings/naming-preview", s.handleNamingPreview)
+	admin.HandleFunc("GET /api/settings/naming-tokens", s.handleNamingTokens)
 
 	// Indexers and Usenet servers.
 	admin.HandleFunc("GET /api/indexers", s.handleListIndexers)

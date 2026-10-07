@@ -56,7 +56,7 @@ func TestSettingsRejectValuesThatCannotWork(t *testing.T) {
 		{"custom format with a slash", map[string]any{"namingPreset": "custom", "movieNameFormat": "{Movie Title}/{Year}"}, "can't contain /"},
 		{"custom format with an unknown token", map[string]any{"namingPreset": "custom", "movieNameFormat": "{Movie Title} {Nope}"}, "isn't a token"},
 		{"custom format missing a brace", map[string]any{"namingPreset": "custom", "movieNameFormat": "{Movie Title"}, "{ or } is missing"},
-		{"custom format without the title", map[string]any{"namingPreset": "custom", "movieNameFormat": "{Year}"}, "Include {Movie Title}"},
+		{"custom format without the title", map[string]any{"namingPreset": "custom", "movieNameFormat": "{Year}"}, "Include the movie's title"},
 		{"custom format with a control character", map[string]any{"movieNameFormat": "{Movie Title}\n{Year}"}, "control characters"},
 		{"torrent port text", map[string]any{"torrentListenPort": "abc"}, "torrent port"},
 		{"torrent port negative", map[string]any{"torrentListenPort": "-5"}, "torrent port"},

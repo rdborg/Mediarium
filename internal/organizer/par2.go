@@ -46,7 +46,7 @@ func FindMainPar2Files(dir string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read dir %s: %w", dir, err)
 	}
-	var mains []string
+	var mains, vols []string
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -57,9 +57,16 @@ func FindMainPar2Files(dir string) ([]string, error) {
 			continue
 		}
 		if strings.Contains(lower, ".vol") {
-			continue // recovery volume, not a main index
+			vols = append(vols, filepath.Join(dir, name)) // recovery volume, not a main index
+			continue
 		}
 		mains = append(mains, filepath.Join(dir, name))
+	}
+	if len(mains) == 0 {
+		// Some releases are posted with only their recovery volumes
+		// ("movie.vol01+02.par2") and no main index. Every volume carries the
+		// set's file descriptions, so par2 can verify and repair from any one.
+		return onePerSet(vols), nil
 	}
 	return onePerSet(mains), nil
 }

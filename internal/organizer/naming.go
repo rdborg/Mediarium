@@ -4,7 +4,6 @@
 package organizer
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -27,6 +26,19 @@ type NamingContext struct {
 	EpisodeTitle string
 	Season       int
 	Episode      int
+	AirDate      string // YYYY-MM-DD, empty when unknown
+
+	// From the release name, for the Radarr/Sonarr-style tokens (tokens.go).
+	AudioCodec string
+	HDR        string // HDR10, HDR10+, DV
+	Is3D       bool
+	Proper     bool
+	Repack     bool
+	Languages  []string
+	IMDBID     string
+	TVDBID     int
+
+	editionTagged bool // set by Render when the format has {Edition Tags}
 }
 
 // Presets ship a few common naming schemes so most users never need to
@@ -56,66 +68,6 @@ var TVPresets = map[string]string{
 	"jellyfin": "{Series Title} - S{Season:00}E{Episode:00} - {Episode Title} [{Quality}]",
 	"kodi":     "{Series Title} - S{Season:00}E{Episode:00} - {Episode Title} [{Quality} {Source}]",
 	"minimal":  "S{Season:00}E{Episode:00}",
-}
-
-var tokenRe = regexp.MustCompile(`\{([^{}:]+)(?::([^{}]+))?\}`)
-
-// Render expands a naming-token format string against ctx, e.g.
-// "{Movie Title} ({Year}) [{Quality}] {Custom Formats}-{Release Group}".
-// An unrecognized token is left as an empty string rather than erroring,
-// since presets and any future custom tokens must degrade gracefully
-// rather than break renaming entirely.
-func Render(format string, ctx NamingContext) string {
-	result := tokenRe.ReplaceAllStringFunc(format, func(match string) string {
-		groups := tokenRe.FindStringSubmatch(match)
-		name, pad := groups[1], groups[2]
-		return applyPad(tokenValue(name, ctx), pad)
-	})
-	return collapseWhitespaceAndPunctuation(result)
-}
-
-// tokenValue matches token names case-insensitively — users may write
-// "{season:00}" while the presets use "{Season:00}", and a user hand-
-// typing a custom format shouldn't have to guess which.
-func tokenValue(name string, ctx NamingContext) string {
-	switch strings.ToLower(name) {
-	case "movie title":
-		return ctx.MovieTitle
-	case "series title":
-		return ctx.SeriesTitle
-	case "episode title":
-		return ctx.EpisodeTitle
-	case "year":
-		if ctx.Year == 0 {
-			return ""
-		}
-		return fmt.Sprintf("%d", ctx.Year)
-	case "season":
-		return fmt.Sprintf("%d", ctx.Season)
-	case "episode":
-		return fmt.Sprintf("%d", ctx.Episode)
-	case "quality":
-		return ctx.Quality
-	case "source":
-		return ctx.Source
-	case "codec":
-		return ctx.Codec
-	case "release group":
-		return ctx.ReleaseGroup
-	case "tmdb id":
-		if ctx.TMDBID == 0 {
-			return ""
-		}
-		return fmt.Sprintf("%d", ctx.TMDBID)
-	case "custom formats":
-		// No full custom-format matching engine yet (that's a Phase 2/3
-		// quality-profiles feature) — approximated for now as
-		// whatever edition/HDR-style tag is known, so the token still
-		// resolves to something meaningful rather than silently vanishing.
-		return ctx.Edition
-	default:
-		return ""
-	}
 }
 
 // maxPadWidth caps "{Token:000...}": no name needs more, and a format with a
@@ -149,6 +101,10 @@ func collapseWhitespaceAndPunctuation(s string) string {
 	s = emptyParen.ReplaceAllString(s, "")
 	s = emptyBrack.ReplaceAllString(s, "")
 	s = multiSpace.ReplaceAllString(s, " ")
+	// An empty token between two " - " leaves "Title - - Extended".
+	for strings.Contains(s, " - - ") {
+		s = strings.ReplaceAll(s, " - - ", " - ")
+	}
 	s = strings.TrimSpace(s)
 	return trailingDash.ReplaceAllString(s, "")
 }

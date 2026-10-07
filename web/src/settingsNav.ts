@@ -1,24 +1,23 @@
 import type { IconName } from './components/Icon'
 
 // The settings pages, in the order they appear under Settings in the sidebar.
-// Each has its own soft colour so the list is easy to scan. Pages marked
-// `member` are open to every account; the rest are for administrators only.
-export const SETTINGS_NAV: { to: string; label: string; icon: IconName; color: string; member?: boolean }[] = [
-  { to: '/settings/modules', label: 'Media types', icon: 'grid', color: '#ff9f6b' },
-  { to: '/settings/media', label: 'Folders and file names', icon: 'folder', color: '#7cc4f8' },
-  { to: '/settings/quality', label: 'Quality', icon: 'star', color: '#f5c76a' },
-  { to: '/settings/indexers', label: 'Indexers & Search', icon: 'search', color: '#a5b4fc' },
-  { to: '/settings/downloads', label: 'Usenet and torrents', icon: 'download', color: '#86dca4' },
-  { to: '/settings/vpn', label: 'VPN protection', icon: 'shield', color: '#6fd6c8' },
-  { to: '/settings/subtitles', label: 'Subtitles', icon: 'chat', color: '#f4a3c8' },
-  { to: '/settings/metadata', label: 'Movie info and lists', icon: 'globe', color: '#c1acf7' },
-  { to: '/settings/media-servers', label: 'Media servers', icon: 'monitor', color: '#f2c14e' },
-  { to: '/settings/notifications', label: 'Notifications', icon: 'mail', color: '#f7b27a' },
-  { to: '/settings/profile', label: 'Accounts', icon: 'user', color: '#8fb8f5', member: true },
-  { to: '/settings/system', label: 'Server and backup', icon: 'hard', color: '#b4bfcc' },
-  { to: '/settings/logs', label: 'Logs and errors', icon: 'warning', color: '#f0a3a3' },
-  { to: '/settings/migrate', label: 'Move from other apps', icon: 'refresh', color: '#b4bfcc' },
-  { to: '/settings/about', label: 'About and credits', icon: 'info', color: '#e7a6f2', member: true },
+// Pages marked `member` are open to every account; the rest are for administrators only.
+export const SETTINGS_NAV: { to: string; label: string; icon: IconName; member?: boolean }[] = [
+  { to: '/settings/modules', label: 'Media types', icon: 'grid' },
+  { to: '/settings/media', label: 'Folders and file names', icon: 'folder' },
+  { to: '/settings/quality', label: 'Quality', icon: 'star' },
+  { to: '/settings/indexers', label: 'Indexers & Search', icon: 'search' },
+  { to: '/settings/downloads', label: 'Usenet and torrents', icon: 'download' },
+  { to: '/settings/vpn', label: 'VPN protection', icon: 'shield' },
+  { to: '/settings/subtitles', label: 'Subtitles', icon: 'chat' },
+  { to: '/settings/metadata', label: 'Movie info and lists', icon: 'globe' },
+  { to: '/settings/media-servers', label: 'Media servers', icon: 'monitor' },
+  { to: '/settings/notifications', label: 'Notifications', icon: 'mail' },
+  { to: '/settings/profile', label: 'Accounts', icon: 'user', member: true },
+  { to: '/settings/system', label: 'Server and backup', icon: 'hard' },
+  { to: '/settings/logs', label: 'Logs and errors', icon: 'warning' },
+  { to: '/settings/migrate', label: 'Move from other apps', icon: 'refresh' },
+  { to: '/settings/about', label: 'About and credits', icon: 'info', member: true },
 ]
 
 // The settings pages an account may open: everything for an administrator,
@@ -35,22 +34,21 @@ export interface SettingsGroup {
   key: string
   label: string
   icon: IconName
-  color: string
   pages: NavPage[]
 }
 
 // Settings pages on the same topic share one sidebar entry. Opening it shows
 // its pages as indented items underneath, and every other entry stays closed,
 // so the sidebar stays short.
-const GROUPS: { key: string; label: string; icon: IconName; color: string; pages: string[] }[] = [
-  { key: 'modules', label: 'Media types', icon: 'grid', color: '#ff9f6b', pages: ['/settings/modules'] },
-  { key: 'library', label: 'Library', icon: 'folder', color: '#7cc4f8', pages: ['/settings/media', '/settings/quality'] },
-  { key: 'indexers', label: 'Indexers & Search', icon: 'search', color: '#a5b4fc', pages: ['/settings/indexers'] },
-  { key: 'downloads', label: 'Downloading', icon: 'download', color: '#86dca4', pages: ['/settings/downloads', '/settings/vpn'] },
-  { key: 'metadata', label: 'Info, lists and subtitles', icon: 'globe', color: '#c1acf7', pages: ['/settings/metadata', '/settings/subtitles'] },
-  { key: 'connections', label: 'Connections', icon: 'monitor', color: '#f2c14e', pages: ['/settings/media-servers', '/settings/notifications'] },
-  { key: 'profile', label: 'Accounts', icon: 'user', color: '#8fb8f5', pages: ['/settings/profile'] },
-  { key: 'system', label: 'System', icon: 'hard', color: '#b4bfcc', pages: ['/settings/system', '/settings/logs', '/settings/migrate', '/settings/about'] },
+const GROUPS: { key: string; label: string; icon: IconName; pages: string[] }[] = [
+  { key: 'modules', label: 'Media types', icon: 'grid', pages: ['/settings/modules'] },
+  { key: 'library', label: 'Library', icon: 'folder', pages: ['/settings/media', '/settings/quality'] },
+  { key: 'indexers', label: 'Indexers & Search', icon: 'search', pages: ['/settings/indexers'] },
+  { key: 'downloads', label: 'Downloading', icon: 'download', pages: ['/settings/downloads', '/settings/vpn'] },
+  { key: 'metadata', label: 'Info, lists and subtitles', icon: 'globe', pages: ['/settings/metadata', '/settings/subtitles'] },
+  { key: 'connections', label: 'Connections', icon: 'monitor', pages: ['/settings/media-servers', '/settings/notifications'] },
+  { key: 'profile', label: 'Accounts', icon: 'user', pages: ['/settings/profile'] },
+  { key: 'system', label: 'System', icon: 'hard', pages: ['/settings/system', '/settings/logs', '/settings/migrate', '/settings/about'] },
 ]
 
 export const inPage = (pathname: string, to: string) => pathname === to || pathname.startsWith(to + '/')

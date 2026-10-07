@@ -95,7 +95,7 @@ function TitleRails({ kind, filters, filtering, includeOlder, setIncludeOlder, o
 function SectionBlock({ kind, children }: { kind: Section; children: ReactNode }) {
   const k = DISCOVER_KINDS[kind]
   return (
-    <section className="discover-section" style={{ ['--kc' as string]: k.color }} aria-label={k.label}>
+    <section className="discover-section" aria-label={k.label}>
       <div className="section-divider">
         <span className="section-pill">
           <Icon name={k.icon} size={16} /> {k.label}

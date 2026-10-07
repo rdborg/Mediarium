@@ -632,7 +632,6 @@ export default function NotificationSettings() {
                   role="tab"
                   aria-selected={current.type === t.type}
                   className={`method-item${current.type === t.type ? ' active' : ''}`}
-                  style={{ ['--mc' as string]: 'var(--c-wanted)' }}
                   onClick={() => setPicked(t.type)}
                 >
                   <ServiceIcon type={t.type} size={30} />
@@ -644,7 +643,7 @@ export default function NotificationSettings() {
                 </button>
               ))}
             </div>
-            <div className="method-panel" role="tabpanel" style={{ ['--mc' as string]: 'var(--c-wanted)' }}>
+            <div className="method-panel" role="tabpanel">
               <div className="method-head">
                 <ServiceIcon type={current.type} size={46} />
                 <div>

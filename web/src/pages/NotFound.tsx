@@ -13,7 +13,7 @@ export default function NotFound() {
         Nothing lives at <code>{path}</code>. The link may be old, or the address has a typo.
       </p>
       <p className="not-found-links">
-        <Link className="btn-primary" to="/">
+        <Link className="btn-link primary-look" to="/">
           Go to the dashboard
         </Link>
         <Link to="/library">Library</Link>

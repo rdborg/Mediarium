@@ -16,7 +16,7 @@ export default function QuotaNote({ quota }: { quota: SubtitleQuota | null }) {
         </strong>
         {quota.resetsAt && quota.used > 0 && <small>refills {new Date(quota.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>}
       </div>
-      <div className="bar" style={{ ['--tc' as string]: warn ? 'var(--warning)' : 'var(--c-rose)' }}>
+      <div className={`bar${warn ? ' warn' : ''}`}>
         <span style={{ width: `${Math.max(3, pct)}%` }} />
       </div>
       {quota.message && <p>{quota.message}</p>}

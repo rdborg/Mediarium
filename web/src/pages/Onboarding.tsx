@@ -811,12 +811,6 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
 
       {step === S.done && (
         <div className="finish-card">
-          <div className="finish-glow" aria-hidden="true" />
-          <div className="finish-confetti" aria-hidden="true">
-            {Array.from({ length: 28 }, (_, i) => (
-              <i key={i} style={{ ['--i' as string]: i }} />
-            ))}
-          </div>
           <BrandMark className="finish-mark" />
           <h1>
             Welcome to <span>Mediarium</span>

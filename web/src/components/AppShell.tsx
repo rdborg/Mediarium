@@ -157,7 +157,7 @@ export default function AppShell() {
           </button>
         </div>
         {nav.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} title={collapsed ? n.label : undefined} style={{ ['--nc' as string]: `var(--c-${n.sec})` }} className={({ isActive }) => (n.sec === 'settings' && inSettings ? 'active parent-open' : isActive || (n.sec === 'calendar' && inUpcoming) ? 'active' : '')}>
+          <NavLink key={n.to} to={n.to} end={n.end} title={collapsed ? n.label : undefined} className={({ isActive }) => (n.sec === 'settings' && inSettings ? 'active parent-open' : isActive || (n.sec === 'calendar' && inUpcoming) ? 'active' : '')}>
             <span className="nav-ico">
               <Icon name={n.icon} size={17} />
             </span>
@@ -165,12 +165,12 @@ export default function AppShell() {
             {n.to === '/queue' && active > 0 && <span className="nav-count">{active}</span>}
           </NavLink>
         ))}
-        <div className="subnav" style={{ ['--nc' as string]: 'var(--c-settings)' }}>
+        <div className="subnav">
           {settingsGroups.map((g) => {
             const current = g.pages.some((p) => inPage(location.pathname, p.to))
             if (g.pages.length === 1) {
               return (
-                <NavLink key={g.key} to={g.pages[0].to} title={collapsed ? g.label : undefined} style={{ ['--sc' as string]: g.color }} className={() => (current ? 'active' : '')}>
+                <NavLink key={g.key} to={g.pages[0].to} title={collapsed ? g.label : undefined} className={() => (current ? 'active' : '')}>
                   <span className="nav-ico">
                     <Icon name={g.icon} size={15} />
                   </span>
@@ -182,7 +182,7 @@ export default function AppShell() {
             // Pressing the open group folds it up (and back down) without leaving the page.
             const open = current && !folded
             return (
-              <div key={g.key} className={`sn-group${open ? ' open' : ''}`} style={{ ['--sc' as string]: g.color }}>
+              <div key={g.key} className={`sn-group${open ? ' open' : ''}`}>
                 <NavLink
                   to={g.pages[0].to}
                   title={collapsed ? `${g.label}: ${g.pages.map((p) => p.label).join(', ')}` : undefined}
@@ -207,7 +207,7 @@ export default function AppShell() {
                 {open && (
                   <div className="sn-pages">
                     {g.pages.map((p) => (
-                      <NavLink key={p.to} to={p.to} title={p.label} style={{ ['--sc' as string]: g.color }} className={() => (inPage(location.pathname, p.to) ? 'sn-page active' : 'sn-page')}>
+                      <NavLink key={p.to} to={p.to} title={p.label} className={() => (inPage(location.pathname, p.to) ? 'sn-page active' : 'sn-page')}>
                         <span className="sn-ico">
                           <Icon name={p.icon} size={13} />
                         </span>

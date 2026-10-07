@@ -8,7 +8,7 @@ import Wanted from './Wanted'
 export default function Upcoming({ tab }: { tab: 'calendar' | 'wanted' }) {
   return (
     <div>
-      <nav className="page-tabs" aria-label="Upcoming" style={{ ['--tc' as string]: 'var(--c-calendar)' }}>
+      <nav className="page-tabs" aria-label="Upcoming">
         <NavLink to="/calendar" className={({ isActive }) => (isActive ? 'active' : '')}>
           <Icon name="calendar" size={15} /> Calendar
         </NavLink>

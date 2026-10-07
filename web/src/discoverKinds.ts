@@ -7,7 +7,6 @@ import type { MediaKind } from './ModulesContext'
 export interface DiscoverKind {
   label: string
   icon: IconName
-  color: string
   // The choices of the Order drop-down for this kind (the first is the default).
   orders: { value: string; label: string }[]
 }
@@ -17,10 +16,10 @@ const ORDER_NEWEST = { value: 'newest', label: 'Newest first' }
 const ORDER_OLDEST = { value: 'oldest', label: 'Oldest first' }
 
 export const DISCOVER_KINDS: Record<MediaKind | 'book', DiscoverKind> = {
-  movie: { label: 'Movies', icon: 'film', color: 'var(--c-movie)', orders: [ORDER_POPULAR, { value: 'rating', label: 'Highest rated' }, ORDER_NEWEST, ORDER_OLDEST] },
-  tv: { label: 'TV shows', icon: 'tv', color: 'var(--c-tv)', orders: [ORDER_POPULAR, { value: 'rating', label: 'Highest rated' }, ORDER_NEWEST, ORDER_OLDEST] },
-  music: { label: 'Music', icon: 'music', color: 'var(--c-music)', orders: [ORDER_POPULAR, ORDER_NEWEST, ORDER_OLDEST] },
-  book: { label: 'eBooks & Audiobooks', icon: 'book', color: 'var(--c-book)', orders: [ORDER_POPULAR, { value: 'rating', label: 'Highest rated' }, ORDER_NEWEST, ORDER_OLDEST] },
+  movie: { label: 'Movies', icon: 'film', orders: [ORDER_POPULAR, { value: 'rating', label: 'Highest rated' }, ORDER_NEWEST, ORDER_OLDEST] },
+  tv: { label: 'TV shows', icon: 'tv', orders: [ORDER_POPULAR, { value: 'rating', label: 'Highest rated' }, ORDER_NEWEST, ORDER_OLDEST] },
+  music: { label: 'Music', icon: 'music', orders: [ORDER_POPULAR, ORDER_NEWEST, ORDER_OLDEST] },
+  book: { label: 'eBooks & Audiobooks', icon: 'book', orders: [ORDER_POPULAR, { value: 'rating', label: 'Highest rated' }, ORDER_NEWEST, ORDER_OLDEST] },
 }
 
 // Orders every kind understands, for the All tab.

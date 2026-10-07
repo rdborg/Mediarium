@@ -667,7 +667,7 @@ export default function Library() {
                     <Icon name={i.state.icon} size={12} /> {i.state.label}
                   </span>
                   {i.live && (
-                    <div className="bar active" style={{ marginTop: 6, minWidth: 110, ['--tc' as string]: 'var(--c-activity)' }}>
+                    <div className="bar active" style={{ marginTop: 6, minWidth: 110 }}>
                       <span style={{ width: `${Math.max(3, i.live.progressPct)}%` }} />
                     </div>
                   )}

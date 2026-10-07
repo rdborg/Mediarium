@@ -1,8 +1,7 @@
 /* The new-version notice, the Updates card and the Restart card (Settings > System). */
 
 .update-card {
-  border-left: 4px solid var(--accent);
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 .update-card > h2 { margin-top: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .update-card .update-sub { color: var(--text-dim); margin: 0 0 12px; }
@@ -16,7 +15,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  background: var(--bg);
   color: var(--text);
   font: inherit;
   font-size: 0.9rem;
@@ -28,14 +27,14 @@
 
 .update-steps { margin-top: 10px; display: grid; gap: 8px; }
 .update-steps details { border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; background: var(--surface); }
-.update-steps summary { cursor: pointer; font-weight: 600; }
+.update-steps summary { cursor: pointer; font-weight: 500; }
 .update-steps ol { margin: 8px 0 2px; padding-left: 1.3rem; display: grid; gap: 4px; }
 .update-steps .update-note { color: var(--text-dim); font-size: 0.88rem; margin: 4px 0 0; }
 
-.update-progress { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-weight: 600; }
+.update-progress { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-weight: 500; }
 .update-progress .spinner-dot {
   width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border: 2px solid var(--border-strong);
   border-top-color: var(--accent);
   animation: update-spin 0.9s linear infinite;
 }
@@ -50,7 +49,7 @@
   background: var(--surface);
 }
 .update-box p { margin: 0 0 8px; }
-.update-box.warn { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+.update-box.warn { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 .update-box.ok { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
 
 .control-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
@@ -59,4 +58,4 @@
 button.link-button {
   background: none; border: none; padding: 0; color: var(--text-dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.88rem;
 }
-button.link-button:hover { color: var(--accent); }
+button.link-button:hover:not(:disabled) { color: var(--text); background: none; }

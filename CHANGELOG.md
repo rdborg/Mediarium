@@ -8,6 +8,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Changed
+- A calmer look throughout: neutral grey menus and panels in dark and light, one typeface, and posters and covers supply the colour. Colour on buttons, badges and lists is kept for what needs noticing (downloading, waiting, failed, remove), and the dashboard, library, Discover and settings pages are easier to scan.
+
 ## [2.1.8] - 2026-10-07
 
 ### Fixed

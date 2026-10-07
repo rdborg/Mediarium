@@ -32,7 +32,7 @@ export default function TestButton({
         {busy ? 'Testing…' : label}
       </button>
       {result && (
-        <span className={result.ok ? 'badge downloaded' : 'error-text'} style={{ fontSize: '0.85rem' }}>
+        <span className={result.ok ? 'badge success' : 'error-text'} style={{ fontSize: '0.85rem' }}>
           {result.message}
         </span>
       )}

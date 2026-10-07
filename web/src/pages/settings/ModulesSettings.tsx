@@ -9,7 +9,6 @@ interface ModuleInfo {
   key: ModuleKey
   name: string
   icon: IconName
-  color: string
   blurb: string
   points: string[]
 }
@@ -19,7 +18,6 @@ const MODULES: ModuleInfo[] = [
     key: 'movies',
     name: 'Movies',
     icon: 'film',
-    color: 'var(--c-movie)',
     blurb: 'Find, download and organise movies.',
     points: ['Discover what is popular, new and coming soon', 'The quality you want, with upgrades if you like', 'Named and filed for your media player', 'Subtitles and tags such as Kids or 4K'],
   },
@@ -27,7 +25,6 @@ const MODULES: ModuleInfo[] = [
     key: 'tv',
     name: 'TV shows',
     icon: 'tv',
-    color: 'var(--c-tv)',
     blurb: 'Follow shows and get new episodes as they air.',
     points: ['New episodes picked up by themselves', 'Whole seasons or single episodes', 'A calendar of what airs next', 'Filed by show and season'],
   },
@@ -35,7 +32,6 @@ const MODULES: ModuleInfo[] = [
     key: 'music',
     name: 'Music',
     icon: 'music',
-    color: 'var(--c-music)',
     blurb: 'Keep the albums of the artists you love.',
     points: ['Follow artists and get their new albums', 'FLAC or MP3, your choice', 'Albums, singles and EPs', 'Filed by artist and album'],
   },
@@ -43,7 +39,6 @@ const MODULES: ModuleInfo[] = [
     key: 'ebooks',
     name: 'Ebooks',
     icon: 'book',
-    color: 'var(--c-book)',
     blurb: 'Books for your e-reader, filed by author.',
     points: ['EPUB first, then AZW3, MOBI or PDF', 'Trending books and the classics on Discover', 'Follow authors for their new books', 'Read them in Mediarium Books'],
   },
@@ -51,7 +46,6 @@ const MODULES: ModuleInfo[] = [
     key: 'audiobooks',
     name: 'Audiobooks',
     icon: 'headphones',
-    color: 'var(--c-audiobook)',
     blurb: 'Audiobooks ready for your player, filed by author.',
     points: ['M4B first, then MP3 and the rest', 'Chapters kept in order', 'Listen in Mediarium Books, with a sleep timer', 'Your place is saved on every device'],
   },
@@ -98,7 +92,7 @@ export default function ModulesSettings() {
           const soon = !st.available
           const last = st.enabled && onCount <= 1
           return (
-            <section key={m.key} className={`module-card${st.enabled ? ' on' : ''}${soon ? ' soon' : ''}`} style={{ ['--mc' as string]: m.color }}>
+            <section key={m.key} className={`module-card${st.enabled ? ' on' : ''}${soon ? ' soon' : ''}`}>
               <header>
                 <span className="module-ico">
                   <Icon name={m.icon} size={26} />

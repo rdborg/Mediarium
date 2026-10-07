@@ -18,37 +18,10 @@ import { useGridColumns } from '../useGridColumns'
 import { useLive } from '../useLive'
 import { useUnreadErrors } from '../useProblems'
 
-// Counts up to its target once, so the numbers feel alive when the page opens.
-function useCountUp(target: number, ms = 700): number {
-  const [value, setValue] = useState(0)
-  const from = useRef(0)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      from.current = target
-      setValue(target)
-      return
-    }
-    const start = performance.now()
-    const begin = from.current
-    let raf = 0
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / ms)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setValue(Math.round(begin + (target - begin) * eased))
-      if (t < 1) raf = requestAnimationFrame(tick)
-      else from.current = target
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [target, ms])
-  return value
-}
-
 // One card per kind of media. A kind that is switched off keeps its card,
 // dimmed with an "Off" badge and the count it had, so it is easy to switch back
 // on; one that is not built yet says "Coming soon".
-function ModuleCard({ icon, label, value, unit, sub, to, color, off, soon }: { icon: IconName; label: string; value?: number; unit?: string; sub?: string; to: string; color: string; off?: boolean; soon?: boolean }) {
-  const counted = useCountUp(value ?? 0)
+function ModuleCard({ icon, label, value, unit, sub, to, off, soon }: { icon: IconName; label: string; value?: number; unit?: string; sub?: string; to: string; off?: boolean; soon?: boolean }) {
   const dim = off || soon
   const body = (
     <>
@@ -63,7 +36,7 @@ function ModuleCard({ icon, label, value, unit, sub, to, color, off, soon }: { i
         <span className="mod-value mod-empty">—</span>
       ) : (
         <span className="mod-value">
-          {counted.toLocaleString()}
+          {(value ?? 0).toLocaleString()}
           {unit && <small>{unit}</small>}
         </span>
       )}
@@ -71,11 +44,11 @@ function ModuleCard({ icon, label, value, unit, sub, to, color, off, soon }: { i
     </>
   )
   return dim ? (
-    <div className="stat-card mod-card is-dim" style={{ ['--tc' as string]: color }} aria-label={soon ? `${label}: coming soon` : `${label}: switched off`}>
+    <div className="stat-card mod-card is-dim" aria-label={soon ? `${label}: coming soon` : `${label}: switched off`}>
       {body}
     </div>
   ) : (
-    <Link to={to} className="stat-card mod-card" style={{ ['--tc' as string]: color }}>
+    <Link to={to} className="stat-card mod-card">
       {body}
     </Link>
   )
@@ -370,10 +343,10 @@ export default function Dashboard() {
   // Downloading, wanted, all good: with the server panel when there is one.
   const heroPills = (
         <div className="hero-pills">
-          <Link to="/queue" className="hero-pill" style={{ ['--pc' as string]: 'var(--c-activity)' }}>
+          <Link to="/queue" className="hero-pill" style={{ ['--pc' as string]: 'var(--info)' }}>
             <Icon name="download" size={15} /> {running} downloading
           </Link>
-          <Link to="/wanted" className="hero-pill" style={{ ['--pc' as string]: 'var(--c-wanted)' }}>
+          <Link to="/wanted" className="hero-pill" style={{ ['--pc' as string]: 'var(--warning)' }}>
             <Icon name="bookmark" size={15} /> {wanted} wanted
           </Link>
           {!admin ? null : problems > 0 ? (
@@ -386,7 +359,7 @@ export default function Dashboard() {
             </span>
           )}
           {data.health.some((h) => h.level === 'info') && (
-            <button className="hero-pill" style={{ ['--pc' as string]: 'var(--c-settings)' }} onClick={() => setShowOptional((v) => !v)} aria-expanded={showOptional}>
+            <button className="hero-pill" onClick={() => setShowOptional((v) => !v)} aria-expanded={showOptional}>
               <Icon name="sliders" size={15} /> {data.health.filter((h) => h.level === 'info').length} optional
             </button>
           )}
@@ -455,8 +428,8 @@ export default function Dashboard() {
       )}
 
       <div className="dash-cards">
-        <ModuleCard icon="film" label="Movies" value={lib.movies.total} sub={`${lib.movies.downloaded} downloaded · ${lib.movies.missing} missing`} to="/library?kind=movie" color="var(--c-movie)" off={!on('movies')} />
-        <ModuleCard icon="tv" label="TV shows" value={lib.series.total} sub={`${lib.series.episodesDownloaded} of ${lib.series.episodes} episodes`} to="/library?kind=tv" color="var(--c-tv)" off={!on('tv')} />
+        <ModuleCard icon="film" label="Movies" value={lib.movies.total} sub={`${lib.movies.downloaded} downloaded · ${lib.movies.missing} missing`} to="/library?kind=movie" off={!on('movies')} />
+        <ModuleCard icon="tv" label="TV shows" value={lib.series.total} sub={`${lib.series.episodesDownloaded} of ${lib.series.episodes} episodes`} to="/library?kind=tv" off={!on('tv')} />
         <ModuleCard
           icon="music"
           label="Music"
@@ -464,7 +437,6 @@ export default function Dashboard() {
           unit={music.artists === 1 ? 'artist' : 'artists'}
           sub={`${music.albums} ${music.albums === 1 ? 'album' : 'albums'} · ${music.missing} missing`}
           to="/library?kind=music"
-          color="var(--c-music)"
           off={!on('music')}
         />
         <ModuleCard
@@ -474,7 +446,6 @@ export default function Dashboard() {
           unit={ebooks.books === 1 ? 'book' : 'books'}
           sub={`${ebooks.downloaded} downloaded · ${ebooks.missing} missing`}
           to="/library?kind=ebook"
-          color="var(--c-book)"
           off={!on('ebooks')}
         />
         <ModuleCard
@@ -484,7 +455,6 @@ export default function Dashboard() {
           unit={audiobooks.books === 1 ? 'book' : 'books'}
           sub={`${audiobooks.downloaded} downloaded · ${audiobooks.missing} missing`}
           to="/library?kind=audiobook"
-          color="var(--c-audiobook)"
           off={!on('audiobooks')}
         />
       </div>

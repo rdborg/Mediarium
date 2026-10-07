@@ -77,7 +77,7 @@ export function FindServers({ onPick, onManual }: { onPick: (s: FoundMediaServer
                 </small>
               </span>
               {f.alreadyAdded ? (
-                <span className="badge downloaded">Added</span>
+                <span className="badge success">Added</span>
               ) : (
                 <button className="btn-sm primary" onClick={() => onPick(f)}>
                   Connect
@@ -179,7 +179,7 @@ export function PlexSignIn({ onAdded }: { onAdded: () => void }) {
                 </small>
               </span>
               {s.alreadyAdded ? (
-                <span className="badge downloaded">Added</span>
+                <span className="badge success">Added</span>
               ) : (
                 <button className="btn-sm primary" onClick={() => void add(s)} disabled={!!adding}>
                   {adding === s.machineIdentifier ? 'Adding…' : 'Add'}

@@ -82,9 +82,9 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  background: var(--accent-subtle);
 }
 .media-card.soon {
   opacity: 0.6;
@@ -104,11 +104,11 @@
   right: 14px;
   width: 20px;
   height: 20px;
-  border-radius: 6px;
-  border: 2px solid var(--text-dim);
+  border-radius: 4px;
+  border: 1.5px solid var(--text-faint);
   display: grid;
   place-items: center;
-  color: var(--on-accent, #062a24);
+  color: var(--on-accent);
 }
 .media-card.active .choice-box,
 .choice-card.active .choice-box {
@@ -150,12 +150,10 @@
   align-items: center;
   padding: 1px 8px;
   border-radius: 999px;
-  border: 1px solid var(--border);
   color: var(--text-dim);
-  background: var(--surface-2);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  background: var(--accent-subtle);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 .fbox-note,
 .fbox-calm,
@@ -175,9 +173,9 @@
 .fbox-fix code {
   font-family: var(--font-mono);
   font-size: 0.82rem;
-  background: var(--surface-2);
+  background: var(--accent-subtle);
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text);
   overflow-wrap: anywhere;
 }
@@ -189,9 +187,9 @@
   display: grid;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
-  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  background: var(--surface);
   font-size: 0.88rem;
 }
 .fbox-fix p {
@@ -209,8 +207,8 @@
 .later-folders {
   display: block;
   padding: 12px 14px;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--bg);
 }
 .later-folders[open] > summary {
@@ -219,28 +217,12 @@
 .later-folders .folder-grid {
   margin-top: 12px;
 }
-.link-btn {
-  display: inline;
-  padding: 0;
-  min-height: 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.link-btn:hover {
-  background: none;
-  filter: brightness(1.15);
-}
-
 .copy-box {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 6px 6px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg);
   min-width: 0;
@@ -262,14 +244,13 @@
   display: grid;
   gap: 8px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
   font-size: 0.9rem;
 }
 .callout.info {
-  border-color: color-mix(in srgb, var(--info) 40%, var(--border));
-  background: color-mix(in srgb, var(--info) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--info) 35%, var(--border));
 }
 .callout p,
 .callout ul {
@@ -296,8 +277,8 @@
 }
 .callout details summary {
   cursor: pointer;
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--text);
+  font-weight: 500;
 }
 .callout details[open] summary {
   margin-bottom: 8px;
@@ -316,27 +297,8 @@
   display: grid;
   gap: 8px;
 }
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.chip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+.player-pick .chip {
   white-space: normal;
-}
-.chip:hover {
-  border-color: var(--accent);
-}
-.chip.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
-  box-shadow: 0 0 0 1px var(--accent);
-  font-weight: 600;
 }
 
 /* ---- Media server step ----------------------------------------------- */
@@ -358,9 +320,8 @@
   height: auto;
 }
 .ms-pick-card.active {
-  border-color: var(--mc, var(--accent));
-  box-shadow: 0 0 0 1px var(--mc, var(--accent));
-  background: color-mix(in srgb, var(--mc, var(--accent)) 10%, var(--surface));
+  border-color: var(--accent);
+  background: var(--surface-2);
 }
 .ms-connected {
   list-style: none;
@@ -375,7 +336,7 @@
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
 }
 .ms-connected .ms-found-name {

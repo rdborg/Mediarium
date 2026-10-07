@@ -10,21 +10,20 @@
     <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0f1216" />
+    <meta name="theme-color" content="#0e0e0e" />
     <!-- Loading screen shown before the app's code arrives (same look as components/Splash.tsx). -->
     <style>
-      .splash { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; background: #0f1216; color: #e8ecf1; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; z-index: 100; }
-      .splash-mark { width: 112px; height: 112px; border-radius: 30px; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, rgba(45, 212, 191, 0.22), rgba(45, 212, 191, 0.04) 70%); animation: splash-breathe 2.2s ease-in-out infinite; }
-      .splash-logo { width: 64px; height: 64px; color: #2dd4bf; }
-      .splash-name { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.01em; }
-      .splash-label { color: #8b95a3; font-size: 0.95rem; }
+      .splash { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; background: #0e0e0e; color: #f2f2f2; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; z-index: 100; }
+      .splash-mark { display: grid; place-items: center; }
+      .splash-logo { width: 48px; height: 48px; color: #34d1bf; }
+      .splash-name { font-size: 1.4rem; font-weight: 600; }
+      .splash-label { color: #a3a3a3; font-size: 0.9rem; }
       .splash-dots i { font-style: normal; animation: splash-dot 1.2s infinite; opacity: 0.2; }
       .splash-dots i:nth-child(2) { animation-delay: 0.2s; }
       .splash-dots i:nth-child(3) { animation-delay: 0.4s; }
-      @keyframes splash-breathe { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.18); } 50% { transform: scale(1.05); box-shadow: 0 0 0 18px rgba(45, 212, 191, 0); } }
       @keyframes splash-dot { 0%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
-      @media (prefers-color-scheme: light) { .splash { background: #f6f7f9; color: #1b2330; } .splash-logo { color: #0f9f8f; } }
-      @media (prefers-reduced-motion: reduce) { .splash-mark, .splash-dots i { animation: none; opacity: 1; } }
+      @media (prefers-color-scheme: light) { .splash { background: #ffffff; color: #171717; } .splash-logo { color: #0b7a6f; } .splash-label { color: #525252; } }
+      @media (prefers-reduced-motion: reduce) { .splash-dots i { animation: none; opacity: 1; } }
     </style>
   </head>
   <body>

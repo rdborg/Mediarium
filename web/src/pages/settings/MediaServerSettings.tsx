@@ -300,12 +300,11 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
   const [addr, setAddr] = useState<Record<MediaServerKind, string>>({ plex: '', jellyfin: '', emby: '', audiobookshelf: '', kavita: '' })
   const { on } = useModules()
   const kinds = on('ebooks') || on('audiobooks') ? [...KINDS, ...BOOK_KINDS] : KINDS
-  const color = pick === 'find' ? '#f2c14e' : MEDIA_SERVER_BRAND[pick].color
 
   return (
     <div className="method-add">
       <div className="method-list" role="tablist" aria-label="Ways to connect a media server">
-        <button role="tab" aria-selected={pick === 'find'} className={`method-item${pick === 'find' ? ' active' : ''}`} style={{ ['--mc' as string]: '#f2c14e' }} onClick={() => setPick('find')}>
+        <button role="tab" aria-selected={pick === 'find'} className={`method-item${pick === 'find' ? ' active' : ''}`} onClick={() => setPick('find')}>
           <span className="method-find-ico">
             <Icon name="search" size={16} />
           </span>
@@ -325,7 +324,7 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
           </button>
         ))}
       </div>
-      <div className="method-panel" style={{ ['--mc' as string]: color }}>
+      <div className="method-panel">
         <div className="method-body" hidden={pick !== 'find'} role="tabpanel">
           <div className="method-head">
             <span className="method-find-ico big">

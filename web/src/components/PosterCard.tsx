@@ -117,7 +117,6 @@ export default function PosterCard({
             {ribbon.label}
           </span>
         )}
-        {kind && <span className={`pcard-kind kind-${kind}`} title={kind === 'movie' ? 'Movie' : kind === 'music' ? 'Music' : 'TV show'} />}
         {actions && actions.length > 0 && !selection && (
           <div className="pcard-actions">
             {actions.map((a) => (

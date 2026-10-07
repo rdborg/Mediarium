@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import Icon from './Icon'
 
 interface ToastItem {
   id: number
@@ -42,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((t) => (
           <div key={t.id} className={`toast toast-${t.kind}`}>
             <span className="toast-icon" aria-hidden="true">
-              {t.kind === 'success' ? '✓' : t.kind === 'error' ? '!' : 'i'}
+              <Icon name={t.kind === 'success' ? 'check' : t.kind === 'error' ? 'warning' : 'info'} size={16} />
             </span>
             {t.message}
           </div>

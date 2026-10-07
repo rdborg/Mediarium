@@ -5,13 +5,13 @@ import BrandMark from '../components/BrandMark'
 import Icon, { type IconName } from '../components/Icon'
 import { DOCS_URL, REPO_URL } from '../docs'
 
-const FEATURES: { icon: IconName; title: string; text: string; color: string }[] = [
-  { icon: 'search', title: 'Finds releases', text: 'Searches your indexers, ranks every result against your quality profile and picks the best one.', color: 'var(--c-discover)' },
-  { icon: 'download', title: 'Downloads them itself', text: 'A built-in Usenet downloader (multi-server, PAR2 repair, unpacking) and a built-in torrent client. Nothing else to install or connect.', color: 'var(--c-activity)' },
-  { icon: 'folder', title: 'Files it neatly', text: 'Moves finished downloads into your library with the naming you choose. It uses hardlinks when it can, so it takes no extra disk space, and it never overwrites or deletes your files on its own.', color: 'var(--c-library)' },
-  { icon: 'chat', title: 'Gets subtitles', text: 'Fetches subtitles in your languages from OpenSubtitles and keeps looking for the ones that are missing.', color: 'var(--c-rose)' },
-  { icon: 'calendar', title: 'Keeps watch', text: 'Tracks release and air dates, keeps looking for missing episodes, and for better quality when you switch that on, and tells you when something needs attention.', color: 'var(--c-wanted)' },
-  { icon: 'shield', title: 'Stays private', text: 'An optional built-in WireGuard VPN for torrent traffic, with a kill switch and no special container permissions. Everything runs on your own machine.', color: 'var(--c-dashboard)' },
+const FEATURES: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'search', title: 'Finds releases', text: 'Searches your indexers, ranks every result against your quality profile and picks the best one.' },
+  { icon: 'download', title: 'Downloads them itself', text: 'A built-in Usenet downloader (multi-server, PAR2 repair, unpacking) and a built-in torrent client. Nothing else to install or connect.' },
+  { icon: 'folder', title: 'Files it neatly', text: 'Moves finished downloads into your library with the naming you choose. It uses hardlinks when it can, so it takes no extra disk space, and it never overwrites or deletes your files on its own.' },
+  { icon: 'chat', title: 'Gets subtitles', text: 'Fetches subtitles in your languages from OpenSubtitles and keeps looking for the ones that are missing.' },
+  { icon: 'calendar', title: 'Keeps watch', text: 'Tracks release and air dates, keeps looking for missing episodes, and for better quality when you switch that on, and tells you when something needs attention.' },
+  { icon: 'shield', title: 'Stays private', text: 'An optional built-in WireGuard VPN for torrent traffic, with a kill switch and no special container permissions. Everything runs on your own machine.' },
 ]
 
 interface Credit {
@@ -60,7 +60,7 @@ const CREDITS: { group: string; items: Credit[] }[] = [
   {
     group: 'Fonts and icons',
     items: [
-      { name: 'Sora and IBM Plex', href: 'https://fonts.google.com/', used: 'Fonts', desc: 'Headings in Sora, text in IBM Plex Sans and Plex Mono.', licence: 'SIL Open Font License' },
+      { name: 'Sora and IBM Plex', href: 'https://fonts.google.com/', used: 'Fonts', desc: 'The Mediarium wordmark in Sora, text in IBM Plex Sans and Plex Mono.', licence: 'SIL Open Font License' },
       { name: 'Simple Icons', href: 'https://simpleicons.org/', used: 'Service logos', desc: 'The Discord, Telegram, Slack and ntfy marks on the Notifications page. Logos belong to their owners.', licence: 'CC0-1.0' },
     ],
   },
@@ -86,16 +86,16 @@ export default function About() {
           <p>One app that finds, downloads and organises your movies, shows and music, and keeps them up to date. Self-hosted, open source, and it runs as a single container.</p>
         </div>
         <div className="hero-pills">
-          <span className="hero-pill" style={{ ['--pc' as string]: 'var(--c-dashboard)' }}>
+          <span className="hero-pill">
             <Icon name="info" size={15} /> Version {version || 'dev'}
           </span>
-          <a className="hero-pill" href={REPO_URL} target="_blank" rel="noreferrer" style={{ ['--pc' as string]: 'var(--c-discover)' }}>
+          <a className="hero-pill" href={REPO_URL} target="_blank" rel="noreferrer">
             <Icon name="external" size={15} /> Source on GitHub
           </a>
-          <a className="hero-pill" href={DOCS_URL} target="_blank" rel="noreferrer" style={{ ['--pc' as string]: 'var(--c-activity)' }}>
+          <a className="hero-pill" href={DOCS_URL} target="_blank" rel="noreferrer">
             <Icon name="info" size={15} /> Documentation
           </a>
-          <a className="hero-pill" href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noreferrer" style={{ ['--pc' as string]: 'var(--c-library)' }}>
+          <a className="hero-pill" href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noreferrer">
             <Icon name="shield" size={15} /> AGPL-3.0 licence
           </a>
         </div>
@@ -103,7 +103,7 @@ export default function About() {
 
       <div className="feature-grid">
         {FEATURES.map((f) => (
-          <section key={f.title} className="tile" style={{ ['--tc' as string]: f.color }}>
+          <section key={f.title} className="tile">
             <div className="tile-head">
               <span className="tile-ico">
                 <Icon name={f.icon} size={18} />

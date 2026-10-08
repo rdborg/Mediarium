@@ -82,7 +82,7 @@ func FindLargestVideoFile(dir string) (string, error) {
 		return "", fmt.Errorf("scan %s for video files: %w", dir, err)
 	}
 	if best == "" {
-		return "", fmt.Errorf("no video file found in %s", dir)
+		return "", fmt.Errorf("no video file found in %s (%s)", dir, describeFolder(dir))
 	}
 	return best, nil
 }

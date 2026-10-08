@@ -146,6 +146,12 @@ func (s *Server) huntMovie(ctx context.Context, m library.Movie, instances []ind
 		if !force && unreleased(m.ReleaseDate) {
 			return false // nothing to download yet
 		}
+		if !force {
+			if note, hold := s.homeReleaseHold(ctx, m, profile); hold {
+				s.noteHomeHold(m, note)
+				return false // only in cinemas so far: wait for the digital or disc release
+			}
+		}
 		outcomes := indexers.SearchAll(ctx, instances, m.Title, movieCategory)
 		// A title search also returns other films with similar words; only
 		// releases of this movie may be grabbed.
@@ -215,6 +221,10 @@ func (s *Server) rssSync(ctx context.Context) {
 		switch m.Status {
 		case library.StatusMissing:
 			if !unreleased(m.ReleaseDate) {
+				if note, hold := s.homeReleaseHold(context.Background(), m, profiles.resolve(m.ProfileID)); hold {
+					s.noteHomeHold(m, note)
+					continue
+				}
 				missing = append(missing, m)
 			}
 		case library.StatusDownloaded:

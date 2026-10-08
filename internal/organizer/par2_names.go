@@ -157,6 +157,7 @@ func hashFirst16k(path string) ([16]byte, error) {
 // real name, PAR2 files and files nothing matches are left alone. It
 // returns how many files were renamed.
 func Deobfuscate(dir string) (int, error) {
+	namePar2ByContent(dir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return 0, fmt.Errorf("read dir %s: %w", dir, err)

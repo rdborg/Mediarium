@@ -8,6 +8,19 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-10-08
+
+### Changed
+- A new film is no longer searched for automatically while it is only in cinemas. Nearly everything posted then is a recording made in the cinema, and some are named like a normal WEB-DL, so no quality profile can tell them apart. Mediarium waits for the digital or disc release date TMDB lists, or 90 days after the cinema date when TMDB has none. It looks at films from the last five months only, a film whose profile takes CAM/TeleSync (the Cinema recordings preset) is not held, and **Search now** and choosing a release by hand still work. The title's history says what it is waiting for (asked for by u/Dry_Register_5812 on Reddit).
+
+### Fixed
+- When a finished download has no video file in it, the error now says what the folder holds: how many files, how big, and the biggest names. A support report then shows whether archives were left unpacked or the files had odd names (looked into after reports from u/Wiwer on Reddit).
+- A release posted with random file names and a PAR2 file that has no `.par2` ending is handled: the PAR2 file is recognised by what is in it, so the real file names come back and repair runs (looked into after reports from u/Wiwer on Reddit).
+- Cinema recordings whose names end in Rip or use a dash (`HDCAMRip`, `HQCAMRip`, `HDTSRip`, `HDTCRip`, `TSRip`, `PreDVDRip`, `Tele-Sync`) were taken for a normal 1080p WEB-DL, so a profile set to WEB-DL only still downloaded them. They are now recognised as CAM/TeleSync like the others (reported by u/Dry_Register_5812 on Reddit).
+- A WireGuard config whose server is a host name (Surfshark and several other providers write it that way, like `us-slc.prod.surfshark.com:51820`) failed with "The VPN server address isn't right". The name is now looked up each time the connection starts, the way `wg-quick` does, and the name stays in the settings so a provider that changes the address keeps working. A name that can't be found says so (reported by goneturbo on GitHub, #33).
+- Importing from Sonarr, Radarr and the others through an address behind Cloudflare, like a Cloudflare Tunnel, ended with a bare "530". It now says that the address is behind Cloudflare, which can't reach the app, and suggests the app's address on your own network (reported by Hoopes80 on GitHub, #32).
+- A torrent whose magnet link lists a UDP tracker crashed Mediarium while the VPN was on. UDP trackers can't go through the tunnel, so they are skipped now and the torrent carries on with its web (HTTP) trackers and peers (reported by u/Big_Dragonfruit9719 on Reddit).
+
 ## [2.1.9] - 2026-10-07
 
 ### Fixed

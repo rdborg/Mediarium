@@ -85,7 +85,7 @@ var (
 		// Pre-release copies (recorded in a cinema, or screener discs). They
 		// often also carry "1080p", so this must win over the resolution: the
 		// picture is still a camera or telesync recording.
-		{regexp.MustCompile(`(?i)\b(CAM|CAMRip|HD-?CAM|HQ-?CAM|TS|HD-?TS|TELESYNC|PDVD|PreDVD|TC|HD-?TC|TELECINE|SCR|SCREENER|DVDSCR|DVD-?SCR|BDSCR|WEBSCR|R5)\b`), func(r *Release, m []string) {
+		{regexp.MustCompile(`(?i)\b(CAM(?:-?Rip)?|HD-?CAM(?:-?Rip)?|HQ-?CAM(?:-?Rip)?|TS(?:-?Rip)?|HD-?TS(?:-?Rip)?|HQ-?TS(?:-?Rip)?|TELE-?SYNC|PDVD|PreDVD(?:-?Rip)?|TC(?:-?Rip)?|HD-?TC(?:-?Rip)?|TELE-?CINE|SCR|SCREENER|DVD-?SCR(?:-?Rip)?|BD-?SCR|WEB-?SCR|R5)\b`), func(r *Release, m []string) {
 			r.Source = normalizePreRelease(m[1])
 		}},
 		// Remux is its own token (not an alternative in the BluRay regex
@@ -356,11 +356,12 @@ func normalizeSpace(s string) string {
 // normalizePreRelease names the kind of pre-release copy: CAM, TELESYNC,
 // TELECINE, SCREENER or R5.
 func normalizePreRelease(s string) string {
-	u := strings.ReplaceAll(strings.ToUpper(s), "-", "")
+	// "Rip" on the end ("HDCAMRip", "HDTSRip") names the same copy.
+	u := strings.TrimSuffix(strings.ReplaceAll(strings.ToUpper(s), "-", ""), "RIP")
 	switch u {
-	case "CAM", "CAMRIP", "HDCAM", "HQCAM":
+	case "CAM", "HDCAM", "HQCAM":
 		return "CAM"
-	case "TS", "HDTS", "TELESYNC", "PDVD", "PREDVD":
+	case "TS", "HDTS", "HQTS", "TELESYNC", "PDVD", "PREDVD":
 		return "TELESYNC"
 	case "TC", "HDTC", "TELECINE":
 		return "TELECINE"

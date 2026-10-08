@@ -96,8 +96,34 @@ func TestNetworkPolicyWithVPNUsesOnlyTheTunnel(t *testing.T) {
 	if u, err := tcfg.HTTPProxy(req); u != nil || err != nil {
 		t.Errorf("HTTPProxy = %v, %v; a proxy from the environment would carry traffic outside the tunnel", u, err)
 	}
-	if pc, err := tcfg.TrackerListenPacket("udp4", ":0"); err == nil {
-		pc.Close()
-		t.Error("UDP trackers must not open a host socket while the VPN is on")
+	// A UDP tracker gets a stand-in that opens nothing on the host: asking the
+	// engine for a socket must not fail (it would panic), sending fails, and
+	// reading ends when the stand-in is closed.
+	pc, err := tcfg.TrackerListenPacket("udp4", ":0")
+	if err != nil {
+		t.Fatalf("TrackerListenPacket returned %v; an error here makes the engine panic", err)
+	}
+	if _, ok := pc.(*udpOffConn); !ok {
+		t.Fatalf("UDP trackers got %T, want the stand-in that opens no host socket", pc)
+	}
+	if _, err := pc.WriteTo([]byte("x"), &net.UDPAddr{IP: net.ParseIP("203.0.113.5"), Port: 6969}); !errors.Is(err, errUDPTrackersOffWithVPN) {
+		t.Errorf("UDP announce while the VPN is on: %v, want errUDPTrackersOffWithVPN", err)
+	}
+	read := make(chan error, 1)
+	go func() { _, _, err := pc.ReadFrom(make([]byte, 16)); read <- err }()
+	select {
+	case err := <-read:
+		t.Fatalf("ReadFrom returned %v before the stand-in was closed", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	_ = pc.Close()
+	_ = pc.Close() // closing twice is fine
+	select {
+	case err := <-read:
+		if !errors.Is(err, net.ErrClosed) {
+			t.Errorf("ReadFrom after Close: %v, want net.ErrClosed", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("ReadFrom did not return after Close")
 	}
 }

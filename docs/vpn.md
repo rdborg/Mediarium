@@ -18,7 +18,7 @@ Find it under **Settings > Downloading > VPN protection**. It's optional: nothin
 | Field | What to enter |
 |---|---|
 | Label | A name for you, for example "My VPN". |
-| Endpoint | The server's address and port, like `vpn.example.com:51820`. |
+| Endpoint | The server's address and port, like `vpn.example.com:51820`. A server name or an IP address both work. A name is looked up each time the connection starts, the way `wg-quick` does it, and the name itself is what's kept. |
 | Private key | Your WireGuard private key (44 characters). |
 | Peer public key | The server's public key (44 characters). |
 | Preshared key | Optional. Only if your config has a `PresharedKey` line (Windscribe's do). Without it the tunnel never connects. |

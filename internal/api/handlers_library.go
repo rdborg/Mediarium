@@ -379,6 +379,10 @@ func (s *Server) searchMovieInBackground(movieID int64) {
 	if err != nil {
 		return
 	}
+	if note, hold := s.homeReleaseHold(context.Background(), m, profiles.resolve(m.ProfileID)); hold {
+		s.noteHomeHold(m, note) // still only in cinemas: the "Search now" button looks anyway
+		return
+	}
 	s.huntMovie(context.Background(), m, instances, profiles, s.blockedKeys(), true)
 }
 

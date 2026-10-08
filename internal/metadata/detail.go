@@ -233,6 +233,8 @@ type MovieDetail struct {
 			Country      string `json:"iso_3166_1"`
 			ReleaseDates []struct {
 				Certification string `json:"certification"`
+				Type          int    `json:"type"`
+				Date          string `json:"release_date"`
 			} `json:"release_dates"`
 		} `json:"results"`
 	} `json:"release_dates"`

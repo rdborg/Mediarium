@@ -265,7 +265,11 @@ func (c Config) uapiConfig() (string, error) {
 		// dynamically from its first valid handshake (peer "roaming"),
 		// so a responder doesn't need to know an initiator's address
 		// ahead of time.
-		fmt.Fprintf(&b, "endpoint=%s\n", c.Endpoint)
+		ep, err := resolveEndpoint(c.Endpoint)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(&b, "endpoint=%s\n", ep)
 	}
 	if c.PresharedKey != "" {
 		pskHex, err := base64KeyToHex(c.PresharedKey)
@@ -285,6 +289,43 @@ func (c Config) uapiConfig() (string, error) {
 		fmt.Fprintf(&b, "allowed_ip=%s\n", ip)
 	}
 	return b.String(), nil
+}
+
+// lookupIP is net's resolver; a test swaps it so no real lookup is needed.
+var lookupIP = net.DefaultResolver.LookupNetIP
+
+// resolveEndpoint turns the server address of a config into the IP:port that
+// WireGuard's config protocol accepts. Many providers (Surfshark among them)
+// write a host name, which wg-quick resolves when it brings the tunnel up; the
+// same is done here, each time a tunnel starts, while the stored config keeps
+// the name so a provider that changes the address behind it keeps working. An
+// address that already is an IP is left alone, and an IPv4 address is preferred
+// when the name has both.
+func resolveEndpoint(endpoint string) (string, error) {
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("server address %q: %w", endpoint, err)
+	}
+	if _, err := netip.ParseAddr(host); err == nil {
+		return endpoint, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	addrs, err := lookupIP(ctx, "ip", host)
+	if err != nil {
+		return "", fmt.Errorf("look up the VPN server %s: %w", host, err)
+	}
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("look up the VPN server %s: no address found", host)
+	}
+	pick := addrs[0]
+	for _, a := range addrs {
+		if a.Unmap().Is4() {
+			pick = a.Unmap()
+			break
+		}
+	}
+	return net.JoinHostPort(pick.String(), port), nil
 }
 
 func base64KeyToHex(key string) (string, error) {

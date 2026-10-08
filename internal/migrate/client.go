@@ -199,6 +199,9 @@ func send(hc *http.Client, req *http.Request, host, shown string, isXML bool, au
 		return errors.New(authMsg)
 	case resp.StatusCode == http.StatusNotFound:
 		return fmt.Errorf("%s answered 404 for %s: check the address (and its URL base, if you set one)", host, shown)
+	case resp.StatusCode >= 520 && resp.StatusCode <= 530, resp.StatusCode >= 500 && resp.Header.Get("Cf-Ray") != "":
+		// Cloudflare 52x: the address goes through Cloudflare (a tunnel, usually) and it cannot reach the app.
+		return fmt.Errorf("%s is behind Cloudflare, which answered %d for %s because it can't reach the app behind it. Use the app's address on your own network instead, for example http://192.168.1.20:8989", host, resp.StatusCode, shown)
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("%s answered %s for %s", host, resp.Status, shown)
 	}

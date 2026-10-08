@@ -46,6 +46,7 @@ It's **read-only on the other side**. Every request Mediarium sends to the other
 - Mediarium is installed and you've finished the first-run wizard, with your **movies** and **TV** folders set (Settings → Library → Folders and file names). On a Synology, follow the [Synology guide](./synology.md) first.
 - A TMDB API key is set (Settings → Info, lists and subtitles → Movie info and lists), unless your copy of Mediarium came with one.
 - The movies and TV folders Radarr and Sonarr use are **mounted into Mediarium's container** too (see [Step 3](#step-3-check-the-folder-mapping)).
+- An address that goes through Cloudflare (a Cloudflare Tunnel, for example) can answer with an error like 530 when Cloudflare can't reach the app behind it. Use the app's address on your own network instead. Mediarium says so when it sees this.
 - Mediarium can reach the other apps over the network. When they all run on the same NAS, use the NAS's address (for example `http://192.168.1.20:7878`), not `localhost`. Inside a container, `localhost` is the container itself.
 
 ## Step 1: Find the addresses and API keys

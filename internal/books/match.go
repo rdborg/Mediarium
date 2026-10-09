@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // Matching releases to books, and finding the book's files in a finished
@@ -13,10 +16,23 @@ import (
 
 var nonWord = regexp.MustCompile(`[^a-z0-9]+`)
 
-// words splits a title into lower-case words.
+// words splits a title into lower-case words. Accented letters are folded to
+// their plain form first, so a release named "Le Pere Goriot" still matches
+// the book "Le Père Goriot" (and the other way round).
 func words(s string) []string {
-	s = strings.ToLower(strings.ReplaceAll(s, "'", ""))
+	s = foldAccents(strings.ToLower(strings.ReplaceAll(s, "'", "")))
 	return strings.Fields(nonWord.ReplaceAllString(s, " "))
+}
+
+// foldAccents strips diacritics (é becomes e, ö becomes o, and so on) so
+// release names written without them still match.
+func foldAccents(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Mn, r) { // combining diacritical mark
+			return -1
+		}
+		return r
+	}, norm.NFD.String(s))
 }
 
 var small = map[string]bool{"the": true, "a": true, "an": true, "of": true, "and": true, "to": true, "in": true, "on": true, "for": true}

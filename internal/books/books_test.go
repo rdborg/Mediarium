@@ -228,3 +228,21 @@ func TestEditions(t *testing.T) {
 		}
 	}
 }
+
+func TestMatchesAccentedNames(t *testing.T) {
+	b := Book{Title: "Le Père Goriot", Author: "Honoré de Balzac"}
+	cases := []struct {
+		release string
+		ok      bool
+	}{
+		{"Honoré de Balzac - Le Pere Goriot [Unabridged]", true},
+		{"Honore de Balzac - Le Père Goriot (1835) [EPUB]", true},
+		{"Le Pere Goriot - Honore de Balzac epub", true},
+		{"Honoré de Balzac - Le Cousin Pons [Unabridged]", false},
+	}
+	for _, tc := range cases {
+		if got := Matches(tc.release, b); got != tc.ok {
+			t.Errorf("%q: %v, want %v", tc.release, got, tc.ok)
+		}
+	}
+}

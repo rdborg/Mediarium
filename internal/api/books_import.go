@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -188,6 +189,16 @@ func (s *Server) importOneBook(res bookImportResult) bookImportResult {
 		return res
 	}
 	if match == nil {
+		// An audiobook Open Library doesn't carry is often on Audible: ask
+		// Audnexus before giving up, and add the book from what it says.
+		if res.Kind == books.Audiobook {
+			if d, derr := s.Audnexus.Lookup(ctx, res.Title, res.Author); derr == nil && d.ASIN != "" {
+				return s.importOneBookViaAudnexus(ctx, res, d)
+			} else if derr != nil && !errors.Is(derr, books.ErrNotFound) {
+				res.Status, res.Message = bookUnmatched, "Audnexus didn't answer. Run the import again later."
+				return res
+			}
+		}
 		res.Status, res.Message = bookUnmatched, "Not found on Open Library. Check the folder is named Author/Title."
 		return res
 	}
@@ -230,6 +241,48 @@ func (s *Server) importOneBook(res bookImportResult) bookImportResult {
 		s.lookUpAudioDetailsLater(updated) // narrator and length, for an audiobook
 		s.convertLater(updated)            // an EPUB copy of a Kindle book, for the reader
 	}
+	return res
+}
+
+// importOneBookViaAudnexus adds a book Audible has and Open Library doesn't:
+// it gets a library entry keyed by its Audible id, straight away as
+// downloaded, with the narrator and length Audnexus reported.
+func (s *Server) importOneBookViaAudnexus(ctx context.Context, res bookImportResult, d books.AudioDetails) bookImportResult {
+	key := "audnexus:" + d.ASIN
+	b, ok, err := s.BookRepo.GetByKey(key)
+	if err != nil {
+		res.Status, res.Message = bookFailed, err.Error()
+		return res
+	}
+	if !ok {
+		nb := books.Book{OLKey: key, Title: d.Title, Author: res.Author, WantAudiobook: true,
+			SeriesName: d.SeriesName, SeriesPosition: d.SeriesPosition, ReleaseDate: d.ReleaseDate}
+		if len(d.ReleaseDate) >= 4 {
+			nb.Year, _ = strconv.Atoi(d.ReleaseDate[:4])
+		}
+		b, err = s.BookRepo.Add(nb)
+		if errors.Is(err, books.ErrExists) {
+			b, _, err = s.BookRepo.GetByKey(key)
+		}
+		if err != nil {
+			res.Status, res.Message = bookFailed, err.Error()
+			return res
+		}
+	} else if b.Path(res.Kind) != "" {
+		res.Status, res.BookID, res.Message = bookAlready, b.ID, "This book already has a file: "+b.Path(res.Kind)
+		return res
+	}
+	if !b.Wants(res.Kind) {
+		_ = s.BookRepo.SetWant(b.ID, res.Kind, true)
+	}
+	if err := s.BookRepo.SetState(b.ID, res.Kind, books.StatusDownloaded, res.Format, res.Path); err != nil {
+		res.Status, res.Message = bookFailed, err.Error()
+		return res
+	}
+	if err := s.BookRepo.SetAudioDetails(b.ID, d); err != nil {
+		slog.Warn("books: save audiobook details", "book", b.ID, "err", err)
+	}
+	res.Status, res.BookID, res.Matched = bookImported, b.ID, d.Title+" (Audible)"
 	return res
 }
 

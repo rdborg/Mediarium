@@ -439,14 +439,18 @@ func (s *Server) testIndexerInstance(ctx context.Context, inst indexers.Instance
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	n, err := s.Cardigann.Test(ctx, inst)
+	res, err := s.Cardigann.Test(ctx, inst)
 	if err != nil {
 		return connTestResult{Message: plainerror.Message(err)}
 	}
-	if n == 0 {
+	if res.Releases == 0 {
 		return connTestResult{Message: "Signed in and searched, but the site returned no releases. Try updating the site list."}
 	}
-	return connTestResult{OK: true, Message: fmt.Sprintf("Connected. The site returned %s.", plural(n, "recent release"))}
+	msg := fmt.Sprintf("Connected. The site returned %s.", plural(res.Releases, "recent release"))
+	if res.ViaFlareSolverr && s.vpnForIndexers() {
+		msg += " FlareSolverr fetched it past Cloudflare, so the site saw FlareSolverr's address, not your VPN's."
+	}
+	return connTestResult{OK: true, Message: msg}
 }
 
 const (

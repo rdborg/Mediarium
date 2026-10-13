@@ -281,9 +281,12 @@ func TestCardigannPrivateLoginSearchDownload(t *testing.T) {
 	}
 
 	// Test() logs in afresh and counts results
-	n, err := m.Test(context.Background(), inst)
-	if err != nil || n != 2 {
-		t.Errorf("test = %d, %v", n, err)
+	res, err := m.Test(context.Background(), inst)
+	if err != nil || res.Releases != 2 {
+		t.Errorf("test = %d, %v", res.Releases, err)
+	}
+	if res.ViaFlareSolverr {
+		t.Error("no Cloudflare check was passed, so FlareSolverr should not be reported")
 	}
 }
 
@@ -500,6 +503,13 @@ func TestCardigannCloudflareViaFlareSolverr(t *testing.T) {
 	}
 	if calls.Load() != 1 {
 		t.Errorf("expected the clearance to be reused, FlareSolverr called %d times", calls.Load())
+	}
+	tr, err := m.Test(context.Background(), inst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tr.ViaFlareSolverr {
+		t.Fatal("the test should say FlareSolverr passed the Cloudflare check")
 	}
 }
 

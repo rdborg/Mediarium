@@ -90,28 +90,37 @@ func (m *CardigannManager) Search(ctx context.Context, inst Instance, query stri
 	return sess.search(ctx, query, categories)
 }
 
+// TestResult is what a test found: how many releases came back, and whether
+// FlareSolverr had to pass a Cloudflare check on the way.
+type TestResult struct {
+	Releases        int
+	ViaFlareSolverr bool
+}
+
 // Test signs in if needed (running the definition's login test) and runs a
-// search without keywords, falling back to the keyword "test". It returns
-// how many releases came back.
-func (m *CardigannManager) Test(ctx context.Context, inst Instance) (int, error) {
+// search without keywords, falling back to the keyword "test".
+func (m *CardigannManager) Test(ctx context.Context, inst Instance) (TestResult, error) {
 	sess, err := m.session(ctx, inst)
 	if err != nil {
-		return 0, err
+		return TestResult{}, err
 	}
 	// A signed-in session is checked by the search itself (a lost session
 	// signs in again); changed settings always start a new session.
 	cats := []int{2000, 5000}
 	results, err := sess.search(ctx, "", cats)
 	if err != nil {
-		return 0, err
+		return TestResult{}, err
 	}
 	if len(results) == 0 {
 		results, err = sess.search(ctx, "test", cats)
 		if err != nil {
-			return 0, err
+			return TestResult{}, err
 		}
 	}
-	return len(results), nil
+	sess.mu.Lock()
+	via := sess.viaFlareSolverr
+	sess.mu.Unlock()
+	return TestResult{Releases: len(results), ViaFlareSolverr: via}, nil
 }
 
 // Download resolves a result link (from EncodeLinkRef) into a magnet link
@@ -196,10 +205,11 @@ type cgSession struct {
 	decode func([]byte) ([]byte, error)
 	encode func(string) string
 
-	mu          sync.Mutex // one flow (login/search/download) at a time
-	lastRequest time.Time
-	loggedIn    bool
-	userAgent   string // set by FlareSolverr
+	mu              sync.Mutex // one flow (login/search/download) at a time
+	lastRequest     time.Time
+	loggedIn        bool
+	userAgent       string // set by FlareSolverr
+	viaFlareSolverr bool   // a Cloudflare check was passed by FlareSolverr
 }
 
 func newSession(m *CardigannManager, def *Definition, inst Instance) (*cgSession, error) {
@@ -627,6 +637,7 @@ func (s *cgSession) solveChallenge(ctx context.Context, fsURL string, r cgReques
 	}
 	if sol.UserAgent != "" {
 		s.userAgent = sol.UserAgent
+		s.viaFlareSolverr = true
 	}
 	log.Printf("cardigann: indexer=%q passed a Cloudflare check via FlareSolverr cookies=%d", s.name, len(jarCookies))
 	return sol, nil

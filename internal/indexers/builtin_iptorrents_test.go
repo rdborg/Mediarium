@@ -325,9 +325,9 @@ func TestIPTorrentsDownloadAndTest(t *testing.T) {
 		t.Errorf("download sent user agent %q", ua)
 	}
 
-	n, err := m.Test(context.Background(), inst)
-	if err != nil || n != 3 {
-		t.Fatalf("test: n=%d err=%v", n, err)
+	res, err := m.Test(context.Background(), inst)
+	if err != nil || res.Releases != 3 {
+		t.Fatalf("test: n=%d err=%v", res.Releases, err)
 	}
 }
 

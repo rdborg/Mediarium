@@ -7,7 +7,8 @@ Find it under **Settings > Downloading > VPN and proxy**. It's optional: nothing
 ## What goes through the VPN
 
 - **Torrent traffic** (talking to peers, to HTTP trackers, to web seeds and fetching the details a magnet link points to), whenever a VPN is connected. UDP trackers (`udp://`) cannot go through the tunnel, so they are not used while the VPN is on; HTTP trackers, the other peers and the swarm still work.
-- **Nothing else.** Searching your indexers, TMDB, subtitles, media servers and your Usenet provider all connect directly. Usenet downloads are encrypted between you and your provider, and do not show your address to other people the way a torrent swarm does. To send indexers or Usenet somewhere else too, use a [proxy](#a-socks5-or-http-proxy-instead).
+- **Indexers, if you choose.** Switch on **Send indexer traffic through the VPN** and searches, RSS, release downloads, IRC announces and debrid go through it too. See [Indexers through the VPN](#indexers-through-the-vpn).
+- **Nothing else.** TMDB, subtitles, media servers and your Usenet provider all connect directly. Usenet downloads are encrypted between you and your provider, and do not show your address to other people the way a torrent swarm does. To send Usenet somewhere else too, use a [proxy](#a-socks5-or-http-proxy-instead).
 
 ## Add a connection
 
@@ -105,6 +106,15 @@ Through the tunnel, DHT and uTP are turned off (they need a direct UDP connectio
 
 If you only use Usenet, you can also switch off **Use the built-in torrent client** under **Settings > Downloading > Torrents**.
 
+## Indexers through the VPN
+
+**Send indexer traffic through the VPN** (under the kill switch) sends everything Mediarium asks your indexers for through the tunnel: searches, RSS, downloading the `.torrent` or `.nzb`, IRC announce channels and your debrid service. The sites see the VPN's address, and their names are looked up through the tunnel, so your internet provider doesn't see which sites you use. It's off by default.
+
+- **Your own network connects directly.** The tunnel can't reach your home network, so an indexer at a private address (like `192.168.1.20`), on this machine (`localhost`), at a Tailscale address, or at a name without a dot (a Docker container like `prowlarr`) or ending in `.local`, `.lan`, `.home.arpa` or `.internal` connects directly. A public name that points to your home network goes into the tunnel and fails; use the address or the container name instead.
+- **No direct fallback.** While the VPN is connecting or down, or no VPN is switched on, indexer searches fail with a message that says so. Turn the switch off to search without the VPN.
+- **FlareSolverr isn't covered.** For sites behind a Cloudflare check, FlareSolverr fetches the page itself, from its own network. Cloudflare ties its pass to the address it saw, so those sites may stop working unless FlareSolverr goes through the same VPN. The built-in one in the `-full` image doesn't. The page warns about this when FlareSolverr is set up, and an indexer test says when FlareSolverr was used.
+- **With a proxy too**, the VPN wins for indexer traffic.
+
 ## A SOCKS5 or HTTP proxy instead
 
 If you already run a proxy, such as the SOCKS5 port of a VPN container (Gluetun, for example), a seedbox or Tor, Mediarium can send traffic through it instead. The **Proxy** card is on the same page. OpenVPN isn't built in, because it needs the extra privileges this app doesn't ask for, but a VPN container with a SOCKS5 or HTTP proxy gives you the same result.
@@ -128,4 +138,4 @@ The endpoint is `host:port` with a port from 1 to 65535, the two keys are 44-cha
 
 ## For scripts
 
-The routes are `GET/POST /api/vpn/configs`, `DELETE /api/vpn/configs/{id}`, `POST /api/vpn/configs/{id}/activate`, `POST /api/vpn/deactivate`, `GET /api/vpn/status` (`connected`, `state` of `off`, `connecting`, `connected` or `down`, `label`, `reason`) and `GET /api/vpn/egress-ip`, all for administrators ([reference/api.md](./reference/api.md)). The kill switch is the setting `vpn.require_for_torrents`. The code is in `internal/vpn`.
+The routes are `GET/POST /api/vpn/configs`, `DELETE /api/vpn/configs/{id}`, `POST /api/vpn/configs/{id}/activate`, `POST /api/vpn/deactivate`, `GET /api/vpn/status` (`connected`, `state` of `off`, `connecting`, `connected` or `down`, `label`, `reason`) and `GET /api/vpn/egress-ip`, all for administrators ([reference/api.md](./reference/api.md)). The kill switch is the setting `vpn.require_for_torrents`, and indexers through the VPN is `vpn.route_indexers` (`routeIndexersThroughVpn` in `/api/settings`). The code is in `internal/vpn`.

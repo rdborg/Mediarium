@@ -8,6 +8,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Added
+- **Send indexer traffic through the VPN**: a new switch under the kill switch in Settings > Downloading > VPN and proxy. Searches, RSS, release downloads, IRC announces and debrid then go through the built-in VPN, and wait while it isn't connected instead of going without it. Indexers on your own network still connect directly. Off by default. See `docs/vpn.md`.
+
 ## [3.0.5] - 2026-10-13
 
 ### Fixed

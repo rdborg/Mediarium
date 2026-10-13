@@ -295,7 +295,7 @@ function VPNSection() {
         />
         {indexers.value && flareSolverr && (
           <div className="notice notice-warn">
-            {t("Sites behind a Cloudflare check are fetched by FlareSolverr from its own network, so they see that address (your home address for the built-in one), not the VPN's. Some may also stop working.")}
+            {t("Sites behind a Cloudflare check are fetched by FlareSolverr from its own network, so they see that address (your server address for the built-in one), not the VPN's. Some may also stop working.")}
           </div>
         )}
       </section>

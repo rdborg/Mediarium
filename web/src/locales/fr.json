@@ -3280,7 +3280,7 @@
   "Singles": "Singles",
   "Site address": "Adresse du site",
   "Site definitions": "Définitions des sites",
-  "Sites behind a Cloudflare check are fetched by FlareSolverr from its own network, so they see that address (your home address for the built-in one), not the VPN's. Some may also stop working.": "Les sites protégés par une vérification Cloudflare sont récupérés par FlareSolverr depuis son propre réseau : ils voient donc cette adresse (celle de votre domicile pour celui intégré), pas celle du VPN. Certains peuvent aussi cesser de fonctionner.",
+  "Sites behind a Cloudflare check are fetched by FlareSolverr from its own network, so they see that address (your server address for the built-in one), not the VPN's. Some may also stop working.": "Les sites protégés par une vérification Cloudflare sont récupérés par FlareSolverr depuis son propre réseau : ils voient donc cette adresse (celle de votre serveur pour celui intégré), pas celle du VPN. Certains peuvent aussi cesser de fonctionner.",
   "Sites that write dates in their own way": "Les sites qui écrivent les dates à leur façon",
   "Sites with a Cloudflare check are fetched through this helper. Leave it empty to turn the helper off, or to use the built-in one if you have it.": "Les sites avec une vérification Cloudflare sont récupérés via cet assistant. Laissez vide pour désactiver l'assistant, ou pour utiliser celui qui est intégré si vous l'avez.",
   "Six-digit code": "Code à six chiffres",

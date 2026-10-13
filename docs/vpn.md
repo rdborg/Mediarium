@@ -1,8 +1,8 @@
 # VPN protection
 
-Mediarium has a WireGuard VPN client built in, for torrent traffic. It runs inside the app, so the container needs no extra privileges: no `NET_ADMIN` and no `/dev/net/tun`.
+Mediarium has a WireGuard VPN client built in, for torrent traffic and, if you choose, indexer traffic. It runs inside the app, so the container needs no extra privileges: no `NET_ADMIN` and no `/dev/net/tun`.
 
-Find it under **Settings > Downloading > VPN and proxy**. It's optional: nothing goes through a VPN until you add a connection and activate it. From then on, all torrent traffic goes through it while it's connected.
+Find it under **Settings > Downloading > VPN and proxy**. It's optional: nothing goes through a VPN until you add a connection and activate it. From then on, all torrent traffic goes through it while it's connected, and indexer traffic too if you switch that on.
 
 ## What goes through the VPN
 
@@ -108,11 +108,11 @@ If you only use Usenet, you can also switch off **Use the built-in torrent clien
 
 ## Indexers through the VPN
 
-**Send indexer traffic through the VPN** (under the kill switch) sends everything Mediarium asks your indexers for through the tunnel: searches, RSS, downloading the `.torrent` or `.nzb`, IRC announce channels and your debrid service. The sites see the VPN's address, and their names are looked up through the tunnel, so your internet provider doesn't see which sites you use. It's off by default.
+**Send indexer traffic through the VPN** (under the kill switch) sends everything Mediarium asks your indexers for through the tunnel: searches, RSS, downloading the `.torrent` or `.nzb`, IRC announce channels and your debrid service. The sites see the VPN's address, and their names are looked up through the tunnel, so your internet provider doesn't see which sites you use. That needs DNS servers on the connection (the **DNS servers** field); without them, public indexer names can't be found through the tunnel. It's off by default.
 
-- **Your own network connects directly.** The tunnel can't reach your home network, so an indexer at a private address (like `192.168.1.20`), on this machine (`localhost`), at a Tailscale address, or at a name without a dot (a Docker container like `prowlarr`) or ending in `.local`, `.lan`, `.home.arpa` or `.internal` connects directly. A public name that points to your home network goes into the tunnel and fails; use the address or the container name instead.
-- **No direct fallback.** While the VPN is connecting or down, or no VPN is switched on, indexer searches fail with a message that says so. Turn the switch off to search without the VPN.
-- **FlareSolverr isn't covered.** For sites behind a Cloudflare check, FlareSolverr fetches the page itself, from its own network. Cloudflare ties its pass to the address it saw, so those sites may stop working unless FlareSolverr goes through the same VPN. The built-in one in the `-full` image doesn't. The page warns about this when FlareSolverr is set up, and an indexer test says when FlareSolverr was used.
+- **Your own network connects directly.** The tunnel can't reach your home network, so an indexer at a private address (like `192.168.1.20`), on this machine (`localhost`), at a Tailscale address, or at a name without a dot (a Docker container like `prowlarr`) or ending in `.local`, `.lan`, `.home.arpa` or `.internal` connects directly. A public name that points to your home network goes into the tunnel and fails; use the address or the container name instead. A local Prowlarr or Jackett still fetches the real sites from its own network, so they see your home address unless it's behind the VPN itself.
+- **No direct fallback.** While the VPN is connecting or down, or no VPN is switched on, indexer searches fail with a message that says so. That doesn't count against the indexer, so it isn't paused. Turn the switch off to search without the VPN.
+- **FlareSolverr isn't covered.** For sites behind a Cloudflare check, FlareSolverr fetches the page itself, from its own network, so those sites see that address, not the VPN's. For the built-in one in the `-full` image that's your home address. Cloudflare also ties its pass to the address it saw, so some of those sites may stop working unless FlareSolverr goes through the same VPN. While the switch is on, the page warns about this when FlareSolverr is set up, and an indexer test says when FlareSolverr was used.
 - **With a proxy too**, the VPN wins for indexer traffic.
 
 ## A SOCKS5 or HTTP proxy instead

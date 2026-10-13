@@ -122,15 +122,23 @@ func (s *Server) collectHealth() []healthItem {
 
 	vpnStatus := s.VPNManager.Status()
 	vpnConnected := vpnStatus.Connected
+	routeIndexers := s.vpnForIndexers()
+	if routeIndexers && vpnStatus.State == vpn.StateOff {
+		add("vpn-indexers-none", "error", "Indexer searches are blocked",
+			"They're set to go through the VPN, but no VPN is switched on. Switch one on, or turn off Send indexer traffic through the VPN.",
+			"Open VPN settings", "/settings/vpn")
+	}
 	switch {
-	case !torrentsOn:
-		// Torrents are off: nothing to warn about VPNs or torrent indexers.
+	case !torrentsOn && !routeIndexers:
+		// Nothing uses the VPN: nothing to warn about VPNs or torrent indexers.
 	case vpnStatus.State == vpn.StateDown:
 		add("vpn-down", "error", "Your VPN isn't connected",
-			vpnStatus.Label+" isn't working. "+vpnStatus.Reason+" Torrents wait until it's back. Press Disconnect in the VPN settings to download without it.",
+			vpnStatus.Label+" isn't working. "+vpnStatus.Reason+" "+vpnDownImpact(torrentsOn, routeIndexers),
 			"Open VPN settings", "/settings/vpn")
 	case vpnStatus.State == vpn.StateConnecting:
 		// Coming up (after a restart, for example): nothing to report yet.
+	case !torrentsOn:
+		// The rest is about torrents.
 	case s.vpnRequiredForTorrents() && !vpnConnected:
 		add("vpn-required", "error", "Torrents are blocked until a VPN is connected",
 			"The VPN kill switch is on, so torrents wait for a VPN. Usenet isn't affected.",
@@ -288,6 +296,19 @@ func (s *Server) collectHealth() []healthItem {
 
 	sort.SliceStable(items, func(i, j int) bool { return healthRank[items[i].Level] < healthRank[items[j].Level] })
 	return items
+}
+
+// vpnDownImpact says what waits while the VPN is down, and how to go on
+// without it.
+func vpnDownImpact(torrents, indexers bool) string {
+	switch {
+	case torrents && indexers:
+		return "Torrents and indexer searches wait until it's back. To go on without it, press Disconnect and turn off Send indexer traffic through the VPN."
+	case indexers:
+		return "Indexer searches wait until it's back. To search without it, turn off Send indexer traffic through the VPN."
+	default:
+		return "Torrents wait until it's back. Press Disconnect in the VPN settings to download without it."
+	}
 }
 
 func todayUTC() string { return time.Now().UTC().Format("2006-01-02") }

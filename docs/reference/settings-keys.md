@@ -148,5 +148,6 @@ The keys the app stores in its settings table. You normally change these from th
 | `updates.latest` | the newest release the last check found (JSON; set by the app, not user-editable) |
 | `updates.notified_version` | the version the "new version" message was last sent for (set by the app, not user-editable) |
 | `vpn.require_for_torrents` |  |
+| `vpn.route_indexers` | "1" sends searches, RSS, release downloads, IRC announces and debrid through the VPN, and they wait while it isn't up. Home-network addresses still connect directly |
 | `watched.status` | the last read and cleanup (JSON; set by the app, not user-editable) |
 | `watched.sync` | "1" reads what's been watched from Plex, Jellyfin and Emby every six hours; unset or "0" leaves it off |

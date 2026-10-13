@@ -12,6 +12,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/config"
 	"github.com/rdborg/mediarium/internal/crypto"
+	"github.com/rdborg/mediarium/internal/netproxy"
 	"github.com/rdborg/mediarium/internal/settings"
 	"github.com/rdborg/mediarium/internal/store"
 	"github.com/rdborg/mediarium/internal/vpn"
@@ -198,5 +199,26 @@ func TestSavedVPNThatCantBeReadShowsAsDown(t *testing.T) {
 	}
 	if _, err := s.torrentTunnel(); err == nil {
 		t.Fatal("torrents must wait while the saved VPN can't be read")
+	}
+}
+
+func TestHealthNamesIndexersWhenTheVPNIsDown(t *testing.T) {
+	t.Cleanup(func() { netproxy.SetVPN(nil, nil) })
+	s := newBareServer(t)
+	s.VPNManager.Broken("Home VPN", "The VPN server isn't answering.")
+	if err := s.Settings.Set(settings.KeyTorrentEnabled, "0", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Settings.Set(settings.KeyVPNRouteIndexers, "1", false); err != nil {
+		t.Fatal(err)
+	}
+	var down *healthItem
+	for _, it := range s.collectHealth() {
+		if it.ID == "vpn-down" {
+			down = &it
+		}
+	}
+	if down == nil || !strings.Contains(down.Impact, "Indexer searches wait") || strings.Contains(down.Impact, "Torrents") {
+		t.Fatalf("vpn-down with torrents off and indexers routed: %+v", down)
 	}
 }

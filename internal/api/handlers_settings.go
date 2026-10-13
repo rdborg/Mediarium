@@ -168,6 +168,9 @@ type settingsPayload struct {
 	// distinguishable from "explicitly turned off".
 	RequireVPNForTorrents *bool `json:"requireVpnForTorrents,omitempty"`
 
+	// Indexer traffic through the VPN. A pointer for the same reason.
+	RouteIndexersThroughVPN *bool `json:"routeIndexersThroughVpn,omitempty"`
+
 	// Curated/public list import — Trakt's public
 	// list-items endpoint only needs an app client ID, no user OAuth.
 	// A pointer for the same reason as OpenSubtitlesAPIKey.
@@ -307,6 +310,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	illegalCharReplacement, _ := s.Settings.Get(settings.KeyIllegalCharReplacement)
 	requireVPNForTorrents := s.vpnRequiredForTorrents()
+	routeIndexersThroughVPN := s.vpnForIndexers()
 	importConflictPolicy, _ := s.Settings.Get(settings.KeyImportConflictPolicy)
 	if importConflictPolicy == "" {
 		importConflictPolicy = "skip"
@@ -393,6 +397,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		InfoLanguage:             s.infoLanguage(),
 		InfoLanguages:            metadata.InfoLanguages,
 		RequireVPNForTorrents:    &requireVPNForTorrents,
+		RouteIndexersThroughVPN:  &routeIndexersThroughVPN,
 		ImportConflictPolicy:     importConflictPolicy,
 		HasTraktClientID:         s.Trakt().HasClientID(),
 		FlareSolverrURL:          &flareSolverr,
@@ -723,6 +728,17 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+	}
+	if req.RouteIndexersThroughVPN != nil {
+		value := "1"
+		if !*req.RouteIndexersThroughVPN {
+			value = "0"
+		}
+		if err := s.Settings.Set(settings.KeyVPNRouteIndexers, value, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		s.applyVPNRoutes()
 	}
 
 	if req.TMDBAPIKey != "" {

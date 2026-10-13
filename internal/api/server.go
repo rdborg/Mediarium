@@ -240,6 +240,7 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 	s.setupSearchExtras()
 	s.instrumentTMDB(s.tmdb)
 	s.applyProxy()
+	s.applyVPNRoutes()
 	s.setupPush()
 	s.instrumentTrakt(s.trakt)
 	s.Monitor = s.newMonitor()

@@ -114,6 +114,9 @@ const (
 	// VPN at all yet — an opt-in kill switch, not an opt-out one.
 	KeyVPNRequireForTorrents = "vpn.require_for_torrents"
 
+	// Indexer traffic through the VPN. Off when unset.
+	KeyVPNRouteIndexers = "vpn.route_indexers" // "1" sends searches, RSS, release downloads, IRC announces and debrid through the VPN, and they wait while it isn't up. Home-network addresses still connect directly
+
 	// A SOCKS5 or HTTP proxy for some of Mediarium's traffic. The address
 	// (with any user name and password) is stored encrypted; "" means no
 	// proxy. proxy_for lists what goes through it: torrents, indexers and/or

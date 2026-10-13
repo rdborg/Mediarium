@@ -626,6 +626,8 @@ export interface Settings {
   illegalCharMode?: string
   illegalCharReplacement?: string
   requireVpnForTorrents?: boolean
+  // Send indexer traffic through the VPN; off until switched on.
+  routeIndexersThroughVpn?: boolean
   importConflictPolicy?: string
   torrentEnabled?: boolean
   flareSolverrUrl?: string

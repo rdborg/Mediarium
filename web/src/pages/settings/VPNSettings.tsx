@@ -11,6 +11,7 @@ import { parseWireGuardConf, type WireGuardConf } from '../../wgConf'
 import { OTHER_PROVIDER, confHints, providerName, vpnProviders } from '../../vpnProviders'
 import { t } from '../../i18n'
 import TipLabel from '../../components/TipLabel'
+import { flareSolverrSetUp } from './vpnIndexers'
 
 function VPNSection() {
   const [list, setList] = useState<VPNConfig[]>([])
@@ -39,6 +40,16 @@ function VPNSection() {
     (saved) => (saved ? t('Saved: torrents now only run while a VPN is connected.') : t('Saved: torrents no longer require a VPN.')),
     false,
   )
+  const indexers = useAutosaveSetting<boolean>(
+    (s) => !!s.routeIndexersThroughVpn,
+    (v) => ({ routeIndexersThroughVpn: v }),
+    (saved) => (saved ? t('Saved: indexer traffic now goes through the VPN.') : t('Saved: indexer traffic now connects directly.')),
+    false,
+  )
+  const [flareSolverr, setFlareSolverr] = useState(false)
+  useEffect(() => {
+    api.getSettings().then((s) => setFlareSolverr(flareSolverrSetUp(s))).catch(() => undefined)
+  }, [])
   const [egressIp, setEgressIp] = useState('')
   const [egressIpStatus, setEgressIpStatus] = useState('')
 
@@ -272,6 +283,21 @@ function VPNSection() {
           description={t('Torrents wait instead of connecting without the tunnel. A proxy for torrents (below) counts too. DHT and uTP stay off through the tunnel.')}
           showState
         />
+        <Switch
+          checked={indexers.value}
+          onChange={indexers.change}
+          disabled={!indexers.loaded || indexers.saving}
+          label={t('Send indexer traffic through the VPN')}
+          tip={t("Your indexers see the VPN's address instead of yours, and their names are looked up through the tunnel too.")}
+          learnMore="downloads#indexers-through-the-vpn"
+          description={t('Searches, RSS, release downloads, IRC announces and debrid go through the tunnel. Indexers on your own network still connect directly. If the VPN is down, searches wait instead of going without it.')}
+          showState
+        />
+        {indexers.value && flareSolverr && (
+          <div className="notice notice-warn">
+            {t('Sites behind a Cloudflare check may stop working: FlareSolverr fetches them itself, not through this VPN, and Cloudflare ties its pass to the address it saw. That includes the built-in one in the -full image.')}
+          </div>
+        )}
       </section>
 
       <section className="card">

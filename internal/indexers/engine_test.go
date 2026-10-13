@@ -2,11 +2,13 @@ package indexers_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/rdborg/mediarium/internal/indexers"
+	"github.com/rdborg/mediarium/internal/netproxy"
 )
 
 func TestSearchAllToleratesOneBadIndexer(t *testing.T) {
@@ -50,5 +52,30 @@ func TestSearchAllToleratesOneBadIndexer(t *testing.T) {
 	merged := indexers.MergeResults(outcomes)
 	if len(merged) != 1 {
 		t.Fatalf("expected merged results to only include the good indexer's result, got %d", len(merged))
+	}
+}
+
+// downVPN is a VPN that is switched on but not up yet.
+type downVPN struct{}
+
+func (downVPN) Tunnel() netproxy.ContextDialer { return nil }
+func (downVPN) Selected() (string, string)     { return "My VPN", "Starting the connection." }
+
+func TestSearchWaitsForTheVPNWithoutCountingAFailure(t *testing.T) {
+	netproxy.SetVPN(downVPN{}, map[netproxy.Use]bool{netproxy.Indexers: true})
+	t.Cleanup(func() { netproxy.SetVPN(nil, nil) })
+	tr := indexers.NewTracker(nil, nil)
+
+	inst := indexers.Instance{ID: 1, Name: "Public Indexer", BaseURL: "https://indexer.example.com", APIKey: "k", Enabled: true, Tracker: tr}
+	outcomes := indexers.SearchAll(context.Background(), []indexers.Instance{inst}, "the matrix", []int{2000})
+	if len(outcomes) != 1 || !errors.Is(outcomes[0].Err, netproxy.ErrWaitingForVPN) {
+		t.Fatalf("expected the search to wait for the VPN, got %+v", outcomes)
+	}
+	if h, _ := tr.Health(1); h.Failures != 0 {
+		t.Fatalf("waiting for the VPN was counted as a failure: %+v", h)
+	}
+	want := "Waiting for your VPN (My VPN). Starting the connection. Check Settings > Downloading > VPN and proxy."
+	if got := indexers.ProblemMessage(outcomes[0]); got != want {
+		t.Fatalf("message = %q, want %q", got, want)
 	}
 }

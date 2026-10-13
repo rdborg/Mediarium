@@ -66,6 +66,16 @@ type waitError struct{ msg string }
 func (e *waitError) Error() string        { return e.msg }
 func (e *waitError) Is(target error) bool { return target == ErrWaitingForVPN }
 
+// WaitMessage is the sentence a search shows when err is a wait for the VPN,
+// or "" when it isn't.
+func WaitMessage(err error) string {
+	var w *waitError
+	if !errors.As(err, &w) {
+		return ""
+	}
+	return strings.ToUpper(w.msg[:1]) + w.msg[1:] + "."
+}
+
 type vpnState struct {
 	src  TunnelSource
 	uses map[Use]bool
@@ -104,7 +114,7 @@ func tunnelFor(src TunnelSource, use Use, addr string) (ContextDialer, error) {
 	}
 	label, reason := src.Selected()
 	if label == "" {
-		return nil, &waitError{fmt.Sprintf("no VPN is switched on, but %s are set to go through one. Switch one on in Settings > Downloading > VPN and proxy, or turn that off there", use)}
+		return nil, &waitError{fmt.Sprintf("no VPN is switched on, but %s are set to go through one. Switch one on in Settings > Downloading > VPN and proxy, or turn off Send indexer traffic through the VPN there", use)}
 	}
 	return nil, &waitError{fmt.Sprintf("waiting for your VPN (%s). %s Check Settings > Downloading > VPN and proxy", label, reason)}
 }

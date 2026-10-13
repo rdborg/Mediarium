@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/netproxy"
 	"github.com/rdborg/mediarium/internal/problems"
 )
 
@@ -150,8 +151,9 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 				results[j].Priority = inst.Priority
 			}
 			outcomes[i] = Outcome{IndexerName: inst.Name, Results: results, Err: err}
-			// A search cut short by the caller says nothing about the indexer.
-			if ctx.Err() == nil && !errors.Is(err, context.Canceled) {
+			// A search cut short by the caller, or waiting for the VPN, says
+			// nothing about the indexer.
+			if ctx.Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, netproxy.ErrWaitingForVPN) {
 				inst.Tracker.RecordSearch(inst.ID, results, err)
 			}
 		}(i, inst)
@@ -167,8 +169,9 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 
 // noteSearchProblem puts an indexer that failed in the problem log: it
 // limited the requests, refused the key, could not be reached or gave an error.
+// A wait for the VPN isn't logged: health already reports the VPN.
 func noteSearchProblem(o Outcome) {
-	if o.Err == nil || errors.Is(o.Err, context.Canceled) {
+	if o.Err == nil || errors.Is(o.Err, context.Canceled) || errors.Is(o.Err, netproxy.ErrWaitingForVPN) {
 		return
 	}
 	problems.Record(problems.Problem{Code: problems.IndexerCode(o.Err), Subject: o.IndexerName, Message: ProblemMessage(o), Err: o.Err})
@@ -180,6 +183,9 @@ func noteSearchProblem(o Outcome) {
 func ProblemMessage(o Outcome) string {
 	if o.Err == nil {
 		return ""
+	}
+	if msg := netproxy.WaitMessage(o.Err); msg != "" {
+		return msg
 	}
 	switch problems.IndexerCode(o.Err) {
 	case problems.CodeIndexerRateLimited:

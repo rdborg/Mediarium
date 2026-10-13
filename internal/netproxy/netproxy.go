@@ -7,6 +7,9 @@
 // The setting is process-wide and read on every new connection, so a change
 // applies straight away without rebuilding clients. Connections to the proxy
 // itself go through netguard like every other outgoing connection.
+//
+// The built-in VPN can carry the same kinds of traffic (see SetVPN). It comes
+// before the proxy, and addresses on the home network still connect directly.
 package netproxy
 
 import (
@@ -196,6 +199,16 @@ type switchingTransport struct {
 }
 
 func (t *switchingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if src := viaVPN(t.use); src != nil {
+		tunnel, err := tunnelFor(src, t.use, req.URL.Host)
+		if err != nil {
+			return nil, err
+		}
+		if tunnel == nil {
+			return t.direct.RoundTrip(req)
+		}
+		return tunnelTransport(tunnel).RoundTrip(req)
+	}
 	if d := For(t.use); d != nil {
 		resp, err := d.httpTransport().RoundTrip(req)
 		if err != nil {
@@ -210,23 +223,36 @@ func (t *switchingTransport) RoundTrip(req *http.Request) (*http.Response, error
 // transport in use.
 func (t *switchingTransport) CloseIdleConnections() {
 	t.direct.CloseIdleConnections()
+	closeTunnelIdle()
 	if d := For(t.use); d != nil {
 		d.httpTransport().CloseIdleConnections()
 	}
 }
 
-// DialContext connects to addr for use: through the proxy when it's on for
-// that kind of traffic, otherwise directly (through netguard).
+// DialContext connects to addr for use: through the VPN or the proxy when
+// one is on for that kind of traffic, otherwise directly (through netguard).
 func DialContext(ctx context.Context, use Use, timeout time.Duration, network, addr string) (net.Conn, error) {
-	if d := For(use); d != nil {
-		if timeout > 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, timeout)
-			defer cancel()
+	var through ContextDialer
+	if src := viaVPN(use); src != nil {
+		tunnel, err := tunnelFor(src, use, addr)
+		if err != nil {
+			return nil, err
 		}
-		return d.DialContext(ctx, network, addr)
+		if tunnel != nil {
+			through = tunnel
+		}
+	} else if d := For(use); d != nil {
+		through = d
 	}
-	return netguard.Dialer(timeout).DialContext(ctx, network, addr)
+	if through == nil {
+		return netguard.Dialer(timeout).DialContext(ctx, network, addr)
+	}
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	return through.DialContext(ctx, network, addr)
 }
 
 // connectDialer opens a tunnel through an HTTP proxy with CONNECT.

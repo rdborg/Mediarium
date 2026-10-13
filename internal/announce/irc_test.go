@@ -2,10 +2,15 @@ package announce
 
 import (
 	"context"
+	"net"
 	"net/netip"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/rdborg/mediarium/internal/netproxy"
 )
 
 // testClient runs a client against f and returns the messages it passes on.
@@ -345,5 +350,34 @@ func TestOutgoingLinesCannotCarryExtraCommands(t *testing.T) {
 	}
 	if got := safeParam(strings.Repeat("é", 400), 480); len(got) > 480 {
 		t.Fatalf("length %d", len(got))
+	}
+}
+
+// vpnTo is a stand-in VPN tunnel that connects every dial to one address.
+type vpnTo struct {
+	addr    string
+	carried atomic.Int32
+}
+
+func (v *vpnTo) Tunnel() netproxy.ContextDialer { return v }
+func (v *vpnTo) Selected() (string, string)     { return "My VPN", "" }
+func (v *vpnTo) DialContext(ctx context.Context, network, _ string) (net.Conn, error) {
+	v.carried.Add(1)
+	var d net.Dialer
+	return d.DialContext(ctx, network, v.addr)
+}
+
+func TestConnectsThroughTheVPNWhenIndexersUseIt(t *testing.T) {
+	f := newFakeIRC(t)
+	f.serve(nil)
+	host, port := f.addr()
+	tunnel := &vpnTo{addr: net.JoinHostPort(host, strconv.Itoa(port))}
+	netproxy.SetVPN(tunnel, map[netproxy.Use]bool{netproxy.Indexers: true})
+	t.Cleanup(func() { netproxy.SetVPN(nil, nil) })
+
+	c, _ := testClient(t, f, func(cfg *Config) { cfg.Server, cfg.AllowPrivate = "irc.example.net", false })
+	waitFor(t, "joined", func() bool { return c.Status().State == "joined" })
+	if tunnel.carried.Load() == 0 {
+		t.Fatal("the IRC connection didn't go through the VPN")
 	}
 }

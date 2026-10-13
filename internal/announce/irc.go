@@ -263,9 +263,9 @@ func (c *Client) dial(ctx context.Context) (net.Conn, error) {
 	switch {
 	case c.cfg.Dial != nil:
 		raw, err = c.cfg.Dial(dctx, "tcp", addr)
-	case netproxy.For(netproxy.Indexers) != nil:
-		// A proxy the person set up for indexer traffic carries this too. The
-		// proxy resolves the name, so only a literal address can be judged here.
+	case netproxy.Routed(netproxy.Indexers):
+		// The VPN or proxy the person set up for indexer traffic carries this
+		// too. It resolves the name, so only a literal address can be judged here.
 		if ip, perr := netip.ParseAddr(host); perr == nil && !c.cfg.AllowPrivate && !PublicAddr(ip) {
 			return nil, &fatalError{"IRC servers have to be on the internet. " + host + " is a local address."}
 		}

@@ -5,6 +5,7 @@ import Icon from './Icon'
 import { useToast } from './Toast'
 import { useFocusTrap } from '../useFocusTrap'
 import { t } from '../i18n'
+import { cleanAddress } from '../manualAddress'
 
 // The same limits the server applies; saying so here saves a long upload.
 const MAX_FILE_BYTES = 32 * 1024 * 1024
@@ -83,7 +84,7 @@ export default function AddDownloadDialog({ onClose, onAdded }: { onClose: () =>
       if (file.size === 0) return t('That file is empty.')
       if (file.size > MAX_FILE_BYTES) return t('That file is too large. NZB files can be up to 32 MB.')
     } else {
-      const a = address.trim()
+      const a = cleanAddress(address)
       if (!a) return t('Paste an address or a magnet link.')
       if (!/^(https?:\/\/\S+|magnet:\?\S+)$/i.test(a)) return t('Paste a web address that starts with http:// or https://, or a magnet link.')
     }
@@ -105,7 +106,7 @@ export default function AddDownloadDialog({ onClose, onAdded }: { onClose: () =>
       form.set('episode', episode)
     }
     if (source === 'file' && file) form.set('file', file)
-    else form.set('url', address.trim())
+    else form.set('url', cleanAddress(address))
     if (name.trim()) form.set('name', name.trim())
     setBusy(true)
     setError('')

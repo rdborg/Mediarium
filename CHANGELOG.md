@@ -8,6 +8,10 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Add a download by hand** refused a magnet link with spaces in it, saying "Paste a web address that starts with http:// or https://, or a magnet link." Many sites copy the name part (`&dn=`) with plain spaces. The spaces are now written as `%20` before the link is checked and sent, so it is added like any other.
+
 ## [3.7.1] - 2026-10-23
 
 In short: Premiumize as a third debrid service, a Music tab in the search results, a Retry button for picked downloads, and fixes for the calendar views, the Simkl Client ID test, the nzb360 dashboard and a lost library marker file.

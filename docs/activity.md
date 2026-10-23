@@ -38,7 +38,7 @@ The download then goes into the [download line](#the-download-line) like one you
 Mediarium checks the input before it accepts it, and tells you in plain words if something is wrong:
 
 - An NZB has to be a readable NZB with at least one file, and a torrent a readable `.torrent` with at least one file. A web page, a zip file or a file that was cut off is refused.
-- A magnet link has to contain the torrent's hash.
+- A magnet link has to contain the torrent's hash. Spaces in it (sites often copy the name part, `&dn=`, with plain spaces) are written as `%20` for you.
 - The content decides what a file is, not its name.
 - Addresses only go to `http://` or `https://` places, and never to the addresses cloud servers keep their credentials on (the same rule as for indexer addresses).
 - If the release name says another season or episode than the one you picked ("S01E02" when you picked episode 1, or a season pack when you picked one episode), nothing is added. A pack of several seasons ("S01-S03") never counts as one season or one of its episodes.

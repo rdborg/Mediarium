@@ -883,7 +883,7 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 	_ = s.QueueRepo.LogActivity(item.MovieID, "imported", message)
 	replacedItem := notify.Item{Media: "movie", Title: item.ReleaseTitle}
 	if m, err := s.MovieRepo.Get(item.MovieID); err == nil {
-		replacedItem = movieItem(m)
+		replacedItem = s.localizedMovieItem(m)
 	}
 	replacedItem.Quality, replacedItem.SizeBytes, replacedItem.Path = string(tier), fileSize(result.DestPath), result.DestPath
 	s.notifyItem("imported", replacedItem)

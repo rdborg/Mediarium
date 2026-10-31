@@ -14,7 +14,6 @@ import (
 	"github.com/rdborg/mediarium/internal/auth"
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/library"
-	"github.com/rdborg/mediarium/internal/metadata"
 	"github.com/rdborg/mediarium/internal/notify"
 	"github.com/rdborg/mediarium/internal/requests"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -181,11 +180,13 @@ func (s *Server) describeLibraryTitle(kind string, tmdbID int) (requestInfo, boo
 	switch kind {
 	case "movie":
 		if m, ok, _ := s.MovieRepo.GetByTMDBID(tmdbID); ok {
-			return requestInfo{title: m.Title, year: m.Year, poster: metadata.PosterURL(m.PosterPath), inLibrary: true}, true
+			title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+			return requestInfo{title: title, year: m.Year, poster: poster, inLibrary: true}, true
 		}
 	case "tv":
 		if sr, ok, _ := s.MovieRepo.GetSeriesByTMDBID(tmdbID); ok {
-			return requestInfo{title: sr.Title, year: sr.Year, poster: metadata.PosterURL(sr.PosterPath), inLibrary: true}, true
+			title, poster := s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+			return requestInfo{title: title, year: sr.Year, poster: poster, inLibrary: true}, true
 		}
 	}
 	return requestInfo{}, false

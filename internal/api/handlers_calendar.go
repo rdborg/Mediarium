@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/books"
-	"github.com/rdborg/mediarium/internal/metadata"
 )
 
 type calendarEntryPayload struct {
@@ -246,9 +245,10 @@ func (s *Server) calendarEntriesSince(since string) ([]calendarEntryPayload, err
 
 	entries := make([]calendarEntryPayload, 0, len(movies)) // never nil: a nil slice encodes as JSON null, which the frontend would confuse with "still loading"
 	for _, m := range movies {
+		title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 		entries = append(entries, calendarEntryPayload{
-			Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: m.Title, ReleaseDate: m.ReleaseDate, Status: string(m.Status),
-			PosterURL: metadata.PosterURL(m.PosterPath),
+			Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: title, ReleaseDate: m.ReleaseDate, Status: string(m.Status),
+			PosterURL: poster,
 		})
 	}
 
@@ -261,10 +261,11 @@ func (s *Server) calendarEntriesSince(since string) ([]calendarEntryPayload, err
 		if ep.Title != "" {
 			label += " · " + ep.Title
 		}
+		showTitle, poster := s.shownFace("tv", ep.SeriesTMDB, ep.SeriesName, ep.PosterPath)
 		entries = append(entries, calendarEntryPayload{
 			Kind: "episode", ID: ep.ID, SeriesID: ep.SeriesID, Season: ep.Season, Episode: ep.Episode,
-			Title: ep.SeriesName, Subtitle: label, ReleaseDate: ep.AirDate, AirAt: ep.AirAt, Status: string(ep.Status),
-			PosterURL: metadata.PosterURL(ep.PosterPath), TMDBID: ep.SeriesTMDB,
+			Title: showTitle, Subtitle: label, ReleaseDate: ep.AirDate, AirAt: ep.AirAt, Status: string(ep.Status),
+			PosterURL: poster, TMDBID: ep.SeriesTMDB,
 		})
 	}
 	s.attachArt(entries)

@@ -462,7 +462,7 @@ func (s *Server) handleTestNotifyTarget(w http.ResponseWriter, r *http.Request) 
 		if movies, lerr := s.MovieRepo.List(); lerr == nil {
 			for _, m := range movies {
 				if m.PosterPath != "" {
-					testEvent = notify.ComposeTestEmail(movieItem(m), s.publicLinks(), time.Now())
+					testEvent = notify.ComposeTestEmail(s.localizedMovieItem(m), s.publicLinks(), time.Now())
 					break
 				}
 			}

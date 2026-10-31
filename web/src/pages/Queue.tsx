@@ -1026,7 +1026,7 @@ export default function Queue() {
               </h2>
               <ul>
                 {waiting.slice(0, 20).map((w) => {
-                  const search = w.lastSearch ? `${w.lastSearch.replace(/^Searched: /, '')}${w.lastSearchAt ? ` (${timeAgo(w.lastSearchAt)})` : ''}` : t('Not searched yet.')
+                  const search = w.lastSearch ? `${st(w.lastSearch.replace(/^Searched: /, ''))}${w.lastSearchAt ? ` (${timeAgo(w.lastSearchAt)})` : ''}` : t('Not searched yet.')
                   const meta = [w.year ? String(w.year) : '', w.episodes && w.episodes > 1 ? plural(w.episodes, '{n} episode waiting', '{n} episodes waiting') : w.subtitle ?? ''].filter(Boolean).join(' · ')
                   return (
                     <li key={w.key} className={`kind-${w.kind}`}>

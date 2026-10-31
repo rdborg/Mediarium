@@ -129,7 +129,7 @@ func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, 
 
 	grabbed := s.grabbedMessage(releaseTitle, series.Title)
 	_ = s.QueueRepo.LogSeriesActivity(series.ID, "grabbed", grabbed)
-	grabbedItem := seriesItem(series, season, episodes)
+	grabbedItem := s.localizedSeriesItem(series, season, episodes)
 	grabbedItem.Quality, grabbedItem.SizeBytes, grabbedItem.Release = string(quality.Classify(parser.Parse(releaseTitle))), sizeBytes, releaseTitle
 	s.seriesReleaseDetails(&grabbedItem, series, releaseTitle, downloadURL)
 	s.notifyItem("grabbed", grabbedItem)
@@ -194,7 +194,7 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		releaseTargets()
 		message := fmt.Sprintf("%s: %s", series.Title, plain)
 		_ = s.QueueRepo.LogSeriesActivity(series.ID, "failed", message)
-		failedItem := seriesItemFor(series, season, targets)
+		failedItem := s.localizedSeriesItemFor(series, season, targets)
 		failedItem.Reason, failedItem.Release = plain, releaseTitle
 		if s.failureNotifyWanted(stepErr, downloadURL, releaseTitle) {
 			s.notifyItem("failed", failedItem)
@@ -456,7 +456,7 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		}
 	}
 	s.checkFinishedShowSoon(series.ID)
-	importedItem := seriesItemFor(series, season, importedEps)
+	importedItem := s.localizedSeriesItemFor(series, season, importedEps)
 	importedItem.Quality, importedItem.SizeBytes, importedItem.Release = string(tier), fileSize(importedFiles...), releaseTitle
 	s.seriesReleaseDetails(&importedItem, series, releaseTitle, downloadURL)
 	importedItem.Subtitles = subtitleNote

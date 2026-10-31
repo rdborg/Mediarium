@@ -6,7 +6,6 @@ import (
 
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/library"
-	"github.com/rdborg/mediarium/internal/metadata"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -148,7 +147,7 @@ func (n *queueNamer) describe(it queue.Item) (title, subtitle, poster string) {
 		}
 	case it.SeriesID > 0:
 		if sr, ok := n.show(it.SeriesID); ok {
-			title, poster = sr.Title, metadata.PosterURL(sr.PosterPath)
+			title, poster = n.s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 			switch {
 			case it.Episode > 0:
 				subtitle = fmt.Sprintf("S%02dE%02d", it.Season, it.Episode)
@@ -161,7 +160,7 @@ func (n *queueNamer) describe(it queue.Item) (title, subtitle, poster string) {
 		}
 	case it.MovieID > 0:
 		if m, ok := n.movie(it.MovieID); ok {
-			title, poster = m.Title, metadata.PosterURL(m.PosterPath)
+			title, poster = n.s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 			if m.Year > 0 {
 				subtitle = fmt.Sprintf("%d", m.Year)
 			}

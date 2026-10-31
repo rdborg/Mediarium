@@ -45,11 +45,20 @@ func movieItem(m library.Movie) notify.Item {
 	return notify.Item{Media: "movie", Title: m.Title, Year: m.Year, PosterURL: smallPoster(m.PosterPath), LinkPath: fmt.Sprintf("/title/%d", m.TMDBID)}
 }
 
+// localizedMovieItem is movieItem with the title and poster in the info language.
+func (s *Server) localizedMovieItem(m library.Movie) notify.Item {
+	it := movieItem(m)
+	title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+	it.Title = title
+	it.PosterURL = strings.Replace(poster, "/w500", "/w342", 1)
+	return it
+}
+
 // movieItemByID is movieItem for a movie looked up by id; when the lookup fails
 // the message still goes out, with the title it was given.
 func (s *Server) movieItemByID(id int64, title string, year, tmdbID int) notify.Item {
 	if m, err := s.MovieRepo.Get(id); err == nil {
-		return movieItem(m)
+		return s.localizedMovieItem(m)
 	}
 	return notify.Item{Media: "movie", Title: title, Year: year, LinkPath: fmt.Sprintf("/title/%d", tmdbID)}
 }
@@ -69,6 +78,15 @@ func seriesItem(sr library.Series, season int, episodes []int) notify.Item {
 	return it
 }
 
+// localizedSeriesItem is seriesItem with the show's title and poster in the info language.
+func (s *Server) localizedSeriesItem(sr library.Series, season int, episodes []int) notify.Item {
+	it := seriesItem(sr, season, episodes)
+	title, poster := s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+	it.Title = title
+	it.PosterURL = strings.Replace(poster, "/w500", "/w342", 1)
+	return it
+}
+
 // seriesItemFor is seriesItem for the episodes a grab covers: one episode is
 // named, several read as their season.
 func seriesItemFor(sr library.Series, season int, eps []library.Episode) notify.Item {
@@ -79,6 +97,15 @@ func seriesItemFor(sr library.Series, season int, eps []library.Episode) notify.
 		season = eps[0].Season
 	}
 	return seriesItem(sr, season, nil)
+}
+
+// localizedSeriesItemFor is seriesItemFor with the show's title and poster in the info language.
+func (s *Server) localizedSeriesItemFor(sr library.Series, season int, eps []library.Episode) notify.Item {
+	it := seriesItemFor(sr, season, eps)
+	title, poster := s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+	it.Title = title
+	it.PosterURL = strings.Replace(poster, "/w500", "/w342", 1)
+	return it
 }
 
 // fileSize adds up the sizes of the files that exist.

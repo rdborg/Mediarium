@@ -109,7 +109,8 @@ func (s *Server) computeLibraryStats() (libraryStatsPayload, error) {
 	names := map[watchKey]statName{}
 	var movieFiles, episodeFiles []statFile
 	for _, m := range movies {
-		names[watchKey{kind: "movie", id: m.ID}] = statName{Title: m.Title, TMDBID: m.TMDBID}
+		title, _ := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+		names[watchKey{kind: "movie", id: m.ID}] = statName{Title: title, TMDBID: m.TMDBID}
 		if m.FilePath == "" {
 			continue
 		}
@@ -127,7 +128,8 @@ func (s *Server) computeLibraryStats() (libraryStatsPayload, error) {
 	out.Shows = len(shows)
 	seen := map[string]bool{} // a multi-episode file counts once for space
 	for _, sr := range shows {
-		names[watchKey{kind: "series", id: sr.ID}] = statName{Title: sr.Title}
+		title, _ := s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+		names[watchKey{kind: "series", id: sr.ID}] = statName{Title: title, TMDBID: sr.TMDBID}
 		eps, err := s.MovieRepo.ListEpisodes(sr.ID)
 		if err != nil {
 			return out, err

@@ -264,6 +264,7 @@ func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
 	short := s.incompleteNow().movies
 	for i, m := range list {
 		out[i] = toMoviePayload(m, who)
+		out[i].Title, out[i].PosterURL = s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 		if e, ok := short[m.ID]; ok && e.Path == m.FilePath {
 			n := e.note
 			out[i].ShortFile = &n
@@ -301,6 +302,7 @@ func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := toMoviePayload(m, s.accountNames())
+	out.Title, out.PosterURL = s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 	out.FilePath = fileLabel(r, m.FilePath)
 	out.RootPath = folderShown(r, s.movieFolders(), m.RootPath)
 	out.SizeBytes = fileSize(m.FilePath)

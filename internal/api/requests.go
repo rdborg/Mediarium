@@ -89,7 +89,7 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 		if _, ok, _ := s.MovieRepo.GetByTMDBID(req.TMDBID); ok {
 			return requestInfo{inLibrary: true}, nil
 		}
-		m, err := s.TMDB().GetMovie(ctx, req.TMDBID)
+		m, err := s.displayTMDB().GetMovie(ctx, req.TMDBID)
 		if err != nil {
 			return requestInfo{}, err
 		}
@@ -102,7 +102,7 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 		if _, ok, _ := s.MovieRepo.GetSeriesByTMDBID(req.TMDBID); ok {
 			return requestInfo{inLibrary: true}, nil
 		}
-		sh, err := s.TMDB().GetShow(ctx, req.TMDBID)
+		sh, err := s.displayTMDB().GetShow(ctx, req.TMDBID)
 		if err != nil {
 			return requestInfo{}, err
 		}

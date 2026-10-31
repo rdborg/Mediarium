@@ -393,7 +393,8 @@ func (s *Server) wantedMovieItems(ctx context.Context, kind string, profiles pro
 		switch {
 		case kind == "missing" && movieWantedMissing(m),
 			kind == "cutoff" && m.Status == library.StatusDownloaded && !m.NoUpgrade && wantsUpgrade(p, m.Quality, m.ReleaseTitle):
-			item := wantedItemPayload{Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: m.Title, Date: m.ReleaseDate, ProfileName: p.Name, Copy: m.CopyOf != 0, Year: m.Year, PosterURL: wantedPoster(m.PosterPath)}
+			title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+			item := wantedItemPayload{Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: title, Date: m.ReleaseDate, ProfileName: p.Name, Copy: m.CopyOf != 0, Year: m.Year, PosterURL: poster}
 			if item.Copy {
 				item.Subtitle = "Second copy"
 			}
@@ -415,6 +416,7 @@ func (s *Server) wantedEpisodeItems(ctx context.Context, kind string, profiles p
 		return nil, err
 	}
 	var out []wantedItemPayload
+	faces := map[int64][2]string{}
 	for _, ep := range episodes {
 		p := profiles.resolveTV(ep.ProfileID)
 		if kind == "missing" && fileExists(ep.FilePath) {
@@ -430,9 +432,18 @@ func (s *Server) wantedEpisodeItems(ctx context.Context, kind string, profiles p
 		if ep.CopyOf != 0 {
 			label = "Second copy · " + label
 		}
+		title, poster := ep.SeriesTitle, wantedPoster(ep.SeriesPoster)
+		if cached, seen := faces[ep.SeriesID]; seen {
+			title, poster = cached[0], cached[1]
+		} else {
+			if sr, err := s.MovieRepo.GetSeries(ep.SeriesID); err == nil {
+				title, poster = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+			}
+			faces[ep.SeriesID] = [2]string{title, poster}
+		}
 		item := wantedItemPayload{
 			Kind: "episode", ID: ep.ID, SeriesID: ep.SeriesID, Season: ep.Season, Episode: ep.Episode.Episode,
-			Title: ep.SeriesTitle, Subtitle: label, Date: ep.AirDate, ProfileName: p.Name, Copy: ep.CopyOf != 0, Year: ep.SeriesYear, PosterURL: wantedPoster(ep.SeriesPoster),
+			Title: title, Subtitle: label, Date: ep.AirDate, ProfileName: p.Name, Copy: ep.CopyOf != 0, Year: ep.SeriesYear, PosterURL: poster,
 		}
 		if kind == "cutoff" {
 			item.Quality, item.Cutoff = ep.Quality, p.CutoffName()

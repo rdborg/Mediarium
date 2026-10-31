@@ -194,6 +194,7 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 	short := s.incompleteNow().series
 	for i, sr := range list {
 		out[i] = toSeriesPayload(sr, who)
+		out[i].Title, out[i].PosterURL = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 		out[i].ShortFiles = len(short[sr.ID])
 		out[i].Media = mediaSummaryOf(media[sr.ID]...)
 		out[i].RootPath = folderShown(r, tvFolders, sr.RootPath)
@@ -231,6 +232,7 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := seriesDetailPayload{seriesPayload: toSeriesPayload(sr, s.accountNames()), Episodes: make([]episodePayload, len(eps))}
+	out.Title, out.PosterURL = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 	out.RootPath = folderShown(r, s.tvFolders(), sr.RootPath)
 	if all, err := s.MovieRepo.ListSeriesNames(); err == nil {
 		key := sr.ID

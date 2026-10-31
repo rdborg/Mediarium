@@ -8,6 +8,11 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Changed
+
+- A movie or show already in the library is shown in the language chosen for movie and show info (Settings > Info, lists and subtitles): the title and the poster in the Library, on the Dashboard, in Activity (a download and the waiting list), on the calendar, in reports, requests, statistics and notifications. Discover, search and the title page already were, including the description. The English title stays saved for indexer searches. Where TMDB has no translation or no poster in that language, the English one is kept. An episode's own name, a line already written in the activity history, and the file path stay as they are.
+- The note under a title that is waiting for a release (Activity) is translated with the language of the app. It was left in English.
+
 ## [3.9.1] - 2026-10-31
 
 In short: UDP trackers and DHT can go through the built-in VPN, Choose a release has a search box for your own words and reads up to 1,000 releases, Activity can blocklist picked downloads, and several name and warning fixes.

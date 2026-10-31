@@ -215,9 +215,17 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 			notAsked = append(notAsked, inst.Name)
 		}
 	}
-	outcomes := indexers.SearchAll(indexers.AsManual(r.Context()), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
-	for _, q := range s.extraTVQueries(series, season, episode) {
-		outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
+	// Words typed by hand are searched as they are and every answer is shown; the
+	// download still goes to the season or episode that was chosen.
+	custom := customSearchQuery(r)
+	var outcomes []indexers.Outcome
+	if custom != "" {
+		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, custom, tvCategory)
+	} else {
+		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
+		for _, q := range s.extraTVQueries(series, season, episode) {
+			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
+		}
 	}
 	merged := indexers.MergeResults(outcomes)
 	mapper := s.releaseMapper(series)
@@ -235,7 +243,7 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	var found []indexers.Result
 	for _, res := range merged {
 		parsed := res.Parsed()
-		if !matchesShowForRel(parsed, series, season) || !coversTarget(mapped(mapper, parsed), season, episode) {
+		if custom == "" && (!matchesShowForRel(parsed, series, season) || !coversTarget(mapped(mapper, parsed), season, episode)) {
 			continue
 		}
 		payload := s.toSearchResultPayload(res)

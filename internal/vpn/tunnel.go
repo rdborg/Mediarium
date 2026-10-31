@@ -50,8 +50,10 @@ type Config struct {
 // optionally, Usenet/general app traffic) through the tunnel
 // instead of the host network directly.
 type Tunnel struct {
-	dev  *device.Device
-	tnet *netstack.Net
+	dev    *device.Device
+	tnet   *netstack.Net
+	locals []netip.Addr // this device's addresses inside the tunnel
+	dns    []netip.Addr // the VPN's DNS servers; lookups for trackers go here
 }
 
 // Up brings a tunnel to the configured peer. It does not verify the
@@ -106,7 +108,7 @@ func Up(cfg Config) (*Tunnel, error) {
 		return nil, fmt.Errorf("bring wireguard device up: %w", err)
 	}
 
-	t := &Tunnel{dev: dev, tnet: tnet}
+	t := &Tunnel{dev: dev, tnet: tnet, locals: localAddrs, dns: dnsAddrs}
 	// A name with both an IPv4 and an IPv6 address: if the first one doesn't
 	// answer, try the other before giving up.
 	if len(candidates) > 1 {
@@ -155,6 +157,75 @@ func (c Config) tryOtherCandidates(t *Tunnel, candidates []string) error {
 // default, Usenet/general traffic optionally).
 func (t *Tunnel) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return t.tnet.DialContext(ctx, network, addr)
+}
+
+// LookupHost resolves host through the VPN's DNS. The query leaves inside
+// the tunnel. A literal address is returned as it is. With no DNS servers
+// on the connection, or when the lookup fails, the error is returned and
+// nothing is asked of the host's resolver.
+func (t *Tunnel) LookupHost(ctx context.Context, host string) ([]net.IP, error) {
+	host = strings.Trim(strings.TrimSuffix(host, "."), "[]")
+	if ip := net.ParseIP(host); ip != nil {
+		return []net.IP{ip}, nil
+	}
+	if len(t.dns) == 0 || t.tnet == nil {
+		return nil, errors.New("this VPN connection has no DNS servers, so the name was not looked up")
+	}
+	names, err := t.tnet.LookupContextHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]net.IP, 0, len(names))
+	for _, s := range names {
+		if ip := net.ParseIP(s); ip != nil {
+			out = append(out, ip)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("the VPN's DNS has no address for %s", host)
+	}
+	return out, nil
+}
+
+// ListenPacket opens a UDP socket inside the tunnel. Packets leave from the
+// VPN address, never from a socket on the host network. addr is the local
+// address the caller asked for (often ":0"); an unspecified address is bound
+// to this device's own tunnel address, which is the one the netstack can use.
+func (t *Tunnel) ListenPacket(network, addr string) (net.PacketConn, error) {
+	udp, err := net.ResolveUDPAddr(packetNetwork(network), addr)
+	if err != nil {
+		return nil, err
+	}
+	if udp.IP == nil || udp.IP.IsUnspecified() {
+		udp.IP = t.listenIP(network)
+	}
+	pc, err := t.tnet.ListenUDP(udp)
+	if err != nil {
+		return nil, err
+	}
+	return pc, nil
+}
+
+func packetNetwork(network string) string {
+	switch network {
+	case "udp4", "udp6":
+		return network
+	default:
+		return "udp4"
+	}
+}
+
+func (t *Tunnel) listenIP(network string) net.IP {
+	want6 := network == "udp6"
+	for _, a := range t.locals {
+		if want6 == a.Is6() {
+			return a.AsSlice()
+		}
+	}
+	if want6 {
+		return net.IPv6unspecified
+	}
+	return net.IPv4zero
 }
 
 // ListenTCP listens on addr within the tunnel's own virtual network stack

@@ -69,6 +69,23 @@ func TestBulkRetryReplacesEachFailedEntry(t *testing.T) {
 	}
 }
 
+// Blocklist from the bar for picked downloads blocklists each release and
+// drops its entry, and a download that no longer exists is named.
+func TestBulkBlocklistDropsEachFailedEntry(t *testing.T) {
+	base, client, _, item, _ := failedGrab(t)
+	oldID := int64(item["id"].(float64))
+
+	resp := postJSON[map[string]any](t, client, base+"/api/queue/bulk", map[string]any{"ids": []int64{oldID, 99999}, "action": "blocklist"}, http.StatusOK)
+	failed := resp["failed"].([]any)
+	if resp["done"].(float64) != 1 || len(failed) != 1 || int64(failed[0].(map[string]any)["id"].(float64)) != 99999 {
+		t.Fatalf("one blocklisted and the missing one named, got %v", resp)
+	}
+	list := getJSON[[]map[string]any](t, client, base+"/api/blocklist")
+	if len(list) != 1 {
+		t.Fatalf("the release should be on the blocklist, got %v", list)
+	}
+}
+
 func TestRemoveAndClearOnlyTouchFinishedEntries(t *testing.T) {
 	server, base, client := loginNewServer(t)
 	m, err := server.MovieRepo.Add(library.Movie{TMDBID: 5, Title: "Fixture Movie", Monitored: true})

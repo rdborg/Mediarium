@@ -40,6 +40,7 @@ import { api, can, isAdmin, type DiscoverMovie, type MovieDetail as MovieDetailD
 import { useLive } from '../useLive'
 import { useConfirm } from '../components/ConfirmProvider'
 import { removeOption } from '../diskUsage'
+import CustomSearch from '../components/CustomSearch'
 import ReleaseNotice from '../components/ReleaseNotice'
 import { releaseFacts } from '../releaseDates'
 import type { Unanswered } from '../releaseHint'
@@ -220,12 +221,13 @@ function MoviePage() {
     }
   }
 
-  async function chooseRelease() {
+  // q is what was typed in the search box; the list stays on screen until its answer comes.
+  async function chooseRelease(q?: string) {
     if (!libraryId) return
     setSearching(true)
-    setResults(null)
+    if (q === undefined) setResults(null)
     try {
-      const a = await api.movieSearch(libraryId)
+      const a = await api.movieSearch(libraryId, q)
       setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched, ignoredSamples: a.ignoredSamples })
       setResults(a.results)
     } catch (e) {
@@ -362,7 +364,7 @@ function MoviePage() {
                 <InfoTip text={t('For a movie you moved to a lower quality profile, 4K to 1080p say. Looks for a smaller release the profile accepts, downloads it, and only then removes the big file.')} />
               )}
               {can(me, 'releases') && (
-                <button className="btn-with-icon" onClick={chooseRelease} disabled={searching}>
+                <button className="btn-with-icon" onClick={() => chooseRelease()} disabled={searching}>
                   <Icon name="list" size={16} /> {searching ? t('Loading…') : t('Choose a release')}
                 </button>
               )}
@@ -432,6 +434,7 @@ function MoviePage() {
       {results !== null && (
         <section ref={releasesRef} className="card" style={{ marginBottom: 24, scrollMarginTop: 80 }}>
           <h2>{t('Releases')}</h2>
+          <CustomSearch busy={searching} onSearch={(q) => chooseRelease(q)} />
           <ReleaseNotice sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} ignoredSamples={answered.ignoredSamples} results={results.length} />
           {results.length === 0 && (
             <button className="btn-sm" onClick={() => setResults(null)}>

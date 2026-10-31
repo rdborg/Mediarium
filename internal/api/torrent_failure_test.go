@@ -41,6 +41,11 @@ func TestFailureNote(t *testing.T) {
 			notWant: []string{"with the VPN off"},
 		},
 		{
+			name: "VPN on, DHT through the tunnel, magnet without trackers", route: torrentRoute{VPN: true, VPNConnected: true, Handshake: shook, Discover: true}, diag: bare,
+			want:    []string{"lists no trackers", "DHT ran through the VPN"},
+			notWant: []string{"DHT is off", "with the VPN off"},
+		},
+		{
 			name: "no VPN", route: torrentRoute{}, diag: listed,
 			want:    []string{"The VPN was off."},
 			notWant: []string{"with the VPN off", "Press Test"},

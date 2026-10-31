@@ -54,7 +54,7 @@ export function helpers(): Helper[] {
     { name: 'Jisevind', where: 'GitHub', href: github('Jisevind'), ideas: [t('Keeping the original file names')] },
     { name: 'franciscojnneto', where: 'GitHub', href: github('franciscojnneto'), ideas: [t('Pages for cast and crew')] },
     { name: 'Bayharbourbutcher1', where: 'GitHub', href: github('Bayharbourbutcher1'), ideas: [t('Sending the seeding rules to an outside torrent client')] },
-    { name: 'mirisbowring', where: 'GitHub', href: github('mirisbowring'), ideas: [t('Replacing a movie with a smaller version'), t('Searching under another title of a movie or show, such as the German one'), t('Extra categories'), t('The category shown under each book release'), t('Episode by episode meaning one episode at a time'), t('Searching titles with umlauts in both spellings')] },
+    { name: 'mirisbowring', where: 'GitHub', href: github('mirisbowring'), ideas: [t('Replacing a movie with a smaller version'), t('Searching under another title of a movie or show, such as the German one'), t('Extra categories'), t('The category shown under each book release'), t('Episode by episode meaning one episode at a time'), t('Searching titles with umlauts in both spellings'), t('A search box in Choose a release for your own words')] },
     { name: 'spamoom', where: 'GitHub', href: github('spamoom'), ideas: [t('Sending indexer traffic through the VPN, with the code to do it')] },
     { name: 'acortespr06', where: 'GitHub', href: github('acortespr06'), ideas: [t('Transmission as a download client')] },
     { name: 'MrBanditt', where: 'GitHub', href: github('MrBanditt'), ideas: [t('Ended and continuing shows, file sizes for episodes and seasons, an age column in the release list, a TMDB link on title pages and sorting titles without “The”')] },
@@ -67,7 +67,8 @@ export function helpers(): Helper[] {
       ideas: [t('Toloka.to as a built-in site'), t('Prowlarr feed addresses that end in /api'), t('Sites that write dates in their own way'), t('Torrent sites from Prowlarr added as Usenet'), t('Titles and descriptions in your language')],
     },
     { name: 'Marty-SK', where: 'GitHub', href: github('Marty-SK'), ideas: [t('Seeing whether the VPN really passes traffic, with a Test button')] },
-    { name: 'memnos', where: 'GitHub', href: github('memnos'), ideas: [t('Naming new movie and show folders and files in the info language, written as a pull request')] },
+    { name: 'memnos', where: 'GitHub', href: github('memnos'), ideas: [t('Naming new movie and show folders and files in the info language, written as a pull request'), t('Sending UDP trackers and DHT through the built-in VPN, written as a pull request')] },
+    { name: 'blind0wl', where: 'GitHub', href: github('blind0wl'), ideas: [t('Torrent links from Prowlarr that redirect to a magnet link, written as a pull request')] },
     { name: 'Joshuancsu', where: 'Reddit', href: reddit('Joshuancsu'), ideas: [t('Saying why a torrent was given up')] },
   ]
 }

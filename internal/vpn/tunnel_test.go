@@ -1,6 +1,7 @@
 package vpn_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -246,5 +247,68 @@ func TestPublicIPRejectsNonIPResponse(t *testing.T) {
 
 	if _, err := tunnelA.TestPublicIPFrom(ctx, "http://10.99.2.2:9002"); err == nil {
 		t.Fatal("expected an error for a non-IP response, got nil")
+	}
+}
+
+// UDP between the two peers stays inside the tunnels: B never listens on the
+// host, and the datagram A writes is the one B reads.
+func TestTunnelUDPStaysInside(t *testing.T) {
+	keyA, err := vpn.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("generate key A: %v", err)
+	}
+	keyB, err := vpn.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("generate key B: %v", err)
+	}
+	tunnelB, err := vpn.Up(vpn.Config{
+		PrivateKey:     keyB.PrivateKey,
+		PeerPublicKey:  keyA.PublicKey,
+		AllowedIPs:     []string{"10.99.3.1/32"},
+		LocalAddresses: []string{"10.99.3.2/32"},
+	})
+	if err != nil {
+		t.Fatalf("bring up tunnel B: %v", err)
+	}
+	defer tunnelB.Close()
+	portB, err := tunnelB.ListenPort()
+	if err != nil {
+		t.Fatalf("get tunnel B listen port: %v", err)
+	}
+	tunnelA, err := vpn.Up(vpn.Config{
+		PrivateKey:     keyA.PrivateKey,
+		PeerPublicKey:  keyB.PublicKey,
+		Endpoint:       "127.0.0.1:" + strconv.Itoa(portB),
+		AllowedIPs:     []string{"10.99.3.2/32"},
+		LocalAddresses: []string{"10.99.3.1/32"},
+	})
+	if err != nil {
+		t.Fatalf("bring up tunnel A: %v", err)
+	}
+	defer tunnelA.Close()
+
+	pcB, err := tunnelB.ListenPacket("udp4", "10.99.3.2:9100")
+	if err != nil {
+		t.Fatalf("listen udp on tunnel B: %v", err)
+	}
+	defer pcB.Close()
+	pcA, err := tunnelA.ListenPacket("udp4", "10.99.3.1:0")
+	if err != nil {
+		t.Fatalf("listen udp on tunnel A: %v", err)
+	}
+	defer pcA.Close()
+
+	payload := []byte("through-the-tunnel")
+	if _, err := pcA.WriteTo(payload, &net.UDPAddr{IP: net.ParseIP("10.99.3.2"), Port: 9100}); err != nil {
+		t.Fatalf("write udp: %v", err)
+	}
+	_ = pcB.SetReadDeadline(time.Now().Add(5 * time.Second))
+	buf := make([]byte, 64)
+	n, _, err := pcB.ReadFrom(buf)
+	if err != nil {
+		t.Fatalf("read udp: %v", err)
+	}
+	if !bytes.Equal(buf[:n], payload) {
+		t.Fatalf("got %q", buf[:n])
 	}
 }

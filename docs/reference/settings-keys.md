@@ -211,6 +211,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `usenetclient.url` | the client's web address, e.g. http://192.168.1.10:8080 |
 | `usenetclient.use` | "1" sends Usenet releases to it; unset or "0" keeps the built-in downloader |
 | `usenetclient.username` | NZBGet's login (ControlUsername) |
+| `vpn.discover_through_tunnel` | "1" sends UDP tracker announces and DHT through the VPN and looks their names up through the VPN's DNS. A failed lookup, or a tunnel socket that will not open, sends nothing from the home address. Unset or "0" skips them |
 | `vpn.notice_acknowledged` |  |
 | `vpn.require_for_torrents` |  |
 | `vpn.route_indexers` | "1" sends searches, RSS, release downloads, IRC announces and debrid through the VPN, and they wait while it isn't up. Home-network addresses still connect directly |

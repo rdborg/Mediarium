@@ -37,6 +37,12 @@ func (s *Server) vpnForIndexers() bool {
 	return v
 }
 
+// vpnUDPDiscovery reports whether UDP trackers and DHT go through the VPN.
+func (s *Server) vpnUDPDiscovery() bool {
+	v, _ := s.Settings.GetBool(settings.KeyVPNDiscoverThroughTunnel)
+	return v
+}
+
 // applyVPNRoutes tells netproxy which traffic goes through the VPN. Torrents
 // aren't part of it: the torrent engine is handed the tunnel itself (see
 // torrentTunnel).

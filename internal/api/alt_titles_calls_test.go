@@ -106,3 +106,24 @@ func TestInteractiveSearchTriesEveryOtherTitle(t *testing.T) {
 		t.Errorf("a search by hand made %d searches (%v), want 5", len(got), got)
 	}
 }
+
+// Words typed into the search box are the only search made, and a release that
+// does not look like the movie is still listed.
+func TestInteractiveSearchWithOwnWords(t *testing.T) {
+	server, base, client := loginNewServer(t)
+	indexer, queries := newQueryLogIndexer(t, map[string]string{"some other name": "Some.Other.Name.1999.1080p.BluRay.x264-GRP"})
+	postJSON[map[string]any](t, client, base+"/api/indexers", map[string]any{
+		"name": "Counting Indexer", "definitionId": "fixture", "baseUrl": indexer.URL, "apiKey": "k",
+	}, http.StatusCreated)
+	m, err := server.MovieRepo.Add(library.Movie{TMDBID: 605, Title: "The Fixture Movie", Year: 1999, Monitored: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := getJSON[[]map[string]any](t, client, fmt.Sprintf("%s/api/movies/%d/search?q=%s", base, m.ID, "some+other+name"))
+	if len(got) != 1 {
+		t.Fatalf("listed %d releases for the typed words, want 1", len(got))
+	}
+	if q := queries(); len(q) != 1 {
+		t.Errorf("made %d searches (%v), want 1", len(q), q)
+	}
+}

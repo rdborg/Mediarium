@@ -347,6 +347,7 @@ func Parse(name string) Release {
 	// Names come from indexers and disks; bytes that are not UTF-8 would
 	// otherwise flow into the title as they are.
 	name = strings.ToValidUTF8(name, "")
+	name = repairMojibake(name)
 	name = stripExtension(name)
 	r := Release{Name: name}
 	// "[SubsPlease] Show - 01 (1080p) [ABCD1234]": the group comes first.

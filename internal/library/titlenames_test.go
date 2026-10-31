@@ -27,7 +27,7 @@ func TestTitleNamesComeWithMoviesAndShows(t *testing.T) {
 		t.Fatalf("a title nobody asked about should not be found: ok=%v err=%v", ok, err)
 	}
 
-	names := []string{"Der Herr der Ringe: Die Gefährten", "Der Herr der Ringe"}
+	names := []string{"Der Herr der Ringe: Die Gefaehrten", "Der Herr der Ringe"}
 	now := time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)
 	if err := repo.SaveTitleNames("movie", 120, names, "German", now); err != nil {
 		t.Fatal(err)
@@ -88,5 +88,27 @@ func TestTitleNamesComeWithMoviesAndShows(t *testing.T) {
 	}
 	if _, ok, _ := repo.TitleNames("tv", 120); ok {
 		t.Error("names should be gone after clearing")
+	}
+}
+
+// Names saved before umlaut spellings existed still get them when read, so a
+// title already in the library is searched and matched as "Glueck" too.
+func TestTitleNamesGetUmlautSpellingsWhenRead(t *testing.T) {
+	repo := newRepo(t)
+	m, err := repo.Add(library.Movie{TMDBID: 130, Title: "Sams in Luck", Year: 2012})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveTitleNames("movie", 130, []string{"Sams im Glück"}, "German", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Sams im Glück", "Sams im Glueck"}
+	got, _ := repo.Get(m.ID)
+	if !reflect.DeepEqual(got.AltTitles, want) {
+		t.Errorf("movie names %v, want %v", got.AltTitles, want)
+	}
+	rec, _, _ := repo.TitleNames("movie", 130)
+	if !reflect.DeepEqual(rec.Names, want) {
+		t.Errorf("saved names %v, want %v", rec.Names, want)
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/rdborg/mediarium/internal/metadata"
 )
 
 // A movie's or show's other names (its title where a release was made, such as
@@ -30,7 +32,9 @@ func decodeTitleNames(raw string) []string {
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
 		return nil
 	}
-	return out
+	// Names saved before the umlaut spellings were added get them here, so a
+	// title already in the library is searched and matched as "Glueck" too.
+	return metadata.WithUmlautSpellings(out)
 }
 
 // TitleNames returns the saved names of a movie (kind "movie") or show

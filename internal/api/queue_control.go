@@ -902,7 +902,7 @@ type bulkQueueResponse struct {
 }
 
 // handleBulkQueue does one thing (pause, resume, stop, retry, remove from the
-// list, or send to the front) to several downloads at once. Each one is tried
+// list, blocklist, or send to the front) to several downloads at once. Each one is tried
 // on its own: one that can't be done (say, pausing a finished download) is
 // listed in "failed" and the rest still go through.
 func (s *Server) handleBulkQueue(w http.ResponseWriter, r *http.Request) {
@@ -912,9 +912,9 @@ func (s *Server) handleBulkQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.Action {
-	case "pause", "resume", "stop", "retry", "front", "remove":
+	case "pause", "resume", "stop", "retry", "front", "remove", "blocklist":
 	default:
-		writeError(w, http.StatusBadRequest, `Choose "pause", "resume", "stop", "retry", "front" or "remove".`)
+		writeError(w, http.StatusBadRequest, `Choose "pause", "resume", "stop", "retry", "front", "remove" or "blocklist".`)
 		return
 	}
 	if len(req.IDs) == 0 {
@@ -935,16 +935,22 @@ func (s *Server) handleBulkQueue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	resp := bulkQueueResponse{Failed: []bulkQueueFailure{}}
-	if req.Action == "retry" {
-		// Retry is a new grab, like Retry on one download, which doesn't take
-		// queueControlMu either: grabbing can take it itself.
+	if req.Action == "retry" || req.Action == "blocklist" {
+		// Retry is a new grab, like Retry on one download, and blocklisting
+		// removes the download and looks again. Neither holds queueControlMu
+		// here: both take it themselves where they need it.
 		for _, id := range ids {
 			item, err := s.QueueRepo.Get(id)
 			if err != nil {
 				resp.Failed = append(resp.Failed, bulkQueueFailure{ID: id, Error: "This download no longer exists."})
 				continue
 			}
-			if _, err := s.retryQueueItem(item); err != nil {
+			if req.Action == "blocklist" {
+				err = s.blocklistQueueItem(item)
+			} else {
+				_, err = s.retryQueueItem(item)
+			}
+			if err != nil {
 				resp.Failed = append(resp.Failed, bulkQueueFailure{ID: id, Error: err.Error()})
 				continue
 			}

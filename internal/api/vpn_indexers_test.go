@@ -16,6 +16,9 @@ func TestRouteIndexersThroughVPNSetting(t *testing.T) {
 	if got["routeIndexersThroughVpn"] != false {
 		t.Fatalf("off by default: %v", got["routeIndexersThroughVpn"])
 	}
+	if got["discoverThroughTunnel"] != false {
+		t.Fatalf("udp discovery off by default: %v", got["discoverThroughTunnel"])
+	}
 	saved := putJSONStatus(t, client, base+"/api/settings", map[string]any{"routeIndexersThroughVpn": true}, http.StatusOK)
 	if saved["routeIndexersThroughVpn"] != true || !netproxy.Routed(netproxy.Indexers) {
 		t.Fatalf("switching it on should route indexers: %v", saved["routeIndexersThroughVpn"])

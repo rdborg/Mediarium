@@ -602,7 +602,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 |---|---|---|---|
 | DELETE | `/api/queue` | admin | empties the list of completed and failed entries. |
 | GET | `/api/queue` | any account |  |
-| POST | `/api/queue/bulk` | admin | does one thing (pause, resume, stop, retry, remove from the list, or send to the front) to several downloads at once. |
+| POST | `/api/queue/bulk` | admin | does one thing (pause, resume, stop, retry, remove from the list, blocklist, or send to the front) to several downloads at once. |
 | GET | `/api/queue/count` | any account | answers how many downloads are waiting, downloading or importing: the number beside Activity in the menu, which used to need the whole queue answer (names, p... |
 | POST | `/api/queue/pause-all` | admin | pauses every download that is running or waiting, or only the Usenet or only the torrent ones with ?protocol=. |
 | POST | `/api/queue/resume-all` | admin | puts every paused download back in the download line (or only the Usenet or only the torrent ones with ?protocol=). |

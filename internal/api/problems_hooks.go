@@ -16,10 +16,11 @@ import (
 
 // noteDownloadFailure records a download that failed. The code says why (a full
 // disk, a broken archive, a login the provider refused), judged from the error.
+// The level is the code's own: a fake or a release with programs in it is
+// everyday Usenet and only a warning, a full disk is an error.
 func noteDownloadFailure(queueID int64, title, link string, err error) {
 	problems.Record(problems.Problem{
 		Code:       problems.CodeFor(err, problems.CodeDownloadFailed),
-		Level:      problems.LevelError,
 		Subject:    "download " + strconv.FormatInt(queueID, 10),
 		Err:        err,
 		Title:      title,

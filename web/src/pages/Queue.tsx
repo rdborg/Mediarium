@@ -737,15 +737,24 @@ export default function Queue() {
       return next
     })
   }, [])
-  async function pickedDo(action: 'pause' | 'resume' | 'stop' | 'retry' | 'front' | 'remove') {
+  async function pickedDo(action: 'pause' | 'resume' | 'stop' | 'retry' | 'front' | 'remove' | 'blocklist') {
     // In the order they are shown, so "to the front" keeps the line's own order.
     // Retry only goes to the failed and stopped ones, so "Pick all" then Retry
     // leaves what is running alone instead of reporting it as refused.
     const ids = pickable
-      .filter((q) => livePicked.has(q.id) && (action !== 'retry' || q.status === 'failed' || q.status === 'stopped'))
+      .filter((q) => livePicked.has(q.id) && ((action !== 'retry' && action !== 'blocklist') || q.status === 'failed' || q.status === 'stopped'))
       .map((q) => q.id)
     if (ids.length === 0 || pickBusy) return
     let deleteFiles = false
+    if (action === 'blocklist') {
+      const r = await confirm({
+        title: plural(ids.length, 'Blocklist this release?', 'Blocklist these {n} releases?'),
+        body: <p>{t('They are never grabbed again, and Mediarium looks for another release for each title.')}</p>,
+        confirmLabel: t('Blocklist releases'),
+        danger: true,
+      })
+      if (!r) return
+    }
     if (action === 'stop' || action === 'remove') {
       const anyFiles = pickable.some((q) => livePicked.has(q.id) && (q.keptFiles || q.progressPct > 0))
       const removing = action === 'remove'
@@ -934,6 +943,9 @@ export default function Queue() {
               <button className="btn-sm btn-with-icon" disabled={pickBusy} onClick={() => void pickedDo('retry')}>
                 <Icon name="refresh" size={14} /> {t('Retry')}
               </button>
+              <button className="btn-sm btn-with-icon" disabled={pickBusy} onClick={() => void pickedDo('blocklist')}>
+                <Icon name="ban" size={14} /> {t('Blocklist')}
+              </button>
               <button className="btn-sm btn-with-icon danger-ghost" disabled={pickBusy} onClick={() => void pickedDo('remove')}>
                 <Icon name="trash" size={14} /> {t('Remove')}
               </button>
@@ -942,6 +954,9 @@ export default function Queue() {
               </button>
               <button className="btn-sm" disabled={pickBusy} onClick={() => setPicked(new Set(pickable.filter((q) => q.status === 'paused').map((q) => q.id)))}>
                 {t('Pick paused')}
+              </button>
+              <button className="btn-sm" disabled={pickBusy} onClick={() => setPicked(new Set(pickable.filter((q) => q.status === 'failed' || q.status === 'stopped').map((q) => q.id)))}>
+                {t('Pick problems')}
               </button>
               <button className="btn-sm" disabled={pickBusy} onClick={() => setPicked(new Set())}>
                 {t('Clear')}
@@ -974,6 +989,11 @@ export default function Queue() {
               <div className="rail-head">
                 <h2>{t('Failed')}</h2>
                 <span>{t('retry, pick another release, or remove')}</span>
+                {admin && (
+                  <button className="btn-sm" onClick={() => setPicked(new Set(pickable.filter((q) => q.status === 'failed' || q.status === 'stopped').map((q) => q.id)))}>
+                    {t('Pick problems')}
+                  </button>
+                )}
               </div>
               {rows(failed, true)}
             </section>

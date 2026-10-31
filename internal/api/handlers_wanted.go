@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
@@ -128,13 +129,22 @@ func (s *Server) handleMovieSearch(w http.ResponseWriter, r *http.Request) {
 			notAsked = append(notAsked, inst.Name)
 		}
 	}
-	outcomes := s.searchMovieTitles(r.Context(), asked, m, nil)
+	// Words typed by hand are searched as they are, and every answer is shown:
+	// the person chose to look for something else, such as a release posted under
+	// another title, and the download still belongs to this movie.
+	custom := customSearchQuery(r)
+	var outcomes []indexers.Outcome
+	if custom != "" {
+		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, custom, movieCategory)
+	} else {
+		outcomes = s.searchMovieTitles(r.Context(), asked, m, nil)
+	}
 	merged := indexers.MergeResults(outcomes)
 	out := []searchResultPayload{}
 	var found []indexers.Result
 	var ignored ignoredReleases
 	for _, res := range merged {
-		if !matchesMovie(res.Title, m) {
+		if custom == "" && !matchesMovie(res.Title, m) {
 			ignored.add(res.Title)
 			continue
 		}
@@ -548,4 +558,14 @@ func (s *Server) setMonitored(w http.ResponseWriter, r *http.Request, what strin
 		return
 	}
 	writeJSON(w, http.StatusOK, nil)
+}
+
+// customSearchQuery is the words a person typed into the search box of Choose a
+// release, or "" when the release list is the usual one for the title.
+func customSearchQuery(r *http.Request) string {
+	q := strings.Join(strings.Fields(r.URL.Query().Get("q")), " ")
+	if len([]rune(q)) > 200 {
+		q = string([]rune(q)[:200])
+	}
+	return q
 }

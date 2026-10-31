@@ -21,6 +21,8 @@ type torrentRoute struct {
 	Handshake time.Time
 	// Proxy is true when the torrent ran through a proxy for torrents.
 	Proxy bool
+	// Discover is true when UDP trackers and DHT were sent through the VPN.
+	Discover bool
 }
 
 // torrentFailure is a torrent error with what the app knows about the network
@@ -54,7 +56,7 @@ func (s *Server) explainTorrentFailure(err error, tunnel torrentclient.TunnelDia
 	route := torrentRoute{}
 	if vt, ok := tunnel.(*vpn.Tunnel); ok && vt != nil {
 		st := s.VPNManager.Status()
-		route = torrentRoute{VPN: true, VPNConnected: st.Connected, Handshake: st.LastHandshake}
+		route = torrentRoute{VPN: true, VPNConnected: st.Connected, Handshake: st.LastHandshake, Discover: s.vpnUDPDiscovery()}
 	} else if tunnel != nil {
 		route.Proxy = true
 	}
@@ -81,6 +83,8 @@ func failureNote(route torrentRoute, d torrentclient.Diag) string {
 	switch {
 	case route.VPN && !route.VPNConnected:
 		parts = append(parts, "Press Test on the VPN page (Settings > Downloading > VPN and proxy) to see what is wrong with the connection.")
+	case route.VPN && d.TrackersTried == 0 && route.Discover:
+		parts = append(parts, "This link lists no trackers. DHT ran through the VPN and still found no peers. Try another release.")
 	case route.VPN && d.TrackersTried == 0:
 		parts = append(parts, "This link lists no trackers, and DHT is off while the VPN is on, so there was no way to find peers. Try another release.")
 	case route.VPN:

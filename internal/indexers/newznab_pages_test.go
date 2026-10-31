@@ -80,3 +80,19 @@ func TestNewznabSearchStopsAtThreePagesAndNeedsATotal(t *testing.T) {
 		t.Errorf("plain feed: %d releases, err %v, extra %d", len(got), err, one.ExtraRequests)
 	}
 }
+
+// A search a person started reads up to ten pages, so the list in Choose a
+// release is not cut at 300.
+func TestNewznabManualSearchReadsTenPages(t *testing.T) {
+	var requests []string
+	srv := pagedFeed(t, 1500, &requests)
+	defer srv.Close()
+	client := indexers.NewNewznabClient("Paged", srv.URL, "key")
+	got, err := client.Search(indexers.AsManual(context.Background()), "x", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1000 || len(requests) != 10 {
+		t.Errorf("got %d releases in %d requests, want 1000 in 10", len(got), len(requests))
+	}
+}

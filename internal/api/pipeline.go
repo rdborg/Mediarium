@@ -939,8 +939,8 @@ func (s *Server) torrentSource(ctx context.Context, downloadURL, destDir string)
 		path, err := writeTorrentFile(dl.Data, destDir)
 		return "", path, err
 	default:
-		path, err := downloadToTempFile(ctx, downloadURL, destDir)
-		return "", path, err
+		magnet, path, err := downloadToTempFile(ctx, downloadURL, destDir)
+		return magnet, path, err
 	}
 }
 
@@ -998,13 +998,18 @@ func writeTorrentFile(data []byte, destDir string) (string, error) {
 
 // downloadToTempFile fetches a .torrent file's bytes and writes them into
 // destDir so torrentclient.AddTorrentFile (which reads from a local path,
-// mirroring the anacrolix/torrent API) can load it.
-func downloadToTempFile(ctx context.Context, url, destDir string) (string, error) {
-	data, err := fetchURL(ctx, url)
+// mirroring the anacrolix/torrent API) can load it. A download that redirects
+// to a magnet link returns the magnet instead.
+func downloadToTempFile(ctx context.Context, url, destDir string) (string, string, error) {
+	data, magnet, err := fetchTorrentURL(ctx, url)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return writeTorrentFile(data, destDir)
+	if magnet != "" {
+		return magnet, "", nil
+	}
+	path, err := writeTorrentFile(data, destDir)
+	return "", path, err
 }
 
 func percent(done, total int64) float64 {
@@ -1020,6 +1025,45 @@ func fetchURL(ctx context.Context, url string) ([]byte, error) {
 
 // fetchURLLimit is fetchURL for a file of at most maxBytes.
 func fetchURLLimit(ctx context.Context, url string, maxBytes int64) ([]byte, error) {
+	return fetchURLLimitWithClient(ctx, netproxy.Client(30*time.Second, netproxy.Indexers), url, maxBytes)
+}
+
+// errMagnetRedirect carries a redirect to a magnet link, which net/http can't
+// follow as a request.
+type errMagnetRedirect struct{ uri string }
+
+func (e errMagnetRedirect) Error() string { return "redirect to magnet link" }
+
+// fetchTorrentURL is fetchURL for a .torrent file, taking the target of a
+// redirect to a magnet link as the torrent's source instead of failing on the
+// magnet scheme. The existing redirect check still runs first, so its limit,
+// address checks and credential stripping apply to the whole chain.
+func fetchTorrentURL(ctx context.Context, url string) (data []byte, magnet string, err error) {
+	client := netproxy.Client(30*time.Second, netproxy.Indexers)
+	follow := client.CheckRedirect
+	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		if follow != nil {
+			if err := follow(next, via); err != nil {
+				return err
+			}
+		}
+		if strings.EqualFold(next.URL.Scheme, "magnet") {
+			return errMagnetRedirect{uri: next.URL.String()}
+		}
+		return nil
+	}
+	data, err = fetchURLLimitWithClient(ctx, client, url, 256<<20)
+	if err != nil {
+		var redirect errMagnetRedirect
+		if errors.As(err, &redirect) {
+			return nil, redirect.uri, nil
+		}
+		return nil, "", err
+	}
+	return data, "", nil
+}
+
+func fetchURLLimitWithClient(ctx context.Context, client *http.Client, url string, maxBytes int64) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -1029,7 +1073,6 @@ func fetchURLLimit(ctx context.Context, url string, maxBytes int64) ([]byte, err
 	// even via a redirect), and the proxy when one is set for indexers;
 	// errors and messages never carry the link's query string, which holds
 	// the indexer key.
-	client := netproxy.Client(30*time.Second, netproxy.Indexers)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, netguard.CleanError(err)

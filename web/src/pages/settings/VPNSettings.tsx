@@ -70,6 +70,12 @@ function VPNSection() {
     (saved) => (saved ? t('Saved: indexer traffic now goes through the VPN.') : t('Saved: indexer traffic now connects directly.')),
     false,
   )
+  const discover = useAutosaveSetting<boolean>(
+    (s) => !!s.discoverThroughTunnel,
+    (v) => ({ discoverThroughTunnel: v }),
+    (saved) => (saved ? t('Saved: UDP trackers and DHT now go through the VPN.') : t('Saved: UDP trackers and DHT stay off while the VPN is on.')),
+    false,
+  )
   const acknowledged = useAutosaveSetting<boolean>(
     (s) => !!s.vpnNoticeAcknowledged,
     (v) => ({ vpnNoticeAcknowledged: v }),
@@ -329,7 +335,17 @@ function VPNSection() {
           label={t('Kill switch: only run torrents while a VPN is connected')}
           tip={t('When no VPN is connected, torrents wait instead of connecting directly, so the swarm never sees your real address. A connected VPN is always used.')}
           learnMore="downloads#the-kill-switch"
-          description={t('Torrents wait instead of connecting without the tunnel. A proxy for torrents (below) counts too. DHT and uTP stay off through the tunnel.')}
+          description={t('Torrents wait instead of connecting without the tunnel. A proxy for torrents (below) counts too. uTP stays off through the tunnel.')}
+          showState
+        />
+        <Switch
+          checked={discover.value}
+          onChange={discover.change}
+          disabled={!discover.loaded || discover.saving}
+          label={t('UDP trackers and DHT through the VPN')}
+          tip={t('Peers and trackers see the VPN address. Tracker and DHT names are looked up through the tunnel, and if that fails nothing is sent from your home address.')}
+          learnMore="downloads#udp-trackers-and-dht"
+          description={t("Announces to UDP trackers and DHT queries go out through the tunnel, so peers and trackers see the VPN address. Tracker and DHT names are looked up through the VPN's DNS, not from your home connection, and a failed lookup does not go out. While this is off, those are skipped and only HTTP trackers are used. A download that has already started keeps the previous choice until you retry it.")}
           showState
         />
         <Switch

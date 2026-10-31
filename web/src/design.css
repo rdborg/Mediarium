@@ -3418,3 +3418,7 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
 .poster-grid.is-windowed > .pcard { animation: none; }
 .ambient-quiet .ambient-item.far { filter: none; }
 .ambient-quiet .ambient-item.far .kind-glyph { filter: saturate(0.85) blur(1.3px); }
+
+.custom-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 14px; }
+.custom-search input { flex: 1 1 240px; min-width: 0; max-width: 420px; }
+.custom-search small { flex: 1 1 100%; color: var(--text-dim); }

@@ -19,6 +19,7 @@ import SetupMediaServer from '../components/SetupMediaServer'
 import InfoLanguageCard from '../components/InfoLanguageCard'
 import SetupMediaTypes from '../components/SetupMediaTypes'
 import SetupPaths from '../components/SetupPaths'
+import Switch from '../components/Switch'
 import UsenetServerForm, { blankServer, type UsenetServerDraft } from '../components/UsenetServerForm'
 import {
   coreParent,
@@ -47,8 +48,8 @@ import AmbientBackdrop from '../components/AmbientBackdrop'
 // First-run onboarding wizard: linear, can't be skipped, each
 // step validated before moving on. Every step is also independently
 // reachable later from Settings — nothing here is a one-time-only choice.
-const STEPS = [t('Admin account'), t('Media types'), t('Library paths'), t('Connect services'), t('Indexers & Search'), t('Usenet provider'), t('Quality & naming'), t('Media server'), t('Done')] as const
-const S = { admin: 0, types: 1, paths: 2, services: 3, sources: 4, usenet: 5, quality: 6, server: 7, done: 8 } as const
+const STEPS = [t('Admin account'), t('Media types'), t('Library paths'), t('Connect services'), t('Indexers & Search'), t('Usenet provider'), t('Quality & naming'), t('Media server'), t('VPN'), t('Done')] as const
+const S = { admin: 0, types: 1, paths: 2, services: 3, sources: 4, usenet: 5, quality: 6, server: 7, vpn: 8, done: 9 } as const
 
 // The setting each folder box is saved to.
 const SETTING_FIELD = {
@@ -288,6 +289,19 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
     }
   }, [step, chosen.movies, chosen.tv])
 
+  // The UDP switch is off until the person turns it on. Loaded when this step
+  // opens, saved only when they press Continue.
+  const [discoverOn, setDiscoverOn] = useState(false)
+  const discoverLoaded = useRef(false)
+  useEffect(() => {
+    if (step !== S.vpn || discoverLoaded.current) return
+    discoverLoaded.current = true
+    api
+      .getSettings()
+      .then((s) => setDiscoverOn(!!s.discoverThroughTunnel))
+      .catch(() => undefined)
+  }, [step])
+
   // One step's work at a time: a second press while the first is still going
   // is ignored (it would otherwise fail with "already exists" after the first went through).
   const working = useRef(false)
@@ -393,6 +407,13 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
       ← {t('Back')}
     </button>
   )
+
+  async function saveDiscover() {
+    await guard(async () => {
+      await api.putSettings({ discoverThroughTunnel: discoverOn })
+      setStep(S.done)
+    })
+  }
 
   async function finish(then?: string) {
     await guard(async () => {
@@ -825,9 +846,31 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
           <SetupMediaServer preferred={preferredServer} servers={mediaServers} onAdded={loadMediaServers} />
           <div className="wizard-nav">
             {backButton}
-            <button className="primary" onClick={() => setStep(S.done)}>
+            <button className="primary" onClick={() => setStep(S.vpn)}>
               {mediaServers.length > 0 ? t('Continue') : t('Skip for now')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {step === S.vpn && (
+        <div className="card grid-form">
+          <h2>{t('UDP trackers and DHT through the VPN')}</h2>
+          <p className="wizard-lead">
+            {t('Optional. With the built-in VPN, UDP trackers and DHT stay off until you turn this on, which is why a torrent that only lists UDP trackers does not start. Names are looked up through the VPN too. Add the VPN itself later under Settings > Downloading > VPN and proxy, where you can change this.')}
+          </p>
+          <Switch
+            checked={discoverOn}
+            onChange={setDiscoverOn}
+            label={t('UDP trackers and DHT through the VPN')}
+            description={t("Announces to UDP trackers and DHT queries go out through the tunnel, so peers and trackers see the VPN address. Tracker and DHT names are looked up through the VPN's DNS, not from your home connection, and a failed lookup does not go out. While this is off, those are skipped and only HTTP trackers are used. A download that has already started keeps the previous choice until you retry it.")}
+          />
+          <div className="wizard-nav">
+            {backButton}
+            <button className="primary" onClick={() => void saveDiscover()} disabled={busy}>
+              {t('Continue')}
+            </button>
+            <button onClick={() => setStep(S.done)}>{t('Skip for now')}</button>
           </div>
         </div>
       )}

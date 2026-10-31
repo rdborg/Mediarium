@@ -135,6 +135,10 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 	// says there is more.
 	q.Set("limit", strconv.Itoa(newznabPageSize))
 	c.ExtraRequests = 0
+	maxPages := newznabMaxPages
+	if isManual(ctx) {
+		maxPages = newznabMaxPagesManual // a person looking at the list wants all of it
+	}
 	var all []Result
 	for page := 0; ; page++ {
 		if page > 0 {
@@ -155,7 +159,7 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 			return nil, err
 		}
 		all = append(all, results...)
-		if len(results) == 0 || total <= len(all) || page+1 >= newznabMaxPages {
+		if len(results) == 0 || total <= len(all) || page+1 >= maxPages {
 			return all, nil
 		}
 		c.ExtraRequests++
@@ -165,8 +169,11 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 const (
 	// newznabPageSize is the number of releases asked for in one request.
 	newznabPageSize = 100
-	// newznabMaxPages is how many pages one search reads at most.
-	newznabMaxPages = 3
+	// newznabMaxPages is how many pages one automatic search reads at most;
+	// newznabMaxPagesManual is the same for a search a person started, which
+	// shows the whole list (a popular title can have far more than 300).
+	newznabMaxPages       = 3
+	newznabMaxPagesManual = 10
 )
 
 // Caps asks for the indexer's capabilities (t=caps). It is the cheapest

@@ -13,6 +13,27 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 - A movie or show already in the library is shown in the language chosen for movie and show info (Settings > Info, lists and subtitles): the title and the poster in the Library, on the Dashboard, in Activity (a download and the waiting list), on the calendar, in reports, requests, statistics and notifications. Discover, search and the title page already were, including the description. The English title stays saved for indexer searches. Where TMDB has no translation or no poster in that language, the English one is kept. An episode's own name, a line already written in the activity history, and the file path stay as they are.
 - The note under a title that is waiting for a release (Activity) is translated with the language of the app. It was left in English.
 
+## [3.9.1] - 2026-10-31
+
+In short: UDP trackers and DHT can go through the built-in VPN, Choose a release has a search box for your own words and reads up to 1,000 releases, Activity can blocklist picked downloads, and several name and warning fixes.
+
+### Added
+
+- UDP trackers and DHT can now run through the built-in VPN (Settings > Downloading > VPN and proxy, off by default; offered in the setup wizard and in What's new). They use a socket inside the tunnel, tracker and DHT names are looked up through the VPN's DNS, and if a name or the socket fails nothing is sent from your home address. Torrents that list only UDP trackers no longer sit at 0% with the VPN on. Written by memnos as a pull request, #151 (#154)
+
+- Choose a release has a **Search for other words** box for movies, seasons and episodes. Type your own words (for example the title a release was posted under), see every answer and grab one; it is still imported as the movie or episode you opened. An empty box brings back the usual list. Idea from mirisbowring on GitHub (#159)
+
+- Activity: the bar for picked downloads has a **Blocklist** button (retry and remove were already there), and **Pick problems** picks every failed and stopped download at once, also from the **Failed** heading (in-app suggestion)
+
+### Fixed
+
+- Choose a release now reads up to ten pages (1,000 releases) from a Newznab indexer, not three, so a title with very many releases is no longer cut off at 300 and older releases (such as a favourite group's) show up. Searches Mediarium starts by itself still stop at 300 (#152, reported by mirisbowring)
+- A Usenet release posted without file names in its subjects, which came down as file_1.bin, file_2.bin and failed with "No video in a download", is now saved under the name inside each article, so unpacking can find the archives (#156, reported by nexus4004)
+- A release that held programs or scripts, a download too short to be real, and a download with no video in it are now shown as a warning on Health and in the problem list, not as an error, and no longer send an error message. They are everyday Usenet and Mediarium already tries another release (suggested through the in-app feedback form)
+- A torrent from Prowlarr or Jackett whose download link redirects to a magnet link is now added instead of failing with "unsupported protocol scheme magnet". Written by blind0wl as a pull request, #157
+- The umlaut spellings ("Sams im Glueck" next to "Sams im Glück") now also apply to titles that were already in the library, not only to titles whose other names were fetched after the update (#148, reported by mirisbowring)
+- A release name with broken letters from an indexer ("Sams im GlÃ¼ck" for "Sams im Glück") is read as the right letters again, so it can match the title (#148, reported by mirisbowring)
+
 ## [3.9.0] - 2026-10-30
 
 In short: new movie and show folders can use the info language, the release list no longer stops at 60 results, season packs follow your setting again, and Missing Movies in nzb360 skips unreleased titles. Client totals in Activity, the subtitle source and umlaut spellings in searches are new.

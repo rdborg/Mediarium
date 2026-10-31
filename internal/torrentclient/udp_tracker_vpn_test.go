@@ -4,11 +4,62 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	mediarium "github.com/rdborg/mediarium/internal/torrentclient"
 )
+
+// packetTunnel carries UDP inside the test double. It never opens a host socket.
+type packetTunnel struct {
+	refusingTunnel
+	listens atomic.Int32
+}
+
+func (p *packetTunnel) ListenPacket(string, string) (net.PacketConn, error) {
+	p.listens.Add(1)
+	return &idlePacket{addr: &net.UDPAddr{IP: net.IPv4(10, 2, 0, 2), Port: 1}, done: make(chan struct{})}, nil
+}
+
+func (p *packetTunnel) LookupHost(context.Context, string) ([]net.IP, error) {
+	return nil, errors.New("no dns in this test")
+}
+
+type idlePacket struct {
+	addr net.Addr
+	done chan struct{}
+	once sync.Once
+}
+
+func (p *idlePacket) ReadFrom([]byte) (int, net.Addr, error) {
+	<-p.done
+	return 0, nil, net.ErrClosed
+}
+func (p *idlePacket) WriteTo(b []byte, _ net.Addr) (int, error) { return len(b), nil }
+func (p *idlePacket) Close() error                              { p.once.Do(func() { close(p.done) }); return nil }
+func (p *idlePacket) LocalAddr() net.Addr                       { return p.addr }
+func (p *idlePacket) SetDeadline(time.Time) error               { return nil }
+func (p *idlePacket) SetReadDeadline(time.Time) error           { return nil }
+func (p *idlePacket) SetWriteDeadline(time.Time) error          { return nil }
+
+// Discovery through the VPN must use the tunnel's UDP socket and must not
+// listen on the host. The home address stays unused.
+func TestDiscoverThroughTunnelDoesNotListenOnTheHost(t *testing.T) {
+	tun := &packetTunnel{}
+	engine, err := mediarium.New(mediarium.Config{DataDir: t.TempDir(), Tunnel: tun, DiscoverThroughTunnel: true})
+	if err != nil {
+		t.Fatalf("new engine: %v", err)
+	}
+	defer engine.Close()
+	if tun.listens.Load() < 1 {
+		t.Fatal("DHT was not opened on the tunnel")
+	}
+	if addrs := engine.ListenAddrs(); len(addrs) != 0 {
+		t.Fatalf("host listen addresses = %v, want none", addrs)
+	}
+}
 
 type refusingTunnel struct{}
 

@@ -37,11 +37,16 @@ type torrentRegistry struct {
 	// allowLocal lets engines started from now on use trackers, web seeds and
 	// metadata addresses on the home network (see torrentclient.Config).
 	allowLocal bool
+
+	// discover sends UDP trackers and DHT through the VPN on engines started
+	// from now on. A download already running keeps the choice it started with.
+	discover bool
 }
 
 type engineKey struct {
-	port   int
-	tunnel torrentclient.TunnelDialer
+	port     int
+	tunnel   torrentclient.TunnelDialer
+	discover bool
 }
 
 type torrentEngine struct {
@@ -75,14 +80,17 @@ func (r *torrentRegistry) start(queueID int64, dir, dataRoot string, port int, t
 		r.jobs = map[int64]*torrentJob{}
 		r.goalMet = map[int64]bool{}
 	}
-	key := engineKey{port: port, tunnel: tunnel}
+	discover := r.discover && tunnel != nil
+	key := engineKey{port: port, tunnel: tunnel, discover: discover}
 	e := r.engines[key]
 	if e == nil {
 		mapPort := !r.noPortMapping && tunnel == nil
-		tc, err := torrentclient.New(torrentclient.Config{DataDir: dataRoot, ListenPort: port, Tunnel: tunnel, PortMapping: mapPort, AllowLocalAddresses: r.allowLocal})
+		cfg := torrentclient.Config{DataDir: dataRoot, ListenPort: port, Tunnel: tunnel, PortMapping: mapPort, AllowLocalAddresses: r.allowLocal, DiscoverThroughTunnel: discover}
+		tc, err := torrentclient.New(cfg)
 		if err != nil && port != 0 && tunnel == nil {
 			log.Printf("torrent: listen_port=%d unavailable, using a port the system picks: %v", port, err)
-			tc, err = torrentclient.New(torrentclient.Config{DataDir: dataRoot, Tunnel: tunnel, PortMapping: mapPort, AllowLocalAddresses: r.allowLocal})
+			cfg.ListenPort = 0
+			tc, err = torrentclient.New(cfg)
 		}
 		if err != nil {
 			return nil, err
@@ -142,6 +150,14 @@ func (r *torrentRegistry) control(queueID int64) *torrentclient.Control {
 func (r *torrentRegistry) setAllowLocal(on bool) {
 	r.mu.Lock()
 	r.allowLocal = on
+	r.mu.Unlock()
+}
+
+// setDiscover is read when an engine starts. A torrent already running keeps
+// the choice it was started with until it is retried.
+func (r *torrentRegistry) setDiscover(on bool) {
+	r.mu.Lock()
+	r.discover = on
 	r.mu.Unlock()
 }
 

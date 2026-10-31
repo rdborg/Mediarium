@@ -452,20 +452,34 @@ func (s *Server) handleBlocklistQueueItem(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusNotFound, "That download is no longer in the queue.")
 		return
 	}
-	if isActiveStatus(item.Status) {
-		writeError(w, http.StatusConflict, "This download is still running.")
+	if err := s.blocklistQueueItem(item); err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, errStillRunning) {
+			status = http.StatusConflict
+		}
+		writeError(w, status, err.Error())
 		return
+	}
+	writeJSON(w, http.StatusOK, nil)
+}
+
+var errStillRunning = errors.New("This download is still running.")
+
+// blocklistQueueItem blocklists the release of a download that is not running,
+// removes the download and looks for another release for its title. One
+// download from the Activity buttons, or each of several picked together.
+func (s *Server) blocklistQueueItem(item queue.Item) error {
+	if isActiveStatus(item.Status) {
+		return errStillRunning
 	}
 	reason, err := s.personBlocklistReason(item)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return err
 	}
 	if err := s.Blocklist.Add(blocklist.Entry{
 		ReleaseTitle: item.ReleaseTitle, Protocol: string(item.Protocol), Reason: reason, MovieID: item.MovieID, SeriesID: item.SeriesID,
 	}); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return err
 	}
 	_ = s.QueueRepo.LogItemEvent(queue.ItemEvent{MovieID: item.MovieID, SeriesID: item.SeriesID, AlbumID: item.AlbumID,
 		Kind: "blocklisted", Level: queue.LevelWarn, Message: "Blocklisted \"" + item.ReleaseTitle + "\": by you"})
@@ -480,7 +494,7 @@ func (s *Server) handleBlocklistQueueItem(w http.ResponseWriter, r *http.Request
 	case item.BookID > 0:
 		s.background(func() { s.searchBook(item.BookID, books.Format(item.BookFormat), true) })
 	}
-	writeJSON(w, http.StatusOK, nil)
+	return nil
 }
 
 // personBlocklistReason is the blocklist reason for a release a person

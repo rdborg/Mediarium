@@ -372,6 +372,7 @@ Open `http://<your-server-ip>:8264`. The first time, a short wizard walks you th
 5. **Indexers** (where Mediarium looks for releases) and **Usenet provider** (your Usenet provider's login; skip it if you only use torrents).
 6. **Quality & naming.** The default quality, and the media player you use (Plex, Jellyfin, Emby, Kodi or something else), which picks the matching file naming style.
 7. **Media server** (optional). Sign in to Plex, Jellyfin or Emby so "Watch in" links work and the server refreshes when something new arrives.
+8. **VPN** (optional). If you will use the built-in VPN, you can turn on **UDP trackers and DHT through the VPN**. It stays off until you do. The VPN connection itself is added later under Settings > Downloading > VPN and proxy, where the switch can be changed.
 
 ![Setup step 2, Media types: cards for Movies, TV shows, Music, Ebooks and Audiobooks, all ticked](images/onboarding-media-types.png)
 
@@ -389,7 +390,7 @@ Open `http://<your-server-ip>:8264`. The first time, a short wizard walks you th
 
 *Step 7, Media server. It is optional.*
 
-Indexers, Usenet provider, Quality & naming and Media server have **Skip for now**, and everything can be changed later under **Settings**. If a check fails, the wizard says what to fix. The last screen checks what you set up. If there is no indexer or download provider, it lists what is missing, each with a button to the right settings page (a media server is listed as optional). **Open Mediarium** is there either way. Until those are added, the dashboard shows a **Getting started** card with the same list. It goes away when everything is set up, or when you close it with the x (your browser remembers that).
+Indexers, Usenet provider, Quality & naming, Media server and VPN have **Skip for now**, and everything can be changed later under **Settings**. If a check fails, the wizard says what to fix. The last screen checks what you set up. If there is no indexer or download provider, it lists what is missing, each with a button to the right settings page (a media server is listed as optional). **Open Mediarium** is there either way. Until those are added, the dashboard shows a **Getting started** card with the same list. It goes away when everything is set up, or when you close it with the x (your browser remembers that).
 
 When the wizard is done you land on the dashboard, which also works on a phone:
 

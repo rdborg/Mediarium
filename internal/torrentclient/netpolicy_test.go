@@ -30,7 +30,7 @@ func (r *recordingTunnel) DialContext(ctx context.Context, network, addr string)
 // downloads are refused when they would go to a cloud metadata address.
 func TestNetworkPolicyWithoutVPNRefusesMetadataAddresses(t *testing.T) {
 	tcfg := torrent.NewDefaultClientConfig()
-	applyNetworkPolicy(tcfg, nil, false)
+	applyNetworkPolicy(tcfg, nil, false, false)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -70,7 +70,7 @@ func TestNetworkPolicyWithoutVPNRefusesMetadataAddresses(t *testing.T) {
 func TestNetworkPolicyWithVPNUsesOnlyTheTunnel(t *testing.T) {
 	tun := &recordingTunnel{}
 	tcfg := torrent.NewDefaultClientConfig()
-	applyNetworkPolicy(tcfg, tun, false)
+	applyNetworkPolicy(tcfg, tun, false, false)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -149,7 +149,7 @@ func TestNetworkPolicyRefusesLocalAddressesUnlessAllowed(t *testing.T) {
 	defer cancel()
 
 	strict := torrent.NewDefaultClientConfig()
-	applyNetworkPolicy(strict, nil, false)
+	applyNetworkPolicy(strict, nil, false, false)
 	for name, dial := range map[string]func(context.Context, string, string) (net.Conn, error){
 		"HTTPDialContext": strict.HTTPDialContext, "TrackerDialContext": strict.TrackerDialContext,
 	} {
@@ -167,7 +167,7 @@ func TestNetworkPolicyRefusesLocalAddressesUnlessAllowed(t *testing.T) {
 	}
 
 	open := torrent.NewDefaultClientConfig()
-	applyNetworkPolicy(open, nil, true)
+	applyNetworkPolicy(open, nil, true, false)
 	c, err := open.TrackerDialContext(ctx, "tcp", ln.Addr().String())
 	if err != nil {
 		t.Fatalf("allowed local tracker: %v", err)

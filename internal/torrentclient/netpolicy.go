@@ -22,13 +22,13 @@ import (
 //
 //   - With a VPN tunnel, every one of them goes through the tunnel like the
 //     peer connections do, so a tracker or web seed never sees the real
-//     address. UDP trackers cannot be tunnelled (they need a socket on the host
-//     network), so they are not used while the VPN is on.
+//     address. UDP trackers are skipped unless discover is set and the tunnel
+//     can carry UDP itself: the socket then belongs to the tunnel, not the host.
 //   - Without one, they are dialled through the same check as the rest of
 //     Mediarium's outgoing connections (netguard): cloud metadata and other
 //     link-local addresses are refused, even through a redirect or a host name
 //     that resolves there. Local and LAN addresses stay reachable.
-func applyNetworkPolicy(tcfg *torrent.ClientConfig, tunnel TunnelDialer, allowLocal bool) {
+func applyNetworkPolicy(tcfg *torrent.ClientConfig, tunnel TunnelDialer, allowLocal, discover bool) {
 	if tunnel != nil {
 		tcfg.HTTPDialContext = tunnel.DialContext
 		tcfg.TrackerDialContext = tunnel.DialContext
@@ -41,8 +41,20 @@ func applyNetworkPolicy(tcfg *torrent.ClientConfig, tunnel TunnelDialer, allowLo
 			IdleConnTimeout:     90 * time.Second,
 		}
 		// The engine panics when this returns an error (a magnet link with a UDP
-		// tracker would end the whole program), so a UDP tracker gets a stand-in
-		// that opens no socket and fails every announce instead.
+		// tracker would end the whole program). A tunnel socket is used when
+		// discovery is on; otherwise a stand-in opens nothing and fails the announce.
+		if discover {
+			if udp, ok := tunnel.(TunnelPacket); ok {
+				tcfg.TrackerListenPacket = func(network, addr string) (net.PacketConn, error) {
+					pc, err := udp.ListenPacket(network, addr)
+					if err != nil {
+						return newUDPOffConn(), nil
+					}
+					return pc, nil
+				}
+				return
+			}
+		}
 		tcfg.TrackerListenPacket = func(network, addr string) (net.PacketConn, error) {
 			return newUDPOffConn(), nil
 		}

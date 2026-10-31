@@ -314,6 +314,7 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 	s.Announce = announce.NewManager(s.AnnounceRepo, ircDecider{s}, slog.Default())
 	s.torrents.noPortMapping = !s.torrentPortMapping()
 	s.torrents.allowLocal = s.torrentAllowLocal()
+	s.torrents.discover = s.vpnUDPDiscovery()
 	queue.SetNewestFirst(s.newestFirstOn())
 	s.refreshAppFrames()
 	s.dispatch = s.newDispatcher()

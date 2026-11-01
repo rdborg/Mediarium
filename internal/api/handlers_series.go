@@ -383,6 +383,7 @@ func (s *Server) addSeriesFromTMDB(ctx context.Context, tmdbID int, userID int64
 	}
 	s.saveSeriesIDs(&sr, detail)
 	s.noteSeriesNumbering(sr)
+	go s.rememberDisplayFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 	return sr, nil
 }
 
@@ -539,6 +540,7 @@ func (s *Server) refreshSeries(ctx context.Context, sr library.Series) error {
 		}
 	}
 	s.syncAirTimes(ctx, sr)
+	go s.rememberDisplayFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 	return nil
 }
 

@@ -488,6 +488,7 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library"+byline)
+	go s.rememberDisplayFace("movie", created.TMDBID, created.Title, created.PosterPath)
 	if req.SearchNow {
 		go s.searchMovieInBackground(created.ID)
 	}

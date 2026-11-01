@@ -72,6 +72,7 @@ func (s *Server) StartAutomation() *automation.Scheduler {
 		automation.Job{Name: "import-lists", Interval: listsCheckInterval, Run: s.heavy(s.importListsJob)}, // does nothing until a list is added
 		automation.Job{Name: "trash-formats", Interval: time.Hour, Run: s.heavy(s.trashFormatsJob)},        // does nothing until switched on; reads the guides once a day
 		automation.Job{Name: "genre-backfill", Interval: genreBackfillInterval, Run: s.heavy(s.backfillGenres)},
+		automation.Job{Name: "display-faces", Interval: displayFaceInterval, Run: s.heavy(s.backfillDisplayFaces)}, // stores the translated title and poster of each library title
 		automation.Job{Name: "country-backfill", Interval: countryBackfillInterval, Run: s.heavy(s.backfillCountries)},
 		automation.Job{Name: "collections", Interval: collectionsInterval, Run: s.heavy(s.collectionsJob)},  // finds the collection of each movie; adds new films of followed collections
 		automation.Job{Name: "title-names", Interval: titleNamesInterval, Run: s.heavy(s.titleNamesJob)},    // picks the other titles of each movie and show, when a language besides English is wanted

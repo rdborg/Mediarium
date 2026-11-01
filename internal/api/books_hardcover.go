@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/rdborg/mediarium/internal/books"
 )
@@ -68,16 +69,35 @@ func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) (i
 	return hcID, cover
 }
 
-// keepHardcoverCover stores Hardcover's picture in the cover cache. It is not
-// a cover the person picked. link is the image address already returned with
-// the book, so this does not ask Hardcover again. A failure leaves the book
-// without a picture; adding it already succeeded.
-func (s *Server) keepHardcoverCover(ctx context.Context, hcID int, link string) {
-	if hcID <= 0 || link == "" {
+// keepHardcoverCover keeps Hardcover's picture for a book that has no cover yet.
+// link is the image address already returned with the book, so this does not
+// ask Hardcover again. A book filed under an Open Library key gets that picture
+// as its own cover, because the row does not keep the Hardcover id. A book
+// filed under hc-<id> keeps it in the cover cache, which its page already
+// points at. A book that already has a cover is left as it is. A failure leaves
+// the book without a picture; adding it already succeeded.
+func (s *Server) keepHardcoverCover(ctx context.Context, b books.Book, hcID int, link string) {
+	if hcID <= 0 || link == "" || b.CoverID != 0 || b.OwnCover != 0 {
 		return
 	}
 	s.rememberHardcoverCover(hcID, link)
-	if _, err := s.cachedHardcoverCover(ctx, hcID); err != nil {
-		slog.Info("books: Hardcover cover not saved", "hardcover", hcID, "err", err)
+	if _, ok := books.ParseHardcoverKey(b.OLKey); ok {
+		if _, err := s.cachedHardcoverCover(ctx, hcID); err != nil {
+			slog.Info("books: Hardcover cover not saved", "hardcover", hcID, "err", err)
+		}
+		return
+	}
+	raw, err := s.fetchCoverLink(ctx, link)
+	if err != nil {
+		slog.Info("books: Hardcover cover not saved", "book", b.ID, "err", err)
+		return
+	}
+	jpeg, err := books.PrepareOwnCover(raw)
+	if err != nil {
+		slog.Info("books: Hardcover cover not saved", "book", b.ID, "err", err)
+		return
+	}
+	if err := s.BookRepo.SetOwnCover(b.ID, jpeg, time.Now()); err != nil {
+		slog.Info("books: Hardcover cover not saved", "book", b.ID, "err", err)
 	}
 }

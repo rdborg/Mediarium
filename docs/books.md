@@ -283,7 +283,7 @@ The dashboard has an **Ebooks** and an **Audiobooks** card with how many books y
 | Method | Path | What it does |
 |---|---|---|
 | GET | `/api/books` | Every book in the library |
-| POST | `/api/books` | Add a book: `{"olKey", "title", "author", "authorKey", "year", "coverId", "hardcoverId", "ebook": bool, "audiobook": bool, "searchNow": bool}`. `hardcoverId` is set when the result came from Hardcover, so its description and cached cover can be kept |
+| POST | `/api/books` | Add a book: `{"olKey", "title", "author", "authorKey", "year", "coverId", "hardcoverId", "ebook": bool, "audiobook": bool, "searchNow": bool}`. `hardcoverId` is set when the result came from Hardcover. When that book keeps an Open Library key and has no cover, Hardcover's picture is saved as its own cover |
 | GET | `/api/books/search?q=` | Search Open Library, and Hardcover when a token is saved (that one token is used for every account). Add `&author=` to search for a title by that author: the books by that author come first. A book only Hardcover knows is appended after the Open Library results, with key `hc-<id>` |
 | GET | `/api/books/discover?list=trending&period=weekly&page=` | Open Library's trending list (`daily`, `weekly`, `monthly`, `yearly`, `forever`), 40 a page |
 | GET | `/api/books/discover?list=browse&subject=&from=&to=&sort=&page=` | Books by subject and first publication year; `sort` is `popular`, `rating`, `newest` or `oldest` |
@@ -329,4 +329,4 @@ The dashboard has an **Ebooks** and an **Audiobooks** card with how many books y
 
 Every `/api/books` and `/api/book-authors` route answers 404 while both ebooks and audiobooks are switched off. Adding a book in a format that is switched off answers 409.
 
-Book covers come from Open Library, and from Hardcover when a token is saved. Mediarium fetches each cover once and keeps a copy in the `book-covers` folder inside the config folder, so pages of books don't wait on those sites every time. A Hardcover cover is only fetched for a book a recent search or book page already showed, so the token isn't spent on an address nobody asked to see. The one saved token is used for every account. The picture is the cached cover, not a cover someone uploaded. Deleting that folder is safe: the covers are fetched again when needed.
+Book covers come from Open Library, and from Hardcover when a token is saved. Mediarium fetches each cover once and keeps a copy in the `book-covers` folder inside the config folder, so pages of books don't wait on those sites every time. A Hardcover cover is fetched for a book a recent search or book page already showed, and for a book already in the library under an `hc-<id>` key, so the token isn't spent on an address nobody asked to see. The one saved token is used for every account. A book filed under an Open Library key that has no Open Library cover keeps Hardcover's picture as its own cover. Deleting that folder is safe: the covers are fetched again when needed.

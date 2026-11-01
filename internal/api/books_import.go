@@ -308,7 +308,10 @@ func (s *Server) attachOpenLibraryBook(ctx context.Context, res bookImportResult
 			b, _, err = s.BookRepo.GetByKey(nb.OLKey)
 		}
 		if err == nil && fresh && hcID > 0 && b.CoverID == 0 && b.OwnCover == 0 {
-			s.keepHardcoverCover(ctx, hcID, cover)
+			s.keepHardcoverCover(ctx, b, hcID, cover)
+			if got, gerr := s.BookRepo.Get(b.ID); gerr == nil {
+				b = got
+			}
 		}
 		if err != nil {
 			res.Status, res.Message = bookFailed, err.Error()

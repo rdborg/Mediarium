@@ -240,6 +240,35 @@ func hardcoverCoverFailing(id int) bool {
 	return ok && time.Now().Before(until)
 }
 
+// hardcoverCoverForLibraryBook is the picture address of a book this library
+// already keeps under hc-<id>. Hardcover is asked only when that row exists.
+// inLibrary is false when there is no such row (or no token to ask with), and
+// then the caller refuses the id without remembering it. ErrNotFound with
+// inLibrary means the book has no picture.
+func (s *Server) hardcoverCoverForLibraryBook(ctx context.Context, id int) (string, bool, error) {
+	_, ok, err := s.BookRepo.GetByKey(books.HardcoverKey(id))
+	if err != nil {
+		slog.Info("books: library lookup failed", "err", err)
+		return "", false, err
+	}
+	if !ok {
+		return "", false, books.ErrNotFound
+	}
+	hc := s.hardcover()
+	if hc == nil {
+		return "", false, books.ErrNotFound
+	}
+	link, err := hc.ImageURL(ctx, id)
+	if err != nil {
+		if !errors.Is(err, books.ErrNotFound) {
+			rememberHardcoverCoverFail(id)
+		}
+		return "", true, err
+	}
+	s.rememberHardcoverCover(id, link)
+	return link, true, nil
+}
+
 func rememberHardcoverCoverFail(id int) {
 	hardcoverCoverMem.Lock()
 	defer hardcoverCoverMem.Unlock()
@@ -250,9 +279,11 @@ func rememberHardcoverCoverFail(id int) {
 }
 
 // cachedHardcoverCover returns the cached file for a Hardcover cover. The
-// image address comes from a recent search or book page; an id nobody saw is
-// refused without calling Hardcover. A missing picture is remembered for a
-// day. Any other failure is remembered for a short while.
+// image address comes from a recent search or book page. An id nobody saw is
+// refused without calling Hardcover, unless a book in the library is filed
+// under that hc-<id>: only then is ImageURL asked, and a failure is remembered
+// the same way. A missing picture is remembered for a day. Any other failure
+// is remembered for a short while.
 func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, error) {
 	if id <= 0 {
 		return "", books.ErrNotFound
@@ -276,8 +307,8 @@ func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, erro
 		return "", books.ErrNotFound
 	}
 	link, seen := hardcoverCoverKnown(id)
-	if !seen || link == "" {
-		if seen && os.MkdirAll(dir, 0o755) == nil {
+	if seen && link == "" {
+		if os.MkdirAll(dir, 0o755) == nil {
 			_ = os.WriteFile(none, nil, 0o644)
 			bookCoverLocks.noteWrite(dir)
 		}
@@ -285,6 +316,18 @@ func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, erro
 	}
 	ctx, cancel := context.WithTimeout(ctx, coverFetchTimeout)
 	defer cancel()
+	if !seen {
+		var inLibrary bool
+		var err error
+		link, inLibrary, err = s.hardcoverCoverForLibraryBook(ctx, id)
+		if err != nil {
+			if inLibrary && errors.Is(err, books.ErrNotFound) && os.MkdirAll(dir, 0o755) == nil {
+				_ = os.WriteFile(none, nil, 0o644)
+				bookCoverLocks.noteWrite(dir)
+			}
+			return "", err
+		}
+	}
 	data, err := s.fetchCoverLink(ctx, link)
 	if err != nil {
 		rememberHardcoverCoverFail(id)

@@ -112,6 +112,23 @@ func TestBookSearchUsesHardcoverForMissingCovers(t *testing.T) {
 	if added["description"] != "Just here." || added["olKey"] != "hc-4" || added["coverUrl"] != "/api/book-covers/hc-4.jpg" {
 		t.Fatalf("added with hardcover details and cached cover: %v", added)
 	}
+
+	// The same title on Open Library has no cover, so Hardcover's picture is
+	// saved as the book's own cover. The row does not keep the Hardcover id.
+	quietAdded := postJSON[map[string]any](t, client, base+"/api/books", map[string]any{
+		"olKey": "OL9W", "title": "Quiet Book", "author": "Ilaria Leone", "year": 2021, "hardcoverId": 9, "ebook": true,
+	}, http.StatusCreated)
+	quietCover, _ := quietAdded["coverUrl"].(string)
+	if quietAdded["olKey"] != "OL9W" || quietAdded["description"] != "A note." || !strings.Contains(quietCover, "/own-cover") || quietAdded["coverChosen"] != true {
+		t.Fatalf("open library book should keep Hardcover's picture as its own cover: %v", quietAdded)
+	}
+
+	withCover := postJSON[map[string]any](t, client, base+"/api/books", map[string]any{
+		"olKey": "OL8W", "title": "Already Pictured", "author": "Ada Writer", "year": 2021, "coverId": 5, "hardcoverId": 9, "ebook": true,
+	}, http.StatusCreated)
+	if withCover["coverUrl"] != "/api/book-covers/5-M.jpg" || withCover["coverChosen"] == true {
+		t.Fatalf("an existing cover is left as it is: %v", withCover)
+	}
 }
 
 func TestHardcoverSearchFallsBackWhenHardcoverDoesNotAnswer(t *testing.T) {
@@ -262,6 +279,132 @@ func TestHardcoverCoverRemembersAFailedDownload(t *testing.T) {
 	}
 	if hits.Load() != before {
 		t.Fatalf("failed download was tried again: %d -> %d", before, hits.Load())
+	}
+}
+
+func TestHardcoverLibraryCoverSurvivesATrimmedCache(t *testing.T) {
+	server, base, client := loginNewServer(t)
+	ol := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"docs":[]}`)
+	}))
+	t.Cleanup(ol.Close)
+	server.TestSetOpenLibrary(ol.URL)
+
+	var jpegBytes bytes.Buffer
+	if err := jpeg.Encode(&jpegBytes, image.NewRGBA(image.Rect(0, 0, 8, 12)), nil); err != nil {
+		t.Fatal(err)
+	}
+	picture := jpegBytes.Bytes()
+	var cards atomic.Int32
+	var pictures atomic.Int32
+	var refuse atomic.Bool
+	server.TestDropHardcoverCover(41)
+	hc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/cover.jpg" {
+			pictures.Add(1)
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Write(picture)
+			return
+		}
+		var req struct {
+			Query string `json:"query"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		switch {
+		case strings.Contains(req.Query, "me {"):
+			io.WriteString(w, `{"data":{"me":[{"username":"ada"}]}}`)
+		case strings.Contains(req.Query, "SearchBooks"):
+			io.WriteString(w, `{"data":{"search":{"ids":[41],"results":{"hits":[{"document":{"id":41}}]}}}}`)
+		case strings.Contains(req.Query, "BookCards"):
+			cards.Add(1)
+			if refuse.Load() {
+				w.WriteHeader(http.StatusTooManyRequests)
+				return
+			}
+			io.WriteString(w, `{"data":{"books":[{"id":41,"title":"Kept","release_year":2020,"slug":"kept","description":"<p>Kept.</p>","image":{"url":"`+hcURL(r)+`/cover.jpg"},"contributions":[{"author":{"name":"Ada Writer"}}]}]}}`)
+		default:
+			io.WriteString(w, `{"data":{}}`)
+		}
+	}))
+	t.Cleanup(hc.Close)
+	server.TestSetHardcover(hc.URL)
+	server.TestSetCoverLinkClient(http.DefaultClient)
+	postJSONMethod[map[string]any](t, client, http.MethodPut, base+"/api/modules", map[string]any{"ebooks": true}, http.StatusOK)
+	postJSONMethod[map[string]any](t, client, http.MethodPut, base+"/api/settings/hardcover", map[string]string{"token": "good-token"}, http.StatusOK)
+	_ = getJSON[[]map[string]any](t, client, base+"/api/books/search?q=kept")
+	added := postJSON[map[string]any](t, client, base+"/api/books", map[string]any{
+		"olKey": "hc-41", "title": "Kept", "author": "Ada Writer", "year": 2020, "hardcoverId": 41, "ebook": true,
+	}, http.StatusCreated)
+	if added["coverUrl"] != "/api/book-covers/hc-41.jpg" {
+		t.Fatalf("library cover address: %v", added["coverUrl"])
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	var stable int32
+	for time.Now().Before(deadline) {
+		n := pictures.Load()
+		if n > 0 && n == stable {
+			time.Sleep(40 * time.Millisecond)
+			if pictures.Load() == n {
+				break
+			}
+		}
+		stable = pictures.Load()
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	server.TestDropHardcoverCover(41)
+	before := cards.Load()
+	resp, err := client.Get(base + "/api/book-covers/hc-41.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || !bytes.HasPrefix(body, []byte{0xff, 0xd8}) {
+		t.Fatalf("refetched cover: %d %d bytes", resp.StatusCode, len(body))
+	}
+	if cards.Load() != before+1 {
+		t.Fatalf("library cover should ask Hardcover once: %d -> %d", before, cards.Load())
+	}
+	resp, err = client.Get(base + "/api/book-covers/hc-41.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if cards.Load() != before+1 {
+		t.Fatalf("cached cover asked Hardcover again: %d", cards.Load())
+	}
+
+	// An id that is not in the library still does not spend the token.
+	unseen := cards.Load()
+	resp, err = client.Get(base + "/api/book-covers/hc-999.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound || cards.Load() != unseen {
+		t.Fatalf("unseen id: status %d, calls %d -> %d", resp.StatusCode, unseen, cards.Load())
+	}
+
+	// A failed lookup for a library book is remembered, so the next view does not ask again.
+	server.TestDropHardcoverCover(41)
+	refuse.Store(true)
+	failed := cards.Load()
+	resp, err = client.Get(base + "/api/book-covers/hc-41.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound || cards.Load() != failed+1 {
+		t.Fatalf("rate limit: status %d, calls %d -> %d", resp.StatusCode, failed, cards.Load())
+	}
+	resp, err = client.Get(base + "/api/book-covers/hc-41.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if cards.Load() != failed+1 {
+		t.Fatalf("rate limit was not remembered: %d", cards.Load())
 	}
 }
 

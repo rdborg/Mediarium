@@ -283,7 +283,10 @@ func (s *Server) finishAddBook(w http.ResponseWriter, r *http.Request, req addBo
 		return
 	}
 	if hcID > 0 && created.CoverID == 0 && created.OwnCover == 0 {
-		s.keepHardcoverCover(ctx, hcID, cover)
+		s.keepHardcoverCover(ctx, created, hcID, cover)
+		if fresh, err := s.BookRepo.Get(created.ID); err == nil {
+			created = fresh
+		}
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s by %s added to the library%s", created.Name(), created.Author, byline))
 	if req.SearchNow {

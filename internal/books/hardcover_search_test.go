@@ -24,6 +24,9 @@ func TestHardcoverKeysAndMerge(t *testing.T) {
 	if id, ok := ParseHardcoverCover("hc-12.jpg"); !ok || id != 12 {
 		t.Fatalf("cover file: %d %v", id, ok)
 	}
+	if _, ok := ParseHardcoverCover("hc-01.jpg"); ok {
+		t.Fatal("accepted hc-01.jpg")
+	}
 
 	ol := []Found{{Key: "OL1W", Title: "Quiet Book", Author: "Ilaria Leone", Year: 2021}}
 	hc := []Found{
@@ -46,9 +49,23 @@ func TestHardcoverKeysAndMerge(t *testing.T) {
 		[]Found{{Key: "OL1W", Title: "Crescere", Author: "Ilaria Leone", Year: 2021}},
 		[]Found{{HardcoverID: 3, Title: "Fiori sopra l'inferno", Author: "Ilaria Tuti", Year: 2018, CoverImage: "https://cdn.example/f.jpg"}},
 	)
-	PreferHardcover(mixed)
-	if mixed[0].HardcoverID != 3 || mixed[1].Key != "OL1W" {
-		t.Fatalf("hardcover results come first: %+v", mixed)
+	if mixed[0].Key != "OL1W" || mixed[1].Key != "hc-3" {
+		t.Fatalf("hardcover-only stays at the end: %+v", mixed)
+	}
+	// Same title and surname, years far apart: two books, not one.
+	apart := MergeHardcover(
+		[]Found{{Key: "OL2W", Title: "Quiet Book", Author: "Ada Leone", Year: 1990}},
+		[]Found{{HardcoverID: 8, Title: "Quiet Book", Author: "Ilaria Leone", Year: 2018, CoverImage: "https://cdn.example/x.jpg"}},
+	)
+	if len(apart) != 2 || apart[0].HardcoverID != 0 || apart[1].Key != "hc-8" {
+		t.Fatalf("same surname, different years: %+v", apart)
+	}
+	closeYears := MergeHardcover(
+		[]Found{{Key: "OL2W", Title: "Quiet Book", Author: "Ada Leone", Year: 2018}},
+		[]Found{{HardcoverID: 8, Title: "Quiet Book", Author: "Ilaria Leone", Year: 2019, CoverImage: "https://cdn.example/x.jpg"}},
+	)
+	if len(closeYears) != 1 || closeYears[0].Key != "OL2W" || closeYears[0].HardcoverID != 8 {
+		t.Fatalf("years within one should fold: %+v", closeYears)
 	}
 }
 

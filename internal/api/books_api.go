@@ -148,6 +148,11 @@ type bookSearchResult struct {
 	LibraryID int64  `json:"libraryId,omitempty"`
 }
 
+// hardcoverSearchWait is how long a book search waits for Hardcover. After
+// that the answer is Open Library's alone, so a slow Hardcover cannot hold
+// the search for as long as two full API calls.
+const hardcoverSearchWait = 4 * time.Second
+
 // handleBookSearch looks books up on Open Library, and on Hardcover when a token is saved.
 // Hardcover fills in covers Open Library doesn't have, and books only Hardcover
 // knows are listed too. If one of the two doesn't answer, the other's results
@@ -178,14 +183,20 @@ func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 		defer wg.Done()
 		found, olErr = s.OpenLibrary.Search(r.Context(), query, 24)
 	}()
+	var cancel context.CancelFunc
 	if hc := s.hardcover(); hc != nil {
+		var hcCtx context.Context
+		hcCtx, cancel = context.WithTimeout(r.Context(), hardcoverSearchWait)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			hcFound, hcErr = hc.Search(r.Context(), query, 24)
+			hcFound, hcErr = hc.Search(hcCtx, query, 24)
 		}()
 	}
 	wg.Wait()
+	if cancel != nil {
+		cancel()
+	}
 	if hcErr != nil {
 		slog.Info("books: Hardcover search failed, using Open Library", "err", hcErr)
 		hcFound = nil
@@ -208,7 +219,6 @@ func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 		books.RankByTitleAndAuthor(found, q, author)
 	} else {
 		newestFirst(found, q, func(f books.Found) string { return f.Title }, func(f books.Found) int { return f.Year })
-		books.PreferHardcover(found)
 	}
 	writeJSON(w, http.StatusOK, s.bookResults(found))
 }
@@ -260,7 +270,7 @@ func (s *Server) finishAddBook(w http.ResponseWriter, r *http.Request, req addBo
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
-	hcID := s.prepareNewBook(ctx, &b, req.HardcoverID)
+	hcID, cover := s.prepareNewBook(ctx, &b, req.HardcoverID)
 	userID, byline := requester(r)
 	b.AddedBy = userID
 	created, err := s.BookRepo.Add(b)
@@ -273,10 +283,7 @@ func (s *Server) finishAddBook(w http.ResponseWriter, r *http.Request, req addBo
 		return
 	}
 	if hcID > 0 && created.CoverID == 0 && created.OwnCover == 0 {
-		s.keepHardcoverCover(ctx, created.ID, hcID)
-		if fresh, err := s.BookRepo.Get(created.ID); err == nil {
-			created = fresh
-		}
+		s.keepHardcoverCover(ctx, hcID, cover)
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s by %s added to the library%s", created.Name(), created.Author, byline))
 	if req.SearchNow {

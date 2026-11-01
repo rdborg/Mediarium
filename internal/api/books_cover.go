@@ -185,10 +185,78 @@ func (s *Server) warmBookCovers(size string, ids []int) {
 	}()
 }
 
-// cachedHardcoverCover returns the cached file for a Hardcover cover, fetching
-// it first when it is not there. books.ErrNotFound means Hardcover has no
-// picture (remembered for a day); any other error is not remembered.
+// A Hardcover cover id and its image address, remembered from a search or a
+// book page. The cover route reads this and does not ask Hardcover again.
+type hardcoverCoverNote struct {
+	url   string
+	until time.Time
+}
+
+var hardcoverCoverMem = struct {
+	sync.Mutex
+	seen map[int]hardcoverCoverNote
+	fail map[int]time.Time
+}{}
+
+const (
+	// hardcoverCoverRemember is how long an id from a search or a book page
+	// may be fetched. After that, only a copy already on disk is served.
+	hardcoverCoverRemember = 30 * time.Minute
+	// hardcoverCoverFailFor is how long a failed download (a rate limit, a
+	// network error) is remembered, so the next request does not try again
+	// straight away. A missing picture is remembered for longer, on disk.
+	hardcoverCoverFailFor = 10 * time.Minute
+)
+
+// rememberHardcoverCover notes an id this server just saw, with the image
+// address Hardcover already returned ("" when that book has no picture).
+func (s *Server) rememberHardcoverCover(id int, url string) {
+	if id <= 0 {
+		return
+	}
+	hardcoverCoverMem.Lock()
+	defer hardcoverCoverMem.Unlock()
+	if hardcoverCoverMem.seen == nil || len(hardcoverCoverMem.seen) > 2000 {
+		hardcoverCoverMem.seen = map[int]hardcoverCoverNote{}
+	}
+	hardcoverCoverMem.seen[id] = hardcoverCoverNote{url: url, until: time.Now().Add(hardcoverCoverRemember)}
+	delete(hardcoverCoverMem.fail, id)
+}
+
+func hardcoverCoverKnown(id int) (string, bool) {
+	hardcoverCoverMem.Lock()
+	defer hardcoverCoverMem.Unlock()
+	n, ok := hardcoverCoverMem.seen[id]
+	if !ok || time.Now().After(n.until) {
+		return "", false
+	}
+	return n.url, true
+}
+
+func hardcoverCoverFailing(id int) bool {
+	hardcoverCoverMem.Lock()
+	defer hardcoverCoverMem.Unlock()
+	until, ok := hardcoverCoverMem.fail[id]
+	return ok && time.Now().Before(until)
+}
+
+func rememberHardcoverCoverFail(id int) {
+	hardcoverCoverMem.Lock()
+	defer hardcoverCoverMem.Unlock()
+	if hardcoverCoverMem.fail == nil || len(hardcoverCoverMem.fail) > 2000 {
+		hardcoverCoverMem.fail = map[int]time.Time{}
+	}
+	hardcoverCoverMem.fail[id] = time.Now().Add(hardcoverCoverFailFor)
+}
+
+// cachedHardcoverCover returns the cached file for a Hardcover cover. The
+// image address comes from a recent search or book page; an id nobody saw is
+// refused without calling Hardcover. A missing picture is remembered for a
+// day. Any other failure is remembered for a short while.
 func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, error) {
+	if id <= 0 {
+		return "", books.ErrNotFound
+	}
 	dir := s.bookCoverDir()
 	key := fmt.Sprintf("hc-%d", id)
 	img, none := filepath.Join(dir, key+".img"), filepath.Join(dir, key+".none")
@@ -201,32 +269,30 @@ func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, erro
 	if st, err := os.Stat(img); err == nil && st.Size() > 0 {
 		return img, nil
 	}
+	if hardcoverCoverFailing(id) {
+		return "", errors.New("hardcover cover failed a moment ago")
+	}
 	if st, err := os.Stat(none); err == nil && time.Since(st.ModTime()) < coverMissingFor {
 		return "", books.ErrNotFound
 	}
-	hc := s.hardcover()
-	if hc == nil {
+	link, seen := hardcoverCoverKnown(id)
+	if !seen || link == "" {
+		if seen && os.MkdirAll(dir, 0o755) == nil {
+			_ = os.WriteFile(none, nil, 0o644)
+			bookCoverLocks.noteWrite(dir)
+		}
 		return "", books.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(ctx, coverFetchTimeout)
 	defer cancel()
-	link, err := hc.ImageURL(ctx, id)
-	if errors.Is(err, books.ErrNotFound) {
-		if os.MkdirAll(dir, 0o755) == nil {
-			_ = os.WriteFile(none, nil, 0o644)
-			bookCoverLocks.noteWrite(dir)
-		}
-		return "", err
-	}
-	if err != nil {
-		return "", err
-	}
 	data, err := s.fetchCoverLink(ctx, link)
 	if err != nil {
+		rememberHardcoverCoverFail(id)
 		return "", err
 	}
 	data, err = books.NormalizeCover(data)
 	if err != nil {
+		rememberHardcoverCoverFail(id)
 		return "", err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -251,8 +317,9 @@ func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, erro
 	return img, nil
 }
 
-// warmHardcoverCovers fetches Hardcover covers in the background, the same way
-// warmBookCovers does for Open Library.
+// warmHardcoverCovers fetches Hardcover covers in the background from the
+// image address a search or book page already stored. It does not ask
+// Hardcover for that address again.
 func (s *Server) warmHardcoverCovers(ids []int) {
 	var todo []int
 	seen := map[int]bool{}

@@ -40,7 +40,12 @@ const maxEditionCovers = 12
 // with none answers an empty list.
 func (c *Client) WorkCovers(ctx context.Context, key string) ([]int, error) {
 	key = strings.TrimPrefix(strings.TrimSpace(key), "/works/")
-	if key == "" || strings.ContainsAny(key, "/?#") {
+	// A colon is an Audible key (audnexus:…); hc- is a Hardcover book. Neither
+	// is an Open Library work, so neither is sent there.
+	if key == "" || strings.ContainsAny(key, "/?#:") {
+		return nil, ErrNotFound
+	}
+	if _, ok := ParseHardcoverKey(key); ok {
 		return nil, ErrNotFound
 	}
 	var res struct {

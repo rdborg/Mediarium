@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/rdborg/mediarium/internal/books"
 )
@@ -11,16 +10,20 @@ import (
 // prepareNewBook fills in a book that is about to be added. Open Library still
 // supplies the description and the cover id when it knows the book. A Hardcover
 // id (from the search result, or from a key "hc-<id>") supplies the description
-// when Open Library has none, and is returned so the caller can keep Hardcover's
-// picture after the row exists. A Hardcover-only book is matched to Open Library
-// first when the title and author are found there, so the library keeps one entry.
-func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) int {
+// when Open Library has none. The image address is returned with the id so the
+// caller can cache that picture without asking Hardcover again. A Hardcover-only
+// book is matched to Open Library first when the title and author are found
+// there, so the library keeps one entry.
+func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) (int, string) {
+	var cover string
 	if id, ok := books.ParseHardcoverKey(b.OLKey); ok {
 		hcID = id
 	}
 	if hcID > 0 {
 		if hc := s.hardcover(); hc != nil {
 			if info, err := hc.Book(ctx, hcID); err == nil {
+				cover = info.CoverImage
+				s.rememberHardcoverCover(hcID, info.CoverImage)
 				if b.Description == "" {
 					b.Description = info.Description
 				}
@@ -62,32 +65,19 @@ func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) in
 			}
 		}
 	}
-	return hcID
+	return hcID, cover
 }
 
-// keepHardcoverCover downloads Hardcover's picture and stores it as the book's
-// own cover. A failure leaves the book without a picture; adding it already succeeded.
-func (s *Server) keepHardcoverCover(ctx context.Context, bookID int64, hcID int) {
-	hc := s.hardcover()
-	if hc == nil || hcID <= 0 {
+// keepHardcoverCover stores Hardcover's picture in the cover cache. It is not
+// a cover the person picked. link is the image address already returned with
+// the book, so this does not ask Hardcover again. A failure leaves the book
+// without a picture; adding it already succeeded.
+func (s *Server) keepHardcoverCover(ctx context.Context, hcID int, link string) {
+	if hcID <= 0 || link == "" {
 		return
 	}
-	link, err := hc.ImageURL(ctx, hcID)
-	if err != nil {
-		slog.Info("books: Hardcover cover not saved", "book", bookID, "err", err)
-		return
-	}
-	raw, err := s.fetchCoverLink(ctx, link)
-	if err != nil {
-		slog.Info("books: Hardcover cover not saved", "book", bookID, "err", err)
-		return
-	}
-	jpeg, err := books.PrepareOwnCover(raw)
-	if err != nil {
-		slog.Info("books: Hardcover cover not saved", "book", bookID, "err", err)
-		return
-	}
-	if err := s.BookRepo.SetOwnCover(bookID, jpeg, time.Now()); err != nil {
-		slog.Info("books: Hardcover cover not saved", "book", bookID, "err", err)
+	s.rememberHardcoverCover(hcID, link)
+	if _, err := s.cachedHardcoverCover(ctx, hcID); err != nil {
+		slog.Info("books: Hardcover cover not saved", "hardcover", hcID, "err", err)
 	}
 }

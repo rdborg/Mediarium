@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -71,10 +70,22 @@ func (f Found) CoverAddress(size string) string {
 	return ""
 }
 
+// yearsTooFar reports two publication years that are both known and more than
+// a year apart. A shared title and surname is not enough to call them one book.
+func yearsTooFar(a, b int) bool {
+	if a <= 0 || b <= 0 {
+		return false
+	}
+	if a < b {
+		a, b = b, a
+	}
+	return a-b > 1
+}
+
 // MergeHardcover adds Hardcover hits to an Open Library search. A hit that
 // names the same book is folded in, and its picture is kept when Open Library
 // has none. The Open Library key stays, so a book already in the library is
-// still recognised. A hit Open Library doesn't list is appended as its own result.
+// still recognised. A hit Open Library doesn't list is appended at the end.
 func MergeHardcover(openLib, hard []Found) []Found {
 	if len(hard) == 0 {
 		return openLib
@@ -86,7 +97,7 @@ func MergeHardcover(openLib, hard []Found) []Found {
 		}
 		folded := false
 		for i := range out {
-			if !SameTitle(out[i].Title, h.Title, true) || !SameAuthor(out[i].Author, h.Author) {
+			if !SameTitle(out[i].Title, h.Title, true) || !SameAuthor(out[i].Author, h.Author) || yearsTooFar(out[i].Year, h.Year) {
 				continue
 			}
 			folded = true
@@ -116,15 +127,6 @@ func MergeHardcover(openLib, hard []Found) []Found {
 		out = append(out, h)
 	}
 	return out
-}
-
-// PreferHardcover puts books Hardcover knows ahead of the others, without
-// changing the order inside either group. A search then shows their covers
-// before Open Library entries that have no picture.
-func PreferHardcover(found []Found) {
-	sort.SliceStable(found, func(i, j int) bool {
-		return found[i].HardcoverID > 0 && found[j].HardcoverID == 0
-	})
 }
 
 // Search finds books by title, author or both. The order is Hardcover's own.

@@ -12,7 +12,7 @@ You can also pick them in the first-run wizard, on the **What do you want to man
 
 ## Adding a book
 
-Open **Library**, then the **Ebooks** or **Audiobooks** tab, and press **Add**. Type a title or an author's name. The results come from [Open Library](https://openlibrary.org), with their covers. When a Hardcover token is saved (Settings > Info, lists and subtitles), the same search also asks [Hardcover](https://hardcover.app) and uses its cover for a book Open Library has no picture of. A book only Hardcover knows is listed too, and can be added. If Open Library can't read what you typed (it answers 422 to text such as an unclosed bracket or quote, or a lone colon), Mediarium searches again with just the words, and if that is refused too the search box says "Open Library couldn't read that search" instead of showing an empty list. Press **Add** on the right one.
+Open **Library**, then the **Ebooks** or **Audiobooks** tab, and press **Add**. Type a title or an author's name. The results come from [Open Library](https://openlibrary.org), with their covers. When a Hardcover token is saved (Settings > Info, lists and subtitles), the same search also asks [Hardcover](https://hardcover.app) and uses its cover for a book Open Library has no picture of. A book only Hardcover knows is listed too, and can be added, after the Open Library results. That one saved token is what every account's search uses. If Open Library can't read what you typed (it answers 422 to text such as an unclosed bracket or quote, or a lone colon), Mediarium searches again with just the words, and if that is refused too the search box says "Open Library couldn't read that search" instead of showing an empty list. Press **Add** on the right one.
 
 - From the Ebooks tab the book is added as an ebook, from the Audiobooks tab as an audiobook. When the other format is switched on too, tick **Get the audiobook too** (or **Get the ebook too**) to want both.
 - Mediarium starts looking for it straight away. After that, the automatic search tries again on its usual schedule for every book still missing.
@@ -88,7 +88,7 @@ Books with a release date show up on **Upcoming > Calendar** with their cover in
 
 Only whole books count: a novella in between (book 2.5), box sets and collections are left out, but you can still add them by hand. Switching **Follow this series** off keeps the books you have.
 
-**Where series come from.** Out of the box, from Open Library. It knows most big series, but not all of them, and rarely knows a book before it is out. For more series and release dates, connect **Hardcover** under **Settings > Info, lists and subtitles**: make a free account at [hardcover.app](https://hardcover.app), copy your token from Settings, Hardcover API, and paste it there. Mediarium checks it before saving and keeps it encrypted. A Hardcover token belongs to your own account and can't be shared, which is why none comes built in. If Hardcover doesn't know a book, or is down, Open Library is used instead.
+**Where series come from.** Out of the box, from Open Library. It knows most big series, but not all of them, and rarely knows a book before it is out. For more series and release dates, and for covers Open Library doesn't have, connect **Hardcover** under **Settings > Info, lists and subtitles**: make a free account at [hardcover.app](https://hardcover.app), copy your token from Settings, Hardcover API, and paste it there. Mediarium checks it before saving and keeps it encrypted. A Hardcover token belongs to your own account and can't be shared, which is why none comes built in. The one token saved there is used for every account's series lookups and book searches. If Hardcover doesn't know a book, is slow, or is down, Open Library is used instead.
 
 ## Audiobook details
 
@@ -283,12 +283,12 @@ The dashboard has an **Ebooks** and an **Audiobooks** card with how many books y
 | Method | Path | What it does |
 |---|---|---|
 | GET | `/api/books` | Every book in the library |
-| POST | `/api/books` | Add a book: `{"olKey", "title", "author", "authorKey", "year", "coverId", "ebook": bool, "audiobook": bool, "searchNow": bool}` |
-| GET | `/api/books/search?q=` | Search Open Library. Add `&author=` to search for a title by that author: the books by that author come first |
+| POST | `/api/books` | Add a book: `{"olKey", "title", "author", "authorKey", "year", "coverId", "hardcoverId", "ebook": bool, "audiobook": bool, "searchNow": bool}`. `hardcoverId` is set when the result came from Hardcover, so its description and cached cover can be kept |
+| GET | `/api/books/search?q=` | Search Open Library, and Hardcover when a token is saved (that one token is used for every account). Add `&author=` to search for a title by that author: the books by that author come first. A book only Hardcover knows is appended after the Open Library results, with key `hc-<id>` |
 | GET | `/api/books/discover?list=trending&period=weekly&page=` | Open Library's trending list (`daily`, `weekly`, `monthly`, `yearly`, `forever`), 40 a page |
 | GET | `/api/books/discover?list=browse&subject=&from=&to=&sort=&page=` | Books by subject and first publication year; `sort` is `popular`, `rating`, `newest` or `oldest` |
 | GET | `/api/books/subjects` | The genres the Discover filter offers |
-| GET | `/api/book-works/{key}` | One book from Open Library for its info page: details, description, subjects, `hasEbook`, `hasAudio`, and `libraryId` when it's in the library |
+| GET | `/api/book-works/{key}` | One book for its info page: details, description, subjects, `hasEbook`, `hasAudio`, and `libraryId` when it's in the library. `key` is an Open Library work, or `hc-<id>` for a book only Hardcover knows |
 | GET | `/api/books/{id}/read` | The ebook file (PDFs shown inline; `?download=1` saves it) |
 | GET | `/api/books/{id}/tracks` | The audiobook's files in playing order: `index`, `name`, `size` |
 | GET | `/api/books/{id}/listen/{n}` | Track `n`, with ranges for seeking |
@@ -329,4 +329,4 @@ The dashboard has an **Ebooks** and an **Audiobooks** card with how many books y
 
 Every `/api/books` and `/api/book-authors` route answers 404 while both ebooks and audiobooks are switched off. Adding a book in a format that is switched off answers 409.
 
-Book covers come from Open Library. Mediarium fetches each cover once and keeps a copy in the `book-covers` folder inside the config folder, so pages of books don't wait on Open Library every time. Deleting that folder is safe: the covers are fetched again when needed.
+Book covers come from Open Library, and from Hardcover when a token is saved. Mediarium fetches each cover once and keeps a copy in the `book-covers` folder inside the config folder, so pages of books don't wait on those sites every time. A Hardcover cover is only fetched for a book a recent search or book page already showed, so the token isn't spent on an address nobody asked to see. The one saved token is used for every account. The picture is the cached cover, not a cover someone uploaded. Deleting that folder is safe: the covers are fetched again when needed.

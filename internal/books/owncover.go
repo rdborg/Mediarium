@@ -70,13 +70,20 @@ func OwnCoverURL(bookID, saved int64) string {
 }
 
 // CoverPath is the address of the book's cover on this server: its own
-// picture when it has one, else the Open Library cover ("" for none). size is
-// "S", "M" or "L" and only matters for an Open Library cover.
+// picture when a person picked one, else the Open Library cover, else the
+// cached Hardcover cover of a book filed under "hc-<id>" ("" when there is
+// none). size is "S", "M" or "L" and only matters for an Open Library cover.
 func (b Book) CoverPath(size string) string {
 	if b.OwnCover > 0 {
 		return OwnCoverURL(b.ID, b.OwnCover)
 	}
-	return LocalCoverURL(b.OLCoverID(), size)
+	if id := b.OLCoverID(); id > 0 {
+		return LocalCoverURL(id, size)
+	}
+	if id, ok := ParseHardcoverKey(b.OLKey); ok {
+		return HardcoverCoverURL(id)
+	}
+	return ""
 }
 
 // SetOwnCover keeps jpeg as the book's own cover. It replaces any cover

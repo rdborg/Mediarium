@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"sync"
@@ -21,25 +22,38 @@ func (s *Server) bookResults(found []books.Found) []bookSearchResult {
 	out := make([]bookSearchResult, 0, len(found))
 	covers := make([]int, 0, len(found))
 	hcCovers := make([]int, 0, len(found))
-	var library []books.Book
-	for _, f := range found {
-		if f.HardcoverID > 0 {
-			library, _ = s.BookRepo.List()
-			break
-		}
-	}
+	var hardcoverRows []books.Book
+	var listed bool
 	for _, f := range found {
 		covers = append(covers, f.CoverID)
-		if f.CoverID <= 0 && f.HardcoverID > 0 && f.CoverImage != "" {
-			hcCovers = append(hcCovers, f.HardcoverID)
+		if f.HardcoverID > 0 {
+			s.rememberHardcoverCover(f.HardcoverID, f.CoverImage)
+			if f.CoverID <= 0 && f.CoverImage != "" {
+				hcCovers = append(hcCovers, f.HardcoverID)
+			}
 		}
 		res := bookSearchResult{Found: f, CoverURL: f.CoverAddress("M")}
-		if b, ok, _ := s.BookRepo.GetByKey(f.Key); ok {
+		b, ok, err := s.BookRepo.GetByKey(f.Key)
+		if err != nil {
+			slog.Info("books: library lookup failed", "key", f.Key, "err", err)
+		} else if ok {
 			res.LibraryID = b.ID
-		} else if f.HardcoverID > 0 {
-			for _, b := range library {
-				if books.SameTitle(b.Title, f.Title, true) && books.SameAuthor(b.Author, f.Author) {
-					res.LibraryID = b.ID
+		} else if _, hcOnly := books.ParseHardcoverKey(f.Key); hcOnly {
+			if !listed {
+				listed = true
+				library, listErr := s.BookRepo.List()
+				if listErr != nil {
+					slog.Info("books: library lookup failed", "err", listErr)
+				}
+				for _, row := range library {
+					if _, ok := books.ParseHardcoverKey(row.OLKey); ok {
+						hardcoverRows = append(hardcoverRows, row)
+					}
+				}
+			}
+			for _, row := range hardcoverRows {
+				if books.SameTitle(row.Title, f.Title, true) && books.SameAuthor(row.Author, f.Author) {
+					res.LibraryID = row.ID
 					break
 				}
 			}
@@ -185,11 +199,19 @@ func (s *Server) handleHardcoverWork(w http.ResponseWriter, r *http.Request, id 
 		writeUpstreamError(w, "look the book up on Hardcover", err)
 		return
 	}
+	s.rememberHardcoverCover(info.HardcoverID, info.CoverImage)
 	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
-	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
+	if b, ok, err := s.BookRepo.GetByKey(info.Key); err != nil {
+		slog.Info("books: library lookup failed", "err", err)
+	} else if ok {
 		out.LibraryID = b.ID
-	} else if library, err := s.BookRepo.List(); err == nil {
+	} else if library, err := s.BookRepo.List(); err != nil {
+		slog.Info("books: library lookup failed", "err", err)
+	} else {
 		for _, b := range library {
+			if _, hc := books.ParseHardcoverKey(b.OLKey); !hc {
+				continue
+			}
 			if books.SameTitle(b.Title, info.Title, true) && books.SameAuthor(b.Author, info.Author) {
 				out.LibraryID = b.ID
 				break

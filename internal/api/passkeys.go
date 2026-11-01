@@ -44,15 +44,19 @@ import (
 // whose counter did not move (a sign that it was copied); and the rules above.
 
 const (
-	ceremonyTTL  = 5 * time.Minute
-	maxCeremony  = 1000
-	passkeyName  = 60
-	waDisplay    = "Mediarium"
-	kindRegister = "register"
-	kindLogin    = "login"
+	ceremonyTTL = 5 * time.Minute
+	maxCeremony = 1000
+	// maxCeremonyPerOwner is how many sign-ins one network (or registrations
+	// one account) can have waiting at once.
+	maxCeremonyPerOwner = 5
+	passkeyName         = 60
+	waDisplay           = "Mediarium"
+	kindRegister        = "register"
+	kindLogin           = "login"
 )
 
 type ceremony struct {
+	owner   string // the network that started it, or the account registering
 	kind    string
 	userID  int64
 	session webauthn.SessionData
@@ -69,6 +73,14 @@ type ceremonyStore struct {
 func newCeremonyStore() *ceremonyStore { return &ceremonyStore{m: map[string]*ceremony{}} }
 
 func (c *ceremonyStore) put(kind string, userID int64, sd webauthn.SessionData, now time.Time) (string, error) {
+	return c.putFrom(kind, userID, "", sd, now)
+}
+
+// putFrom is put for a ceremony started by owner. One owner never holds more
+// than maxCeremonyPerOwner, and when the store is full the owner with the most
+// waiting gives up its oldest, so a flood from many networks mostly evicts
+// its own starts rather than the one real person signing in.
+func (c *ceremonyStore) putFrom(kind string, userID int64, owner string, sd webauthn.SessionData, now time.Time) (string, error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
@@ -81,19 +93,38 @@ func (c *ceremonyStore) put(kind string, userID int64, sd webauthn.SessionData, 
 			delete(c.m, k)
 		}
 	}
-	if len(c.m) >= maxCeremony {
-		// A flood of starts must not lock real people out: the oldest one waiting makes room.
-		var oldest string
-		var oldestAt time.Time
-		for k, v := range c.m {
-			if oldest == "" || v.expires.Before(oldestAt) {
-				oldest, oldestAt = k, v.expires
-			}
+	counts := map[string]int{}
+	for _, v := range c.m {
+		counts[v.owner]++
+	}
+	if owner != "" && counts[owner] >= maxCeremonyPerOwner {
+		c.dropOldest(func(v *ceremony) bool { return v.owner == owner })
+	} else if len(c.m) >= maxCeremony {
+		// A flood of starts must not lock real people out: the owner with the
+		// most waiting makes room (the oldest overall among equals).
+		most := 0
+		for _, n := range counts {
+			most = max(most, n)
 		}
+		c.dropOldest(func(v *ceremony) bool { return counts[v.owner] == most })
+	}
+	c.m[id] = &ceremony{owner: owner, kind: kind, userID: userID, session: sd, expires: now.Add(ceremonyTTL)}
+	return id, nil
+}
+
+// dropOldest removes the ceremony that expires first among those that match.
+// The caller holds c.mu.
+func (c *ceremonyStore) dropOldest(match func(*ceremony) bool) {
+	var oldest string
+	var oldestAt time.Time
+	for k, v := range c.m {
+		if match(v) && (oldest == "" || v.expires.Before(oldestAt)) {
+			oldest, oldestAt = k, v.expires
+		}
+	}
+	if oldest != "" {
 		delete(c.m, oldest)
 	}
-	c.m[id] = &ceremony{kind: kind, userID: userID, session: sd, expires: now.Add(ceremonyTTL)}
-	return id, nil
 }
 
 // take removes and returns the ceremony: a challenge works once, whatever the
@@ -255,7 +286,7 @@ func (s *Server) handlePasskeyRegisterBegin(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusInternalServerError, "Couldn't start. Try again.")
 		return
 	}
-	id, err := s.sso().ceremonies.put(kindRegister, user.ID, *session, time.Now())
+	id, err := s.sso().ceremonies.putFrom(kindRegister, user.ID, fmt.Sprintf("user:%d", user.ID), *session, time.Now())
 	if err != nil {
 		writeError(w, http.StatusTooManyRequests, "Too many passkey sign-ins are waiting. Try again in a few minutes.")
 		return
@@ -410,7 +441,7 @@ func (s *Server) handlePasskeyLoginBegin(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusInternalServerError, "Couldn't start. Try again.")
 		return
 	}
-	id, err := s.sso().ceremonies.put(kindLogin, 0, *session, time.Now())
+	id, err := s.sso().ceremonies.putFrom(kindLogin, 0, "net:"+ipKey, *session, time.Now())
 	if err != nil {
 		writeError(w, http.StatusTooManyRequests, "Too many passkey sign-ins are waiting. Try again in a few minutes.")
 		return

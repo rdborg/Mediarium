@@ -5,6 +5,7 @@
 package subtitles
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -565,6 +566,19 @@ func (c *Client) RequestDownload(ctx context.Context, fileID int) (string, error
 	return info.Link, nil
 }
 
+// maxThrottleRetries is how often a download link is asked for again after
+// "too many requests" before it counts as the limit.
+const maxThrottleRetries = 2
+
+// throttleWait is how long to wait after a 429: its Retry-After in seconds,
+// one second when it gives none, and never more than ten.
+func throttleWait(retryAfter string) time.Duration {
+	if n, err := strconv.Atoi(strings.TrimSpace(retryAfter)); err == nil && n > 0 {
+		return time.Duration(min(n, 10)) * time.Second
+	}
+	return time.Second
+}
+
 // RequestDownloadInfo exchanges a file ID for a time-limited download link —
 // OpenSubtitles' download endpoint is a two-step process (this, then a
 // plain GET of the returned link) so it can enforce daily download quotas
@@ -600,6 +614,22 @@ func (c *Client) RequestDownloadInfo(ctx context.Context, fileID int) (DownloadI
 			c.token = ""
 			c.mu.Unlock()
 			continue
+		}
+		// 429 is mostly OpenSubtitles' per-second throttle, not the daily
+		// limit: wait as long as it asks (a few seconds at most) and try again.
+		// Only an answer that says no downloads are left is the daily limit.
+		if resp.StatusCode == http.StatusTooManyRequests && attempt < maxThrottleRetries {
+			raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+			resp.Body.Close()
+			if info, _ := parseDownloadBody(raw, time.Now()); !info.HasRemaining || info.Remaining > 0 {
+				select {
+				case <-ctx.Done():
+					return DownloadInfo{}, fmt.Errorf("request download link: %w", ctx.Err())
+				case <-time.After(throttleWait(resp.Header.Get("Retry-After"))):
+				}
+				continue
+			}
+			resp.Body = io.NopCloser(bytes.NewReader(raw))
 		}
 		break
 	}

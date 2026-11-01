@@ -107,3 +107,22 @@ func TestCheckFormat(t *testing.T) {
 		}
 	}
 }
+
+// A file with two or three episodes is named for all of them, Sonarr's way.
+func TestMultiEpisodeFileNames(t *testing.T) {
+	cases := []struct {
+		more   []int
+		format string
+		want   string
+	}{
+		{[]int{2}, organizer.TVPresets["plex"], "Show - S01E01-E02 - Pilot + Second"},
+		{[]int{2, 3}, organizer.TVPresets["minimal"], "S01E01-E02-E03"},
+		{nil, organizer.TVPresets["minimal"], "S01E01"},
+	}
+	for _, tc := range cases {
+		ctx := organizer.NamingContext{SeriesTitle: "Show", Season: 1, Episode: 1, MoreEpisodes: tc.more, EpisodeTitle: "Pilot + Second"}
+		if got := organizer.Render(tc.format, ctx); got != tc.want {
+			t.Errorf("Render(%q, %v) = %q, want %q", tc.format, tc.more, got, tc.want)
+		}
+	}
+}

@@ -369,6 +369,7 @@ func (s *Server) retryQueueItem(item queue.Item) (int64, error) {
 	if item.Status != queue.StatusFailed && item.Status != queue.StatusStopped {
 		return 0, errNotRetryable
 	}
+	s.forgetFailedUsenetJob(item.ID) // or the downloader would get the same release twice
 	keptDir, reuse := s.keptDownload(item)
 	// The new item must not start before the earlier files are in its folder.
 	release := s.dispatch.Hold()

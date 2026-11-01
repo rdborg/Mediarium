@@ -7930,5 +7930,14 @@
   "Blocklist releases": "Заблокировать релизы",
   "Pick problems": "Выбрать проблемные",
   "Blocklist these {n} releases?|few": "Заблокировать эти {n} релиза?",
-  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Выберите \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" или \"blocklist\"."
+  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Выберите \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" или \"blocklist\".",
+  "Nothing in this group among the latest lines. Older lines may have some.": "Среди последних строк ничего из этой группы нет. В более старых строках что-то может быть.",
+  "{n} min": "{n} мин",
+  "{h} h": "{h} ч",
+  "Connected and logged in. Downloads are using this login right now.": "Подключено, вход выполнен. Сейчас этот логин используют загрузки.",
+  "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "Сервер работает. Загрузки используют все подключения, которые разрешает этот логин, поэтому для проверки не нашлось места.",
+  "Removing a SABnzbd job's files after import": "Удаление файлов задания SABnzbd после импорта",
+  "An album folder linked to a single with the same name": "Папка альбома, привязанная к синглу с тем же названием",
+  "Notices on phones covering the buttons": "Уведомления на телефоне, закрывавшие кнопки",
+  "Usenet releases posted without file names": "Релизы Usenet, выложенные без имён файлов"
 }

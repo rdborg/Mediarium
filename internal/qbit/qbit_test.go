@@ -359,3 +359,14 @@ func TestListAndControls(t *testing.T) {
 		srv.Close()
 	}
 }
+
+func TestWaitingMeansInLineNotStalled(t *testing.T) {
+	for state, want := range map[string]bool{
+		"queuedDL": true, "checkingDL": true, "allocating": true, "moving": true,
+		"downloading": false, "stalledDL": false, "metaDL": false, "pausedDL": false, "error": false,
+	} {
+		if got := (Torrent{State: state}).Waiting(); got != want {
+			t.Errorf("%s: Waiting() = %v, want %v", state, got, want)
+		}
+	}
+}

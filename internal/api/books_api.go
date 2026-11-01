@@ -619,6 +619,59 @@ const maxBookSearchesPerHunt = 10
 type huntPosition struct {
 	mu            sync.Mutex
 	movies, books int
+	// episodes is when the scheduled TV search last looked for each episode
+	// (by id), so a show with more missing episodes than one run can search
+	// goes on with the ones not tried yet instead of starting over.
+	episodes map[int64]time.Time
+}
+
+// noteEpisode records that the scheduled search just looked for an episode.
+func (h *huntPosition) noteEpisode(id int64, at time.Time) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.episodes == nil || len(h.episodes) > 100000 {
+		h.episodes = map[int64]time.Time{}
+	}
+	h.episodes[id] = at
+}
+
+// orderEpisodes puts the episodes the scheduled search tried longest ago (or
+// never) first, inside each season and among the seasons of one show. The
+// order of the shows themselves is kept.
+func (h *huntPosition) orderEpisodes(wants []tvWant) {
+	h.mu.Lock()
+	last := func(id int64) time.Time { return h.episodes[id] }
+	oldest := make([]time.Time, len(wants))
+	for i := range wants {
+		eps := wants[i].episodes
+		sort.SliceStable(eps, func(a, b int) bool { return last(eps[a].ID).Before(last(eps[b].ID)) })
+		if len(eps) > 0 {
+			oldest[i] = last(eps[0].ID)
+		}
+	}
+	h.mu.Unlock()
+	rank := map[int64]int{}
+	for _, w := range wants {
+		if _, ok := rank[w.series.ID]; !ok {
+			rank[w.series.ID] = len(rank)
+		}
+	}
+	idx := make([]int, len(wants))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool {
+		ra, rb := rank[wants[idx[a]].series.ID], rank[wants[idx[b]].series.ID]
+		if ra != rb {
+			return ra < rb
+		}
+		return oldest[idx[a]].Before(oldest[idx[b]])
+	})
+	sorted := make([]tvWant, len(wants))
+	for i, j := range idx {
+		sorted[i] = wants[j]
+	}
+	copy(wants, sorted)
 }
 
 // bookOwnFolder is the folder that belongs to a book alone, for removing it

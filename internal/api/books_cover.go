@@ -54,6 +54,12 @@ func (s *Server) cachedBookCover(ctx context.Context, id int, size string) (stri
 	}
 	ctx, cancel := context.WithTimeout(ctx, coverFetchTimeout)
 	defer cancel()
+	// Only a few downloads from Open Library at once, however many covers a
+	// page (or a client asking for made-up ids) wants.
+	if err := acquireCoverWork(ctx); err != nil {
+		return "", err
+	}
+	defer releaseCoverWork()
 	data, err := s.OpenLibrary.FetchCover(ctx, id, size)
 	if errors.Is(err, books.ErrNotFound) {
 		if os.MkdirAll(dir, 0o755) == nil {

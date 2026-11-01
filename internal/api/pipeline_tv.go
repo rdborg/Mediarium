@@ -1,9 +1,12 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
@@ -294,7 +297,7 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		// says which episode the one file is: a single episode, one file, and a
 		// release name that names exactly one episode.
 		releaseMayName := releaseNamesTheFile(single, len(files), len(eps), release)
-		destPath, nameFrom, err := s.buildTVDestPathFor(series, eps[0], release, releaseTitle, file, releaseMayName)
+		destPath, nameFrom, err := s.buildTVDestPathFor(series, eps, release, releaseTitle, file, releaseMayName)
 		if err != nil {
 			return fail(err)
 		}
@@ -580,14 +583,37 @@ func (s *Server) tvRoot() string {
 // using the same naming preset and illegal-character handling as movies.
 // releaseTitle is the release's own name, for {Original Title}.
 func (s *Server) buildTVDestPath(series library.Series, ep library.Episode, release parser.Release, releaseTitle, videoFile string) (string, error) {
-	dest, _, err := s.buildTVDestPathFor(series, ep, release, releaseTitle, videoFile, false)
+	dest, _, err := s.buildTVDestPathFor(series, []library.Episode{ep}, release, releaseTitle, videoFile, false)
 	return dest, err
+}
+
+// multiEpisodeNaming gives the episode the file is named for (the first) and,
+// for a file that holds more than one episode of a season, the others' numbers
+// and the titles joined ("Pilot + The Second One"), as Sonarr names them.
+func multiEpisodeNaming(eps []library.Episode) (first library.Episode, more []int, title string) {
+	sorted := slices.Clone(eps)
+	slices.SortFunc(sorted, func(a, b library.Episode) int { return cmp.Compare(a.Episode, b.Episode) })
+	first = sorted[0]
+	titles := []string{first.Title}
+	for _, e := range sorted[1:] {
+		if e.Season != first.Season || e.Episode == first.Episode || slices.Contains(more, e.Episode) {
+			continue
+		}
+		more = append(more, e.Episode)
+		if e.Title != "" && !slices.Contains(titles, e.Title) {
+			titles = append(titles, e.Title)
+		}
+	}
+	if first.Title == "" {
+		titles = titles[1:]
+	}
+	return first, more, strings.Join(titles, " + ")
 }
 
 // buildTVDestPathFor is buildTVDestPath that also says where the file's name
 // came from. releaseMayName is true for a single episode in a download of its
 // own, where the release's name can stand in for a random file name.
-func (s *Server) buildTVDestPathFor(series library.Series, ep library.Episode, release parser.Release, releaseTitle, videoFile string, releaseMayName bool) (string, nameSource, error) {
+func (s *Server) buildTVDestPathFor(series library.Series, eps []library.Episode, release parser.Release, releaseTitle, videoFile string, releaseMayName bool) (string, nameSource, error) {
 	root := s.seriesRootFor(series)
 	if root == "" && series.CopyOf != 0 {
 		return "", namedByPreset, fmt.Errorf("the folder for second copies isn't set. Choose one in Settings > Library > Folders")
@@ -606,9 +632,10 @@ func (s *Server) buildTVDestPathFor(series library.Series, ep library.Episode, r
 		format = p
 	}
 
+	ep, more, epTitle := multiEpisodeNaming(eps)
 	ctx := organizer.NamingContext{
-		SeriesTitle: series.Title, EpisodeTitle: ep.Title, Year: series.Year, TMDBID: series.TMDBID,
-		Season: ep.Season, Episode: ep.Episode, AirDate: ep.AirDate,
+		SeriesTitle: series.Title, EpisodeTitle: epTitle, Year: series.Year, TMDBID: series.TMDBID,
+		Season: ep.Season, Episode: ep.Episode, MoreEpisodes: more, AirDate: ep.AirDate,
 		Quality: release.Resolution, Source: release.Source, Codec: release.Codec,
 		Edition: release.Edition, ReleaseGroup: release.Group,
 		AudioCodec: release.AudioCodec, HDR: release.HDR, Is3D: release.Is3D,

@@ -137,12 +137,21 @@ type VerifyResult struct {
 
 // Verify runs `par2 verify` against a main .par2 index.
 func (r *Repairer) Verify(par2File string) (VerifyResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), par2Timeout)
+	return r.VerifyContext(context.Background(), par2File)
+}
+
+// VerifyContext is Verify that stops the tool as soon as parent ends (a paused
+// or stopped download must not wait for a check that can take hours).
+func (r *Repairer) VerifyContext(parent context.Context, par2File string) (VerifyResult, error) {
+	ctx, cancel := context.WithTimeout(parent, par2Timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, r.binary(), append([]string{"verify", "--", par2File}, otherFiles(par2File)...)...)
 	cmd.Dir = filepath.Dir(par2File)
 	cmd.WaitDelay = 5 * time.Second
 	out, err := cmd.CombinedOutput()
+	if parent.Err() != nil {
+		return VerifyResult{}, parent.Err()
+	}
 	if ctx.Err() != nil {
 		return VerifyResult{}, fmt.Errorf("run par2 verify: it took too long and was stopped: %w", ctx.Err())
 	}
@@ -159,12 +168,20 @@ func (r *Repairer) Verify(par2File string) (VerifyResult, error) {
 
 // Repair runs `par2 repair` against a main .par2 index.
 func (r *Repairer) Repair(par2File string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), par2Timeout)
+	return r.RepairContext(context.Background(), par2File)
+}
+
+// RepairContext is Repair that stops the tool as soon as parent ends.
+func (r *Repairer) RepairContext(parent context.Context, par2File string) error {
+	ctx, cancel := context.WithTimeout(parent, par2Timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, r.binary(), append([]string{"repair", "--", par2File}, otherFiles(par2File)...)...)
 	cmd.Dir = filepath.Dir(par2File)
 	cmd.WaitDelay = 5 * time.Second
 	out, err := cmd.CombinedOutput()
+	if parent.Err() != nil {
+		return parent.Err()
+	}
 	if ctx.Err() != nil {
 		return fmt.Errorf("par2 repair %s: it took too long and was stopped: %w", par2File, ctx.Err())
 	}

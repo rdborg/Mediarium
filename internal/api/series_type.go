@@ -64,6 +64,12 @@ func mapRelease(rel parser.Release, seriesType string, episodes []library.Episod
 		}
 		if season > 0 && len(eps) > 0 {
 			rel.Season, rel.Episodes, rel.Episode = season, eps, eps[0]
+			// A batch of every episode of the season ("Show - 01-12" for a
+			// twelve-episode season) is that season's pack, the way a season
+			// pack search looks for one.
+			if len(eps) > 1 && coversWholeSeason(eps, season, episodes) {
+				rel.Episodes, rel.Episode = nil, 0
+			}
 		}
 	case library.SeriesDaily:
 		if rel.AirDate == "" {
@@ -80,6 +86,26 @@ func mapRelease(rel parser.Release, seriesType string, episodes []library.Episod
 		}
 	}
 	return rel
+}
+
+// coversWholeSeason reports whether eps holds every episode the library lists
+// for season.
+func coversWholeSeason(eps []int, season int, episodes []library.Episode) bool {
+	have := map[int]bool{}
+	for _, e := range eps {
+		have[e] = true
+	}
+	n := 0
+	for _, e := range episodes {
+		if e.Season != season || e.Episode <= 0 {
+			continue
+		}
+		if !have[e.Episode] {
+			return false
+		}
+		n++
+	}
+	return n == len(have)
 }
 
 // pickSameDay picks the episode a dated release is for when a daily show

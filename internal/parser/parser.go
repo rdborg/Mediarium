@@ -89,16 +89,25 @@ var (
 		{regexp.MustCompile(`(?i)\brepack\b`), func(r *Release, _ []string) { r.Repack = true }},
 		{regexp.MustCompile(`(?i)\b3D\b`), func(r *Release, _ []string) { r.Is3D = true }},
 
-		{regexp.MustCompile(`(?i)\b(HDR10\+)\b`), func(r *Release, m []string) { r.HDR = "HDR10+" }},
-		{regexp.MustCompile(`(?i)\b(HDR10|HDR)\b`), func(r *Release, m []string) { r.HDR = "HDR10" }},
+		{regexp.MustCompile(`(?i)\b(HDR10\+)(?:[^A-Za-z0-9]|$)`), func(r *Release, m []string) { r.HDR = "HDR10+" }},
+		{regexp.MustCompile(`(?i)\b(HDR10|HDR)\b`), func(r *Release, m []string) {
+			if r.HDR != "HDR10+" {
+				r.HDR = "HDR10"
+			}
+		}},
 		{regexp.MustCompile(`(?i)\b(DV|Dolby[. ]?Vision)\b`), func(r *Release, m []string) { r.HDR = "Dolby Vision" }},
 
 		{regexp.MustCompile(`(?i)\b(Extended|Director'?s[. ]?Cut|Unrated|IMAX|Theatrical|Remastered|Criterion)\b`), func(r *Release, m []string) { r.Edition = normalizeSpace(m[1]) }},
 
-		{regexp.MustCompile(`(?i)\b(2160p|1080p|720p|480p|4K)\b`), func(r *Release, m []string) {
+		{regexp.MustCompile(`(?i)\b(2160p|1080p|1080i|720p|576p|480p|4K|UHD)\b`), func(r *Release, m []string) {
 			res := strings.ToLower(m[1])
-			if res == "4k" {
+			switch res {
+			case "4k", "uhd":
 				res = "2160p"
+			case "1080i":
+				res = "1080p" // the same size of picture
+			case "576p":
+				res = "480p" // standard definition
 			}
 			r.Resolution = res
 		}},
@@ -172,10 +181,11 @@ var (
 
 	// The season and episode markers, described where tokens uses them. A
 	// title can come after one of these ("Season.2.Show.1080p").
-	seasonEpisodeRe = regexp.MustCompile(`(?i)[Ss]((?:19|20)\d{2}|\d{1,2})[._-]?([Ee]\d{1,3}(?:\.?[Ee]\d{1,3})*(?:-[Ee]?\d{1,3}\b)?)`)
-	crossEpisodeRe  = regexp.MustCompile(`(?i)\b(\d{1,2})x(\d{2,3})(?:-(?:(\d{1,2})x)?(\d{2,3}))?\b`)
-	seasonWordRe    = regexp.MustCompile(`(?i)\bSeason[. ]?(\d{1,2})(?:-(\d{1,2}))?\b`)
-	seasonPackRe    = regexp.MustCompile(`(?i)\bS(\d{1,2})(?:-S?(\d{1,2}))?\b`)
+	titleWordBeforeYear = regexp.MustCompile(`(?i)^web\.(?:19|20)\d{2}(?:[.\-)\]]|$)`)
+	seasonEpisodeRe     = regexp.MustCompile(`(?i)[Ss]((?:19|20)\d{2}|\d{1,2})[._-]?([Ee]\d{1,3}(?:\.?[Ee]\d{1,3})*(?:-(?:[Ss]\d{1,2})?[Ee]?\d{1,3}\b)?)`)
+	crossEpisodeRe      = regexp.MustCompile(`(?i)\b(\d{1,2})x(\d{2,3})(?:-(?:(\d{1,2})x)?(\d{2,3}))?\b`)
+	seasonWordRe        = regexp.MustCompile(`(?i)\bSeason[. ]?(\d{1,2})(?:-(\d{1,2}))?\b`)
+	seasonPackRe        = regexp.MustCompile(`(?i)\bS(\d{1,2})(?:-S?(\d{1,2}))?\b`)
 
 	// junkSuffixRe is what posting tools add after the group ("-GRP-postbot",
 	// "-GRP-Obfuscated"); trailingTagRe a site's tag after it ("-GRP[rarbg]").
@@ -243,6 +253,16 @@ func pickYear(working string, seasonSpans [][2]int) (at, year int, late bool) {
 				continue
 			}
 			late = true
+		}
+		// A span of years ("Friends (1994-2004)", a collection's "(1962-2021)")
+		// starts with the year that counts.
+		if i > 0 {
+			p := all[i-1]
+			if p[0] > 0 && working[p[1]:m[0]] == "-" {
+				if py := atoi(working[p[2]:p[3]]); py <= y {
+					return p[0], py, late
+				}
+			}
 		}
 		return m[0], y, late
 	}
@@ -367,6 +387,23 @@ func Parse(name string) Release {
 
 	for _, t := range tokens {
 		loc := t.re.FindStringSubmatchIndex(working)
+		// "Web" is also part of titles ("Charlotte's.Web.2006", "The.Dark.Web.2021"):
+		// right before the year it is the title, while in a release name the
+		// source comes after the year. Look on for the real tag.
+		for off := 0; loc != nil && loc[0] > 0 && titleWordBeforeYear.MatchString(working[loc[0]:]); {
+			off = loc[1]
+			next := t.re.FindStringSubmatchIndex(working[off:])
+			if next == nil {
+				loc = nil
+				break
+			}
+			for i := range next {
+				if next[i] >= 0 {
+					next[i] += off
+				}
+			}
+			loc = next
+		}
 		if loc == nil {
 			continue
 		}

@@ -110,6 +110,18 @@ func (t Torrent) Paused() bool {
 	return t.State == "pausedDL" || t.State == "stoppedDL"
 }
 
+// Waiting reports whether the torrent is in line or being checked in the
+// client, not downloading yet: the client's own limit on active downloads has
+// not let it start, or it is checking the files on disk. That is the client's
+// delay, not a torrent that nobody shares.
+func (t Torrent) Waiting() bool {
+	switch t.State {
+	case "queuedDL", "checkingDL", "checkingUP", "checkingResumeData", "allocating", "moving":
+		return true
+	}
+	return false
+}
+
 // Failed reports whether the client gave up on the torrent.
 func (t Torrent) Failed() bool {
 	return t.State == "error" || t.State == "missingFiles"

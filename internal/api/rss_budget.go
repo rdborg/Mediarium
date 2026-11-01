@@ -14,7 +14,8 @@ import (
 // indexers.RSSAdvice). Indexers without a limit are read on every run.
 
 // rssCallsPerRun is how many requests one RSS run makes to an indexer: one
-// for the movie feed and one for the TV feed, when both are switched on.
+// feed for movies and one for TV, when both are switched on, each read over up
+// to the pages an automatic search reads.
 func (s *Server) rssCallsPerRun() int {
 	n := 0
 	if s.moviesEnabled() {
@@ -23,7 +24,7 @@ func (s *Server) rssCallsPerRun() int {
 	if s.tvEnabled() {
 		n++
 	}
-	return max(n, 1)
+	return max(n, 1) * indexers.AutoSearchPages
 }
 
 // rssInstances keeps the indexers this RSS run may read, and notes the run

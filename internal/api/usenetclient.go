@@ -36,6 +36,12 @@ import (
 // download's own folder, next to the view of the files.
 const usenetJobFile = ".mediarium-usenet-job"
 
+// usenetFailedJobFile remembers a job that failed for the downloader's own
+// reasons (a full disk) and was left there to look at. When the download is
+// tried again, that job is removed before the NZB is sent once more, so the
+// downloader doesn't end up with the same release twice.
+const usenetFailedJobFile = ".mediarium-usenet-failed-job"
+
 type usenetClientConfig struct {
 	Kind              string
 	Use               bool
@@ -327,6 +333,7 @@ func (s *Server) downloadViaUsenetClient(ctx context.Context, queueID int64, nzb
 				// The downloader's own trouble (disk full, a folder it can't write to),
 				// not something wrong with the release: it is not blocklisted and the
 				// job stays in the downloader for the person to look at.
+				_ = os.WriteFile(filepath.Join(incompleteDir, usenetFailedJobFile), []byte(id+"\n"), 0o600)
 				return fmt.Errorf("%s reports a problem with this download (it says: %s). Check its free space and folder permissions, then try the download again", label, failText(j))
 			}
 			s.usenetForget(c, cfg, id)
@@ -364,6 +371,31 @@ func failText(j usenetclient.Job) string {
 		return j.FailMessage
 	}
 	return "no reason given"
+}
+
+// forgetFailedUsenetJob removes from the downloader the job an earlier attempt
+// of a download left there after the downloader's own trouble, before Retry
+// sends the release again.
+func (s *Server) forgetFailedUsenetJob(queueID int64) {
+	dir, ok := s.existingWorkDir(queueID)
+	if !ok {
+		return
+	}
+	b, err := os.ReadFile(filepath.Join(dir, usenetFailedJobFile))
+	if err != nil {
+		return
+	}
+	_ = os.Remove(filepath.Join(dir, usenetFailedJobFile))
+	id := strings.TrimSpace(string(b))
+	cfg := s.usenetClientConfig()
+	if id == "" || !cfg.Use {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := newUsenetClient(cfg).Delete(ctx, id, false); err != nil {
+		slog.Warn("usenet client: couldn't remove the earlier failed job before sending it again", "job", id, "err", err)
+	}
 }
 
 // usenetForget removes a job that failed from the downloader, with what it had
@@ -409,11 +441,63 @@ func (s *Server) afterUsenetImport(id string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := newUsenetClient(cfg).Delete(ctx, id, true); err != nil {
+	client := newUsenetClient(cfg)
+	// Ask where the files are before the job goes: the client forgets that
+	// with the job.
+	folder := ""
+	if j, found, err := client.Get(ctx, id); err == nil && found {
+		folder = mapClientPath(j.Path, cfg.RemotePath, cfg.LocalPath)
+	}
+	if err := client.Delete(ctx, id, true); err != nil {
 		slog.Warn("usenet client: couldn't remove an imported job", "job", id, "err", err)
 		return
 	}
 	slog.Info("usenet client: removed an imported job", "job", id)
+	// SABnzbd and NZBGet only delete the files of a job still in their own
+	// working folder, not of a finished one in the completed folder, so what
+	// the release left there is removed here.
+	removeFinishedFolder(folder, cfg.LocalPath, append(s.libraryRoots(), s.musicRoot()))
+}
+
+// removeFinishedFolder deletes a finished job's folder from the downloader's
+// completed folder once its files are in the library (hard links stay: only
+// the folder's own names go). It is careful about what it removes: only a
+// real folder (not a link) that is inside the mapped completed folder, at
+// least three levels deep, and that is not, and does not hold, a library
+// folder. With no path mapping set, nothing is deleted.
+func removeFinishedFolder(folder, localRoot string, libraryRoots []string) {
+	if folder == "" || !filepath.IsAbs(folder) {
+		return
+	}
+	if localRoot == "" {
+		// Without the path mapping there is no telling which folder is the
+		// downloader's completed folder, so nothing is deleted.
+		slog.Info("usenet client: left an imported job's folder; set the path mapping under Settings > Downloading > Usenet to have it deleted", "folder", folder)
+		return
+	}
+	folder = filepath.Clean(folder)
+	if len(strings.FieldsFunc(folder, func(r rune) bool { return r == '/' || r == 0x5c })) < 3 {
+		return
+	}
+	rel, err := filepath.Rel(filepath.Clean(localRoot), folder)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return
+	}
+	for _, root := range libraryRoots {
+		root = filepath.Clean(root)
+		if root == folder || strings.HasPrefix(root, folder+string(filepath.Separator)) || strings.HasPrefix(folder, root+string(filepath.Separator)) {
+			return
+		}
+	}
+	info, err := os.Lstat(folder)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	if err := os.RemoveAll(folder); err != nil {
+		slog.Warn("usenet client: couldn't delete an imported job's folder", "folder", folder, "err", err)
+		return
+	}
+	slog.Info("usenet client: deleted an imported job's folder", "folder", folder)
 }
 
 // usenetRefFor says whether stopping or removing this item should also remove

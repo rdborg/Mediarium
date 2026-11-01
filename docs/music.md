@@ -293,6 +293,7 @@ If your music is already in the music folder as `Artist/Album/tracks` (a year in
 - The quality is read from the files (see "Tags and real quality"). It's **Unknown** only when no file's header can be read. Automation leaves an Unknown album alone, so it's never swapped for a better release behind your back. Choose the album and search by hand if you want an upgrade.
 - What doesn't match is reported, with the reason: no artist of that name in the music database, no album of that name among the artist's albums, or audio files loose in an artist folder (put them in an album folder).
 - Scanning again is safe: albums already registered are reported as "already in your library".
+- When an album, an EP and a single share a name and a year (AC/DC "Back in Black", Roxette "Joyride"), the folder goes to the album, or to the single when it holds only one or two audio files. A folder that an older version linked to the single is moved to the album by scanning again, and the single goes back to wanted.
 - A damaged file can't hold the scan up. Reading one file's tags stops after 5 seconds or 16 MB, and the file is then matched by its name. The album gets a note saying how many files that happened to (a truncated or zero-filled FLAC is the usual cause), and the log names each file.
 - The scan keeps running when you leave the page. Coming back shows it again, with the folder it's on now. **Stop the scan** ends it; what it had already added stays in your library. A scan that makes no progress for 10 minutes is replaced when you start a new one.
 

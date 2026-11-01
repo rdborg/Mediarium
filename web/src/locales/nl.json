@@ -7719,5 +7719,14 @@
   "They are never grabbed again, and Mediarium looks for another release for each title.": "Ze worden nooit meer opgehaald en Mediarium zoekt voor elke titel een andere release.",
   "Blocklist releases": "Releases blokkeren",
   "Pick problems": "Problemen kiezen",
-  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Kies \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" of \"blocklist\"."
+  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Kies \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" of \"blocklist\".",
+  "Nothing in this group among the latest lines. Older lines may have some.": "Niets van deze groep in de nieuwste regels. Oudere regels hebben misschien iets.",
+  "{n} min": "{n} min",
+  "{h} h": "{h} u",
+  "Connected and logged in. Downloads are using this login right now.": "Verbonden en ingelogd. Downloads gebruiken deze login op dit moment.",
+  "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "De server is bereikbaar. Downloads gebruiken alle verbindingen die deze login toestaat, dus er was geen plek voor de test.",
+  "Removing a SABnzbd job's files after import": "De bestanden van een SABnzbd-taak na het importeren verwijderen",
+  "An album folder linked to a single with the same name": "Een albummap die aan een single met dezelfde naam was gekoppeld",
+  "Notices on phones covering the buttons": "Meldingen op de telefoon die de knoppen bedekten",
+  "Usenet releases posted without file names": "Usenet-releases zonder bestandsnamen"
 }

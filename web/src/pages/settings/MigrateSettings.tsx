@@ -177,8 +177,11 @@ export default function MigrateSettings() {
         misses = 0
         setStatus(st)
         if (!st.running) clearInterval(timer.current)
-      } catch {
-        if (++misses >= 5) clearInterval(timer.current)
+      } catch (e) {
+        if (++misses >= 5) {
+          clearInterval(timer.current)
+          setError(errText(e)) // say so, instead of showing a migration that seems to run for ever
+        }
       }
     }, 1500)
   }

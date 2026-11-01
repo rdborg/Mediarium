@@ -7930,5 +7930,14 @@
   "Blocklist releases": "Заблокувати релізи",
   "Pick problems": "Обрати проблемні",
   "Blocklist these {n} releases?|few": "Заблокувати ці {n} релізи?",
-  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Виберіть \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" або \"blocklist\"."
+  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Виберіть \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" або \"blocklist\".",
+  "Nothing in this group among the latest lines. Older lines may have some.": "Серед останніх рядків нічого з цієї групи немає. У старіших рядках щось може бути.",
+  "{n} min": "{n} хв",
+  "{h} h": "{h} год",
+  "Connected and logged in. Downloads are using this login right now.": "Підключено, вхід виконано. Зараз цей логін використовують завантаження.",
+  "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "Сервер працює. Завантаження використовують усі підключення, які дозволяє цей логін, тому для перевірки не знайшлося місця.",
+  "Removing a SABnzbd job's files after import": "Видалення файлів завдання SABnzbd після імпорту",
+  "An album folder linked to a single with the same name": "Тека альбому, прив’язана до синглу з такою самою назвою",
+  "Notices on phones covering the buttons": "Сповіщення на телефоні, що закривали кнопки",
+  "Usenet releases posted without file names": "Релізи Usenet, викладені без імен файлів"
 }

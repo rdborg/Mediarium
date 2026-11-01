@@ -7719,5 +7719,14 @@
   "They are never grabbed again, and Mediarium looks for another release for each title.": "No se volverán a descargar, y Mediarium busca otra versión para cada título.",
   "Blocklist releases": "Bloquear versiones",
   "Pick problems": "Elegir problemas",
-  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Elige \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" o \"blocklist\"."
+  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Elige \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" o \"blocklist\".",
+  "Nothing in this group among the latest lines. Older lines may have some.": "No hay nada de este grupo entre las últimas líneas. Las líneas más antiguas pueden tener algo.",
+  "{n} min": "{n} min",
+  "{h} h": "{h} h",
+  "Connected and logged in. Downloads are using this login right now.": "Conectado y con la sesión iniciada. Las descargas están usando este acceso ahora mismo.",
+  "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "El servidor está activo. Las descargas están usando todas las conexiones que permite este acceso, así que no había sitio para la prueba.",
+  "Removing a SABnzbd job's files after import": "Borrar los archivos de un trabajo de SABnzbd tras la importación",
+  "An album folder linked to a single with the same name": "Una carpeta de álbum vinculada a un sencillo con el mismo nombre",
+  "Notices on phones covering the buttons": "Avisos en el móvil que tapaban los botones",
+  "Usenet releases posted without file names": "Releases de Usenet publicados sin nombres de archivo"
 }

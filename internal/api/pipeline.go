@@ -300,7 +300,7 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 	)
 	// A retry of a failed Usenet download starts from the files it already
 	// has when they are still there and pass PAR2 (see reuseDownloaded).
-	reused := s.reuseDownloaded(queueID, incompleteDir)
+	reused := s.reuseDownloaded(ctx, queueID, incompleteDir)
 	if !reused && protocol != indexers.ProtocolTorrent && keptResume(incompleteDir) {
 		s.queueEvent(queueID, "retried", queue.LevelInfo, "Carrying on from the part already downloaded")
 	}
@@ -360,7 +360,7 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 	// A download client's files are never repaired here: that would write to
 	// files the client may still be seeding.
 	if !viaClient {
-		if err := s.verifyStep(queueID, incompleteDir, missing); err != nil {
+		if err := s.verifyStep(ctx, queueID, incompleteDir, missing); err != nil {
 			return "", repairFailure(err)
 		}
 	}
@@ -1100,7 +1100,7 @@ func fetchURLLimitWithClient(ctx context.Context, client *http.Client, url strin
 // missing is how many articles no server had. Then repair is mandatory: if
 // PAR2 cannot rebuild the file the release is unusable, so the step fails
 // rather than quietly passing on a file with holes in it.
-func verifyAndRepair(dir string, missing int) error {
+func verifyAndRepair(ctx context.Context, dir string, missing int) error {
 	// Obfuscated releases first get their real names back from the PAR2
 	// data, so repair, unpacking and import all see the names they expect.
 	if n, err := organizer.Deobfuscate(dir); err != nil {
@@ -1123,12 +1123,12 @@ func verifyAndRepair(dir string, missing int) error {
 		return fmt.Errorf("%s couldn't be found on your Usenet servers and the release has no PAR2 files to repair it", plural(missing, "article"))
 	}
 	for _, f := range par2Files {
-		result, err := repairer.Verify(f)
+		result, err := repairer.VerifyContext(ctx, f)
 		if err != nil {
 			return err
 		}
 		if !result.OK {
-			if err := repairer.Repair(f); err != nil {
+			if err := repairer.RepairContext(ctx, f); err != nil {
 				return err
 			}
 		}

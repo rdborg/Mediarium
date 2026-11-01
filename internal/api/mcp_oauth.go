@@ -21,6 +21,7 @@ import (
 	timerate "golang.org/x/time/rate"
 
 	"github.com/rdborg/mediarium/internal/auth"
+	"github.com/rdborg/mediarium/internal/httpsec"
 )
 
 // Sign-in for MCP clients that find it by themselves (Home Assistant, chat
@@ -100,7 +101,7 @@ func (s *Server) allowOAuth(kind string, r *http.Request, every time.Duration, b
 	if st.limiters == nil || len(st.limiters) > 5000 {
 		st.limiters = map[string]*timerate.Limiter{}
 	}
-	key := kind + "|" + s.clientIP(r)
+	key := kind + "|" + httpsec.LimitKey(s.clientIP(r))
 	l := st.limiters[key]
 	if l == nil {
 		l = timerate.NewLimiter(timerate.Every(every), burst)

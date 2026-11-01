@@ -95,16 +95,21 @@ func (s *Server) cachedBookCover(ctx context.Context, id int, size string) (stri
 
 // handleBookCover serves a book cover from the local copy.
 func (s *Server) handleBookCover(w http.ResponseWriter, r *http.Request) {
-	m := bookCoverFile.FindStringSubmatch(r.PathValue("file"))
-	if m == nil {
+	file := r.PathValue("file")
+	var path string
+	var err error
+	if id, ok := books.ParseHardcoverCover(file); ok {
+		path, err = s.cachedHardcoverCover(r.Context(), id)
+	} else if m := bookCoverFile.FindStringSubmatch(file); m != nil {
+		id, _ := strconv.Atoi(m[1])
+		path, err = s.cachedBookCover(r.Context(), id, m[2])
+	} else {
 		http.NotFound(w, r)
 		return
 	}
-	id, _ := strconv.Atoi(m[1])
-	path, err := s.cachedBookCover(r.Context(), id, m[2])
 	if err != nil {
 		if !errors.Is(err, books.ErrNotFound) {
-			slog.Info("books: cover unavailable", "cover", m[1], "err", err)
+			slog.Info("books: cover unavailable", "cover", file, "err", err)
 		}
 		http.NotFound(w, r)
 		return
@@ -174,6 +179,111 @@ func (s *Server) warmBookCovers(size string, ids []int) {
 				defer func() { <-sem }()
 				defer warmingBookCovers.Delete(fmt.Sprintf("%d-%s", id, size))
 				_, _ = s.cachedBookCover(context.Background(), id, size)
+			}()
+		}
+		wg.Wait()
+	}()
+}
+
+// cachedHardcoverCover returns the cached file for a Hardcover cover, fetching
+// it first when it is not there. books.ErrNotFound means Hardcover has no
+// picture (remembered for a day); any other error is not remembered.
+func (s *Server) cachedHardcoverCover(ctx context.Context, id int) (string, error) {
+	dir := s.bookCoverDir()
+	key := fmt.Sprintf("hc-%d", id)
+	img, none := filepath.Join(dir, key+".img"), filepath.Join(dir, key+".none")
+	if st, err := os.Stat(img); err == nil && st.Size() > 0 {
+		touchCover(img, st)
+		return img, nil
+	}
+	unlock := bookCoverLocks.lock(key)
+	defer unlock()
+	if st, err := os.Stat(img); err == nil && st.Size() > 0 {
+		return img, nil
+	}
+	if st, err := os.Stat(none); err == nil && time.Since(st.ModTime()) < coverMissingFor {
+		return "", books.ErrNotFound
+	}
+	hc := s.hardcover()
+	if hc == nil {
+		return "", books.ErrNotFound
+	}
+	ctx, cancel := context.WithTimeout(ctx, coverFetchTimeout)
+	defer cancel()
+	link, err := hc.ImageURL(ctx, id)
+	if errors.Is(err, books.ErrNotFound) {
+		if os.MkdirAll(dir, 0o755) == nil {
+			_ = os.WriteFile(none, nil, 0o644)
+			bookCoverLocks.noteWrite(dir)
+		}
+		return "", err
+	}
+	if err != nil {
+		return "", err
+	}
+	data, err := s.fetchCoverLink(ctx, link)
+	if err != nil {
+		return "", err
+	}
+	data, err = books.NormalizeCover(data)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create book cover cache: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, "cover-*.tmp")
+	if err != nil {
+		return "", fmt.Errorf("cache book cover: %w", err)
+	}
+	_, werr := tmp.Write(data)
+	cerr := tmp.Close()
+	if werr != nil || cerr != nil {
+		_ = os.Remove(tmp.Name())
+		return "", fmt.Errorf("cache book cover: %w", errors.Join(werr, cerr))
+	}
+	if err := os.Rename(tmp.Name(), img); err != nil {
+		_ = os.Remove(tmp.Name())
+		return "", fmt.Errorf("cache book cover: %w", err)
+	}
+	_ = os.Remove(none)
+	bookCoverLocks.noteWrite(dir)
+	return img, nil
+}
+
+// warmHardcoverCovers fetches Hardcover covers in the background, the same way
+// warmBookCovers does for Open Library.
+func (s *Server) warmHardcoverCovers(ids []int) {
+	var todo []int
+	seen := map[int]bool{}
+	for _, id := range ids {
+		if id <= 0 || seen[id] {
+			continue
+		}
+		seen[id] = true
+		key := fmt.Sprintf("hc-%d", id)
+		if st, err := os.Stat(filepath.Join(s.bookCoverDir(), key+".img")); err == nil && st.Size() > 0 {
+			continue
+		}
+		if _, busy := warmingBookCovers.LoadOrStore(key, struct{}{}); busy {
+			continue
+		}
+		todo = append(todo, id)
+	}
+	if len(todo) == 0 {
+		return
+	}
+	go func() {
+		sem := make(chan struct{}, 6)
+		var wg sync.WaitGroup
+		for _, id := range todo {
+			wg.Add(1)
+			sem <- struct{}{}
+			go func() {
+				defer wg.Done()
+				defer func() { <-sem }()
+				defer warmingBookCovers.Delete(fmt.Sprintf("hc-%d", id))
+				_, _ = s.cachedHardcoverCover(context.Background(), id)
 			}()
 		}
 		wg.Wait()

@@ -148,7 +148,10 @@ type bookSearchResult struct {
 	LibraryID int64  `json:"libraryId,omitempty"`
 }
 
-// handleBookSearch looks books up on Open Library by title or author.
+// handleBookSearch looks books up on Open Library, and on Hardcover when a token is saved.
+// Hardcover fills in covers Open Library doesn't have, and books only Hardcover
+// knows are listed too. If one of the two doesn't answer, the other's results
+// are still shown. Without a token, search stays on Open Library.
 func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if len(q) < 2 {
@@ -156,41 +159,71 @@ func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// With an author (Find it myself on the import list sends the title as q
-	// and the author apart), both go to Open Library, and the books by that
-	// author come first, in Open Library's own order.
+	// and the author apart), both go to the catalogues, and the books by that
+	// author come first.
 	author := strings.TrimSpace(r.URL.Query().Get("author"))
 	query := q
 	if author != "" {
 		query += " " + author
 	}
-	found, err := s.OpenLibrary.Search(r.Context(), query, 24)
-	if errors.Is(err, books.ErrBadQuery) {
-		slog.Info("open library refused a book search", "err", err)
-		writeError(w, http.StatusUnprocessableEntity, "Open Library couldn't read that search. Try fewer or simpler words.")
+	var (
+		found   []books.Found
+		olErr   error
+		hcFound []books.Found
+		hcErr   error
+	)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		found, olErr = s.OpenLibrary.Search(r.Context(), query, 24)
+	}()
+	if hc := s.hardcover(); hc != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			hcFound, hcErr = hc.Search(r.Context(), query, 24)
+		}()
+	}
+	wg.Wait()
+	if hcErr != nil {
+		slog.Info("books: Hardcover search failed, using Open Library", "err", hcErr)
+		hcFound = nil
+	}
+	if olErr != nil && len(hcFound) == 0 {
+		if errors.Is(olErr, books.ErrBadQuery) {
+			slog.Info("open library refused a book search", "err", olErr)
+			writeError(w, http.StatusUnprocessableEntity, "Open Library couldn't read that search. Try fewer or simpler words.")
+			return
+		}
+		writeUpstreamError(w, "look up books", olErr)
 		return
 	}
-	if err != nil {
-		writeUpstreamError(w, "look up books", err)
-		return
+	if olErr != nil {
+		slog.Info("books: Open Library search failed, using Hardcover", "err", olErr)
+		found = nil
 	}
+	found = books.MergeHardcover(found, hcFound)
 	if author != "" {
 		books.RankByTitleAndAuthor(found, q, author)
 	} else {
 		newestFirst(found, q, func(f books.Found) string { return f.Title }, func(f books.Found) int { return f.Year })
+		books.PreferHardcover(found)
 	}
 	writeJSON(w, http.StatusOK, s.bookResults(found))
 }
 
 type addBookRequest struct {
-	OLKey     string `json:"olKey"`
-	Title     string `json:"title"`
-	Author    string `json:"author"`
-	AuthorKey string `json:"authorKey"`
-	Year      int    `json:"year"`
-	CoverID   int    `json:"coverId"`
-	Ebook     bool   `json:"ebook"`
-	Audiobook bool   `json:"audiobook"`
-	SearchNow bool   `json:"searchNow"`
+	OLKey       string `json:"olKey"`
+	Title       string `json:"title"`
+	Author      string `json:"author"`
+	AuthorKey   string `json:"authorKey"`
+	Year        int    `json:"year"`
+	CoverID     int    `json:"coverId"`
+	HardcoverID int    `json:"hardcoverId"`
+	Ebook       bool   `json:"ebook"`
+	Audiobook   bool   `json:"audiobook"`
+	SearchNow   bool   `json:"searchNow"`
 }
 
 // handleAddBook adds a book with the formats asked for. Details (the
@@ -213,16 +246,21 @@ func (s *Server) handleAddBook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Media types.")
 		return
 	}
+	s.finishAddBook(w, r, req)
+}
+
+// finishAddBook stores a book that was already chosen from Open Library or
+// Hardcover. The caller has checked the formats.
+func (s *Server) finishAddBook(w http.ResponseWriter, r *http.Request, req addBookRequest) {
 	b := books.Book{OLKey: strings.TrimPrefix(req.OLKey, "/works/"), Title: strings.TrimSpace(req.Title), Author: strings.TrimSpace(req.Author),
 		AuthorKey: req.AuthorKey, Year: req.Year, CoverID: req.CoverID, WantEbook: req.Ebook, WantAudiobook: req.Audiobook}
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-	if work, err := s.OpenLibrary.GetWork(ctx, b.OLKey); err == nil {
-		b.Description = work.Description
-		if b.CoverID == 0 {
-			b.CoverID = work.CoverID
-		}
+	timeout := 10 * time.Second
+	if _, ok := books.ParseHardcoverKey(b.OLKey); ok || req.HardcoverID > 0 {
+		timeout = 20 * time.Second
 	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
+	hcID := s.prepareNewBook(ctx, &b, req.HardcoverID)
 	userID, byline := requester(r)
 	b.AddedBy = userID
 	created, err := s.BookRepo.Add(b)
@@ -233,6 +271,12 @@ func (s *Server) handleAddBook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if hcID > 0 && created.CoverID == 0 && created.OwnCover == 0 {
+		s.keepHardcoverCover(ctx, created.ID, hcID)
+		if fresh, err := s.BookRepo.Get(created.ID); err == nil {
+			created = fresh
+		}
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s by %s added to the library%s", created.Name(), created.Author, byline))
 	if req.SearchNow {

@@ -86,6 +86,14 @@ type Found struct {
 	// the book has been published (from Open Library's edition formats).
 	HasEbook bool `json:"hasEbook"`
 	HasAudio bool `json:"hasAudio"`
+	// HardcoverID is the Hardcover book this result is, or the one matched to
+	// it when Open Library lists the same book. 0 when Hardcover isn't used.
+	HardcoverID int `json:"hardcoverId,omitempty"`
+	// CoverImage is Hardcover's picture for the book. The page never sees it:
+	// the API serves a copy from this server, and only when CoverID is 0.
+	CoverImage string `json:"-"`
+	// Slug is Hardcover's name for the book in its web address.
+	Slug string `json:"slug,omitempty"`
 }
 
 func (c *Client) get(ctx context.Context, path string, query url.Values, into any) error {

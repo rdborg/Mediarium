@@ -20,15 +20,34 @@ import (
 func (s *Server) bookResults(found []books.Found) []bookSearchResult {
 	out := make([]bookSearchResult, 0, len(found))
 	covers := make([]int, 0, len(found))
+	hcCovers := make([]int, 0, len(found))
+	var library []books.Book
+	for _, f := range found {
+		if f.HardcoverID > 0 {
+			library, _ = s.BookRepo.List()
+			break
+		}
+	}
 	for _, f := range found {
 		covers = append(covers, f.CoverID)
-		res := bookSearchResult{Found: f, CoverURL: books.LocalCoverURL(f.CoverID, "M")}
+		if f.CoverID <= 0 && f.HardcoverID > 0 && f.CoverImage != "" {
+			hcCovers = append(hcCovers, f.HardcoverID)
+		}
+		res := bookSearchResult{Found: f, CoverURL: f.CoverAddress("M")}
 		if b, ok, _ := s.BookRepo.GetByKey(f.Key); ok {
 			res.LibraryID = b.ID
+		} else if f.HardcoverID > 0 {
+			for _, b := range library {
+				if books.SameTitle(b.Title, f.Title, true) && books.SameAuthor(b.Author, f.Author) {
+					res.LibraryID = b.ID
+					break
+				}
+			}
 		}
 		out = append(out, res)
 	}
 	s.warmBookCovers("M", covers)
+	s.warmHardcoverCovers(hcCovers)
 	return out
 }
 
@@ -125,9 +144,15 @@ type workPayload struct {
 }
 
 // GET /api/book-works/{key}: one book from Open Library for its info page,
-// marked when it is already in the library.
+// or from Hardcover when the key is one of theirs, marked when it is already
+// in the library.
 func (s *Server) handleBookWork(w http.ResponseWriter, r *http.Request) {
-	info, err := s.OpenLibrary.WorkInfo(r.Context(), r.PathValue("key"))
+	key := r.PathValue("key")
+	if id, ok := books.ParseHardcoverKey(key); ok {
+		s.handleHardcoverWork(w, r, id)
+		return
+	}
+	info, err := s.OpenLibrary.WorkInfo(r.Context(), key)
 	if errors.Is(err, books.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "Open Library doesn't have that book.")
 		return
@@ -136,9 +161,43 @@ func (s *Server) handleBookWork(w http.ResponseWriter, r *http.Request) {
 		writeUpstreamError(w, "look the book up on Open Library", err)
 		return
 	}
-	out := workPayload{WorkInfo: info, CoverURL: books.LocalCoverURL(info.CoverID, "L")}
+	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
 	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
 		out.LibraryID = b.ID
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleHardcoverWork is the info page of a book that was found on Hardcover
+// and not on Open Library.
+func (s *Server) handleHardcoverWork(w http.ResponseWriter, r *http.Request, id int) {
+	hc := s.hardcover()
+	if hc == nil {
+		writeError(w, http.StatusNotFound, "That book was found on Hardcover, and no Hardcover token is saved.")
+		return
+	}
+	info, err := hc.Book(r.Context(), id)
+	if errors.Is(err, books.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "Hardcover doesn't have that book.")
+		return
+	}
+	if err != nil {
+		writeUpstreamError(w, "look the book up on Hardcover", err)
+		return
+	}
+	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
+	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
+		out.LibraryID = b.ID
+	} else if library, err := s.BookRepo.List(); err == nil {
+		for _, b := range library {
+			if books.SameTitle(b.Title, info.Title, true) && books.SameAuthor(b.Author, info.Author) {
+				out.LibraryID = b.ID
+				break
+			}
+		}
+	}
+	if info.CoverImage != "" {
+		s.warmHardcoverCovers([]int{info.HardcoverID})
 	}
 	writeJSON(w, http.StatusOK, out)
 }

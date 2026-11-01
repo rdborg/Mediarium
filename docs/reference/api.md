@@ -115,7 +115,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| GET | `/api/book-works/{key}` | any account | GET /api/book-works/{key}: one book from Open Library for its info page, marked when it is already in the library. |
+| GET | `/api/book-works/{key}` | any account | GET /api/book-works/{key}: one book from Open Library for its info page, or from Hardcover when the key is one of theirs, marked when it is already in the li... |
 | GET | `/api/book-works/{key}/series` | any account | GET /api/book-works/{key}/series?title=&author=: the series this book is in ({"series": null} when none is known). |
 
 ## books
@@ -130,7 +130,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/books/import/match` | admin | attaches a book picked by hand to one of the files the last import did not find (administrators, like the import itself). |
 | POST | `/api/books/import/retry` | admin | looks again only at the books the last import did not find (or could not save), without reading the folders again: for the ones Open Library or Audnexus did ... |
 | GET | `/api/books/progress` | any account | GET /api/books/progress: where the person is in every book. |
-| GET | `/api/books/search` | any account | looks books up on Open Library by title or author. |
+| GET | `/api/books/search` | any account | looks books up on Open Library, and on Hardcover when a token is saved. |
 | GET | `/api/books/subjects` | any account | GET /api/books/subjects: the genres the Discover filter offers. |
 | DELETE | `/api/books/{id}` | admin | removes a book; with ?deleteFiles=true its files go to the recycle bin of their folder (or are deleted when the bin is off). |
 | GET | `/api/books/{id}` | any account |  |

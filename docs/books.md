@@ -12,7 +12,7 @@ You can also pick them in the first-run wizard, on the **What do you want to man
 
 ## Adding a book
 
-Open **Library**, then the **Ebooks** or **Audiobooks** tab, and press **Add**. Type a title or an author's name. The results come from [Open Library](https://openlibrary.org), with their covers. If Open Library can't read what you typed (it answers 422 to text such as an unclosed bracket or quote, or a lone colon), Mediarium searches again with just the words, and if that is refused too the search box says "Open Library couldn't read that search" instead of showing an empty list. Press **Add** on the right one.
+Open **Library**, then the **Ebooks** or **Audiobooks** tab, and press **Add**. Type a title or an author's name. The results come from [Open Library](https://openlibrary.org), with their covers. When a Hardcover token is saved (Settings > Info, lists and subtitles), the same search also asks [Hardcover](https://hardcover.app) and uses its cover for a book Open Library has no picture of. A book only Hardcover knows is listed too, and can be added. If Open Library can't read what you typed (it answers 422 to text such as an unclosed bracket or quote, or a lone colon), Mediarium searches again with just the words, and if that is refused too the search box says "Open Library couldn't read that search" instead of showing an empty list. Press **Add** on the right one.
 
 - From the Ebooks tab the book is added as an ebook, from the Audiobooks tab as an audiobook. When the other format is switched on too, tick **Get the audiobook too** (or **Get the ebook too**) to want both.
 - Mediarium starts looking for it straight away. After that, the automatic search tries again on its usual schedule for every book still missing.

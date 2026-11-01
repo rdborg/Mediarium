@@ -2708,6 +2708,8 @@ export interface BookFound {
   year?: number
   coverId?: number
   coverUrl?: string
+  hardcoverId?: number
+  slug?: string
   libraryId?: number
   // Whether an ebook / an audiobook edition has been published (Open Library).
   hasEbook?: boolean
@@ -3773,10 +3775,10 @@ export const api = {
   bookImportStatus: () => get<BookImportState>('/books/import'),
   startBookImport: (format?: BookFormat) => post<BookImportState>('/books/import', { format: format ?? '' }),
   retryBookImport: (format?: BookFormat) => post<BookImportState>('/books/import/retry', { format: format ?? '' }),
-  matchBookImport: (body: { path: string; kind: BookFormat; olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; rename: boolean }) =>
+  matchBookImport: (body: { path: string; kind: BookFormat; olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; hardcoverId?: number; rename: boolean }) =>
     post<BookImportState>('/books/import/match', body),
   bookSubjects: () => get<{ label: string; subject: string }[]>('/books/subjects'),
-  addBook: (data: { olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
+  addBook: (data: { olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; hardcoverId?: number; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
     post<Book | Requested>('/books', data),
   setBookWanted: (id: number, format: BookFormat, wanted: boolean) => put<Book>(`/books/${id}/want`, { format, wanted }),
   deleteBook: (id: number, deleteFiles: boolean) => del<null>(`/books/${id}?deleteFiles=${deleteFiles}`),

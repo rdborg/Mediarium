@@ -265,6 +265,7 @@ func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
 	for i, m := range list {
 		out[i] = toMoviePayload(m, who)
 		out[i].Title, out[i].PosterURL = s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+		out[i].Overview = s.shownOverview("movie", m.TMDBID, m.Overview)
 		if e, ok := short[m.ID]; ok && e.Path == m.FilePath {
 			n := e.note
 			out[i].ShortFile = &n
@@ -303,6 +304,7 @@ func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
 	}
 	out := toMoviePayload(m, s.accountNames())
 	out.Title, out.PosterURL = s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+	out.Overview = s.shownOverview("movie", m.TMDBID, m.Overview)
 	out.FilePath = fileLabel(r, m.FilePath)
 	out.RootPath = folderShown(r, s.movieFolders(), m.RootPath)
 	out.SizeBytes = fileSize(m.FilePath)
@@ -488,7 +490,7 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library"+byline)
-	go s.rememberDisplayFace("movie", created.TMDBID, created.Title, created.PosterPath)
+	go s.rememberDisplayFace("movie", created.TMDBID, created.Title, created.PosterPath, created.Overview)
 	if req.SearchNow {
 		go s.searchMovieInBackground(created.ID)
 	}

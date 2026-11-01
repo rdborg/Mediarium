@@ -16,7 +16,7 @@ var errNoTMDB = errors.New("TMDB has no answer for this title")
 
 const (
 	// displayFaceInterval is how often the library is checked for titles
-	// whose translated title and poster are not stored yet. The whole library
+	// whose translated title, poster and plot are not stored yet. The whole library
 	// needs one, so this runs more often than the genre backfill, which only
 	// fills the few titles that are still missing genres.
 	displayFaceInterval = 2 * time.Minute
@@ -41,12 +41,32 @@ func (s *Server) shownFace(kind string, tmdbID int, title, posterPath string) (s
 	if tmdbID <= 0 || lang == metadata.DefaultLanguage {
 		return title, metadata.PosterURL(posterPath)
 	}
-	storedTitle, storedPoster, ok, err := s.MovieRepo.DisplayFace(kind, tmdbID, lang)
+	stored, ok, err := s.MovieRepo.DisplayFace(kind, tmdbID, lang)
 	if err != nil || !ok {
 		return title, metadata.PosterURL(posterPath)
 	}
-	face := chooseDisplayFace(title, posterPath, storedTitle, storedPoster)
+	face := chooseDisplayFace(title, posterPath, "", stored.Title, stored.Poster, "")
 	return face.title, metadata.PosterURL(face.poster)
+}
+
+// shownOverview is the plot drawn for a movie or show already in the library.
+// It reads only what is stored. Until the background job has saved a plot in
+// the info language, the English plot is shown.
+func (s *Server) shownOverview(kind string, tmdbID int, overview string) string {
+	kind = displayKind(kind)
+	overview = strings.TrimSpace(overview)
+	lang := s.infoLanguage()
+	if tmdbID <= 0 || lang == metadata.DefaultLanguage {
+		return overview
+	}
+	stored, ok, err := s.MovieRepo.DisplayFace(kind, tmdbID, lang)
+	if err != nil || !ok || !stored.HasOverview {
+		return overview
+	}
+	if strings.TrimSpace(stored.Overview) == "" {
+		return overview
+	}
+	return stored.Overview
 }
 
 func displayKind(kind string) string {
@@ -58,9 +78,9 @@ func displayKind(kind string) string {
 	}
 }
 
-// chooseDisplayFace keeps the stored title or poster when TMDB gave none in
-// the wanted language.
-func chooseDisplayFace(storedTitle, storedPoster, localTitle, localPoster string) displayFace {
+// chooseDisplayFace keeps the English title, poster or plot when TMDB gave
+// none in the wanted language.
+func chooseDisplayFace(storedTitle, storedPoster, storedOverview, localTitle, localPoster, localOverview string) displayFace {
 	title := strings.TrimSpace(localTitle)
 	if title == "" {
 		title = storedTitle
@@ -69,13 +89,18 @@ func chooseDisplayFace(storedTitle, storedPoster, localTitle, localPoster string
 	if poster == "" {
 		poster = storedPoster
 	}
-	return displayFace{title: title, poster: poster}
+	overview := strings.TrimSpace(localOverview)
+	if overview == "" {
+		overview = strings.TrimSpace(storedOverview)
+	}
+	return displayFace{title: title, poster: poster, overview: overview}
 }
 
-// displayFace is the title and poster path kept for one title in one language.
+// displayFace is the title, poster path and plot kept for one title in one language.
 type displayFace struct {
-	title  string
-	poster string
+	title    string
+	poster   string
+	overview string
 }
 
 // backfillDisplayFaces stores translated titles and posters for library
@@ -97,19 +122,19 @@ func (s *Server) backfillDisplayFaces(ctx context.Context) {
 // rememberDisplayFace stores the face of one title that was just added or
 // refreshed. It does nothing for English. A failure leaves the title for the
 // background job.
-func (s *Server) rememberDisplayFace(kind string, tmdbID int, title, poster string) {
+func (s *Server) rememberDisplayFace(kind string, tmdbID int, title, poster, overview string) {
 	kind = displayKind(kind)
 	if tmdbID <= 0 || s.infoLanguage() == metadata.DefaultLanguage || !s.TMDB().HasAPIKey() {
 		return
 	}
 	s.displayFaceMu.Lock()
 	defer s.displayFaceMu.Unlock()
-	if _, _, ok, err := s.MovieRepo.DisplayFace(kind, tmdbID, s.infoLanguage()); err == nil && ok {
+	if stored, ok, err := s.MovieRepo.DisplayFace(kind, tmdbID, s.infoLanguage()); err == nil && ok && stored.HasOverview {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	if err := s.storeOneDisplayFace(ctx, kind, tmdbID, title, poster); err != nil {
+	if err := s.storeOneDisplayFace(ctx, kind, tmdbID, title, poster, overview); err != nil {
 		log.Printf("display face: %s %d: %v", kind, tmdbID, err)
 	}
 }
@@ -138,7 +163,7 @@ func (s *Server) fillDisplayFacesLocked(ctx context.Context, limit int) {
 				return
 			}
 		}
-		if err := s.storeOneDisplayFace(ctx, g.Kind, g.TMDBID, g.Title, g.Poster); err != nil {
+		if err := s.storeOneDisplayFace(ctx, g.Kind, g.TMDBID, g.Title, g.Poster, g.Overview); err != nil {
 			log.Printf("automation: display-faces: %q: %v", g.Title, err)
 			return
 		}
@@ -148,23 +173,23 @@ func (s *Server) fillDisplayFacesLocked(ctx context.Context, limit int) {
 // storeOneDisplayFace asks TMDB and saves the face. A title TMDB no longer
 // lists keeps the English one, so it is not asked for again. Any other
 // failure is returned and nothing is saved.
-func (s *Server) storeOneDisplayFace(ctx context.Context, kind string, tmdbID int, title, poster string) error {
-	localTitle, localPoster, err := s.lookupDisplayFace(ctx, kind, tmdbID)
+func (s *Server) storeOneDisplayFace(ctx context.Context, kind string, tmdbID int, title, poster, overview string) error {
+	localTitle, localPoster, localOverview, err := s.lookupDisplayFace(ctx, kind, tmdbID)
 	if err != nil {
 		if strings.Contains(err.Error(), "status 404") {
-			return s.MovieRepo.SaveDisplayFace(kind, tmdbID, s.infoLanguage(), title, poster)
+			return s.MovieRepo.SaveDisplayFace(kind, tmdbID, s.infoLanguage(), title, poster, overview)
 		}
 		return err
 	}
-	face := chooseDisplayFace(title, poster, localTitle, localPoster)
-	return s.MovieRepo.SaveDisplayFace(kind, tmdbID, s.infoLanguage(), face.title, face.poster)
+	face := chooseDisplayFace(title, poster, overview, localTitle, localPoster, localOverview)
+	return s.MovieRepo.SaveDisplayFace(kind, tmdbID, s.infoLanguage(), face.title, face.poster, face.overview)
 }
 
-// lookupDisplayFace asks TMDB for the title and poster in the info language.
-func (s *Server) lookupDisplayFace(ctx context.Context, kind string, tmdbID int) (string, string, error) {
+// lookupDisplayFace asks TMDB for the title, poster and plot in the info language.
+func (s *Server) lookupDisplayFace(ctx context.Context, kind string, tmdbID int) (string, string, string, error) {
 	client := s.TMDB()
 	if client == nil || !client.HasAPIKey() {
-		return "", "", errNoTMDB
+		return "", "", "", errNoTMDB
 	}
 	call, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
@@ -173,20 +198,20 @@ func (s *Server) lookupDisplayFace(ctx context.Context, kind string, tmdbID int)
 	case "tv":
 		show, err := local.GetShow(call, tmdbID)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if show == nil {
-			return "", "", errNoTMDB
+			return "", "", "", errNoTMDB
 		}
-		return show.Name, show.PosterPath, nil
+		return show.Name, show.PosterPath, show.Overview, nil
 	default:
 		movie, err := local.GetMovie(call, tmdbID)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if movie == nil {
-			return "", "", errNoTMDB
+			return "", "", "", errNoTMDB
 		}
-		return movie.Title, movie.PosterPath, nil
+		return movie.Title, movie.PosterPath, movie.Overview, nil
 	}
 }

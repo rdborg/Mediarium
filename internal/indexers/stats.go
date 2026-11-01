@@ -1,9 +1,13 @@
 package indexers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
+
+	"github.com/rdborg/mediarium/internal/problems"
 )
 
 // Per-indexer counters for the Statistics page: how many searches each
@@ -81,6 +85,23 @@ func (t *Tracker) RecordSearch(id int64, results []Result, err error) {
 	t.noteAnswered(id)
 	t.bump(id, 1, 0, len(results), 0)
 	t.remember(id, results)
+}
+
+// RecordLaterPage takes in what a later page of a search that did answer said:
+// a daily limit it reports is learned and "too many requests" pauses the
+// indexer, as on a first page. Other errors there (a page that times out)
+// say little about the indexer and are left alone.
+func (t *Tracker) RecordLaterPage(id int64, err error) {
+	if t == nil || err == nil {
+		return
+	}
+	if t.LearnLimit(id, err.Error()) {
+		return
+	}
+	var se *StatusError
+	if problems.IndexerCode(err) == problems.CodeIndexerRateLimited || (errors.As(err, &se) && se.Status == http.StatusTooManyRequests) {
+		t.Failed(id, err)
+	}
 }
 
 func (t *Tracker) remember(id int64, results []Result) {

@@ -74,6 +74,10 @@ type NewznabClient struct {
 	// ExtraRequests is how many further pages the last Search asked for, so the
 	// caller can count them against the indexer's daily limit.
 	ExtraRequests int
+	// LaterPageErr is the error a page after the first gave in the last Search.
+	// The pages read before it are still returned, but a limit it reports has
+	// to be learned.
+	LaterPageErr error
 }
 
 func NewNewznabClient(name, baseURL, apiKey string) *NewznabClient {
@@ -134,7 +138,7 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 	// for (50 or 60 on some), so ask for a full page and read on while the feed
 	// says there is more.
 	q.Set("limit", strconv.Itoa(newznabPageSize))
-	c.ExtraRequests = 0
+	c.ExtraRequests, c.LaterPageErr = 0, nil
 	maxPages := newznabMaxPages
 	if isManual(ctx) {
 		maxPages = newznabMaxPagesManual // a person looking at the list wants all of it
@@ -147,6 +151,7 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 		body, err := c.get(ctx, q)
 		if err != nil {
 			if page > 0 {
+				c.LaterPageErr = err
 				return all, nil // the first page is still worth showing
 			}
 			return nil, err
@@ -172,9 +177,22 @@ const (
 	// newznabMaxPages is how many pages one automatic search reads at most;
 	// newznabMaxPagesManual is the same for a search a person started, which
 	// shows the whole list (a popular title can have far more than 300).
-	newznabMaxPages       = 3
+	newznabMaxPages = 3
+	// AutoSearchPages is newznabMaxPages for callers that budget requests.
+	AutoSearchPages       = newznabMaxPages
 	newznabMaxPagesManual = 10
 )
+
+// Filled reports whether an indexer gave as many releases as one search reads
+// (every page full), so there are likely more that were never seen: a popular
+// title is then searched again with its year.
+func Filled(ctx context.Context, o Outcome) bool {
+	pages := newznabMaxPages
+	if isManual(ctx) {
+		pages = newznabMaxPagesManual
+	}
+	return o.Err == nil && len(o.Results) >= pages*newznabPageSize
+}
 
 // Caps asks for the indexer's capabilities (t=caps). It is the cheapest
 // question an indexer answers, and it needs a right API key, so it tells

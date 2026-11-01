@@ -17,6 +17,9 @@ func TestNormalizeAndSameNames(t *testing.T) {
 		{"Rumours", "Rumours (Super Deluxe)"},
 		{"Nevermind", "Nevermind Remastered"},
 		{"Abbey Road", "Abbey Road [50th Anniversary]"},
+		{"Die Ärzte", "Die Aerzte"},
+		{"Dvořák", "Dvorak"},
+		{"Би-2", "би 2"},
 	}
 	for _, p := range same {
 		if !SameAlbum(p[0], p[1]) {
@@ -26,6 +29,9 @@ func TestNormalizeAndSameNames(t *testing.T) {
 	different := [][2]string{
 		{"OK Computer", "Kid A"},
 		{"Special", "Special Herbs"},
+		{"Nevermind", "Nevermind (Instrumental)"},
+		{"Nevermind", "Nevermind (Live at Reading)"},
+		{"Альбом 2", "Другой 2"},
 		{"", ""},
 	}
 	for _, p := range different {
@@ -77,7 +83,7 @@ func TestBestArtistAndAlbum(t *testing.T) {
 		t.Fatalf("no match: %d", got)
 	}
 
-	albums := []AlbumCandidate{{"Pablo Honey", 1993}, {"OK Computer", 1997}, {"OK Computer", 2017}, {"Kid A", 2000}}
+	albums := []AlbumCandidate{{"Pablo Honey", 1993, "album"}, {"OK Computer", 1997, "album"}, {"OK Computer", 2017, "album"}, {"Kid A", 2000, "album"}}
 	for _, tc := range []struct {
 		title string
 		year  int
@@ -91,6 +97,36 @@ func TestBestArtistAndAlbum(t *testing.T) {
 	} {
 		if got := BestAlbum(tc.title, tc.year, albums); got != tc.want {
 			t.Errorf("BestAlbum(%q, %d) = %d, want %d", tc.title, tc.year, got, tc.want)
+		}
+	}
+}
+
+func TestBestAlbumPrefersTheRightKindOfRelease(t *testing.T) {
+	// A single and an album with the same name and year (the single is listed first).
+	cands := []AlbumCandidate{
+		{"Back in Black", 1980, "single"},
+		{"Back in Black", 1980, "album"},
+		{"Joyride", 1991, "single"},
+		{"Joyride", 1991, "album"},
+		{"Joyride", 1991, "ep"},
+	}
+	for _, tc := range []struct {
+		title string
+		year  int
+		files int
+		want  int
+	}{
+		{"Back in Black", 1980, 0, 1},
+		{"Back in Black", 1980, 10, 1},
+		{"Back in Black", 1980, 1, 0},
+		{"Back in Black", 1980, 2, 0},
+		{"Joyride", 1991, 15, 3},
+		{"Joyride", 1991, 4, 4},
+		{"Joyride", 1991, 1, 2},
+		{"Joyride", 0, 12, 3},
+	} {
+		if got := BestAlbumForFiles(tc.title, tc.year, tc.files, cands); got != tc.want {
+			t.Errorf("BestAlbumForFiles(%q, %d, %d files) = %d, want %d", tc.title, tc.year, tc.files, got, tc.want)
 		}
 	}
 }

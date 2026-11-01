@@ -427,7 +427,7 @@ func (s *Server) resolveScanArtist(ctx context.Context, cache map[string]*scanAr
 	}
 	sa.artist, sa.albums = artist, albums
 	for _, a := range albums {
-		sa.cands = append(sa.cands, music.AlbumCandidate{Title: a.Title, Year: a.Year()})
+		sa.cands = append(sa.cands, music.AlbumCandidate{Title: a.Title, Year: a.Year(), Type: a.Type})
 	}
 	return sa
 }
@@ -526,10 +526,10 @@ func (s *Server) matchScannedArtist(ctx context.Context, job *musicScanJob, fold
 			if y == 0 {
 				y = al.Year
 			}
-			i = music.BestAlbum(tags.Album, y, sa.cands)
+			i = music.BestAlbumForFiles(tags.Album, y, len(al.Files), sa.cands)
 		}
 		if i < 0 {
-			i = music.BestAlbum(al.Title, al.Year, sa.cands)
+			i = music.BestAlbumForFiles(al.Title, al.Year, len(al.Files), sa.cands)
 		}
 		if i < 0 {
 			res.Status = musicResultUnmatched
@@ -584,6 +584,7 @@ func (s *Server) registerScannedAlbum(ctx context.Context, res *musicScanResult,
 	// The real quality, from the files' headers. Files whose headers cannot
 	// be read leave the album Unknown, which automation never upgrades.
 	tier := music.AlbumTier(found.Files)
+	s.releaseWronglyLinked(album, found.Path)
 	if err := s.MusicRepo.SetAlbumImported(album.ID, tier, found.Path); err != nil {
 		res.Status, res.Message = musicResultFailed, err.Error()
 		return
@@ -595,4 +596,31 @@ func (s *Server) registerScannedAlbum(ctx context.Context, res *musicScanResult,
 		res.Message += fmt.Sprintf(", %s fit no track", plural(len(unmatched), "file"))
 	}
 	s.albumEvent(album.ID, "imported", queue.LevelInfo, fmt.Sprintf("Found in your music folder at %s: %s (%s)", found.Path, res.Message, tier))
+}
+
+// releaseWronglyLinked frees a folder that an earlier scan linked to a smaller
+// release of the same artist (a single that shares the album's name and year,
+// which older versions picked first): the single goes back to wanted, so the
+// folder can belong to the album that it really is.
+func (s *Server) releaseWronglyLinked(album music.Album, path string) {
+	if path == "" {
+		return
+	}
+	others, err := s.MusicRepo.ListAlbums(album.ArtistID)
+	if err != nil {
+		return
+	}
+	for _, o := range others {
+		if o.ID == album.ID || o.Path != path || music.ReleaseTypeRank(o.Type) >= music.ReleaseTypeRank(album.Type) {
+			continue
+		}
+		if tracks, err := s.MusicRepo.ListTracks(o.ID); err == nil {
+			for _, t := range tracks {
+				if t.FilePath != "" {
+					_ = s.MusicRepo.SetTrackFile(t.ID, "")
+				}
+			}
+		}
+		_ = s.MusicRepo.SetAlbumMissing(o.ID)
+	}
 }

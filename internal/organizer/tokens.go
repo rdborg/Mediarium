@@ -178,6 +178,11 @@ func (p tokenPart) render(ctx NamingContext) string {
 		return ""
 	}
 	v := applyPad(p.def.value(ctx), p.pad)
+	if p.def.name == "Episode" {
+		for _, n := range ctx.MoreEpisodes {
+			v += "-E" + applyPad(fmt.Sprintf("%d", n), p.pad)
+		}
+	}
 	if v == "" {
 		return ""
 	}

@@ -1,6 +1,8 @@
 // Speed and time left for a download, worked out from how far it got between
 // two looks at the page (the queue only reports a percentage).
 
+import { t } from './i18n.ts'
+
 export interface RateSample {
   at: number // milliseconds
   bytes: number // how much was done then
@@ -23,10 +25,10 @@ export function nextSample(prev: RateSample | null, bytes: number, now: number):
 // etaText says how long is left in plain words, or '' when it can't be said.
 export function etaText(secondsLeft: number): string {
   if (!Number.isFinite(secondsLeft) || secondsLeft <= 0) return ''
-  if (secondsLeft < 90) return `${Math.max(1, Math.round(secondsLeft))} s`
+  if (secondsLeft < 90) return t('{n} s', { n: Math.max(1, Math.round(secondsLeft)) })
   const minutes = Math.round(secondsLeft / 60)
-  if (minutes < 90) return `${minutes} min`
+  if (minutes < 90) return t('{n} min', { n: minutes })
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  return rest ? `${hours} h ${rest} min` : `${hours} h`
+  return rest ? t('{h} h {m} min', { h: hours, m: rest }) : t('{h} h', { h: hours })
 }

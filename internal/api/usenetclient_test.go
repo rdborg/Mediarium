@@ -430,3 +430,30 @@ func TestUsenetClientJobsCanBeSeenAndControlled(t *testing.T) {
 		t.Errorf("wrong key: %v", bad)
 	}
 }
+
+// Retry after the downloader's own trouble removes the failed job there before
+// sending the release again, so it isn't in the downloader twice.
+func TestUsenetClientRetryRemovesTheFailedJob(t *testing.T) {
+	defer api.SetDownloadClientPollForTest(10 * time.Millisecond)()
+	e := newUsenetEnv(t)
+	e.sab.Result = fake.Result{Failed: true, Message: "Disk full while unpacking"}
+	e.saveSAB(t, nil)
+	_, id := e.grabUsenet(t)
+	e.finished(t)
+	postJSON[map[string]any](t, e.client, fmt.Sprintf("%s/api/queue/%d/retry", e.url, id), map[string]any{}, http.StatusAccepted)
+	e.waitFor(t, "the release to be sent again", func() bool {
+		adds, _ := e.sab.Snapshot()
+		return len(adds) == 2
+	})
+	e.finished(t)
+	adds, actions := e.sab.Snapshot()
+	removed := false
+	for _, a := range actions {
+		if strings.Contains(a, "delete SABnzbd_nzo_0001") {
+			removed = true
+		}
+	}
+	if !removed || len(adds) != 2 {
+		t.Errorf("the failed job must be removed before sending again: %d sent, actions %v", len(adds), actions)
+	}
+}

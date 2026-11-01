@@ -803,14 +803,19 @@ td {
     gap: 12px;
   }
 
+  /* On a phone the buttons of a dialog or a sheet sit at the bottom, where a
+     notice used to cover them. Notices go to the top instead, and a tap goes
+     through them (only a button inside one, like Undo, takes a tap). */
   .toast-stack {
     left: 12px;
     right: 12px;
-    bottom: 12px;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    bottom: auto;
   }
 
   .toast {
     max-width: none;
+    pointer-events: none;
   }
 
   .stat-tile {

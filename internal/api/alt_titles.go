@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -202,6 +204,12 @@ func (s *Server) searchMovieTitles(ctx context.Context, instances []indexers.Ins
 		ctx = indexers.AsManual(ctx) // a person asked for this search
 	}
 	outcomes := indexers.SearchAll(ctx, instances, indexerQuery(m.Title), movieCategory)
+	// A popular title ("Dune", "Halloween") can have more releases than a
+	// search reads, and the right film's may never be among them: then the
+	// title is searched again with its year.
+	if m.Year > 0 && ctx.Err() == nil && slices.ContainsFunc(outcomes, func(o indexers.Outcome) bool { return indexers.Filled(ctx, o) }) {
+		outcomes = append(outcomes, indexers.SearchAll(ctx, instances, indexerQuery(m.Title)+" "+strconv.Itoa(m.Year), movieCategory)...)
+	}
 	extra := 0
 	for _, t := range m.AltTitles {
 		if ctx.Err() != nil {

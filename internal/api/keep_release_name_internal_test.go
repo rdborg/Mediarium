@@ -67,7 +67,7 @@ func TestKeepOriginalNamesRandomFileTakesReleaseName(t *testing.T) {
 			var from nameSource
 			var err error
 			if tc.tv {
-				got, from, err = s.buildTVDestPathFor(series, ep, parser.Parse(tc.release), tc.release, filepath.Join(work, tc.file), tc.may)
+				got, from, err = s.buildTVDestPathFor(series, []library.Episode{ep}, parser.Parse(tc.release), tc.release, filepath.Join(work, tc.file), tc.may)
 			} else {
 				got, from, err = s.buildDestPathFor("", "Example Movie", 2024, 5, tc.release, filepath.Join(work, tc.file), tc.may)
 			}

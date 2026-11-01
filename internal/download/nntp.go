@@ -40,8 +40,14 @@ func (e *NNTPError) Error() string { return fmt.Sprintf("nntp %d: %s", e.Code, e
 // DialNNTP connects (optionally over TLS) and reads the server's greeting.
 // The connection goes through the proxy when one is set for Usenet.
 func DialNNTP(host string, port int, useSSL bool, timeout time.Duration) (*NNTPConn, error) {
+	return DialNNTPContext(context.Background(), host, port, useSSL, timeout)
+}
+
+// DialNNTPContext is DialNNTP that gives up as soon as parent ends, also while
+// it waits for the server's greeting.
+func DialNNTPContext(parent context.Context, host string, port int, useSSL bool, timeout time.Duration) (*NNTPConn, error) {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	ctx := context.Background()
+	ctx := parent
 	if timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
@@ -62,7 +68,10 @@ func DialNNTP(host string, port int, useSSL bool, timeout time.Duration) (*NNTPC
 
 	c := &NNTPConn{conn: conn, reader: bufio.NewReader(conn)}
 	conn.SetDeadline(time.Now().Add(nntpIOTimeout)) //nolint:errcheck
+	// A cancelled download must not sit waiting for a slow greeting.
+	stopWatch := context.AfterFunc(parent, func() { conn.Close() })
 	code, msg, err := c.readStatusLine()
+	stopWatch()
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("read nntp greeting: %w", err)
@@ -311,7 +320,12 @@ func IsTooManyConnections(err error) bool {
 	if ne.Code != 502 {
 		return false
 	}
-	return !strings.Contains(msg, "auth") && !strings.Contains(msg, "password") && !strings.Contains(msg, "credential") && !strings.Contains(msg, "denied")
+	for _, w := range []string{"auth", "password", "credential", "denied", "user", "login", "invalid", "unknown", "incorrect", "wrong", "expired", "subscription", "account", "banned", "not allowed", "forbidden"} {
+		if strings.Contains(msg, w) {
+			return false
+		}
+	}
+	return true
 }
 
 // FriendlyError says what went wrong with a news server in plain words, for

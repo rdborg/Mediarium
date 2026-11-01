@@ -42,15 +42,21 @@ func TestTooManyConnectionsIsLoggedOnceWithACount(t *testing.T) {
 	fastGate(t)
 	l := problemLog(t)
 	g := gateFor(ClientConfig{Host: "problems.example", Port: 119, Username: "u", Password: "hunter2", Connections: 8})
-	for i := 0; i < 5; i++ {
+	for i := 0; i < tooManyNoteAfter-1; i++ {
+		g.tooMany()
+	}
+	if rows := problemRows(t, l); len(rows) != 0 {
+		t.Fatalf("the first refusals are only waited out, got %+v", rows)
+	}
+	for i := 0; i < 2; i++ {
 		g.tooMany()
 	}
 	rows := problemRows(t, l)
 	if len(rows) != 1 {
-		t.Fatalf("want one row for five refusals, got %d: %+v", len(rows), rows)
+		t.Fatalf("want one row once the refusals go on, got %d: %+v", len(rows), rows)
 	}
 	r := rows[0]
-	if r.Code != problems.CodeUsenetTooMany || r.Count != 5 || r.Subject != "problems.example" || r.Level != problems.LevelWarning {
+	if r.Code != problems.CodeUsenetTooMany || r.Count != 2 || r.Subject != "problems.example" || r.Level != problems.LevelWarning {
 		t.Errorf("row = %+v", r)
 	}
 	if !strings.Contains(r.Message, "problems.example") || strings.Contains(r.Message+r.Detail, "hunter2") {

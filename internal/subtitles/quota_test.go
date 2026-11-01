@@ -254,3 +254,27 @@ func TestRequestDownloadInfoReportsQuota(t *testing.T) {
 		})
 	}
 }
+
+// A 429 is OpenSubtitles' short throttle: the link is asked for again after
+// the wait it names, and the download goes through instead of counting as the
+// daily limit.
+func TestThrottledDownloadLinkIsAskedAgain(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"link": "L", "remaining": 9})
+	}))
+	defer srv.Close()
+	info, err := subtitles.NewWithBaseURL("k", srv.URL).RequestDownloadInfo(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("a passing throttle should not fail the download: %v", err)
+	}
+	if info.Link != "L" || calls != 2 {
+		t.Errorf("link %q after %d calls, want L after 2", info.Link, calls)
+	}
+}

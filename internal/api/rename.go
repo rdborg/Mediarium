@@ -11,6 +11,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/cleanup"
 	"github.com/rdborg/mediarium/internal/fileperms"
+	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/parser"
 )
 
@@ -75,14 +76,21 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 			if err != nil {
 				return nil, err
 			}
-			done := map[string]bool{} // a multi-episode file is renamed once, as its first episode
+			// A multi-episode file is renamed once, named for all its episodes.
+			inFile := map[string][]library.Episode{}
+			for _, ep := range eps {
+				if ep.FilePath != "" {
+					inFile[ep.FilePath] = append(inFile[ep.FilePath], ep)
+				}
+			}
+			done := map[string]bool{}
 			for _, ep := range eps {
 				if ep.FilePath == "" || done[ep.FilePath] {
 					continue
 				}
 				done[ep.FilePath] = true
 				stem := strings.TrimSuffix(filepath.Base(ep.FilePath), filepath.Ext(ep.FilePath))
-				to, err := s.buildTVDestPath(sr, ep, parser.Parse(stem), stem, ep.FilePath)
+				to, _, err := s.buildTVDestPathFor(sr, inFile[ep.FilePath], parser.Parse(stem), stem, ep.FilePath, false)
 				if err != nil {
 					return nil, err
 				}
@@ -205,8 +213,13 @@ func renameWithSidecars(root, from, to string) error {
 	if r, err := filepath.Rel(absRoot, absTo); err != nil || strings.HasPrefix(r, "..") {
 		return fmt.Errorf("the new name is outside the library folder: %w", cleanup.ErrOutside)
 	}
-	if _, err := os.Lstat(to); err == nil {
-		return errRenameTaken
+	if toInfo, err := os.Lstat(to); err == nil {
+		// On a disk that ignores case (Windows, macOS, many network shares) a
+		// name that only differs in capitals finds the file itself.
+		fromInfo, ferr := os.Lstat(from)
+		if ferr != nil || !strings.EqualFold(from, to) || !os.SameFile(fromInfo, toInfo) {
+			return errRenameTaken
+		}
 	}
 	files, err := cleanup.FileAndSidecars(from)
 	if err != nil {

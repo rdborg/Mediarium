@@ -191,6 +191,9 @@ func (s *Server) handleManualImport(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		// The file chosen takes the place of the one the movie had under
+		// another name (an older quality), as an automatic upgrade does.
+		s.removeReplacedFile(s.fileRoot(s.movieRootFor(m), m.FilePath), m.FilePath, res.DestPath, m.ID, 0, movieLabel(m))
 		_ = s.QueueRepo.LogActivity(m.ID, "imported", fmt.Sprintf("%s imported by hand to %s", movieLabel(m), res.DestPath))
 		kept := manualFinish(src, res.DestPath, mode)
 		s.movieImported(res.DestPath)
@@ -257,6 +260,8 @@ func (s *Server) handleManualImport(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		// The same for an episode; a file another episode still uses stays.
+		s.removeReplacedFile(s.fileRoot(s.seriesRootFor(sr), ep.FilePath), ep.FilePath, res.DestPath, 0, sr.ID, fmt.Sprintf("%s S%02dE%02d", sr.Title, ep.Season, ep.Episode))
 		_ = s.QueueRepo.LogSeriesActivity(sr.ID, "imported", fmt.Sprintf("%s S%02dE%02d imported by hand to %s", sr.Title, ep.Season, ep.Episode, res.DestPath))
 		kept := manualFinish(src, res.DestPath, mode)
 		s.episodesImported(res.DestPath)

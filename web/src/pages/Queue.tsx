@@ -507,7 +507,8 @@ export default function Queue() {
   const [blLimit, setBlLimit] = useState(100)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState<{ id: number; doing: Doing } | null>(null)
+  // What each download is being told to do right now, so two quick actions on different rows don't free each other.
+  const [busy, setBusy] = useState<ReadonlyMap<number, Doing>>(new Map())
   const [bulkBusy, setBulkBusy] = useState<'pause' | 'resume' | null>(null)
   // The downloads picked with the checkboxes, for doing one thing to all of them.
   const [picked, setPicked] = useState<ReadonlySet<number>>(new Set())
@@ -581,6 +582,7 @@ export default function Queue() {
       }
       setError('')
     } catch (e) {
+      if (mine !== latest.current) return // a newer refresh has taken over
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoaded(true)
@@ -603,7 +605,7 @@ export default function Queue() {
 
   const act = useCallback(
     async (item: QueueItem, fn: () => Promise<unknown>, done: string, doing: Doing = 'other') => {
-      setBusy({ id: item.id, doing })
+      setBusy((cur) => new Map(cur).set(item.id, doing))
       try {
         await fn()
         toast.success(done)
@@ -611,7 +613,11 @@ export default function Queue() {
       } catch (e) {
         grabError(e)
       } finally {
-        setBusy(null)
+        setBusy((cur) => {
+          const next = new Map(cur)
+          next.delete(item.id)
+          return next
+        })
       }
     },
     [load, toast, grabError],
@@ -801,7 +807,7 @@ export default function Queue() {
         key={q.id}
         q={q}
         admin={admin}
-        busy={busy?.id === q.id ? busy.doing : null}
+        busy={busy.get(q.id) ?? null}
         act={act}
         stop={stop}
         remove={remove}
@@ -1084,7 +1090,7 @@ export default function Queue() {
           {shownActivity.length === 0 ? (
             <div className="empty-state">
               <Icon name="activity" size={44} />
-              <p>{actQuery.trim() ? t('Nothing in the history matches that.') : t('No activity yet.')}</p>
+              <p>{actQuery.trim() ? t('Nothing in the history matches that.') : activity.length > 0 ? t('Nothing in this group among the latest lines. Older lines may have some.') : t('No activity yet.')}</p>
             </div>
           ) : (
             <ul className="timeline">

@@ -174,7 +174,7 @@ var verifiedDirs sync.Map
 // working folder (moved there by a retry, see moveKeptDownload, or left by a
 // pause) with PAR2. It reports false, and leaves an empty folder for a fresh
 // download, when there is nothing to reuse or the files fail the check.
-func (s *Server) reuseDownloaded(queueID int64, incompleteDir string) bool {
+func (s *Server) reuseDownloaded(ctx context.Context, queueID int64, incompleteDir string) bool {
 	// Whether the files came from an earlier attempt or this item was paused
 	// and resumed, only a finished download is reused as it is; a partial one
 	// carries on from what it has (download.ResumeFile).
@@ -186,7 +186,7 @@ func (s *Server) reuseDownloaded(queueID int64, incompleteDir string) bool {
 		missing, _ = strconv.Atoi(strings.TrimSpace(string(b)))
 	}
 	s.queueEvent(queueID, "retried", queue.LevelInfo, "Reusing the files already downloaded instead of downloading again. Checking them first.")
-	if err := verifyAndRepair(incompleteDir, missing); err != nil {
+	if err := verifyAndRepair(ctx, incompleteDir, missing); err != nil {
 		s.queueEvent(queueID, "retried", queue.LevelWarn, fmt.Sprintf("The files already downloaded didn't pass the check (%v). Downloading again.", err))
 		if err := os.RemoveAll(incompleteDir); err != nil {
 			slog.Warn("pipeline: clear failed earlier download", "dir", incompleteDir, "err", err)
@@ -199,21 +199,21 @@ func (s *Server) reuseDownloaded(queueID int64, incompleteDir string) bool {
 
 // verifyStep is the PAR2 verify/repair step of post-processing, recorded in
 // the item's activity.
-func (s *Server) verifyStep(queueID int64, dir string, missing int) error {
+func (s *Server) verifyStep(ctx context.Context, queueID int64, dir string, missing int) error {
 	if _, done := verifiedDirs.LoadAndDelete(filepath.Clean(dir)); done {
 		s.queueEvent(queueID, "postprocess", queue.LevelInfo, "Files verified")
 		return nil
 	}
 	par2, _ := organizer.FindMainPar2Files(dir)
 	if len(par2) == 0 && missing == 0 {
-		return verifyAndRepair(dir, missing)
+		return verifyAndRepair(ctx, dir, missing)
 	}
 	if missing > 0 {
 		s.queueEvent(queueID, "postprocess", queue.LevelInfo, fmt.Sprintf("Repairing %s with PAR2", plural(missing, "missing article")))
 	} else {
 		s.queueEvent(queueID, "postprocess", queue.LevelInfo, "Verifying with PAR2")
 	}
-	if err := verifyAndRepair(dir, missing); err != nil {
+	if err := verifyAndRepair(ctx, dir, missing); err != nil {
 		s.queueEvent(queueID, "postprocess", queue.LevelError, fmt.Sprintf("PAR2 repair failed (%v)", err))
 		return err
 	}

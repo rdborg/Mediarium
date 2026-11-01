@@ -244,8 +244,9 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 			defer cancel()
 
 			var (
-				results []Result
-				err     error
+				results  []Result
+				err      error
+				laterErr error // a page after the first failed (Newznab)
 			)
 			// The indexer's own extra categories go along with the standard ones.
 			categories := inst.ExtraCategories.WithExtraCategories(categories)
@@ -258,6 +259,7 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 			} else {
 				client := NewNewznabClient(inst.Name, inst.BaseURL, inst.APIKey)
 				results, err = client.Search(reqCtx, query, categories)
+				laterErr = client.LaterPageErr
 				if client.ExtraRequests > 0 {
 					inst.Tracker.CountRequest(inst.ID, client.ExtraRequests)
 				}
@@ -277,6 +279,9 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 			// nothing about the indexer.
 			if ctx.Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, netproxy.ErrWaitingForVPN) {
 				inst.Tracker.RecordSearch(inst.ID, results, err)
+				if lerr := laterErr; err == nil && lerr != nil && !errors.Is(lerr, context.Canceled) && !errors.Is(lerr, context.DeadlineExceeded) {
+					inst.Tracker.RecordLaterPage(inst.ID, lerr)
+				}
 			}
 		}(i, inst, limitNote)
 	}

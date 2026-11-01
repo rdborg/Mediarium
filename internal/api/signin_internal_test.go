@@ -100,3 +100,32 @@ func TestReadOnlyAllowsTable(t *testing.T) {
 		}
 	}
 }
+
+// A flood from many networks cannot push out one real person's sign-in: each
+// network holds a few at most, and a full store takes room from the busiest.
+func TestCeremonyStoreFloodKeepsARealSignIn(t *testing.T) {
+	now := time.Now()
+	c := newCeremonyStore()
+	sd := webauthn.SessionData{Challenge: "abc"}
+	real, _ := c.putFrom(kindLogin, 0, "net:real", sd, now.Add(-time.Minute)) // the oldest of all
+	for i := 0; i < 3*maxCeremony; i++ {
+		if _, err := c.putFrom(kindLogin, 0, "net:"+twoDigits(i%300/10)+twoDigits(i%10), sd, now.Add(time.Duration(i)*time.Millisecond)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(c.m) > maxCeremony {
+		t.Errorf("%d waiting, want at most %d", len(c.m), maxCeremony)
+	}
+	per := map[string]int{}
+	for _, v := range c.m {
+		per[v.owner]++
+	}
+	for o, n := range per {
+		if n > maxCeremonyPerOwner {
+			t.Errorf("%s holds %d, want at most %d", o, n, maxCeremonyPerOwner)
+		}
+	}
+	if _, ok := c.take(real, kindLogin, now); !ok {
+		t.Error("the real sign-in was pushed out by the flood")
+	}
+}

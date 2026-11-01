@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, type QueueItem, type TorrentDetail, type TorrentFile } from '../api'
 import { formatBytes } from '../format'
 import { plural, t } from '../i18n'
@@ -31,6 +31,10 @@ export default function TorrentControls({ q, open }: { q: QueueItem; open: boole
   const [up, setUp] = useState('')
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Read inside the refresh below: a limit that is being typed must survive the
+  // download changing state.
+  const dirtyRef = useRef(false)
+  dirtyRef.current = dirty
 
   const take = useCallback((next: TorrentDetail, resetLimits: boolean) => {
     setD(next)
@@ -49,7 +53,7 @@ export default function TorrentControls({ q, open }: { q: QueueItem; open: boole
       api
         .torrentDetail(q.id)
         .then((x) => {
-          if (!gone) take(x, first)
+          if (!gone) take(x, first && !dirtyRef.current)
         })
         .catch(() => undefined)
     void load(true)

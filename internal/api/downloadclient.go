@@ -282,6 +282,9 @@ func (s *Server) downloadViaClient(ctx context.Context, queueID int64, downloadU
 			if settle > 0 {
 				settle--
 			}
+			if t.Waiting() {
+				lastMove = time.Now() // in line in the client: not stalled
+			}
 			if t.Progress != lastProgress {
 				lastProgress, lastMove = t.Progress, time.Now()
 				report(t.Progress * 100)

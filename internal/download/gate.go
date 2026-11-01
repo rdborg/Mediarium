@@ -39,6 +39,14 @@ var (
 	// tooManySettle is the shortest time between two halvings, so a burst of
 	// refusals to connections opened at the same moment counts as one.
 	tooManySettle = 3 * time.Second
+	// tooManyNoteAfter is how many refusals in one spell it takes before the
+	// problem log and Health mention it.
+	tooManyNoteAfter = 4
+	// learnRecoverAfter is how long a lowered number stays before the gate
+	// tries a higher one again (doubling, up to what the person set). The
+	// provider may have been counting connections of an earlier run, or of a
+	// program that has since stopped, and that does not last for ever.
+	learnRecoverAfter = 5 * time.Minute
 )
 
 // errServerRemoved is what a worker gets when its server was edited (to a
@@ -72,6 +80,7 @@ type serverGate struct {
 	softLast   time.Time // latest one
 	softCount  int       // how many answers in this spell
 	lastHalved time.Time
+	learnedAt  time.Time // when learned was last lowered
 	lastClosed time.Time // when a working connection last closed
 }
 
@@ -103,13 +112,27 @@ func (g *serverGate) setConfigured(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if n != g.configured {
-		g.configured, g.learned = n, n
+		g.configured, g.learned, g.learnedAt = n, n, time.Time{}
 		g.softSince, g.softLast, g.softCount = time.Time{}, time.Time{}, 0
 		g.cond.Broadcast()
 	}
 }
 
 func (g *serverGate) limitLocked() int { return max(min(g.configured, g.learned), 1) }
+
+// recoverLocked raises a lowered limit again once it has held for
+// learnRecoverAfter: to twice the number, at most what the person set. If the
+// provider still refuses, the next refusal lowers it again.
+func (g *serverGate) recoverLocked() {
+	if g.learned >= g.configured || g.learnedAt.IsZero() || time.Since(g.learnedAt) < learnRecoverAfter {
+		return
+	}
+	before := g.limitLocked()
+	g.learned = min(max(g.learned*2, g.learned+1), g.configured)
+	g.learnedAt = time.Now()
+	log.Printf("usenet: trying %d connections to %s again (was %d)", g.limitLocked(), g.key.host, before)
+	g.cond.Broadcast()
+}
 
 // troubledLocked is the "give up" error once the provider has been refusing
 // connections for tooManyGiveUp with no success in between.
@@ -143,6 +166,7 @@ func (g *serverGate) acquire(ctx context.Context) (release func(), err error) {
 		if err := g.troubledLocked(); err != nil {
 			return nil, err
 		}
+		g.recoverLocked()
 		if g.inUse < g.limitLocked() {
 			g.inUse++
 			var once sync.Once
@@ -155,8 +179,37 @@ func (g *serverGate) acquire(ctx context.Context) (release func(), err error) {
 				})
 			}, nil
 		}
+		var wake *time.Timer
+		if g.learned < g.configured && !g.learnedAt.IsZero() {
+			// Whoever waits here must hear when the lowered number is due to be
+			// tried again, even if no connection closes before then.
+			d := max(learnRecoverAfter-time.Since(g.learnedAt), 0) + 10*time.Millisecond
+			wake = time.AfterFunc(d, func() {
+				g.mu.Lock()
+				g.cond.Broadcast()
+				g.mu.Unlock()
+			})
+		}
 		g.cond.Wait()
+		if wake != nil {
+			wake.Stop()
+		}
 	}
+}
+
+// take and give count one connection that does not come through acquire (the
+// probe of the provider's limit), so downloads see the place as used.
+func (g *serverGate) take() {
+	g.mu.Lock()
+	g.inUse++
+	g.mu.Unlock()
+}
+
+func (g *serverGate) give() {
+	g.mu.Lock()
+	g.inUse--
+	g.cond.Broadcast()
+	g.mu.Unlock()
 }
 
 // shedOne takes back the place of connection c when more connections are open
@@ -187,10 +240,16 @@ func (g *serverGate) noteClosed() {
 }
 
 // track and untrack keep the open connections, so RetireServer can close them.
-func (g *serverGate) track(c *NNTPConn) {
+// It says false when the gate was retired in the meantime (the server was
+// removed or changed), and then the caller must close the connection itself.
+func (g *serverGate) track(c *NNTPConn) bool {
 	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.retired {
+		return false
+	}
 	g.conns[c] = struct{}{}
-	g.mu.Unlock()
+	return true
 }
 
 func (g *serverGate) untrack(c *NNTPConn) {
@@ -238,21 +297,33 @@ func (g *serverGate) tooMany() time.Duration {
 		// A connection of ours only just closed and the provider may not have
 		// counted it out yet: wait and try again, without drawing conclusions.
 	case used >= 1 && used < before:
-		g.learned = used
+		g.learned, g.learnedAt = used, now
 	case used == 0 && now.Sub(g.lastHalved) > tooManySettle:
-		g.learned = max(before/2, 1)
+		g.learned, g.learnedAt = max(before/2, 1), now
 		g.lastHalved = now
 	}
 	if after := g.limitLocked(); after != before {
 		log.Printf("usenet: %s says there are too many connections on this login; using %d instead of %d for now", g.key.host, after, before)
 	}
 	g.cond.Broadcast()
+	if g.softCount < tooManyNoteAfter {
+		// The first refusals are usually a provider that has not counted our
+		// closed connections out yet. The wait handles that; only a spell that
+		// goes on is worth telling anyone about.
+		return g.backoffLocked()
+	}
 	problems.Record(problems.Problem{
 		Code: problems.CodeUsenetTooMany, Subject: g.key.host,
 		Message: fmt.Sprintf("%s says this login has too many connections. Using %d for now (set to %d).", g.key.host, g.limitLocked(), g.configured),
 		Detail:  fmt.Sprintf("server %s port %d, connections set to %d, allowed for now %d, open now %d, refusals in this spell %d", g.key.host, g.key.port, g.configured, g.limitLocked(), g.inUse, g.softCount),
 	})
 
+	return g.backoffLocked()
+}
+
+// backoffLocked is how long to wait after a refusal: with jitter, longer the
+// longer the trouble lasts.
+func (g *serverGate) backoffLocked() time.Duration {
 	wait := tooManyBackoffBase << min(g.softCount-1, 6)
 	wait = min(wait, tooManyBackoffMax)
 	return time.Duration(float64(wait) * (0.5 + rand.Float64()))

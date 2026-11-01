@@ -560,6 +560,8 @@ func TestTooManyConnectionsIsRecognised(t *testing.T) {
 		{"a connection limit", &NNTPError{Code: 481, Message: "Connection limit exceeded"}, true},
 		{"502 about the login", &NNTPError{Code: 502, Message: "Authentication failed"}, false},
 		{"502 access denied", &NNTPError{Code: 502, Message: "Access denied"}, false},
+		{"502 unknown user", &NNTPError{Code: 502, Message: "Unknown user"}, false},
+		{"502 invalid username", &NNTPError{Code: 502, Message: "Invalid username"}, false},
 		{"wrong password", &NNTPError{Code: 481, Message: "Authentication failed"}, false},
 		{"not an NNTP error", errors.New("connection reset"), false},
 		{"wrapped", fmt.Errorf("nntp authenticate on news.example.com: %w", &NNTPError{Code: 502, Message: "Too many connections."}), true},
@@ -711,5 +713,64 @@ func TestBackoffGrowsAndStaysWithinItsBounds(t *testing.T) {
 		if w < exp/2 || w > exp*3/2 {
 			t.Errorf("wait %d = %v, want within half and one and a half of %v", i, w, exp)
 		}
+	}
+}
+
+func TestLoginUseTellsChecksToKeepAway(t *testing.T) {
+	cfg := ClientConfig{Host: "loginuse.example", Port: 119, Username: "u", Connections: 4}
+	if working, busy := LoginUse(cfg); working || busy {
+		t.Fatalf("a login nothing has used: working=%v busy=%v", working, busy)
+	}
+	g := gateFor(cfg)
+	release, err := g.acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if working, busy := LoginUse(cfg); working || !busy {
+		t.Errorf("a place taken, nothing signed in: working=%v busy=%v", working, busy)
+	}
+	c := &NNTPConn{}
+	g.track(c)
+	if working, busy := LoginUse(cfg); !working || !busy {
+		t.Errorf("a signed-in connection: working=%v busy=%v", working, busy)
+	}
+	g.untrack(c)
+	g.noteClosed()
+	release()
+	if working, busy := LoginUse(cfg); working || !busy {
+		t.Errorf("just closed: working=%v busy=%v", working, busy)
+	}
+	g.mu.Lock()
+	g.lastClosed = time.Now().Add(-time.Minute)
+	g.mu.Unlock()
+	if working, busy := LoginUse(cfg); working || busy {
+		t.Errorf("long ago: working=%v busy=%v", working, busy)
+	}
+}
+
+func TestLoweredLimitIsTriedAgainAfterAWhile(t *testing.T) {
+	fastGate(t)
+	old := learnRecoverAfter
+	learnRecoverAfter = 50 * time.Millisecond
+	t.Cleanup(func() { learnRecoverAfter = old })
+	g := gateFor(ClientConfig{Host: "recover.example", Port: 119, Username: "u", Connections: 8})
+	g.tooMany()
+	g.mu.Lock()
+	lowered := g.limitLocked()
+	g.mu.Unlock()
+	if lowered != 4 {
+		t.Fatalf("after a refusal with nothing open the limit is %d, want 4", lowered)
+	}
+	time.Sleep(80 * time.Millisecond)
+	release, err := g.acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	g.mu.Lock()
+	again := g.limitLocked()
+	g.mu.Unlock()
+	if again != 8 {
+		t.Errorf("after a quiet while the limit is %d, want the 8 that was set", again)
 	}
 }

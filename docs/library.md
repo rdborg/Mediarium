@@ -157,7 +157,7 @@ Tags are your own words for sorting a library that lives in one folder: **Kids**
 
 Most TV releases name episodes by season (`Show.S02E05`). Two kinds of show don't:
 
-- **Anime** counts episodes from the very first one: `[Group] Long Voyage - 1085 (1080p)`, `Show E105`, or a batch `Show - 01-12`.
+- **Anime** counts episodes from the very first one: `[Group] Long Voyage - 1085 (1080p)`, `Show E105`, or a batch `Show - 01-12`. A batch that holds every episode of a season counts as that season's pack, so the season pack search takes it.
 - **Daily shows** (talk shows, news) go by the day: `The.Evening.Desk.2024.03.15`.
 
 A show's page has **Episode numbering**: *Seasons (S01E05)*, *Anime (episode 105)* or *Daily (by air date)*. Mediarium sets it when the show is added, also when it comes from a library import or from Sonarr, which passes on its own setting (Japanese animation is Anime; talk shows and news are Daily), and you can change it. Later anime seasons named like "Show S2 - 05" are read as that season's episode, and a recap such as "Show - 12.5" is not taken for episode 12. For an Anime show, episode 105 is found by counting the show's episodes season by season from the first one (specials left out); for a Daily show, by matching the air date. Searches then also look for "Show 105" or "Show 2024 03 15", and releases and downloaded files named that way are matched to the right episode. A release that does carry a season marker is always taken as it says.
@@ -421,7 +421,7 @@ With **Custom** you can:
 - **Paste the format you already use in Radarr or Sonarr.** Mediarium understands their token names, so `{Movie CleanTitle} ({Release Year}) - {Custom Formats}{ - Edition Tags}` works as it is.
 - **Click a token** in the list next to the boxes to add it where the cursor is.
 
-There is one box for movies and one for episodes. An episode name needs `{Season}` and `{Episode}`, also for daily shows (two episodes can air on the same day), so two episodes never get the same name. A movie name needs its title. A format you wrote while another style was picked is checked when you switch to **Custom**.
+There is one box for movies and one for episodes. An episode name needs `{Season}` and `{Episode}`, also for daily shows (two episodes can air on the same day), so two episodes never get the same name. A file that holds more than one episode (`S01E01E02`) is named for all of them: `{Episode:00}` becomes `01-E02` and `{Episode Title}` joins the titles with ` + `, so the Plex style gives `Show - S01E01-E02 - Pilot + Second`. A movie name needs its title. A format you wrote while another style was picked is checked when you switch to **Custom**.
 
 A format can be up to 500 characters long, which is room for TRaSH's longest ones. The name of the file that comes out is cut to a safe length when it is too long for the disk, as before.
 

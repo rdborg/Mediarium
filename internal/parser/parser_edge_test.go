@@ -27,7 +27,7 @@ func TestParseEdgeCases(t *testing.T) {
 		// Multi-episode ranges must not swallow a resolution
 		{"range followed by a resolution", "Show.Name.S01E01-720p.WEB-DL", parser.Release{Title: "Show Name", Season: 1, Episode: 1, Episodes: []int{1}, Resolution: "720p", Source: "WEB-DL"}},
 		{"episode range has no group", "Show.Name.S01E01-E03", parser.Release{Title: "Show Name", Season: 1, Episode: 1, Episodes: []int{1, 2, 3}}},
-		{"season range end is not a group", "Show.Name.S01E100-S01E102", parser.Release{Title: "Show Name", Season: 1, Episode: 100, Episodes: []int{100}}},
+		{"season range end is not a group", "Show.Name.S01E100-S01E102", parser.Release{Title: "Show Name", Season: 1, Episode: 100, Episodes: []int{100, 101, 102}}},
 		{"backwards range keeps the first", "Show.Name.S01E05-E02", parser.Release{Title: "Show Name", Season: 1, Episode: 5, Episodes: []int{5}}},
 
 		// A separator between season and episode is still one episode, not a pack
@@ -36,6 +36,12 @@ func TestParseEdgeCases(t *testing.T) {
 		{"dash between season and episode", "Show.S02-E05.720p.HDTV-GRP", parser.Release{Title: "Show", Season: 2, Episode: 5, Episodes: []int{5}, Resolution: "720p", Source: "HDTV", Group: "GRP"}},
 		{"underscore between season and episode", "Show_S03_E10_1080p", parser.Release{Title: "Show", Season: 3, Episode: 10, Episodes: []int{10}, Resolution: "1080p"}},
 		{"spaced multi-episode", "Show S01 E01E02 720p", parser.Release{Title: "Show", Season: 1, Episode: 1, Episodes: []int{1, 2}, Resolution: "720p"}},
+		{"range with the season repeated", "Show.Name.S01E01-S01E03", parser.Release{Title: "Show Name", Season: 1, Episode: 1, Episodes: []int{1, 2, 3}}},
+		{"web in a film title", "Charlotte's.Web.2006.1080p.BluRay.x264-GRP", parser.Release{Title: "Charlotte's Web", Year: 2006, Resolution: "1080p", Source: "BluRay", Codec: "x264", Group: "GRP"}},
+		{"web as the source of a film", "The.Dark.Web.2021.1080p.WEB-DL.x264-GRP", parser.Release{Title: "The Dark Web", Year: 2021, Resolution: "1080p", Source: "WEB-DL", Codec: "x264", Group: "GRP"}},
+		{"HDR10+ followed by a dot", "Movie.2021.2160p.WEB-DL.HDR10+.x265-GRP", parser.Release{Title: "Movie", Year: 2021, Resolution: "2160p", Source: "WEB-DL", HDR: "HDR10+", Codec: "x265", Group: "GRP"}},
+		{"1080i is a 1080p picture", "Show.Name.S01E01.1080i.HDTV.x264-GRP", parser.Release{Title: "Show Name", Season: 1, Episode: 1, Episodes: []int{1}, Resolution: "1080p", Source: "HDTV", Codec: "x264", Group: "GRP"}},
+		{"576p is standard definition", "Movie.2005.576p.BluRay.x264-GRP", parser.Release{Title: "Movie", Year: 2005, Resolution: "480p", Source: "BluRay", Codec: "x264", Group: "GRP"}},
 		{"spaced range", "Show S01 E01-E03 720p", parser.Release{Title: "Show", Season: 1, Episode: 1, Episodes: []int{1, 2, 3}, Resolution: "720p"}},
 		{"pack followed by an audio tag", "Show.S01.EAC3.1080p-GRP", parser.Release{Title: "Show", Season: 1, Resolution: "1080p", AudioCodec: "EAC3", Group: "GRP"}},
 
@@ -182,6 +188,26 @@ func TestParseIsDeterministic(t *testing.T) {
 		a, b := parser.Parse(in), parser.Parse(in)
 		if !reflect.DeepEqual(a, b) {
 			t.Errorf("%q parsed two ways: %+v and %+v", in, a, b)
+		}
+	}
+}
+
+// A span of years names the first one as the year, and the title stops before it.
+func TestYearSpanStartsWithTheFirstYear(t *testing.T) {
+	cases := []struct {
+		in    string
+		title string
+		year  int
+	}{
+		{"James Bond Collection (1962-2021)", "James Bond Collection", 1962},
+		{"Friends (1994-2004)", "Friends", 1994},
+		{"Friends.1994-2004.Complete.1080p.BluRay-GRP", "Friends", 1994},
+		{"Heat (1995)", "Heat", 1995},
+	}
+	for _, c := range cases {
+		r := parser.Parse(c.in)
+		if r.Title != c.title || r.Year != c.year {
+			t.Errorf("Parse(%q) = %q %d, want %q %d", c.in, r.Title, r.Year, c.title, c.year)
 		}
 	}
 }

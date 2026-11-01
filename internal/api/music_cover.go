@@ -74,7 +74,8 @@ const coverTouchEvery = 3 * 24 * time.Hour
 type coverLocks struct {
 	mu     sync.Mutex
 	m      map[string]*sync.Mutex
-	writes atomic.Int64 // cache files written, to know when to prune
+	refs   map[string]int // how many callers hold or wait for each lock in m
+	writes atomic.Int64   // cache files written, to know when to prune
 
 	fetches flightGroup[string]      // archive downloads, by release group id
 	thumbs  flightGroup[string]      // thumbnails, by file name
@@ -218,15 +219,27 @@ func (c *coverLocks) lock(key string) (unlock func()) {
 	c.mu.Lock()
 	if c.m == nil {
 		c.m = map[string]*sync.Mutex{}
+		c.refs = map[string]int{}
 	}
 	l := c.m[key]
 	if l == nil {
 		l = &sync.Mutex{}
 		c.m[key] = l
 	}
+	c.refs[key]++
 	c.mu.Unlock()
 	l.Lock()
-	return l.Unlock
+	return func() {
+		l.Unlock()
+		// The entry goes with its last user: an address nobody asks for again
+		// must not stay in the map for ever.
+		c.mu.Lock()
+		if c.refs[key]--; c.refs[key] <= 0 {
+			delete(c.refs, key)
+			delete(c.m, key)
+		}
+		c.mu.Unlock()
+	}
 }
 
 func (s *Server) coverCacheDir() string { return filepath.Join(s.cfg.ConfigDir, "music-covers") }

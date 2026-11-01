@@ -51,3 +51,30 @@ func TestManualImportMovesAFileIntoTheLibrary(t *testing.T) {
 		t.Fatalf("movie after import: %+v (err %v)", m, err)
 	}
 }
+
+// Importing a better file by hand for a movie that has one under another name
+// removes the old one, as an automatic upgrade does.
+func TestManualImportReplacesTheEarlierFile(t *testing.T) {
+	server, base, client := loginNewServer(t)
+	downloads := filepath.Dir(server.TestWorkDir())
+	src := filepath.Join(downloads, "complete", "Heat.1995.2160p.BluRay.x265-GRP", "Heat.1995.2160p.BluRay.x265-GRP.mkv")
+	old := filepath.Join(server.TestMoviesRoot(), "Heat (1995)", "Heat (1995) old.mkv")
+	for _, f := range []string{src, old} {
+		if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, make([]byte, 21<<20), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id := seedMovie(t, server.MovieRepo, 949, "Heat", 1995, old)
+	rel, _ := filepath.Rel(downloads, src)
+	res := postJSON[map[string]any](t, client, base+"/api/manual-import", map[string]any{"path": filepath.ToSlash(rel), "movieId": id}, http.StatusOK)
+	dest, _ := res["path"].(string)
+	if !exists(dest) {
+		t.Fatalf("imported to %q, which is missing", dest)
+	}
+	if exists(old) {
+		t.Errorf("the earlier file %s is still there", old)
+	}
+}

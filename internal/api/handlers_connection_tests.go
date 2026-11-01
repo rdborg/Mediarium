@@ -48,10 +48,17 @@ func testNNTP(host string, port int, useSSL bool, username, password string) con
 	if host == "" || port == 0 {
 		return connTestResult{Message: "Enter the server host and port first."}
 	}
+	login := download.ClientConfig{Host: host, Port: port, UseSSL: useSSL, Username: username}
+	if working, _ := download.LoginUse(login); working {
+		// Downloads hold signed-in connections right now, which proves the
+		// server and the login work. A test would only add one more connection
+		// to a login that may be full.
+		return connTestResult{OK: true, Message: "Connected and logged in. Downloads are using this login right now."}
+	}
 	conn, err := download.DialNNTP(host, port, useSSL, 10*time.Second)
 	if err != nil {
 		if download.IsTooManyConnections(err) {
-			return connTestResult{Message: download.TooManyConnectionsMessage}
+			return tooManyTestResult(login)
 		}
 		if msg, ok := certificateProblem(err); ok {
 			return connTestResult{Message: msg}
@@ -61,7 +68,7 @@ func testNNTP(host string, port int, useSSL bool, username, password string) con
 	defer conn.Quit()
 	if err := conn.Authenticate(username, password); err != nil {
 		if download.IsTooManyConnections(err) {
-			return connTestResult{Message: download.TooManyConnectionsMessage}
+			return tooManyTestResult(login)
 		}
 		if msg, ok := download.FriendlyError(err); ok {
 			return connTestResult{Message: "Connected, but the login failed. " + msg}
@@ -69,6 +76,17 @@ func testNNTP(host string, port int, useSSL bool, username, password string) con
 		return connTestResult{Message: "Connected, but signing in failed: " + err.Error()}
 	}
 	return connTestResult{OK: true, Message: "Connected and logged in."}
+}
+
+// tooManyTestResult is the answer to a test the provider refused for having too
+// many connections open. When Mediarium's own downloads have the login busy (or
+// just closed connections the provider has not counted out yet), that says
+// nothing about the server or the login, so it is not a failure.
+func tooManyTestResult(login download.ClientConfig) connTestResult {
+	if _, busy := download.LoginUse(login); busy {
+		return connTestResult{OK: true, Message: "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test."}
+	}
+	return connTestResult{Message: download.TooManyConnectionsMessage}
 }
 
 // certificateProblem puts a refused SSL certificate in plain words. Mediarium

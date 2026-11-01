@@ -7930,5 +7930,14 @@
   "Blocklist releases": "Zablokuj wydania",
   "Pick problems": "Wybierz problemy",
   "Blocklist these {n} releases?|few": "Zablokować te {n} wydania?",
-  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Wybierz \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" lub \"blocklist\"."
+  "Choose \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" or \"blocklist\".": "Wybierz \"pause\", \"resume\", \"stop\", \"retry\", \"front\", \"remove\" lub \"blocklist\".",
+  "Nothing in this group among the latest lines. Older lines may have some.": "W najnowszych wierszach nie ma nic z tej grupy. Starsze wiersze mogą coś mieć.",
+  "{n} min": "{n} min",
+  "{h} h": "{h} godz.",
+  "Connected and logged in. Downloads are using this login right now.": "Połączono i zalogowano. Pobieranie właśnie korzysta z tego loginu.",
+  "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "Serwer działa. Pobieranie używa wszystkich połączeń, na które pozwala ten login, więc dla testu nie było miejsca.",
+  "Removing a SABnzbd job's files after import": "Usuwanie plików zadania SABnzbd po imporcie",
+  "An album folder linked to a single with the same name": "Folder albumu powiązany z singlem o tej samej nazwie",
+  "Notices on phones covering the buttons": "Powiadomienia na telefonie zasłaniające przyciski",
+  "Usenet releases posted without file names": "Wydania Usenet opublikowane bez nazw plików"
 }

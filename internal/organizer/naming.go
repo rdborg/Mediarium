@@ -28,6 +28,9 @@ type NamingContext struct {
 	EpisodeTitle string
 	Season       int
 	Episode      int
+	// MoreEpisodes are the other episodes of the same season in the same file
+	// (S01E01E02), in order: {Episode} then reads "01-E02".
+	MoreEpisodes []int
 	AirDate      string // YYYY-MM-DD, empty when unknown
 
 	// From the release name, for the Radarr/Sonarr-style tokens (tokens.go).

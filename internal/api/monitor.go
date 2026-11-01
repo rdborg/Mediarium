@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/download"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/monitor"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -70,6 +71,16 @@ func (s *Server) monitorChecks(ctx context.Context) ([]monitor.Check, error) {
 		checks = append(checks, monitor.Check{
 			Kind: monitor.KindUsenet, ID: sc.ID, Name: sc.Name,
 			Run: func(ctx context.Context) error {
+				// Mediarium's own downloads hold the connections: a check on
+				// top would be refused for being one too many, and that is not
+				// a server that stopped working.
+				working, busy := download.LoginUse(cfg)
+				if working {
+					return nil
+				}
+				if busy {
+					return monitor.ErrSkip
+				}
 				return runProbe(ctx, probeTimeout, func() connTestResult {
 					return testNNTP(cfg.Host, cfg.Port, cfg.UseSSL, cfg.Username, cfg.Password)
 				})

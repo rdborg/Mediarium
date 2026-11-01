@@ -436,7 +436,11 @@ func precheckConnect(ctx context.Context, cfg ClientConfig, wait time.Duration) 
 		release()
 		return nil, nil, err
 	}
-	gate.track(c)
+	if !gate.track(c) {
+		c.Quit()
+		release()
+		return nil, nil, errServerRemoved
+	}
 	gate.succeeded()
 	// A check that runs out of time must not sit waiting on a slow read.
 	stop := context.AfterFunc(ctx, func() { c.Close() })

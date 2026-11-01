@@ -407,12 +407,16 @@ func forward(ctx context.Context, st *dlState, chans []chan job, i int, j job, o
 
 // dialAndAuth opens a connection to the server and signs in. The connection
 // is closed again if signing in fails.
-func dialAndAuth(cfg ClientConfig) (*NNTPConn, error) {
-	c, err := DialNNTP(cfg.Host, cfg.Port, cfg.UseSSL, 30*time.Second)
+func dialAndAuth(ctx context.Context, cfg ClientConfig) (*NNTPConn, error) {
+	c, err := DialNNTPContext(ctx, cfg.Host, cfg.Port, cfg.UseSSL, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.Authenticate(cfg.Username, cfg.Password); err != nil {
+	// A cancelled download must not sit waiting for a slow login.
+	stop := context.AfterFunc(ctx, func() { c.Close() })
+	err = c.Authenticate(cfg.Username, cfg.Password)
+	stop()
+	if err != nil {
 		c.Quit()
 		return nil, fmt.Errorf("nntp authenticate on %s: %w", cfg.Host, err)
 	}
@@ -485,10 +489,13 @@ func runWorker(ctx context.Context, st *dlState, nzb *NZB, cfg ClientConfig, job
 			if err != nil {
 				return err
 			}
-			c, err := dialAndAuth(cfg)
+			c, err := dialAndAuth(ctx, cfg)
+			if err == nil && !gate.track(c) {
+				c.Quit()
+				err = errServerRemoved
+			}
 			if err == nil {
 				conn, release, selectedGroup = c, rel, ""
-				gate.track(c)
 				gate.succeeded()
 				// A cancelled download must not sit waiting on a slow read.
 				stopWatch = context.AfterFunc(ctx, func() { c.Close() })

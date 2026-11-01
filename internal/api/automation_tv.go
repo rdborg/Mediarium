@@ -254,8 +254,10 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 		return 0
 	}
 	grabs := 0
-	if !scope.force && scope.seriesID == 0 {
+	rotating := !scope.force && scope.seriesID == 0
+	if rotating {
 		s.leastRecentlySearchedFirst(wants, upgrades)
+		s.huntAt.orderEpisodes(wants)
 	}
 
 	blocked := s.searchSkipKeys()
@@ -334,7 +336,11 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 				holdBack(logPrefix)
 				return grabs
 			}
-			best := pickTVResult(searcher(w.series, w.season, ep.Episode), w.series, w.season, ep.Episode, w.profile, nil, s.releaseMapper(w.series))
+			raw := rawSearcher(w.series, w.season, ep.Episode)
+			if rotating && raw != nil { // nil: out of searches, nothing was asked
+				s.huntAt.noteEpisode(ep.ID, time.Now())
+			}
+			best := pickTVResult(refine(w.series, w.season, ep.Episode, nil, raw), w.series, w.season, ep.Episode, w.profile, nil, s.releaseMapper(w.series))
 			if best == nil {
 				continue
 			}

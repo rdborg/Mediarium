@@ -146,8 +146,12 @@ func (s *Server) wantedRows(ctx context.Context, kind string, filter wantedFilte
 // wantedShowRows is one row per show with wanted episodes, newest added first.
 func (s *Server) wantedShowRows(ctx context.Context, kind string, profiles profileSet) ([]wantedRowPayload, error) {
 	show := func(id int64, title string, year int, poster string, profileID, copyOf int64, n int) wantedRowPayload {
+		faceTitle, facePoster := title, wantedPoster(poster)
+		if sr, err := s.MovieRepo.GetSeries(id); err == nil {
+			faceTitle, facePoster = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+		}
 		row := wantedRowPayload{Episodes: n, wantedItemPayload: wantedItemPayload{
-			Kind: "show", ID: id, SeriesID: id, Title: title, Year: year, PosterURL: wantedPoster(poster),
+			Kind: "show", ID: id, SeriesID: id, Title: faceTitle, Year: year, PosterURL: facePoster,
 			ProfileName: profiles.resolveTV(profileID).Name, Copy: copyOf != 0,
 		}}
 		if row.Copy {

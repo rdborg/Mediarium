@@ -152,6 +152,9 @@ func (s *Server) TestRouteAccess() map[string]string {
 	return out
 }
 
+// TestBackfillDisplayFaces runs the job that stores translated titles and posters.
+func (s *Server) TestBackfillDisplayFaces(ctx context.Context) { s.backfillDisplayFaces(ctx) }
+
 // TestBackfillGenres runs the scheduled genre backfill once.
 func (s *Server) TestBackfillGenres(ctx context.Context) { s.backfillGenres(ctx) }
 

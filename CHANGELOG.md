@@ -12,6 +12,11 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 - Book search also asks **Hardcover** when a token is saved under Settings > Info, lists and subtitles. A book Open Library has no cover for shows Hardcover's picture, and a book only Hardcover knows can be opened and added. Without a token, search stays on Open Library.
 
+### Changed
+
+- A movie or show already in the library is shown in the language chosen for movie and show info (Settings > Info, lists and subtitles): the title and the poster in the Library, on the Dashboard, in Activity (a download and the waiting list), on the calendar, in reports, requests, statistics and notifications, and the description on the title's own page. The translated title, poster and description are saved, and a background job fills them in (right after a title is added or refreshed, then the rest of the library a few dozen at a time). A description saved before this change is fetched again. Lists never ask TMDB while they answer: until a translation is saved, the English title and poster are shown, and so is the description. On a show's page the description TMDB already returns for that page (the same request as the tagline) is shown straight away, in the chosen language. Changing the info language starts that job again for the new language. Discover, search and the title page already ask TMDB directly. The English title stays saved for indexer searches. Where TMDB has no translation, poster or description in that language, the English one is kept. An episode's own name and description, and a line already written in the activity history, stay as they are.
+- The note under a title that is waiting for a release (Activity) is translated with the language of the app. It was left in English.
+
 ## [3.9.2] - 2026-11-01
 
 In short: no more false "too many connections" emails from Mediarium's own checks, SABnzbd and NZBGet leftovers are cleaned up after import, albums no longer get linked to a single of the same name, and a long list of search, naming and download fixes.

@@ -409,7 +409,7 @@ function SeriesPage() {
           title: withNameTag(series.title, series.nameTag, series.year),
           year: series.year,
           posterUrl: series.posterUrl,
-          overview: series.overview,
+          overview: tv?.overview || series.overview,
           certification: tv?.contentRating,
           links: titleLinks('tv', series.tmdbId, tv?.imdbId, tv?.homepage),
           facts: [

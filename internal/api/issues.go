@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/rdborg/mediarium/internal/metadata"
 )
 
 // "Report a problem with this title": anyone signed in can tell the
@@ -141,14 +139,16 @@ func (s *Server) handleCreateIssue(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "That movie isn't in the library.")
 			return
 		}
-		in.TMDBID, in.Title, in.Year, in.Poster = m.TMDBID, m.Title, m.Year, metadata.PosterURL(m.PosterPath)
+		title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+		in.TMDBID, in.Title, in.Year, in.Poster = m.TMDBID, title, m.Year, poster
 	case "tv":
 		sr, err := s.MovieRepo.GetSeries(body.ItemID)
 		if err != nil {
 			writeError(w, http.StatusNotFound, "That show isn't in the library.")
 			return
 		}
-		in.TMDBID, in.Title, in.Year, in.Poster = sr.TMDBID, sr.Title, sr.Year, metadata.PosterURL(sr.PosterPath)
+		title, poster := s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
+		in.TMDBID, in.Title, in.Year, in.Poster = sr.TMDBID, title, sr.Year, poster
 	default:
 		writeError(w, http.StatusBadRequest, "Reports are for movies and shows.")
 		return

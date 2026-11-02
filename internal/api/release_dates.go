@@ -69,9 +69,10 @@ func (s *Server) withDigitalDates(entries []calendarEntryPayload) []calendarEntr
 			continue
 		}
 		labelled[m.ID] = true
+		title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 		added = append(added, calendarEntryPayload{
-			Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: m.Title, ReleaseDate: m.Digital, Status: string(m.Status),
-			PosterURL: metadata.PosterURL(m.PosterPath), Release: releaseDigital,
+			Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: title, ReleaseDate: m.Digital, Status: string(m.Status),
+			PosterURL: poster, Release: releaseDigital,
 		})
 	}
 	if len(added) == 0 {

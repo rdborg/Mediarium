@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/indexers"
-	"github.com/rdborg/mediarium/internal/metadata"
 	"github.com/rdborg/mediarium/internal/organizer"
 	"github.com/rdborg/mediarium/internal/queue"
 )
@@ -438,7 +437,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if recent, err := s.MovieRepo.RecentlyAdded(recentScan); err == nil {
 		var arrived []dashRecent
 		for _, it := range recent {
-			d := dashRecent{Kind: it.Kind, ID: it.ID, Title: it.Title, Year: it.Year, PosterURL: metadata.PosterURL(it.PosterPath), At: it.AddedAt, State: it.State}
+			title, poster := s.shownFace(it.Kind, it.TMDBID, it.Title, it.PosterPath)
+			d := dashRecent{Kind: it.Kind, ID: it.ID, Title: title, Year: it.Year, PosterURL: poster, At: it.AddedAt, State: it.State}
 			if it.Kind == "movie" {
 				d.TMDBID = it.TMDBID
 			} else {

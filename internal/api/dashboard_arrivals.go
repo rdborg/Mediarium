@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/rdborg/mediarium/internal/library"
-	"github.com/rdborg/mediarium/internal/metadata"
 )
 
 // latestArrivals is "Just added to your library", what arrived last first.
@@ -42,13 +41,15 @@ func (s *Server) latestArrivals(recent []dashRecent) []dashRecent {
 				if !ok || m.CopyOf != 0 || m.Status != library.StatusDownloaded {
 					continue
 				}
-				d = dashRecent{Kind: "movie", ID: m.ID, TMDBID: m.TMDBID, Title: m.Title, Year: m.Year, PosterURL: metadata.PosterURL(m.PosterPath), State: "downloaded"}
+				title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
+				d = dashRecent{Kind: "movie", ID: m.ID, TMDBID: m.TMDBID, Title: title, Year: m.Year, PosterURL: poster, State: "downloaded"}
 			case c.SeriesID > 0:
 				sr, ok := shows[c.SeriesID]
 				if !ok || sr.CopyOf != 0 {
 					continue
 				}
-				d = dashRecent{Kind: "series", ID: sr.ID, SeriesID: sr.ID, Title: sr.Title, Year: sr.Year, PosterURL: metadata.PosterURL(sr.PosterPath), State: "downloaded"}
+				title, poster := s.shownFace("series", sr.TMDBID, sr.Title, sr.PosterPath)
+				d = dashRecent{Kind: "series", ID: sr.ID, SeriesID: sr.ID, Title: title, Year: sr.Year, PosterURL: poster, State: "downloaded"}
 			default:
 				continue
 			}

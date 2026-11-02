@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -762,6 +763,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	languagesBefore := s.audioLanguageList()
+	infoBefore := s.infoLanguage()
 	regionBefore := s.releaseRegion()
 	sets := []struct {
 		key, value string
@@ -824,6 +826,11 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			if err := s.MovieRepo.ClearTitleNames(); err != nil {
 				slog.Warn("settings: couldn't forget the other titles after the audio languages changed", "err", err)
 			}
+		}
+	})
+	tx.then(func() {
+		if s.infoLanguage() != infoBefore {
+			go s.backfillDisplayFaces(context.Background())
 		}
 	})
 

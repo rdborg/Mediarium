@@ -248,7 +248,7 @@ func (s *Server) grabMovieOpts(movie library.Movie, releaseTitle, downloadURL st
 	}
 	grabbedMessage := s.grabbedMessage(releaseTitle, movie.Title)
 	_ = s.QueueRepo.LogActivity(movie.ID, "grabbed", grabbedMessage)
-	grabbedItem := movieItem(movie)
+	grabbedItem := s.localizedMovieItem(movie)
 	grabbedItem.Quality, grabbedItem.SizeBytes, grabbedItem.Release = string(quality.Classify(parser.Parse(releaseTitle))), sizeBytes, releaseTitle
 	s.movieReleaseDetails(&grabbedItem, movie, releaseTitle, downloadURL)
 	s.notifyItem("grabbed", grabbedItem)

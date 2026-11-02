@@ -75,8 +75,16 @@ func (s *Server) seriesOf(ctx context.Context, workKey, title, author string) (*
 			return &linked, nil
 		}
 		if err != nil {
-			slog.Info("books: Hardcover series lookup failed, using Open Library", "err", err)
+			if _, hcKey := books.ParseHardcoverKey(workKey); !hcKey {
+				slog.Info("books: Hardcover series lookup failed, using Open Library", "err", err)
+			}
 		}
+	}
+	// An Audible key contains a colon, which SeriesOf already refuses. A
+	// Hardcover key does not, so it is refused here instead of being sent to
+	// Open Library.
+	if _, ok := books.ParseHardcoverKey(workKey); ok {
+		return nil, books.ErrNotFound
 	}
 	return s.OpenLibrary.SeriesOf(ctx, workKey)
 }

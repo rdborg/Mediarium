@@ -22,15 +22,16 @@ import (
 // a download of that book.
 
 type matchBookRequest struct {
-	Path      string       `json:"path"` // the file or folder as the import list shows it
-	Kind      books.Format `json:"kind"`
-	OLKey     string       `json:"olKey"`
-	Title     string       `json:"title"`
-	Author    string       `json:"author"`
-	AuthorKey string       `json:"authorKey"`
-	Year      int          `json:"year"`
-	CoverID   int          `json:"coverId"`
-	Rename    bool         `json:"rename"` // move the file to the library's naming afterwards
+	Path        string       `json:"path"` // the file or folder as the import list shows it
+	Kind        books.Format `json:"kind"`
+	OLKey       string       `json:"olKey"`
+	Title       string       `json:"title"`
+	Author      string       `json:"author"`
+	AuthorKey   string       `json:"authorKey"`
+	Year        int          `json:"year"`
+	CoverID     int          `json:"coverId"`
+	HardcoverID int          `json:"hardcoverId"`
+	Rename      bool         `json:"rename"` // move the file to the library's naming afterwards
 }
 
 // handleMatchBookImport attaches a book picked by hand to one of the files
@@ -46,7 +47,7 @@ func (s *Server) handleMatchBookImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	match := books.Found{Key: strings.TrimPrefix(strings.TrimSpace(req.OLKey), "/works/"), Title: strings.TrimSpace(req.Title),
-		Author: strings.TrimSpace(req.Author), AuthorKey: req.AuthorKey, Year: req.Year, CoverID: req.CoverID}
+		Author: strings.TrimSpace(req.Author), AuthorKey: req.AuthorKey, Year: req.Year, CoverID: req.CoverID, HardcoverID: req.HardcoverID}
 
 	s.bookImport.mu.Lock()
 	job := s.bookImport.job

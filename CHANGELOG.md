@@ -8,6 +8,10 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Added
+
+- Book search also asks **Hardcover** when a token is saved under Settings > Info, lists and subtitles. A book Open Library has no cover for shows Hardcover's picture, and a book only Hardcover knows can be opened and added. Without a token, search stays on Open Library.
+
 ## [3.9.2] - 2026-11-01
 
 In short: no more false "too many connections" emails from Mediarium's own checks, SABnzbd and NZBGet leftovers are cleaned up after import, albums no longer get linked to a single of the same name, and a long list of search, naming and download fixes.

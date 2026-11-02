@@ -299,15 +299,19 @@ func (s *Server) attachOpenLibraryBook(ctx context.Context, res bookImportResult
 	if !ok {
 		nb := books.Book{OLKey: match.Key, Title: match.Title, Author: match.Author, AuthorKey: match.AuthorKey, Year: match.Year, CoverID: match.CoverID,
 			WantEbook: res.Kind == books.Ebook, WantAudiobook: res.Kind == books.Audiobook}
-		if work, err := s.OpenLibrary.GetWork(ctx, match.Key); err == nil {
-			nb.Description = work.Description
-			if nb.CoverID == 0 {
-				nb.CoverID = work.CoverID
-			}
-		}
+		hcID, cover := s.prepareNewBook(ctx, &nb, match.HardcoverID)
+		fresh := false
 		b, err = s.BookRepo.Add(nb)
-		if errors.Is(err, books.ErrExists) {
-			b, _, err = s.BookRepo.GetByKey(match.Key)
+		if err == nil {
+			fresh = true
+		} else if errors.Is(err, books.ErrExists) {
+			b, _, err = s.BookRepo.GetByKey(nb.OLKey)
+		}
+		if err == nil && fresh && hcID > 0 && b.CoverID == 0 && b.OwnCover == 0 {
+			s.keepHardcoverCover(ctx, b, hcID, cover)
+			if got, gerr := s.BookRepo.Get(b.ID); gerr == nil {
+				b = got
+			}
 		}
 		if err != nil {
 			res.Status, res.Message = bookFailed, err.Error()

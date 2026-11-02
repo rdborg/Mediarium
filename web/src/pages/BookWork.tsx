@@ -107,12 +107,20 @@ export default function BookWork() {
                 )}
               </>
             )}
-            <a className="btn-with-icon link-quiet" href={`https://openlibrary.org/works/${work.key}`} target="_blank" rel="noreferrer" title={t('More about this book')}>
-              <Icon name="external" size={16} /> {t('Open Library')}
-            </a>
+            {work.key.startsWith('hc-') ? (
+              <a className="btn-with-icon link-quiet" href={`https://hardcover.app/books/${work.slug || work.key.slice(3)}`} target="_blank" rel="noreferrer" title={t('More about this book')}>
+                <Icon name="external" size={16} /> {t('Hardcover')}
+              </a>
+            ) : (
+              <a className="btn-with-icon link-quiet" href={`https://openlibrary.org/works/${work.key}`} target="_blank" rel="noreferrer" title={t('More about this book')}>
+                <Icon name="external" size={16} /> {t('Open Library')}
+              </a>
+            )}
           </div>
           <p className="hint source-note">
-            {t('Book details come from Open Library. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')}
+            {work.key.startsWith('hc-')
+              ? t('Book details come from Hardcover. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')
+              : t('Book details come from Open Library. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')}
           </p>
         </div>
       </section>

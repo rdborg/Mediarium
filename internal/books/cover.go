@@ -40,7 +40,12 @@ const maxEditionCovers = 12
 // with none answers an empty list.
 func (c *Client) WorkCovers(ctx context.Context, key string) ([]int, error) {
 	key = strings.TrimPrefix(strings.TrimSpace(key), "/works/")
-	if key == "" || strings.ContainsAny(key, "/?#") {
+	// A colon is an Audible key (audnexus:…); hc- is a Hardcover book. Neither
+	// is an Open Library work, so neither is sent there.
+	if key == "" || strings.ContainsAny(key, "/?#:") {
+		return nil, ErrNotFound
+	}
+	if _, ok := ParseHardcoverKey(key); ok {
 		return nil, ErrNotFound
 	}
 	var res struct {
@@ -94,11 +99,16 @@ func (c *Client) FetchCover(ctx context.Context, coverID int, size string) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("cover: read image: %w", err)
 	}
+	return NormalizeCover(data)
+}
+
+// NormalizeCover checks that data is a picture and returns the bytes to keep.
+// Only a real JPEG, PNG or WebP is accepted, and a WebP picture is kept as a
+// JPEG. The type is decided from the bytes, not from a header or a file name.
+func NormalizeCover(data []byte) ([]byte, error) {
 	if len(data) > maxCoverBytes {
 		return nil, fmt.Errorf("cover: image is larger than %d bytes", maxCoverBytes)
 	}
-	// Trust the bytes, not the header: only a real JPEG, PNG or WebP is kept,
-	// and a WebP picture is kept as a JPEG.
 	switch http.DetectContentType(data) {
 	case "image/jpeg", "image/png":
 		return data, nil

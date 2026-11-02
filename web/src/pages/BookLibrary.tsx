@@ -241,6 +241,7 @@ function AddBook({ format, onAdded }: { format: BookFormat; onAdded: () => void 
         authorKey: f.authorKey,
         year: f.year,
         coverId: f.coverId,
+        hardcoverId: f.hardcoverId,
         ebook: format === 'ebook' || wantOther,
         audiobook: format === 'audiobook' || wantOther,
         searchNow: true,
@@ -296,7 +297,7 @@ function AddBook({ format, onAdded }: { format: BookFormat; onAdded: () => void 
           ))}
         </div>
       )}
-      <p className="hint">{t('Book details and covers come from Open Library.')}</p>
+      <p className="hint">{t('Book details and covers come from Open Library. With a Hardcover token saved, search also asks Hardcover and uses its cover when Open Library has none.')}</p>
     </section>
   )
 }

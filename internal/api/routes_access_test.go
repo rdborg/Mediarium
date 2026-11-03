@@ -118,6 +118,8 @@ var memberRoutes = []string{
 	"GET /api/books",
 	"POST /api/books",
 	"GET /api/books/search",
+	"GET /api/books/search/google",
+	"POST /api/books/search/google",
 	"GET /api/books/discover",
 	"GET /api/books/subjects",
 	"GET /api/books/{id}/links",

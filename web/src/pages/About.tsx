@@ -62,6 +62,7 @@ const CREDIT_CELLS: { wide?: boolean; groups: CreditGroup[] }[] = [
           { name: 'Open Library', href: 'https://openlibrary.org/', used: t('Book information'), desc: t('Book details, authors, series and covers for ebooks and audiobooks, from the Internet Archive.') },
           { name: 'Audnexus', href: 'https://audnex.us/', used: t('Audiobook details'), desc: t('Who reads an audiobook and how long it runs, from Audible’s catalogue. Audible’s public search finds the book first.') },
           { name: 'Hardcover', href: 'https://hardcover.app/', used: t('Book series (optional)'), desc: t('More book series and release dates, only when you add your own Hardcover token.') },
+          { name: 'Google Books', href: 'https://books.google.com/', used: t('Book search (optional)'), desc: t('A missing cover or description, and the details of a book only Google Books knows. No API key is required.') },
         ],
       },
     ],

@@ -100,6 +100,8 @@ func (s *Server) handleBookCover(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if id, ok := books.ParseHardcoverCover(file); ok {
 		path, err = s.cachedHardcoverCover(r.Context(), id)
+	} else if id, ok := books.ParseGoogleCover(file); ok {
+		path, err = s.cachedGoogleCover(r.Context(), id)
 	} else if m := bookCoverFile.FindStringSubmatch(file); m != nil {
 		id, _ := strconv.Atoi(m[1])
 		path, err = s.cachedBookCover(r.Context(), id, m[2])
@@ -394,6 +396,137 @@ func (s *Server) warmHardcoverCovers(ids []int) {
 				defer func() { <-sem }()
 				defer warmingBookCovers.Delete(fmt.Sprintf("hc-%d", id))
 				_, _ = s.cachedHardcoverCover(context.Background(), id)
+			}()
+		}
+		wg.Wait()
+	}()
+}
+
+// googleCoverFail remembers a cover download that failed, so a rate limit is
+// not asked again for a few minutes. A known "no picture" is a file on disk
+// instead, and lasts a day.
+var googleCoverFail = struct {
+	sync.Mutex
+	until map[string]time.Time
+}{}
+
+func googleCoverFailing(id string) bool {
+	googleCoverFail.Lock()
+	defer googleCoverFail.Unlock()
+	until, ok := googleCoverFail.until[id]
+	return ok && time.Now().Before(until)
+}
+
+func rememberGoogleCoverFail(id string) {
+	googleCoverFail.Lock()
+	defer googleCoverFail.Unlock()
+	if googleCoverFail.until == nil || len(googleCoverFail.until) > 2000 {
+		googleCoverFail.until = map[string]time.Time{}
+	}
+	googleCoverFail.until[id] = time.Now().Add(hardcoverCoverFailFor)
+}
+
+// cachedGoogleCover returns the cached file for a Google Books cover. The
+// image address comes from a recent search or book page, so this does not ask
+// Google for the volume again. An id nobody saw is refused. A missing picture
+// is remembered for a day. A failed download is remembered for a few minutes.
+func (s *Server) cachedGoogleCover(ctx context.Context, id string) (string, error) {
+	if !books.ValidGoogleID(id) {
+		return "", books.ErrNotFound
+	}
+	dir := s.bookCoverDir()
+	key := "gb-" + id
+	img, none := filepath.Join(dir, key+".img"), filepath.Join(dir, key+".none")
+	if st, err := os.Stat(img); err == nil && st.Size() > 0 {
+		touchCover(img, st)
+		return img, nil
+	}
+	unlock := bookCoverLocks.lock(key)
+	defer unlock()
+	if st, err := os.Stat(img); err == nil && st.Size() > 0 {
+		return img, nil
+	}
+	if googleCoverFailing(id) {
+		return "", errors.New("google books cover failed a moment ago")
+	}
+	if st, err := os.Stat(none); err == nil && time.Since(st.ModTime()) < coverMissingFor {
+		return "", books.ErrNotFound
+	}
+	v, seen := s.gbooks.vol(id)
+	if !seen || v.noCover || v.cover == "" {
+		if seen && os.MkdirAll(dir, 0o755) == nil {
+			_ = os.WriteFile(none, nil, 0o644)
+			bookCoverLocks.noteWrite(dir)
+		}
+		return "", books.ErrNotFound
+	}
+	ctx, cancel := context.WithTimeout(ctx, coverFetchTimeout)
+	defer cancel()
+	data, err := s.fetchCoverLink(ctx, v.cover)
+	if err != nil {
+		rememberGoogleCoverFail(id)
+		return "", err
+	}
+	data, err = books.NormalizeCover(data)
+	if err != nil {
+		rememberGoogleCoverFail(id)
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create book cover cache: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, "cover-*.tmp")
+	if err != nil {
+		return "", fmt.Errorf("cache book cover: %w", err)
+	}
+	_, werr := tmp.Write(data)
+	cerr := tmp.Close()
+	if werr != nil || cerr != nil {
+		_ = os.Remove(tmp.Name())
+		return "", fmt.Errorf("cache book cover: %w", errors.Join(werr, cerr))
+	}
+	if err := os.Rename(tmp.Name(), img); err != nil {
+		_ = os.Remove(tmp.Name())
+		return "", fmt.Errorf("cache book cover: %w", err)
+	}
+	_ = os.Remove(none)
+	bookCoverLocks.noteWrite(dir)
+	return img, nil
+}
+
+// warmGoogleCovers fetches Google Books covers in the background from the
+// image address a search or book page already stored.
+func (s *Server) warmGoogleCovers(ids []string) {
+	var todo []string
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if !books.ValidGoogleID(id) || seen[id] {
+			continue
+		}
+		seen[id] = true
+		key := "gb-" + id
+		if st, err := os.Stat(filepath.Join(s.bookCoverDir(), key+".img")); err == nil && st.Size() > 0 {
+			continue
+		}
+		if _, busy := warmingBookCovers.LoadOrStore(key, struct{}{}); busy {
+			continue
+		}
+		todo = append(todo, id)
+	}
+	if len(todo) == 0 {
+		return
+	}
+	go func() {
+		sem := make(chan struct{}, 6)
+		var wg sync.WaitGroup
+		for _, id := range todo {
+			wg.Add(1)
+			sem <- struct{}{}
+			go func() {
+				defer wg.Done()
+				defer func() { <-sem }()
+				defer warmingBookCovers.Delete("gb-" + id)
+				_, _ = s.cachedGoogleCover(context.Background(), id)
 			}()
 		}
 		wg.Wait()

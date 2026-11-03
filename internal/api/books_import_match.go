@@ -31,6 +31,7 @@ type matchBookRequest struct {
 	Year        int          `json:"year"`
 	CoverID     int          `json:"coverId"`
 	HardcoverID int          `json:"hardcoverId"`
+	GoogleID    string       `json:"googleId"`
 	Rename      bool         `json:"rename"` // move the file to the library's naming afterwards
 }
 
@@ -47,7 +48,7 @@ func (s *Server) handleMatchBookImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	match := books.Found{Key: strings.TrimPrefix(strings.TrimSpace(req.OLKey), "/works/"), Title: strings.TrimSpace(req.Title),
-		Author: strings.TrimSpace(req.Author), AuthorKey: req.AuthorKey, Year: req.Year, CoverID: req.CoverID, HardcoverID: req.HardcoverID}
+		Author: strings.TrimSpace(req.Author), AuthorKey: req.AuthorKey, Year: req.Year, CoverID: req.CoverID, HardcoverID: req.HardcoverID, GoogleID: req.GoogleID}
 
 	s.bookImport.mu.Lock()
 	job := s.bookImport.job

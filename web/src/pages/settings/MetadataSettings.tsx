@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, type Settings as SettingsData } from '../../api'
+import GoogleBooksCard from '../../components/GoogleBooksCard'
 import HardcoverCard from '../../components/HardcoverCard'
 import InfoLanguageCard from '../../components/InfoLanguageCard'
 import ServiceKeyCard from '../../components/ServiceKeyCard'
@@ -126,6 +127,7 @@ export default function MetadataSettings() {
       <AirTimesCard />
       <TrailerCard />
       <HardcoverCard />
+      <GoogleBooksCard />
     </div>
   )
 }

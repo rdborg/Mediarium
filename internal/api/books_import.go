@@ -300,6 +300,14 @@ func (s *Server) attachOpenLibraryBook(ctx context.Context, res bookImportResult
 		nb := books.Book{OLKey: match.Key, Title: match.Title, Author: match.Author, AuthorKey: match.AuthorKey, Year: match.Year, CoverID: match.CoverID,
 			WantEbook: res.Kind == books.Ebook, WantAudiobook: res.Kind == books.Audiobook}
 		hcID, cover := s.prepareNewBook(ctx, &nb, match.HardcoverID)
+		gbID := ""
+		if id, ok := books.ParseGoogleKey(nb.OLKey); ok {
+			gbID = id
+		} else if id, ok := books.ParseGoogleKey(match.Key); ok {
+			gbID = id
+		} else if books.ValidGoogleID(match.GoogleID) {
+			gbID = match.GoogleID
+		}
 		fresh := false
 		b, err = s.BookRepo.Add(nb)
 		if err == nil {
@@ -309,6 +317,12 @@ func (s *Server) attachOpenLibraryBook(ctx context.Context, res bookImportResult
 		}
 		if err == nil && fresh && hcID > 0 && b.CoverID == 0 && b.OwnCover == 0 {
 			s.keepHardcoverCover(ctx, b, hcID, cover)
+			if got, gerr := s.BookRepo.Get(b.ID); gerr == nil {
+				b = got
+			}
+		}
+		if err == nil && fresh && gbID != "" && b.CoverID == 0 && b.OwnCover == 0 {
+			s.keepGoogleCover(ctx, b.ID, gbID)
 			if got, gerr := s.BookRepo.Get(b.ID); gerr == nil {
 				b = got
 			}

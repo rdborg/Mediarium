@@ -67,6 +67,9 @@ func (f Found) CoverAddress(size string) string {
 	if f.HardcoverID > 0 && f.CoverImage != "" {
 		return HardcoverCoverURL(f.HardcoverID)
 	}
+	if f.GoogleCover != "" {
+		return GoogleCoverURL(f.GoogleID)
+	}
 	return ""
 }
 

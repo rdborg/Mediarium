@@ -197,6 +197,11 @@ func (s *Server) TestReopen() (*Server, error) {
 // automatic subtitle download, when it is on.
 func (s *Server) TestAutoSubtitlesForMovie(m library.Movie) { s.autoSubtitlesFor(movieSubtitleItem(m)) }
 
+// TestSetGoogleBooks points the Google Books client at a fake server.
+func (s *Server) TestSetGoogleBooks(url string) {
+	s.googleBooksBase = url
+}
+
 // TestSetHardcover points the Hardcover client at a fake server.
 func (s *Server) TestSetHardcover(url string) {
 	s.hc.mu.Lock()

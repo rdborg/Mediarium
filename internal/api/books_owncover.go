@@ -195,6 +195,9 @@ func (s *Server) fetchCoverLink(ctx context.Context, link string) ([]byte, error
 	}
 	req.Header.Set("User-Agent", s.OpenLibrary.UserAgent)
 	req.Header.Set("Accept", "image/jpeg,image/png,image/*;q=0.5")
+	if host := strings.ToLower(u.Hostname()); host == "books.google.com" || strings.HasSuffix(host, ".google.com") || strings.HasSuffix(host, ".googleusercontent.com") {
+		req.Header.Set("Referer", "https://books.google.com/")
+	}
 	client := s.coverLinkClient()
 	defer client.CloseIdleConnections()
 	resp, err := client.Do(req)

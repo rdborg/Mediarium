@@ -25,6 +25,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `backup.cloud` | encrypted; copies of the nightly backup in S3-style storage or a WebDAV folder (JSON: enabled, kind, storage details, passphrase, keep). Off unless enabled is true. Only a signed-in browser session can read or set it, not an API key |
 | `backup.cloud_status` | what the last cloud copy did (JSON; set by the app, not user-editable) |
 | `backup.keep` | how many saved backups are kept in /config/backups; unset = 7 |
+| `books.google_books_api_key` | encrypted; an optional personal Google Books API key. Book search asks Google Books without one. A key is for people who reach Google's limit. |
 | `books.hardcover_token` | encrypted; a personal Hardcover API token for better book series and release dates. Unset = Open Library only |
 | `cleanup.auto` | "0" turns the daily automatic clean-up off; anything else (including unset) leaves it on |
 | `cleanup.history_retention_days` | days finished downloads and activity are kept; unset = 90, "0" = forever |

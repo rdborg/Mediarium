@@ -91,6 +91,7 @@ function BookPage({ id }: { id?: string }) {
   // A book added from Audible has no Open Library page, so the link and the series lookup are left out.
   const fromAudible = book.olKey.startsWith('audnexus:')
   const fromHardcover = book.olKey.startsWith('hc-')
+  const fromGoogle = book.olKey.startsWith('gb-')
   const formats = (['ebook', 'audiobook'] as BookFormat[]).filter((f) => on(f === 'ebook' ? 'ebooks' : 'audiobooks') || book[f].status === 'downloaded')
   return (
     <div>
@@ -118,7 +119,7 @@ function BookPage({ id }: { id?: string }) {
                 <Icon name={l.kind === 'audiobookshelf' ? 'headphones' : 'book'} size={13} /> {l.kind === 'audiobookshelf' ? t('Listen in {name}', { name: l.name }) : t('Read in {name}', { name: l.name })}
               </a>
             ))}
-            {!fromAudible && !fromHardcover && (
+            {!fromAudible && !fromHardcover && !fromGoogle && (
               <a className="link-pill" href={`https://openlibrary.org/works/${book.olKey}`} target="_blank" rel="noreferrer">
                 <Icon name="external" size={13} /> {t('More about this book')}
               </a>
@@ -126,6 +127,11 @@ function BookPage({ id }: { id?: string }) {
             {fromHardcover && (
               <a className="link-pill" href={`https://hardcover.app/search?q=${encodeURIComponent(book.title)}`} target="_blank" rel="noreferrer">
                 <Icon name="external" size={13} /> {t('Hardcover')}
+              </a>
+            )}
+            {fromGoogle && (
+              <a className="link-pill" href={`https://books.google.com/books?id=${encodeURIComponent(book.olKey.slice(3))}`} target="_blank" rel="noreferrer">
+                <Icon name="external" size={13} /> {t('Google Books')}
               </a>
             )}
           </div>

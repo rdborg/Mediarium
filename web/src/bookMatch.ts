@@ -30,6 +30,7 @@ export function matchBody(r: Pick<BookImportResult, 'path' | 'kind'>, f: BookFou
     year: f.year,
     coverId: f.coverId,
     ...(f.hardcoverId ? { hardcoverId: f.hardcoverId } : {}),
+    ...(f.googleId ? { googleId: f.googleId } : {}),
     rename,
   }
 }

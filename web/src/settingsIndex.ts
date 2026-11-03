@@ -129,6 +129,7 @@ function cardSpecs(): Spec[] {
     { to: 'metadata', label: t('Trailers'), words: 'youtube trailer videos' },
     { to: 'metadata', label: t('Anime numbering'), words: 'scene numbering absolute anidb tvdb' },
     { to: 'metadata', label: t('Hardcover (books)'), words: 'hardcover api token book info' },
+    { to: 'metadata', label: t('Google Books (books)'), words: 'google books api key language cover' },
     // Import lists
     { to: 'lists', label: t('Import lists'), words: 'trakt imdb tmdb mdblist letterboxd watchlist plex lists' },
     { to: 'lists', label: t('Your Simkl account'), words: 'simkl account' },

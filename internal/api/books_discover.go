@@ -22,8 +22,10 @@ func (s *Server) bookResults(found []books.Found) []bookSearchResult {
 	out := make([]bookSearchResult, 0, len(found))
 	covers := make([]int, 0, len(found))
 	hcCovers := make([]int, 0, len(found))
+	gbCovers := make([]string, 0, len(found))
 	var hardcoverRows []books.Book
-	var listed bool
+	var googleRows []books.Book
+	var listed, googleListed bool
 	for _, f := range found {
 		covers = append(covers, f.CoverID)
 		if f.HardcoverID > 0 {
@@ -31,6 +33,9 @@ func (s *Server) bookResults(found []books.Found) []bookSearchResult {
 			if f.CoverID <= 0 && f.CoverImage != "" {
 				hcCovers = append(hcCovers, f.HardcoverID)
 			}
+		}
+		if f.CoverID <= 0 && f.CoverImage == "" && f.GoogleID != "" && f.GoogleCover != "" {
+			gbCovers = append(gbCovers, f.GoogleID)
 		}
 		res := bookSearchResult{Found: f, CoverURL: f.CoverAddress("M")}
 		b, ok, err := s.BookRepo.GetByKey(f.Key)
@@ -57,11 +62,31 @@ func (s *Server) bookResults(found []books.Found) []bookSearchResult {
 					break
 				}
 			}
+		} else if _, gbOnly := books.ParseGoogleKey(f.Key); gbOnly {
+			if !googleListed {
+				googleListed = true
+				library, listErr := s.BookRepo.List()
+				if listErr != nil {
+					slog.Info("books: library lookup failed", "err", listErr)
+				}
+				for _, row := range library {
+					if _, ok := books.ParseGoogleKey(row.OLKey); ok {
+						googleRows = append(googleRows, row)
+					}
+				}
+			}
+			for _, row := range googleRows {
+				if books.SameTitle(row.Title, f.Title, true) && books.SameAuthor(row.Author, f.Author) {
+					res.LibraryID = row.ID
+					break
+				}
+			}
 		}
 		out = append(out, res)
 	}
 	s.warmBookCovers("M", covers)
 	s.warmHardcoverCovers(hcCovers)
+	s.warmGoogleCovers(gbCovers)
 	return out
 }
 
@@ -166,6 +191,10 @@ func (s *Server) handleBookWork(w http.ResponseWriter, r *http.Request) {
 		s.handleHardcoverWork(w, r, id)
 		return
 	}
+	if id, ok := books.ParseGoogleKey(key); ok {
+		s.handleGoogleWork(w, r, id)
+		return
+	}
 	info, err := s.OpenLibrary.WorkInfo(r.Context(), key)
 	if errors.Is(err, books.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "Open Library doesn't have that book.")
@@ -174,6 +203,10 @@ func (s *Server) handleBookWork(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeUpstreamError(w, "look the book up on Open Library", err)
 		return
+	}
+	s.fillGoogleGap(r.Context(), &info)
+	if info.GoogleCover != "" {
+		s.warmGoogleCovers([]string{info.GoogleID})
 	}
 	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
 	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
@@ -220,6 +253,35 @@ func (s *Server) handleHardcoverWork(w http.ResponseWriter, r *http.Request, id 
 	}
 	if info.CoverImage != "" {
 		s.warmHardcoverCovers([]int{info.HardcoverID})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleGoogleWork is the info page of a book that was found on Google Books
+// and not on Open Library or Hardcover.
+func (s *Server) handleGoogleWork(w http.ResponseWriter, r *http.Request, id string) {
+	info, err := s.googleWork(r.Context(), id)
+	if errors.Is(err, books.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "Google Books doesn't have that book.")
+		return
+	}
+	if err != nil {
+		writeUpstreamError(w, "look the book up on Google Books", err)
+		return
+	}
+	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
+	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
+		out.LibraryID = b.ID
+	} else if library, err := s.BookRepo.List(); err == nil {
+		for _, b := range library {
+			if books.SameTitle(b.Title, info.Title, true) && books.SameAuthor(b.Author, info.Author) {
+				out.LibraryID = b.ID
+				break
+			}
+		}
+	}
+	if info.GoogleCover != "" {
+		s.warmGoogleCovers([]string{info.GoogleID})
 	}
 	writeJSON(w, http.StatusOK, out)
 }

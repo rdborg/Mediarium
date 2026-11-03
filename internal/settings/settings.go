@@ -143,12 +143,13 @@ const (
 	// Phase 3 — curated/public list import (Discover). Trakt's
 	// public list-items endpoint only needs a client ID (an app
 	// registration on trakt.tv), no OAuth user login — see internal/trakt.
-	KeyTraktClientID  = "metadata.trakt_client_id" // encrypted
-	KeySimklClientID  = "metadata.simkl_client_id" // encrypted; the Client ID of a Simkl app (own, or the one a release ships with)
-	KeySimklToken     = "metadata.simkl_token"     // encrypted; the access token of the connected Simkl account
-	KeySimklRefresh   = "metadata.simkl_refresh"   // encrypted; the refresh token Simkl gave with the access token, when it gave one
-	KeySimklExpires   = "metadata.simkl_expires"   // when the access token runs out (Unix seconds), when Simkl said; unset for a token that does not expire
-	KeyHardcoverToken = "books.hardcover_token"    // encrypted; a personal Hardcover API token for better book series and release dates. Unset = Open Library only
+	KeyTraktClientID     = "metadata.trakt_client_id"   // encrypted
+	KeySimklClientID     = "metadata.simkl_client_id"   // encrypted; the Client ID of a Simkl app (own, or the one a release ships with)
+	KeySimklToken        = "metadata.simkl_token"       // encrypted; the access token of the connected Simkl account
+	KeySimklRefresh      = "metadata.simkl_refresh"     // encrypted; the refresh token Simkl gave with the access token, when it gave one
+	KeySimklExpires      = "metadata.simkl_expires"     // when the access token runs out (Unix seconds), when Simkl said; unset for a token that does not expire
+	KeyHardcoverToken    = "books.hardcover_token"      // encrypted; a personal Hardcover API token for better book series and release dates. Unset = Open Library only
+	KeyGoogleBooksAPIKey = "books.google_books_api_key" // encrypted; an optional personal Google Books API key. Book search asks Google Books without one. A key is for people who reach Google's limit.
 
 	// Illegal filename character handling ("configurable
 	// (replace vs. strip)"). The engine (internal/organizer.Sanitize) has

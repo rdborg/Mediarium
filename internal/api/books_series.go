@@ -86,6 +86,9 @@ func (s *Server) seriesOf(ctx context.Context, workKey, title, author string) (*
 	if _, ok := books.ParseHardcoverKey(workKey); ok {
 		return nil, books.ErrNotFound
 	}
+	if _, ok := books.ParseGoogleKey(workKey); ok {
+		return nil, books.ErrNotFound
+	}
 	return s.OpenLibrary.SeriesOf(ctx, workKey)
 }
 

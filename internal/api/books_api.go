@@ -155,8 +155,10 @@ const hardcoverSearchWait = 4 * time.Second
 
 // handleBookSearch looks books up on Open Library, and on Hardcover when a token is saved.
 // Hardcover fills in covers Open Library doesn't have, and books only Hardcover
-// knows are listed too. If one of the two doesn't answer, the other's results
-// are still shown. Without a token, search stays on Open Library.
+// knows are listed too. Google Books is asked afterwards, for a few seconds, with
+// or without an API key: it fills a missing cover or description, and a book
+// neither of the others lists is added from Google. If Google does not answer,
+// the books already found are shown. Without a Hardcover token, that part is skipped.
 func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if len(q) < 2 {
@@ -202,6 +204,10 @@ func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 		hcFound = nil
 	}
 	if olErr != nil && len(hcFound) == 0 {
+		if gb := s.googleHits(r.Context(), query, s.infoLanguage()); len(gb) > 0 {
+			writeJSON(w, http.StatusOK, s.bookResults(gb))
+			return
+		}
 		if errors.Is(olErr, books.ErrBadQuery) {
 			slog.Info("open library refused a book search", "err", olErr)
 			writeError(w, http.StatusUnprocessableEntity, "Open Library couldn't read that search. Try fewer or simpler words.")
@@ -220,6 +226,9 @@ func (s *Server) handleBookSearch(w http.ResponseWriter, r *http.Request) {
 	} else {
 		newestFirst(found, q, func(f books.Found) string { return f.Title }, func(f books.Found) int { return f.Year })
 	}
+	// Google is residual: one short query after the others, remembered so the
+	// next keystroke does not ask again.
+	found = books.MergeGoogle(found, s.googleHits(r.Context(), query, s.infoLanguage()))
 	writeJSON(w, http.StatusOK, s.bookResults(found))
 }
 
@@ -231,6 +240,7 @@ type addBookRequest struct {
 	Year        int    `json:"year"`
 	CoverID     int    `json:"coverId"`
 	HardcoverID int    `json:"hardcoverId"`
+	GoogleID    string `json:"googleId"`
 	Ebook       bool   `json:"ebook"`
 	Audiobook   bool   `json:"audiobook"`
 	SearchNow   bool   `json:"searchNow"`
@@ -264,13 +274,25 @@ func (s *Server) handleAddBook(w http.ResponseWriter, r *http.Request) {
 func (s *Server) finishAddBook(w http.ResponseWriter, r *http.Request, req addBookRequest) {
 	b := books.Book{OLKey: strings.TrimPrefix(req.OLKey, "/works/"), Title: strings.TrimSpace(req.Title), Author: strings.TrimSpace(req.Author),
 		AuthorKey: req.AuthorKey, Year: req.Year, CoverID: req.CoverID, WantEbook: req.Ebook, WantAudiobook: req.Audiobook}
+	gbID := ""
+	if id, ok := books.ParseGoogleKey(b.OLKey); ok {
+		gbID = id
+	}
+	if books.ValidGoogleID(strings.TrimSpace(req.GoogleID)) {
+		gbID = strings.TrimSpace(req.GoogleID)
+	}
 	timeout := 10 * time.Second
-	if _, ok := books.ParseHardcoverKey(b.OLKey); ok || req.HardcoverID > 0 {
+	if _, ok := books.ParseHardcoverKey(b.OLKey); ok || req.HardcoverID > 0 || gbID != "" {
 		timeout = 20 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	hcID, cover := s.prepareNewBook(ctx, &b, req.HardcoverID)
+	if b.Description == "" && gbID != "" {
+		if info, err := s.googleWork(ctx, gbID); err == nil && info.Description != "" {
+			b.Description = info.Description
+		}
+	}
 	userID, byline := requester(r)
 	b.AddedBy = userID
 	created, err := s.BookRepo.Add(b)
@@ -284,6 +306,12 @@ func (s *Server) finishAddBook(w http.ResponseWriter, r *http.Request, req addBo
 	}
 	if hcID > 0 && created.CoverID == 0 && created.OwnCover == 0 {
 		s.keepHardcoverCover(ctx, created, hcID, cover)
+		if fresh, err := s.BookRepo.Get(created.ID); err == nil {
+			created = fresh
+		}
+	}
+	if gbID != "" && created.CoverID == 0 && created.OwnCover == 0 {
+		s.keepGoogleCover(ctx, created.ID, gbID)
 		if fresh, err := s.BookRepo.Get(created.ID); err == nil {
 			created = fresh
 		}

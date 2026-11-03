@@ -10,15 +10,20 @@ import (
 
 // prepareNewBook fills in a book that is about to be added. Open Library still
 // supplies the description and the cover id when it knows the book. A Hardcover
-// id (from the search result, or from a key "hc-<id>") supplies the description
-// when Open Library has none. The image address is returned with the id so the
-// caller can cache that picture without asking Hardcover again. A Hardcover-only
-// book is matched to Open Library first when the title and author are found
-// there, so the library keeps one entry.
+// id (from the search result, or from a key "hc-<id>") or a Google Books key
+// "gb-<id>" supplies the description when Open Library has none. The Hardcover
+// image address is returned with the id so the caller can cache that picture
+// without asking Hardcover again. A book known only on Hardcover or Google Books
+// is matched to Open Library first when the title and author are found there,
+// so the library keeps one entry.
 func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) (int, string) {
 	var cover string
 	if id, ok := books.ParseHardcoverKey(b.OLKey); ok {
 		hcID = id
+	}
+	gbID := ""
+	if id, ok := books.ParseGoogleKey(b.OLKey); ok {
+		gbID = id
 	}
 	if hcID > 0 {
 		if hc := s.hardcover(); hc != nil {
@@ -42,7 +47,25 @@ func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) (i
 			}
 		}
 	}
-	if _, ok := books.ParseHardcoverKey(b.OLKey); ok && b.Title != "" {
+	if gbID != "" {
+		if info, err := s.googleWork(ctx, gbID); err == nil {
+			if b.Description == "" {
+				b.Description = info.Description
+			}
+			if b.Title == "" {
+				b.Title = info.Title
+			}
+			if b.Author == "" {
+				b.Author = info.Author
+			}
+			if b.Year == 0 {
+				b.Year = info.Year
+			}
+		} else {
+			slog.Info("books: Google Books details unavailable", "id", gbID, "err", err)
+		}
+	}
+	if _, hcKey := books.ParseHardcoverKey(b.OLKey); hcKey && b.Title != "" || gbID != "" && b.Title != "" {
 		if ol, err := s.OpenLibrary.FindOnOpenLibrary(ctx, b.Title, b.Author); err == nil {
 			b.OLKey = ol.Key
 			if b.AuthorKey == "" {
@@ -56,17 +79,54 @@ func (s *Server) prepareNewBook(ctx context.Context, b *books.Book, hcID int) (i
 			}
 		}
 	}
-	if _, ok := books.ParseHardcoverKey(b.OLKey); !ok {
-		if work, err := s.OpenLibrary.GetWork(ctx, b.OLKey); err == nil {
-			if work.Description != "" {
-				b.Description = work.Description
-			}
-			if b.CoverID == 0 {
-				b.CoverID = work.CoverID
+	if _, hcKey := books.ParseHardcoverKey(b.OLKey); !hcKey {
+		if _, gbKey := books.ParseGoogleKey(b.OLKey); !gbKey {
+			if work, err := s.OpenLibrary.GetWork(ctx, b.OLKey); err == nil {
+				if work.Description != "" {
+					b.Description = work.Description
+				}
+				if b.CoverID == 0 {
+					b.CoverID = work.CoverID
+				}
 			}
 		}
 	}
 	return hcID, cover
+}
+
+// keepGoogleCover downloads Google Books' picture and stores it as the book's
+// own cover. The address comes from the search that was just shown, so Google
+// is not asked again unless that address was not kept. A failure leaves the
+// book without a picture; adding it already succeeded.
+func (s *Server) keepGoogleCover(ctx context.Context, bookID int64, gbID string) {
+	if !books.ValidGoogleID(gbID) {
+		return
+	}
+	link := ""
+	if v, ok := s.gbooks.vol(gbID); ok {
+		link = v.cover
+	}
+	var err error
+	if link == "" {
+		link, err = s.googleBooks(s.savedGoogleBooksKey()).ImageURL(ctx, gbID)
+	}
+	if err != nil || link == "" {
+		slog.Info("books: Google Books cover not saved", "book", bookID, "err", err)
+		return
+	}
+	raw, err := s.fetchCoverLink(ctx, link)
+	if err != nil {
+		slog.Info("books: Google Books cover not saved", "book", bookID, "err", err)
+		return
+	}
+	jpeg, err := books.PrepareOwnCover(raw)
+	if err != nil {
+		slog.Info("books: Google Books cover not saved", "book", bookID, "err", err)
+		return
+	}
+	if err := s.BookRepo.SetOwnCover(bookID, jpeg, time.Now()); err != nil {
+		slog.Info("books: Google Books cover not saved", "book", bookID, "err", err)
+	}
 }
 
 // keepHardcoverCover keeps Hardcover's picture for a book that has no cover yet.

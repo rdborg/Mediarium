@@ -273,6 +273,7 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
         year: target.year,
         coverId: target.coverId,
         hardcoverId: target.hardcoverId,
+        googleId: target.googleId,
         ebook: chosen.has('ebook'),
         audiobook: chosen.has('audiobook'),
         searchNow: true,

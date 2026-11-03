@@ -11,6 +11,7 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 ### Added
 
 - Book search also asks **Hardcover** when a token is saved under Settings > Info, lists and subtitles. A book Open Library has no cover for shows Hardcover's picture, and a book only Hardcover knows can be opened and added. Without a token, search stays on Open Library.
+- Book search asks **Google Books** after Open Library and Hardcover, with no API key. It fills in a missing cover or description, and a book neither of the others lists can be opened and added with Google's title, author, year, description and cover. The picture is saved on this server. A key under Settings > Info, lists and subtitles is optional, for when you reach Google's limit. The answer, including "no cover" and a failed lookup, is remembered for a few minutes.
 
 ### Changed
 

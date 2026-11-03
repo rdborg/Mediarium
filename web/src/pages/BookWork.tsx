@@ -79,7 +79,7 @@ export default function BookWork() {
             <span className={`chip-plain edition ${work.hasAudio ? 'yes' : 'no'}`} title={t('Whether an audiobook edition has been published')}>
               <Icon name="headphones" size={13} /> {work.hasAudio ? t('Audiobook editions exist') : t('No audiobook edition listed')}
             </span>
-            {work.subjects.slice(0, 6).map((s) => (
+            {(work.subjects ?? []).slice(0, 6).map((s) => (
               <span key={s} className="chip-genre">
                 {subjectLabel(s)}
               </span>
@@ -111,6 +111,10 @@ export default function BookWork() {
               <a className="btn-with-icon link-quiet" href={`https://hardcover.app/books/${work.slug || work.key.slice(3)}`} target="_blank" rel="noreferrer" title={t('More about this book')}>
                 <Icon name="external" size={16} /> {t('Hardcover')}
               </a>
+            ) : work.key.startsWith('gb-') ? (
+              <a className="btn-with-icon link-quiet" href={`https://books.google.com/books?id=${encodeURIComponent(work.key.slice(3))}`} target="_blank" rel="noreferrer" title={t('More about this book')}>
+                <Icon name="external" size={16} /> {t('Google Books')}
+              </a>
             ) : (
               <a className="btn-with-icon link-quiet" href={`https://openlibrary.org/works/${work.key}`} target="_blank" rel="noreferrer" title={t('More about this book')}>
                 <Icon name="external" size={16} /> {t('Open Library')}
@@ -120,7 +124,9 @@ export default function BookWork() {
           <p className="hint source-note">
             {work.key.startsWith('hc-')
               ? t('Book details come from Hardcover. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')
-              : t('Book details come from Open Library. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')}
+              : work.key.startsWith('gb-')
+                ? t('Book details come from Google Books. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')
+                : t('Book details come from Open Library. "Editions exist" means one has been published; whether a release turns up depends on your indexers.')}
           </p>
         </div>
       </section>

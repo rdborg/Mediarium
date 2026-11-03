@@ -89,9 +89,18 @@ type Found struct {
 	// HardcoverID is the Hardcover book this result is, or the one matched to
 	// it when Open Library lists the same book. 0 when Hardcover isn't used.
 	HardcoverID int `json:"hardcoverId,omitempty"`
+	// GoogleID is the Google Books volume this result is, or the one matched
+	// to it. Empty when Google Books isn't used.
+	GoogleID string `json:"googleId,omitempty"`
 	// CoverImage is Hardcover's picture for the book. The page never sees it:
 	// the API serves a copy from this server, and only when CoverID is 0.
 	CoverImage string `json:"-"`
+	// GoogleCover is Google Books' picture for the book. Served the same way
+	// as CoverImage, and only when neither Open Library nor Hardcover has one.
+	GoogleCover string `json:"-"`
+	// GoogleBlurb is Google Books' description, used when the other catalogues
+	// have none. A book only Google Books lists keeps this as its description.
+	GoogleBlurb string `json:"-"`
 	// Slug is Hardcover's name for the book in its web address.
 	Slug string `json:"slug,omitempty"`
 }

@@ -2709,11 +2709,30 @@ export interface BookFound {
   coverId?: number
   coverUrl?: string
   hardcoverId?: number
+  googleId?: string
   slug?: string
   libraryId?: number
   // Whether an ebook / an audiobook edition has been published (Open Library).
   hasEbook?: boolean
   hasAudio?: boolean
+}
+
+// A Google Books volume from the direct Google search. coverUrl and infoUrl
+// point at Google Books.
+export interface GoogleBookHit {
+  id: string
+  title: string
+  author?: string
+  year?: number
+  coverUrl?: string
+  infoUrl: string
+  isbn?: string
+  language?: string
+}
+export interface GoogleBookSearch {
+  configured: boolean
+  unavailable?: boolean
+  results: GoogleBookHit[]
 }
 
 // ---- Modules and music -------------------------------------------------
@@ -3739,6 +3758,11 @@ export const api = {
   // With an author, the books by that author come first.
   searchBooks: (q: string, author = '') =>
     get<BookFound[]>(`/books/search?q=${encodeURIComponent(q)}${author ? `&author=${encodeURIComponent(author)}` : ''}`),
+  searchGoogleBooks: (q: string) => get<GoogleBookSearch>(`/books/search/google?q=${encodeURIComponent(q)}`),
+  adoptGoogleBook: (data: { isbn?: string; title?: string; author?: string; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
+    post<Book | Requested>('/books/search/google', data),
+  getGoogleBooks: () => get<{ set: boolean }>('/settings/google-books'),
+  putGoogleBooks: (key: string) => put<{ set: boolean }>('/settings/google-books', { key }),
   bookDiscover: (p: { list: 'trending' | 'browse'; period?: string; subject?: string; from?: string; to?: string; sort?: string; page?: number }) => {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') q.set(k, String(v))
@@ -3775,10 +3799,10 @@ export const api = {
   bookImportStatus: () => get<BookImportState>('/books/import'),
   startBookImport: (format?: BookFormat) => post<BookImportState>('/books/import', { format: format ?? '' }),
   retryBookImport: (format?: BookFormat) => post<BookImportState>('/books/import/retry', { format: format ?? '' }),
-  matchBookImport: (body: { path: string; kind: BookFormat; olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; hardcoverId?: number; rename: boolean }) =>
+  matchBookImport: (body: { path: string; kind: BookFormat; olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; hardcoverId?: number; googleId?: string; rename: boolean }) =>
     post<BookImportState>('/books/import/match', body),
   bookSubjects: () => get<{ label: string; subject: string }[]>('/books/subjects'),
-  addBook: (data: { olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; hardcoverId?: number; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
+  addBook: (data: { olKey: string; title: string; author: string; authorKey?: string; year?: number; coverId?: number; hardcoverId?: number; googleId?: string; ebook: boolean; audiobook: boolean; searchNow?: boolean }) =>
     post<Book | Requested>('/books', data),
   setBookWanted: (id: number, format: BookFormat, wanted: boolean) => put<Book>(`/books/${id}/want`, { format, wanted }),
   deleteBook: (id: number, deleteFiles: boolean) => del<null>(`/books/${id}?deleteFiles=${deleteFiles}`),

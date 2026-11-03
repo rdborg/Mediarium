@@ -131,6 +131,8 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/books/import/retry` | admin | looks again only at the books the last import did not find (or could not save), without reading the folders again: for the ones Open Library or Audnexus did ... |
 | GET | `/api/books/progress` | any account | GET /api/books/progress: where the person is in every book. |
 | GET | `/api/books/search` | any account | looks books up on Open Library, and on Hardcover when a token is saved. |
+| GET | `/api/books/search/google` | any account | lists Google Books results in Google's order, in the movie and show info language. |
+| POST | `/api/books/search/google` | any account | adds a book found through Google Books. |
 | GET | `/api/books/subjects` | any account | GET /api/books/subjects: the genres the Discover filter offers. |
 | DELETE | `/api/books/{id}` | admin | removes a book; with ?deleteFiles=true its files go to the recycle bin of their folder (or are deleted when the bin is off). |
 | GET | `/api/books/{id}` | any account |  |
@@ -701,6 +703,8 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/settings/filesystem-check` | admin |  |
 | GET | `/api/settings/folder-check` | admin | inspects one folder for the setup screens: does it exist, can Mediarium write to it, how much room is left and — in Docker — was it actually mapped in fr... |
 | POST | `/api/settings/folder-create` | admin | makes a missing library folder (administrators), only where creatableParent allows. |
+| GET | `/api/settings/google-books` | admin | reports whether a Google Books API key is saved. |
+| PUT | `/api/settings/google-books` | admin | checks a Google Books API key and saves it encrypted. |
 | GET | `/api/settings/hardcover` | admin | GET /api/settings/hardcover |
 | PUT | `/api/settings/hardcover` | admin | PUT /api/settings/hardcover {"token": "..."}: checks the token with Hardcover and saves it (encrypted). |
 | POST | `/api/settings/library-marker` | admin | POST /api/settings/library-marker: make the .mediarium-root file in a library folder the administrator says is the right one. |
@@ -903,4 +907,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-553 routes.
+557 routes.

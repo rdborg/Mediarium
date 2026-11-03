@@ -7737,6 +7737,11 @@
   "Searching titles with umlauts in both spellings": "Cercare i titoli con dieresi in entrambe le grafie",
   "Torrent links from Prowlarr that redirect to a magnet link, written as a pull request": "Link torrent di Prowlarr che reindirizzano a un link magnet, scritto come pull request",
   "Sending UDP trackers and DHT through the built-in VPN, written as a pull request": "Far passare i tracker UDP e il DHT dalla VPN integrata, scritto come pull request",
+  "Hardcover covers in book search, written as a pull request": "Copertine di Hardcover nella ricerca dei libri, scritto come pull request",
+  "Showing library titles and posters in the info language, written as a pull request": "Mostrare titoli e locandine della libreria nella lingua delle info, scritto come pull request",
+  "Asking Google Books for a missing book cover or description, written as a pull request": "Chiedere a Google Books la copertina o la descrizione mancante di un libro, scritto come pull request",
+  "Finding that a SABnzbd job saved as a single file wasn't removed after import": "Aver notato che un lavoro di SABnzbd salvato come file singolo non veniva rimosso dopo l'importazione",
+  "Finding that the calendar's More list was hard to read on greyed days": "Aver notato che l'elenco «Altri» del calendario era difficile da leggere nei giorni in grigio",
   "Search for other words": "Cerca con altre parole",
   "Every answer is shown, and the download still goes to this title.": "Vengono mostrate tutte le risposte e il download resta di questo titolo.",
   "A search box in Choose a release for your own words": "Un campo di ricerca in «Scegli una release» per le tue parole",
@@ -7753,6 +7758,7 @@
   "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "Il server risponde. I download stanno usando tutte le connessioni che questo accesso consente, quindi non c'era posto per il test.",
   "Removing a SABnzbd job's files after import": "Eliminare i file di un job di SABnzbd dopo l’importazione",
   "An album folder linked to a single with the same name": "Una cartella di album collegata a un singolo con lo stesso nome",
+  "Decypharr not signing in again, with the fix": "Decypharr che non rifaceva l’accesso, con la correzione",
   "Notices on phones covering the buttons": "Avvisi sul telefono che coprivano i pulsanti",
   "Usenet releases posted without file names": "Release Usenet pubblicate senza nomi di file"
 }

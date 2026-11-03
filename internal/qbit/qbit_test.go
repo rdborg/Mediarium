@@ -165,6 +165,37 @@ func TestSignsInAgainOnForbidden(t *testing.T) {
 	}
 }
 
+// Programs that copy the qBittorrent API (Decypharr) answer 401, not 403,
+// to a request with no session. The client signs in and tries again.
+func TestSignsInOnUnauthorized(t *testing.T) {
+	fake := newFake("admin", "secret")
+	fake.torrents = []Torrent{{Hash: "abc", State: "downloading", Tags: "mediarium-q1"}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/auth/login" {
+			fake.mu.Lock()
+			ok := fake.authed(r)
+			fake.mu.Unlock()
+			if !ok {
+				http.Error(w, "unauthorized: invalid credentials", http.StatusUnauthorized)
+				return
+			}
+		}
+		fake.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	c := New(srv.URL, "admin", "secret", srv.Client())
+	if _, ok, err := c.Info(context.Background(), "abc"); err != nil || !ok {
+		t.Fatalf("with the right password: ok %v, %v", ok, err)
+	}
+	if fake.logins != 1 {
+		t.Fatalf("signed in %d times, want 1", fake.logins)
+	}
+	bad := New(srv.URL, "admin", "wrong", srv.Client())
+	if _, _, err := bad.Info(context.Background(), "abc"); !errors.Is(err, ErrAuth) {
+		t.Fatalf("wrong password: %v", err)
+	}
+}
+
 func TestAdd(t *testing.T) {
 	cases := []struct {
 		name    string

@@ -87,6 +87,8 @@ type Job struct {
 	ReleaseFault bool
 	// Removed is set when the job was deleted by hand in the client.
 	Removed bool
+	// AddedAt is when the job was added, or for a job in the history when it
+	// finished (both clients only tell that).
 	AddedAt time.Time
 }
 

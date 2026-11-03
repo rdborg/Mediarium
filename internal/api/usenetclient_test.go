@@ -12,6 +12,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/api"
 	"github.com/rdborg/mediarium/internal/library"
+	"github.com/rdborg/mediarium/internal/queue"
 	"github.com/rdborg/mediarium/internal/usenetclient/fake"
 )
 
@@ -455,5 +456,99 @@ func TestUsenetClientRetryRemovesTheFailedJob(t *testing.T) {
 	}
 	if !removed || len(adds) != 2 {
 		t.Errorf("the failed job must be removed before sending again: %d sent, actions %v", len(adds), actions)
+	}
+}
+
+// The clean-up clears old jobs Mediarium sent out of SABnzbd: failed ones
+// always, finished ones only with "Remove after import" on. Jobs in other
+// categories, recent ones and ones a download still points at stay.
+func TestUsenetClientCleanupLeftovers(t *testing.T) {
+	e := newUsenetEnv(t)
+	local := filepath.Join(e.dir, "sab-complete")
+	done := filepath.Join(local, "films", "Old.Finished.2001")
+	writeClientFile(t, filepath.Join(done, "Old.Finished.2001.mkv"), movieBytes)
+	e.saveSAB(t, map[string]any{"remotePath": "/complete", "localPath": local})
+
+	e.sab.Finished = time.Now().Add(-72 * time.Hour)
+	failed := e.sab.Seed("Old.Failed", "films", fake.Result{Failed: true, Message: "Aborted"})
+	finished := e.sab.Seed("Old.Finished.2001", "films", fake.Result{Path: "/complete/films/Old.Finished.2001"})
+	other := e.sab.Seed("Someone.Elses", "tv-other", fake.Result{Failed: true})
+	retry := e.sab.Seed("Waits.For.Retry", "films", fake.Result{Failed: true})
+	e.sab.Finished = time.Now()
+	recent := e.sab.Seed("Just.Failed", "films", fake.Result{Failed: true})
+
+	// A failed download that can still be retried points at its job.
+	id, err := e.server.QueueRepo.Enqueue(queue.Item{ReleaseTitle: "Waits.For.Retry", NZBURL: e.nzbURL, Protocol: queue.ProtocolUsenet})
+	if err == nil {
+		err = e.server.QueueRepo.SetStatus(id, queue.StatusFailed, "SABnzbd couldn't finish it")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeClientFile(t, filepath.Join(e.server.TestWorkDir(), fmt.Sprintf("queue-%d", id), ".mediarium-usenet-failed-job"), retry)
+
+	n, err := e.server.TestCleanUsenetLeftovers(time.Now())
+	if err != nil || n != 1 {
+		t.Fatalf("removed %d, %v", n, err)
+	}
+	_, actions := e.sab.Snapshot()
+	if !hasAction(actions, "history delete "+failed+" files=1") {
+		t.Errorf("the old failed job should go: %v", actions)
+	}
+	for _, kept := range []string{finished, other, retry, recent} {
+		if strings.Contains(strings.Join(actions, "\n"), kept) {
+			t.Errorf("%s should stay: %v", kept, actions)
+		}
+	}
+
+	// With "Remove after import" the old finished job goes too, with its folder.
+	e.saveSAB(t, map[string]any{"remotePath": "/complete", "localPath": local, "removeAfterImport": true})
+	if n, err := e.server.TestCleanUsenetLeftovers(time.Now()); err != nil || n != 1 {
+		t.Fatalf("second pass removed %d, %v", n, err)
+	}
+	if _, actions := e.sab.Snapshot(); !hasAction(actions, "history delete "+finished+" files=1") {
+		t.Errorf("the old finished job should go now: %v", actions)
+	}
+	if _, err := os.Stat(done); !os.IsNotExist(err) {
+		t.Errorf("the finished job's folder should be gone: %v", err)
+	}
+}
+
+// SABnzbd names the single file of a job as the job's place when it saves
+// straight into the completed folder. After the import that file is removed
+// (and the folder around it, if there is one), with the hard link in the
+// library left alone.
+func TestUsenetClientRemovesASingleFileJob(t *testing.T) {
+	for _, tc := range []struct {
+		name, rel string // where SABnzbd says the job is, below the completed folder
+		gone      string // what must be gone afterwards, below the completed folder
+	}{
+		{"in the completed folder", "The.Fixture.Movie.1999.mkv", "The.Fixture.Movie.1999.mkv"},
+		{"in a folder of its own", "films/The.Fixture.Movie.1999/The.Fixture.Movie.1999.mkv", "films/The.Fixture.Movie.1999"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer api.SetDownloadClientPollForTest(10 * time.Millisecond)()
+			e := newUsenetEnv(t)
+			local := filepath.Join(e.dir, "sab-complete")
+			writeClientFile(t, filepath.Join(local, filepath.FromSlash(tc.rel)), movieBytes)
+			e.sab.Result = fake.Result{Path: "/complete/" + tc.rel}
+			e.saveSAB(t, map[string]any{"remotePath": "/complete", "localPath": local, "removeAfterImport": true})
+
+			m, _ := e.grabUsenet(t)
+			if item := e.finished(t); item["status"] != "completed" {
+				t.Fatalf("status %v: %v", item["status"], item["error"])
+			}
+			movie := getJSON[map[string]any](t, e.client, fmt.Sprintf("%s/api/movies/%d", e.url, m.ID))
+			if got, err := os.ReadFile(movie["filePath"].(string)); err != nil || string(got) != movieBytes {
+				t.Fatalf("imported file: %v", err)
+			}
+			e.waitFor(t, "the job's file to be removed", func() bool {
+				_, err := os.Stat(filepath.Join(local, filepath.FromSlash(tc.gone)))
+				return os.IsNotExist(err)
+			})
+			if _, err := os.Stat(local); err != nil {
+				t.Errorf("the completed folder itself must stay: %v", err)
+			}
+		})
 	}
 }

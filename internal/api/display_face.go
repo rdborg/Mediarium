@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -25,6 +25,8 @@ const (
 	// and country backfill.
 	displayFaceBatch = 40
 	displayFacePause = 250 * time.Millisecond
+	// displayFaceMaxFailures lookups failing in one run end that run.
+	displayFaceMaxFailures = 3
 )
 
 // shownFace is the title and poster drawn for a movie or show already in the
@@ -104,8 +106,9 @@ type displayFace struct {
 }
 
 // backfillDisplayFaces stores translated titles and posters for library
-// titles that do not have one in the current info language yet. A lookup
-// that fails for a passing reason ends the run (the next run tries again).
+// titles that do not have one in the current info language yet. A title
+// whose lookup fails is skipped; a few failures in one run end it (the next
+// run tries again).
 // One run is enough to be going at a time; a second start, for example when
 // the language has just changed, leaves the run that is already walking.
 func (s *Server) backfillDisplayFaces(ctx context.Context) {
@@ -135,20 +138,21 @@ func (s *Server) rememberDisplayFace(kind string, tmdbID int, title, poster, ove
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	if err := s.storeOneDisplayFace(ctx, kind, tmdbID, title, poster, overview); err != nil {
-		log.Printf("display face: %s %d: %v", kind, tmdbID, err)
+		slog.Warn("display face: couldn't store the translation", "kind", kind, "tmdbId", tmdbID, "err", err)
 	}
 }
 
 // fillDisplayFacesLocked stores up to limit faces. The caller holds
-// displayFaceMu. It stops at the first lookup that failed for a reason other
-// than TMDB no longer knowing the title.
+// displayFaceMu. It skips a title whose lookup failed (other than TMDB no longer
+// knowing it) and stops the run after a few failures.
 func (s *Server) fillDisplayFacesLocked(ctx context.Context, limit int) {
 	lang := s.infoLanguage()
 	gaps, err := s.MovieRepo.MissingDisplayFaces(lang, limit)
 	if err != nil {
-		log.Printf("automation: display-faces: %v", err)
+		slog.Warn("automation: display-faces: couldn't list the titles still to fetch", "err", err)
 		return
 	}
+	failed := 0
 	for i, g := range gaps {
 		if i > 0 {
 			select {
@@ -164,8 +168,12 @@ func (s *Server) fillDisplayFacesLocked(ctx context.Context, limit int) {
 			}
 		}
 		if err := s.storeOneDisplayFace(ctx, g.Kind, g.TMDBID, g.Title, g.Poster, g.Overview); err != nil {
-			log.Printf("automation: display-faces: %q: %v", g.Title, err)
-			return
+			slog.Warn("automation: display-faces: couldn't fetch a title", "title", g.Title, "err", err)
+			// One title that keeps failing must not block the rest, but
+			// several in a row mean TMDB is down: leave it for the next run.
+			if failed++; failed >= displayFaceMaxFailures {
+				return
+			}
 		}
 	}
 }

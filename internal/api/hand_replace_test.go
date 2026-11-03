@@ -194,6 +194,8 @@ func TestKeptDownloadSaysWhichFileAndWhatBecameOfTheData(t *testing.T) {
 	if item["error"] != "Kept the file you already have." {
 		t.Fatalf("expected the file to be kept: %v", item["error"])
 	}
+	// The kept note is written just after the row is marked completed.
+	waitFor(t, "the kept note", func() bool { item = e.item(t, id); return item["keptFile"] != nil })
 	if item["keptFile"] != oldPath || item["keptData"] != "deleted" {
 		t.Errorf("the row should name the kept file and say the data was deleted: %v / %v", item["keptFile"], item["keptData"])
 	}

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Result is how a download ends in the stand-ins.
@@ -40,11 +41,14 @@ type SAB struct {
 	Steps      int
 	Result     Result
 	// Hold keeps every job downloading for ever.
-	Hold    bool
-	Adds    []Add
-	Actions []string
-	jobs    []*sabJob
-	next    int
+	Hold bool
+	// Finished is the time a job reaches the history (SABnzbd's "completed");
+	// zero means now.
+	Finished time.Time
+	Adds     []Add
+	Actions  []string
+	jobs     []*sabJob
+	next     int
 }
 
 type sabJob struct {
@@ -57,6 +61,7 @@ type sabJob struct {
 	failed  bool
 	msg     string
 	path    string
+	done    time.Time
 	del     bool
 }
 
@@ -163,6 +168,10 @@ func (s *SAB) queueAnswer(w http.ResponseWriter) {
 		if !s.Hold && !j.paused && j.looks > s.Steps+1 {
 			j.history = true
 			j.failed, j.msg, j.path = s.Result.Failed, s.Result.Message, s.Result.Path
+			j.done = s.Finished
+			if j.done.IsZero() {
+				j.done = time.Now()
+			}
 			continue
 		}
 		status, pct := "Queued", 0
@@ -203,7 +212,7 @@ func (s *SAB) historyAnswer(w http.ResponseWriter, ids string) {
 		}
 		slots = append(slots, map[string]any{
 			"nzo_id": j.id, "name": j.name, "status": status, "category": orStar(j.cat), "bytes": 104857600,
-			"fail_message": j.msg, "storage": j.path,
+			"fail_message": j.msg, "storage": j.path, "completed": j.done.Unix(),
 		})
 	}
 	_ = json.NewEncoder(w).Encode(map[string]any{"history": map[string]any{"slots": slots}})
@@ -225,6 +234,21 @@ func (s *SAB) Snapshot() (adds []Add, actions []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]Add(nil), s.Adds...), append([]string(nil), s.Actions...)
+}
+
+// Seed puts a job straight into the history, finished at Finished (or now),
+// and returns its id.
+func (s *SAB) Seed(name, category string, res Result) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.next++
+	j := &sabJob{id: fmt.Sprintf("SABnzbd_nzo_%04d", s.next), name: name, cat: category, history: true,
+		failed: res.Failed, msg: res.Message, path: res.Path, done: s.Finished}
+	if j.done.IsZero() {
+		j.done = time.Now()
+	}
+	s.jobs = append(s.jobs, j)
+	return j.id
 }
 
 // Remove deletes every job, as a person clearing the client by hand would.

@@ -99,7 +99,8 @@
 .prog-cell.out {
   background: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, var(--text) 3%, transparent) 7px 8px), var(--cell);
 }
-.prog-cell.out > * { opacity: 0.42; }
+.prog-cell.out > *:not(.pt-day) { opacity: 0.42; }
+.prog-cell.out .pt-day > :not(.pt-pop) { opacity: 0.42; }
 .prog-cell-head { display: flex; align-items: center; gap: 7px; min-height: 18px; }
 .prog-num { font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 .prog-cell.has .prog-num { color: var(--text); }
@@ -375,6 +376,9 @@ a.prog-card:hover { text-decoration: none; border-color: color-mix(in srgb, var(
 .pt.s-missing img { filter: grayscale(0.6) brightness(0.7); }
 .pt.late { box-shadow: 0 0 0 1.5px var(--danger); }
 .prog-cell.past .pt img { opacity: 0.8; }
+/* A day's open "+N more" list is not dimmed with the day, and lies above the cells after it. */
+.prog-cell.past .pt-pop .pt img { opacity: 1; }
+.prog-cell:has(.pt-pop) { z-index: 5; }
 .pt-bubble { position: absolute; left: 6px; right: 6px; bottom: 6px; display: grid; gap: 2px; padding: 6px 9px; border-radius: 10px; background: rgba(8, 10, 18, 0.62); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); border: 1px solid rgba(255, 255, 255, 0.14); }
 .pt-title { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .pt-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 5px; font-size: 0.7rem; color: rgba(255, 255, 255, 0.82); font-family: var(--font-mono); }

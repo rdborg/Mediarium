@@ -214,7 +214,8 @@ func (c *Client) request(ctx context.Context, method, p string, body io.Reader) 
 }
 
 // call sends a request, signing in and trying once more when the client
-// says the session isn't valid (403).
+// says the session isn't valid (403, or 401 from the programs that copy the
+// API, such as Decypharr).
 func (c *Client) call(ctx context.Context, method, p string, body []byte, contentType string) ([]byte, error) {
 	for attempt := 0; ; attempt++ {
 		req, err := c.request(ctx, method, p, bytes.NewReader(body))
@@ -230,7 +231,7 @@ func (c *Client) call(ctx context.Context, method, p string, body []byte, conten
 		}
 		data, readErr := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 		resp.Body.Close()
-		if resp.StatusCode == http.StatusForbidden && attempt == 0 {
+		if (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized) && attempt == 0 {
 			if err := c.Login(ctx); err != nil {
 				return nil, err
 			}

@@ -7947,6 +7947,11 @@
   "Searching titles with umlauts in both spellings": "Поиск названий с умлаутами в обоих написаниях",
   "Torrent links from Prowlarr that redirect to a magnet link, written as a pull request": "Торрент-ссылки из Prowlarr, которые перенаправляют на magnet-ссылку, написано как pull request",
   "Sending UDP trackers and DHT through the built-in VPN, written as a pull request": "Отправка UDP-трекеров и DHT через встроенный VPN, написано как pull request",
+  "Hardcover covers in book search, written as a pull request": "Обложки Hardcover в поиске книг, написано как pull request",
+  "Showing library titles and posters in the info language, written as a pull request": "Показ названий и постеров из библиотеки на языке информации, написано как pull request",
+  "Asking Google Books for a missing book cover or description, written as a pull request": "Запрос к Google Books, когда у книги нет обложки или описания, написан как pull request",
+  "Finding that a SABnzbd job saved as a single file wasn't removed after import": "Замечено, что задание SABnzbd, сохранённое одним файлом, не удалялось после импорта",
+  "Finding that the calendar's More list was hard to read on greyed days": "Замечено, что список «Ещё» в календаре плохо читался в серых днях",
   "Search for other words": "Искать другими словами",
   "Every answer is shown, and the download still goes to this title.": "Показываются все ответы, а загрузка по-прежнему относится к этому названию.",
   "A search box in Choose a release for your own words": "Поле поиска в «Выбрать релиз» для своих слов",
@@ -7964,6 +7969,7 @@
   "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "Сервер работает. Загрузки используют все подключения, которые разрешает этот логин, поэтому для проверки не нашлось места.",
   "Removing a SABnzbd job's files after import": "Удаление файлов задания SABnzbd после импорта",
   "An album folder linked to a single with the same name": "Папка альбома, привязанная к синглу с тем же названием",
+  "Decypharr not signing in again, with the fix": "Decypharr не входил заново, вместе с исправлением",
   "Notices on phones covering the buttons": "Уведомления на телефоне, закрывавшие кнопки",
   "Usenet releases posted without file names": "Релизы Usenet, выложенные без имён файлов"
 }

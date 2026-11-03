@@ -223,6 +223,7 @@ type cleanupResult struct {
 	RemovedBytes   int64
 	PrunedQueue    int64
 	PrunedActivity int64
+	ClientJobs     int // old jobs removed from SABnzbd or NZBGet
 	Errors         []string
 	RanAt          time.Time
 }
@@ -245,6 +246,9 @@ func (s *Server) runCleanup(now time.Time) cleanupResult {
 	res.Removed = removed
 	for _, it := range removed {
 		res.RemovedBytes += it.SizeBytes
+	}
+	if res.ClientJobs, err = s.cleanUsenetLeftovers(now); err != nil {
+		res.Errors = append(res.Errors, plainerror.Message(err))
 	}
 
 	if days := s.historyRetentionDays(); days > 0 {
@@ -338,6 +342,7 @@ type cleanupRunPayload struct {
 	Removed        []cleanupItemPayload `json:"removed"`
 	PrunedQueue    int64                `json:"prunedQueueItems"` // finished downloads dropped from the history
 	PrunedActivity int64                `json:"prunedActivity"`   // activity entries dropped
+	ClientJobs     int                  `json:"clientJobs"`       // old jobs removed from SABnzbd or NZBGet
 	LastRunAt      string               `json:"lastRunAt"`
 	Errors         []string             `json:"errors,omitempty"`
 }
@@ -348,7 +353,7 @@ func (s *Server) handleCleanupRun(w http.ResponseWriter, r *http.Request) {
 	res := s.runCleanup(time.Now())
 	writeJSON(w, http.StatusOK, cleanupRunPayload{
 		RemovedBytes: res.RemovedBytes, Removed: toCleanupItems(res.Removed),
-		PrunedQueue: res.PrunedQueue, PrunedActivity: res.PrunedActivity,
+		PrunedQueue: res.PrunedQueue, PrunedActivity: res.PrunedActivity, ClientJobs: res.ClientJobs,
 		LastRunAt: res.RanAt.UTC().Format(time.RFC3339), Errors: res.Errors,
 	})
 }

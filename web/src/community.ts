@@ -39,6 +39,7 @@ export function helpers(): Helper[] {
     { name: 'msholly', where: 'GitHub', href: github('msholly'), ideas: [t('Adding a media server by pasting the address from the browser')] },
     { name: 'TryToTilt', where: 'GitHub', href: github('TryToTilt'), ideas: [t('Repairing Usenet releases that come with only PAR2 recovery volumes'), t('A speed schedule, a weekly summary and a page-turn animation in the reader, ideas from their fork')] },
     { name: 'DerGlordon', where: 'Reddit', href: reddit('DerGlordon'), ideas: [t('A custom format condition for the original language of a film or show')] },
+    { name: 'bevinduplessis', where: 'GitHub', href: github('bevinduplessis'), ideas: [t("Finding that a SABnzbd job saved as a single file wasn't removed after import")] },
     { name: 'xrandallx1', where: 'GitHub', href: github('xrandallx1'), ideas: [t('Silo as a media server'), t('IPTorrents as a built-in site'), t("Removing a SABnzbd job's files after import")] },
     { name: 'DFlexy', where: 'GitHub', href: github('DFlexy'), ideas: [t('Mediarium in Brazilian Portuguese'), t('Adding your own indexer definition files'), t('Waiting longer for slow Prowlarr feeds'), t('The import explanations in your language')] },
     { name: 'FACM-PF', where: 'GitHub', href: github('FACM-PF'), ideas: [t('Mediarium in European Portuguese')] },
@@ -50,7 +51,7 @@ export function helpers(): Helper[] {
     { name: 'anguyen1776', where: 'GitHub', href: github('anguyen1776'), ideas: [t('Different quality profiles for movies and TV, and finding missing episodes one season at a time')] },
     { name: 'varnakube', where: 'GitHub', href: github('varnakube'), ideas: [t('Picking a book by hand when it is not found during an import'), t("Setting a book's cover by hand")] },
     { name: 'SanketBaraiya', where: 'GitHub', href: github('SanketBaraiya'), ideas: [t('Importing anime that is numbered by TheTVDB seasons, such as One Piece'), t('Knaben as a built-in site')] },
-    { name: 'nexus4004', where: 'GitHub', href: github('nexus4004'), ideas: [t("Showing the folder where a title's files go"), t('Pointing a title at a file or folder you renamed'), t('Subtitles in Croatian and Serbian'), t('Rescanning a movie that has no file'), t('Library entries in the left menu'), t('The busy message as a small notice in the corner'), t('Preferring a season pack once a season has ended'), t('Importing your Simkl lists'), t('The total speed and what is left in each download client'), t('The service a subtitle came from, shown in Activity'), t('Usenet releases posted without file names')] },
+    { name: 'nexus4004', where: 'GitHub', href: github('nexus4004'), ideas: [t("Showing the folder where a title's files go"), t('Pointing a title at a file or folder you renamed'), t('Subtitles in Croatian and Serbian'), t('Rescanning a movie that has no file'), t('Library entries in the left menu'), t('The busy message as a small notice in the corner'), t('Preferring a season pack once a season has ended'), t('Importing your Simkl lists'), t('The total speed and what is left in each download client'), t('The service a subtitle came from, shown in Activity'), t('Usenet releases posted without file names'), t("Finding that the calendar's More list was hard to read on greyed days")] },
     { name: 'Jisevind', where: 'GitHub', href: github('Jisevind'), ideas: [t('Keeping the original file names')] },
     { name: 'franciscojnneto', where: 'GitHub', href: github('franciscojnneto'), ideas: [t('Pages for cast and crew')] },
     { name: 'Bayharbourbutcher1', where: 'GitHub', href: github('Bayharbourbutcher1'), ideas: [t('Sending the seeding rules to an outside torrent client')] },
@@ -67,9 +68,10 @@ export function helpers(): Helper[] {
       ideas: [t('Toloka.to as a built-in site'), t('Prowlarr feed addresses that end in /api'), t('Sites that write dates in their own way'), t('Torrent sites from Prowlarr added as Usenet'), t('Titles and descriptions in your language')],
     },
     { name: 'Marty-SK', where: 'GitHub', href: github('Marty-SK'), ideas: [t('Seeing whether the VPN really passes traffic, with a Test button')] },
-    { name: 'memnos', where: 'GitHub', href: github('memnos'), ideas: [t('Naming new movie and show folders and files in the info language, written as a pull request'), t('Sending UDP trackers and DHT through the built-in VPN, written as a pull request')] },
+    { name: 'memnos', where: 'GitHub', href: github('memnos'), ideas: [t('Naming new movie and show folders and files in the info language, written as a pull request'), t('Sending UDP trackers and DHT through the built-in VPN, written as a pull request'), t('Hardcover covers in book search, written as a pull request'), t('Showing library titles and posters in the info language, written as a pull request'), t('Asking Google Books for a missing book cover or description, written as a pull request')] },
     { name: 'blind0wl', where: 'GitHub', href: github('blind0wl'), ideas: [t('Torrent links from Prowlarr that redirect to a magnet link, written as a pull request')] },
     { name: 'Joshuancsu', where: 'Reddit', href: reddit('Joshuancsu'), ideas: [t('Saying why a torrent was given up')] },
     { name: 'okuegow', where: 'GitHub', href: github('okuegow'), ideas: [t('An album folder linked to a single with the same name')] },
+    { name: 'KpiclhU', where: 'GitHub', href: github('KpiclhU'), ideas: [t('Decypharr not signing in again, with the fix')] },
   ]
 }

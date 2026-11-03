@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // sab talks to SABnzbd's HTTP API: /api?mode=...&output=json&apikey=...
@@ -288,6 +289,9 @@ func (s sabSlot) historyJob() Job {
 	j.Path = s.Storage
 	if j.Path == "" {
 		j.Path = s.Path
+	}
+	if s.Completed > 0 {
+		j.AddedAt = time.Unix(s.Completed, 0)
 	}
 	switch j.State {
 	case StateCompleted:

@@ -7947,6 +7947,11 @@
   "Searching titles with umlauts in both spellings": "Szukanie tytułów z umlautami w obu pisowniach",
   "Torrent links from Prowlarr that redirect to a magnet link, written as a pull request": "Linki torrent z Prowlarra, które przekierowują do linku magnet, napisane jako pull request",
   "Sending UDP trackers and DHT through the built-in VPN, written as a pull request": "Wysyłanie trackerów UDP i DHT przez wbudowany VPN, napisane jako pull request",
+  "Hardcover covers in book search, written as a pull request": "Okładki z Hardcover w wyszukiwaniu książek, napisane jako pull request",
+  "Showing library titles and posters in the info language, written as a pull request": "Pokazywanie tytułów i plakatów z biblioteki w języku informacji, napisane jako pull request",
+  "Asking Google Books for a missing book cover or description, written as a pull request": "Pytanie Google Books o brakującą okładkę lub opis książki, napisane jako pull request",
+  "Finding that a SABnzbd job saved as a single file wasn't removed after import": "Zauważenie, że zadanie SABnzbd zapisane jako pojedynczy plik nie było usuwane po imporcie",
+  "Finding that the calendar's More list was hard to read on greyed days": "Zauważenie, że lista „Więcej” w kalendarzu była słabo czytelna w wyszarzonych dniach",
   "Search for other words": "Szukaj innych słów",
   "Every answer is shown, and the download still goes to this title.": "Pokazywane są wszystkie odpowiedzi, a pobranie nadal trafia do tego tytułu.",
   "A search box in Choose a release for your own words": "Pole wyszukiwania w „Wybierz wydanie” na własne słowa",
@@ -7964,6 +7969,7 @@
   "The server is up. Downloads are using every connection this login allows right now, so there was no room for the test.": "Serwer działa. Pobieranie używa wszystkich połączeń, na które pozwala ten login, więc dla testu nie było miejsca.",
   "Removing a SABnzbd job's files after import": "Usuwanie plików zadania SABnzbd po imporcie",
   "An album folder linked to a single with the same name": "Folder albumu powiązany z singlem o tej samej nazwie",
+  "Decypharr not signing in again, with the fix": "Decypharr, który nie logował się ponownie, razem z poprawką",
   "Notices on phones covering the buttons": "Powiadomienia na telefonie zasłaniające przyciski",
   "Usenet releases posted without file names": "Wydania Usenet opublikowane bez nazw plików"
 }

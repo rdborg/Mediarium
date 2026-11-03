@@ -68,6 +68,11 @@ func (s *Server) TestRunCleanup(now time.Time) (removed int, prunedQueue, pruned
 }
 func (s *Server) TestCleanupJob(ctx context.Context) { s.cleanupJob(ctx) }
 
+// TestCleanUsenetLeftovers runs the clean-up's pass over SABnzbd or NZBGet.
+func (s *Server) TestCleanUsenetLeftovers(now time.Time) (int, error) {
+	return s.cleanUsenetLeftovers(now)
+}
+
 // TestWorkDir is the downloads working folder, TestMoviesRoot the movie
 // library folder.
 func (s *Server) TestWorkDir() string    { return s.downloadsIncompleteDir() }
@@ -155,6 +160,11 @@ func (s *Server) TestRouteAccess() map[string]string {
 // TestBackfillDisplayFaces runs the job that stores translated titles and posters.
 func (s *Server) TestBackfillDisplayFaces(ctx context.Context) { s.backfillDisplayFaces(ctx) }
 
+// TestSetGoogleBooks points the Google Books client at a fake server.
+func (s *Server) TestSetGoogleBooks(url string) {
+	s.googleBooksBase = url
+}
+
 // TestBackfillGenres runs the scheduled genre backfill once.
 func (s *Server) TestBackfillGenres(ctx context.Context) { s.backfillGenres(ctx) }
 
@@ -196,11 +206,6 @@ func (s *Server) TestReopen() (*Server, error) {
 // TestAutoSubtitlesForMovie runs what happens after a movie is imported: the
 // automatic subtitle download, when it is on.
 func (s *Server) TestAutoSubtitlesForMovie(m library.Movie) { s.autoSubtitlesFor(movieSubtitleItem(m)) }
-
-// TestSetGoogleBooks points the Google Books client at a fake server.
-func (s *Server) TestSetGoogleBooks(url string) {
-	s.googleBooksBase = url
-}
 
 // TestSetHardcover points the Hardcover client at a fake server.
 func (s *Server) TestSetHardcover(url string) {

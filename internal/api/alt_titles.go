@@ -139,6 +139,30 @@ func (s *Server) refreshTitleNames(ctx context.Context, kind string, tmdbID int,
 // languages, or are old. loaded is what the title came with. Nothing is
 // returned while English is the only language wanted.
 func (s *Server) altTitlesFor(ctx context.Context, kind string, tmdbID int, english string, loaded []string) []string {
+	return withMainSpelling(english, s.languageTitlesFor(ctx, kind, tmdbID, english, loaded))
+}
+
+// withMainSpelling puts the main title written with "ae", "oe", "ue" and "ss"
+// first among the other titles, when it has umlauts or a sharp s (#148). With
+// German as the info language the main title itself is "Sams im Glück", and
+// an indexer that doesn't fold the letters only finds Sams.im.Glueck under
+// that spelling. It is added whatever languages are wanted.
+func withMainSpelling(title string, names []string) []string {
+	spellings := metadata.WithUmlautSpellings([]string{title})
+	if len(spellings) < 2 {
+		return names
+	}
+	extra := spellings[1]
+	for _, n := range names {
+		if strings.EqualFold(n, extra) {
+			return names
+		}
+	}
+	return append([]string{extra}, names...)
+}
+
+// languageTitlesFor is altTitlesFor without the main title's other spelling.
+func (s *Server) languageTitlesFor(ctx context.Context, kind string, tmdbID int, english string, loaded []string) []string {
 	list := s.audioLanguageList()
 	if tmdbID == 0 || !wantsOtherLanguage(list) {
 		return nil

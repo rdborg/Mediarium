@@ -1,7 +1,9 @@
 package api
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -80,16 +82,24 @@ func (s *Server) removeReplacedFile(root, old, kept string, movieID, seriesID in
 	if root == "" || old == "" || filepath.Clean(old) == filepath.Clean(kept) {
 		return false
 	}
+	// Both have to be inside the library folder before anything on the disk is
+	// looked at.
+	if _, err := cleanup.InsideRoot(root, old); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) { // a file that is gone already needs nothing
+			slog.Warn("import: the earlier file is outside the library folder, left in place", "path", old, "err", err)
+		}
+		return false
+	}
+	keptPath, err := cleanup.InsideRoot(root, kept)
+	if err != nil {
+		return false // the new file is missing, or not in this library folder
+	}
 	info, err := os.Lstat(old)
 	if err != nil || !info.Mode().IsRegular() {
 		return false
 	}
-	if now, err := os.Stat(kept); err != nil || os.SameFile(info, now) {
+	if now, err := os.Stat(keptPath); err != nil || os.SameFile(info, now) {
 		return false // the new file is missing, or is this very file under another name
-	}
-	if _, err := cleanup.InsideRoot(root, old); err != nil {
-		slog.Warn("import: the earlier file is outside the library folder, left in place", "path", old, "err", err)
-		return false
 	}
 	for _, f := range s.trackedFiles() {
 		if filepath.Clean(f) == filepath.Clean(old) {

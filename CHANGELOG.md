@@ -8,6 +8,14 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [3.9.4] - 2026-11-05
+
+In short: torrents from Torznab and Prowlarr indexers no longer fail when their magnet link has stray spaces or a capital letter.
+
+### Fixed
+
+- A magnet link from a Torznab or Prowlarr indexer that came with spaces around it, or with a capital letter in "Magnet:", was fetched as a web address and failed with "couldn't get the torrent". It is now recognised as a magnet link and sent to the torrent client. Reported by theshadillac on GitHub.
+
 ## [3.9.3] - 2026-11-03
 
 In short: Decypharr works again, book search can use Google Books for missing covers and descriptions, old SABnzbd and NZBGet jobs are cleaned up, library titles and posters can follow the info language, and a few calendar and search fixes.

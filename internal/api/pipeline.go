@@ -897,7 +897,8 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 const keptExistingMessage = "Kept the file you already have."
 
 func isMagnetURI(s string) bool {
-	return strings.HasPrefix(s, "magnet:")
+	s = strings.TrimSpace(s)
+	return len(s) >= 7 && strings.EqualFold(s[:7], "magnet:")
 }
 
 // looksLikeTorrentFile reports whether the bytes are a bencoded .torrent file
@@ -918,9 +919,11 @@ func looksLikeTorrentFile(b []byte) bool {
 // local .torrent file. Links from definition-based indexers are resolved
 // through that indexer's session (login, details page, Cloudflare).
 func (s *Server) torrentSource(ctx context.Context, downloadURL, destDir string) (magnet, torrentFile string, err error) {
+	downloadURL = strings.TrimSpace(downloadURL)
 	switch {
 	case isMagnetURI(downloadURL):
-		return downloadURL, "", nil
+		// An indexer may write the scheme as "Magnet:"; the clients look for "magnet:".
+		return "magnet:" + downloadURL[7:], "", nil
 	case isUploadRef(downloadURL):
 		data, err := s.readUpload(downloadURL)
 		if err != nil {

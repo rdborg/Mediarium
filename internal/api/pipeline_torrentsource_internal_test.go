@@ -69,3 +69,24 @@ func TestTorrentSourceFollowsMagnetRedirects(t *testing.T) {
 		})
 	}
 }
+
+// A magnet link an indexer wrote with spaces around it or a capital letter in
+// the scheme is still a magnet link, not an address to fetch.
+func TestTorrentSourceTakesSloppyMagnets(t *testing.T) {
+	tests := []struct{ name, in, want string }{
+		{"spaces around it", "  magnet:?xt=urn:btih:abc&dn=A B\n", "magnet:?xt=urn:btih:abc&dn=A B"},
+		{"a capital letter", "Magnet:?xt=urn:btih:abc", "magnet:?xt=urn:btih:abc"},
+		{"all capitals", "MAGNET:?xt=urn:btih:abc", "magnet:?xt=urn:btih:abc"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, file, err := (&Server{}).torrentSource(context.Background(), tc.in, t.TempDir())
+			if err != nil {
+				t.Fatalf("torrentSource: %v", err)
+			}
+			if got != tc.want || file != "" {
+				t.Errorf("got magnet %q, file %q; want %q and no file", got, file, tc.want)
+			}
+		})
+	}
+}

@@ -175,6 +175,11 @@ func TestMovieLengthCheckAtImport(t *testing.T) {
 			if status != "failed" || !strings.Contains(errMsg, "This looks like a fake or broken release.") {
 				t.Fatalf("expected a failure, got %q: %q", status, errMsg)
 			}
+			// The queue row turns failed just before the movie goes back to wanted.
+			waitFor(t, "the movie to be wanted again", func() bool {
+				done, _ = env.server.MovieRepo.Get(m.ID)
+				return done.Status == library.StatusMissing
+			})
 			if done.Status != library.StatusMissing || done.FilePath != "" {
 				t.Fatalf("the movie should be wanted again, it is %s with %q", done.Status, done.FilePath)
 			}

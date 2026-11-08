@@ -27,9 +27,10 @@ func (s *Server) setupSearchExtras() {
 	s.delays = delay.NewStore(s.db, nil)
 	setPreferredProtocol(s.delayConfig().PreferredProtocol)
 	s.loadMinSizeCheck()
+	s.loadHoldUnreleased()
 	s.setCachedPolicy()
 	tr := s.IndexerRepo.Tracker()
-	s.QueueRepo.SetOnEnqueue(func(it queue.Item) { tr.NoteGrab(it.NZBURL) })
+	s.QueueRepo.SetOnEnqueue(func(it queue.Item) { tr.NoteGrab(it.NZBURL, it.SizeBytes) })
 	s.QueueRepo.SetIndexerOf(s.indexerOfRelease)
 }
 

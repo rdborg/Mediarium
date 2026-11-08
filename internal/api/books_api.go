@@ -18,6 +18,7 @@ import (
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/indexers"
+	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -408,17 +409,26 @@ func (s *Server) bookWaitFor() time.Duration {
 // indexers it did not ask.
 type bookSearch struct {
 	Results  []indexers.Result
-	Asked    int                 // how many indexers were asked
-	Skipped  []string            // enabled indexers left out because they don't list this kind of release
-	Outcomes []indexers.Outcome  // what each indexer said, for both passes
-	All      []indexers.Instance // every indexer that could have been asked
+	Fits     []quality.LanguageFit // how each of Results suits the wanted languages (book_language.go)
+	Asked    int                   // how many indexers were asked
+	Skipped  []string              // enabled indexers left out because they don't list this kind of release
+	Outcomes []indexers.Outcome    // what each indexer said, for both passes
+	All      []indexers.Instance   // every indexer that could have been asked
 }
 
-// bookReleases searches the indexers for one format of a book and returns
+// autoBookReleases searches the indexers for one format of a book and returns
 // the matching releases, best first.
-func (s *Server) bookReleases(ctx context.Context, b books.Book, f books.Format) ([]indexers.Result, error) {
+// Releases clearly in a language that isn't wanted are left out: automation
+// never takes those.
+func (s *Server) autoBookReleases(ctx context.Context, b books.Book, f books.Format) ([]indexers.Result, error) {
 	found, err := s.searchBookReleases(ctx, b, f, 0)
-	return found.Results, err
+	var out []indexers.Result
+	for i, res := range found.Results {
+		if found.Fits[i].Accepted {
+			out = append(out, res)
+		}
+	}
+	return out, err
 }
 
 // searchBookReleases is bookReleases with the details. Only the indexers that
@@ -496,7 +506,9 @@ func (s *Server) searchBookReleases(ctx context.Context, b books.Book, f books.F
 		}
 		return out[i].Protocol == indexers.ProtocolUsenet && out[j].Protocol != indexers.ProtocolUsenet
 	})
-	found.Results = out
+	// A release in a wanted language goes first; the name says the language,
+	// or the indexer's category for it does.
+	found.Results, found.Fits = sortBooksByLanguage(out, s.bookLanguageFits(ctx, out, list))
 	return found, nil
 }
 
@@ -517,10 +529,11 @@ func (s *Server) handleBookReleases(w http.ResponseWriter, r *http.Request) {
 	}
 	blocked := s.searchSkipKeys()
 	out := make([]searchResultPayload, 0, len(found.Results))
-	for _, res := range found.Results {
+	for i, res := range found.Results {
 		p := s.toSearchResultPayload(res)
 		p.Blocklisted = blocked[blocklist.Key(res.Title)]
 		p.Categories = res.Categories
+		p.setLanguage(found.Fits[i])
 		out = append(out, p)
 	}
 	s.markCachedPayloads(r.Context(), out)
@@ -601,7 +614,7 @@ func (s *Server) searchBook(bookID int64, f books.Format, retry bool) bool {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	results, err := s.bookReleases(ctx, b, f)
+	results, err := s.autoBookReleases(ctx, b, f)
 	if err != nil {
 		slog.Info("books: search", "book", bookID, "err", err)
 		return false

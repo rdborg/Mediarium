@@ -310,6 +310,10 @@ type requestAccount struct {
 	MustAsk bool `json:"mustAsk"`
 	// Quota is the account's own limit: -1 follows the default, 0 is no limit.
 	Quota int `json:"quota"`
+	// MaxRating is the most mature rating the account may ask for ("" = no
+	// limit); BlockUnrated refuses titles that have no rating as well.
+	MaxRating    string `json:"maxRating"`
+	BlockUnrated bool   `json:"blockUnrated"`
 }
 
 // GET /api/requests/settings
@@ -323,7 +327,8 @@ func (s *Server) handleGetRequestSettings(w http.ResponseWriter, r *http.Request
 	for _, a := range list {
 		q := -1
 		_ = s.db.QueryRow(`SELECT request_quota FROM users WHERE id = ?`, a.ID).Scan(&q)
-		accounts = append(accounts, requestAccount{ID: a.ID, Name: a.DisplayName(), Admin: a.IsAdmin, MustAsk: !a.IsAdmin && !a.Permissions.AddDirect, Quota: q})
+		maxRating, blockUnrated := s.ageLimitOf(a.ID)
+		accounts = append(accounts, requestAccount{ID: a.ID, Name: a.DisplayName(), Admin: a.IsAdmin, MustAsk: !a.IsAdmin && !a.Permissions.AddDirect, Quota: q, MaxRating: maxRating, BlockUnrated: blockUnrated})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"options":  s.requestOptions(),
@@ -342,6 +347,8 @@ func (s *Server) handlePutRequestSettings(w http.ResponseWriter, r *http.Request
 		FourKProfileID  *int64         `json:"fourKProfileId"`
 		Reports         *bool          `json:"reports"`
 		Quotas          map[string]int `json:"quotas"`
+		// AgeLimits are an account's most mature rating {"<account id>": {...}}.
+		AgeLimits map[string]ageLimitBody `json:"ageLimits"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "Couldn't read that. Reload the page and try again.")
@@ -397,6 +404,10 @@ func (s *Server) handlePutRequestSettings(w http.ResponseWriter, r *http.Request
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+	}
+	if status, msg := s.saveAgeLimits(body.AgeLimits); status != 0 {
+		writeError(w, status, msg)
+		return
 	}
 	if o.NotifyRequester && !wasNotifying {
 		s.markAvailableQuietly() // titles that arrived before the messages were on are not announced
@@ -678,6 +689,10 @@ func (s *Server) requestReady(req requests.Request) (ready, ok bool) {
 		sr, found, _ := s.MovieRepo.GetSeriesByTMDBID(payloadTMDBID(req.Payload))
 		if !found {
 			return false, true
+		}
+		if ref, one := payloadEpisode(req.Payload); one {
+			ep, err := s.MovieRepo.GetEpisode(sr.ID, ref.Season, ref.Number)
+			return err == nil && ep.Status == library.StatusDownloaded, true
 		}
 		if !req.FourK {
 			return sr.DownloadedCount > 0, true

@@ -8,6 +8,8 @@ test('a stored choice wins, then the first browser language we have', () => {
   assert.equal(preferredLanguage(null, ['sv-SE', 'fr-CA', 'es']), 'fr')
   assert.equal(preferredLanguage(null, ['it-IT', 'fr']), 'it')
   assert.equal(preferredLanguage(null, ['uk-UA']), 'uk')
+  assert.equal(preferredLanguage(null, ['zh-Hans-CN']), 'zh-CN')
+  assert.equal(preferredLanguage(null, ['zh-TW', 'en']), 'zh-CN')
   assert.equal(preferredLanguage('xx', ['pt-BR']), 'pt')
   assert.equal(preferredLanguage(null, ['pt-PT', 'en']), 'pt-PT')
   assert.equal(preferredLanguage(null, ['pt']), 'pt')

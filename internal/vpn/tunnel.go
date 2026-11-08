@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -78,6 +79,9 @@ func Up(cfg Config) (*Tunnel, error) {
 	tunDev, tnet, err := netstack.CreateNetTUN(localAddrs, dnsAddrs, mtu)
 	if err != nil {
 		return nil, fmt.Errorf("create netstack tun: %w", err)
+	}
+	if err := tuneStack(tnet); err != nil {
+		slog.Warn("vpn: couldn't tune the tunnel's TCP, using the defaults", "err", err)
 	}
 
 	dev := device.NewDevice(tunDev, conn.NewDefaultBind(), device.NewLogger(device.LogLevelSilent, "vpn: "))

@@ -77,6 +77,9 @@ func (s *Server) seriesList(ctx context.Context) (seriesListData, error) {
 type libraryCountsPayload struct {
 	Movies int `json:"movies"`
 	Shows  int `json:"shows"`
+	// Anime is how many of the shows are anime, with the anime library on;
+	// Shows then counts the others.
+	Anime int `json:"anime,omitempty"`
 }
 
 // handleLibraryCounts answers how many movies and shows the library has, for
@@ -88,5 +91,9 @@ func (s *Server) handleLibraryCounts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("count the library: %v", err))
 		return
 	}
-	writeJSON(w, http.StatusOK, libraryCountsPayload{Movies: o.Movies.Total, Shows: o.Series.Series})
+	out := libraryCountsPayload{Movies: o.Movies.Total, Shows: o.Series.Series}
+	if s.animeEnabled() {
+		out.Shows, out.Anime = o.Series.Series-o.Series.Anime, o.Series.Anime
+	}
+	writeJSON(w, http.StatusOK, out)
 }

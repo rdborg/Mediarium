@@ -1606,3 +1606,31 @@ fieldset.group { border-radius: 6px 26px 26px 26px; }
 
 /* An open menu is always on top. Every card is its own layer (the rise-in animation, container queries), so a menu that drops out of a card used to be drawn under the card below it. The card that holds an open menu is lifted above its neighbours while the menu is open, which moves nothing. */
 :is(.qrow, .client-card, .card, .ncard, .info-card, .request-row, .target-row, .wrow):has(.dropdown.open) { position: relative; z-index: 30; }
+
+/* Wanted > Long wanted (#168): one line per title, poster, name and where it came from. */
+.long-wanted .toolbar { flex-wrap: wrap; gap: 8px; }
+.long-wanted-all { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; color: var(--text-dim); font-size: 0.9rem; }
+.long-wanted-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.long-wanted-list li { display: grid; grid-template-columns: auto 34px minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 12px; border-radius: 4px 12px 12px 12px; background: var(--surface); border: 1px solid var(--border); }
+.long-wanted-list li.picked { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.long-wanted-list img, .long-wanted-list .lw-noposter { width: 34px; height: 51px; object-fit: cover; border-radius: 4px; background: var(--surface-2); }
+.lw-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lw-title { color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+.lw-title small { color: var(--text-dim); font-weight: 400; }
+.lw-meta { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Pure black (V4 B7): the dark look on a black ground, for OLED screens. Only the grounds change; colours,
+   text and borders keep their meaning. */
+:root[data-theme='dark'][data-black='1'] {
+  --bg: #000;
+  --surface: #07080d;
+  --surface-2: #0e1018;
+  --border: #1d2133;
+}
+:root[data-theme='dark'][data-black='1'] body { background: #000; }
+:root[data-theme='dark'][data-black='1'] .splash { background: #000; }
+:root[data-theme='dark'][data-black='1'] .ambient, :root[data-theme='dark'][data-black='1'] .hero-drift { opacity: 0.35; }
+
+/* Text size (V4 B7): almost every size is in rem, so the whole page follows the root size. */
+:root[data-text='large'] { font-size: 112.5%; }
+:root[data-text='larger'] { font-size: 125%; }

@@ -14,12 +14,12 @@ export function pollEvery(moving: boolean, fastMs: number, idleMs: number): numb
   return moving ? fastMs : idleMs
 }
 
-export type LibraryTab = 'movie' | 'tv' | 'music' | 'ebook' | 'audiobook'
+export type LibraryTab = 'movie' | 'tv' | 'anime' | 'music' | 'ebook' | 'audiobook'
 
 // What one tick of the Library page reads: only the list of the tab that is shown. The other tabs' numbers come
 // from the counts (movies and shows) or from one first read (artists and books), not from a read every few seconds.
 export function libraryTick(active: LibraryTab): { movies: boolean; shows: boolean; artists: boolean; books: boolean } {
-  return { movies: active === 'movie', shows: active === 'tv', artists: active === 'music', books: active === 'ebook' || active === 'audiobook' }
+  return { movies: active === 'movie', shows: active === 'tv' || active === 'anime', artists: active === 'music', books: active === 'ebook' || active === 'audiobook' }
 }
 
 // Whether the background reading of file details still has work: a count of files read against the files to read.

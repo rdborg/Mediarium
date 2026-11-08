@@ -10,10 +10,12 @@ export interface Diagnostics {
   now: string
   uptimeSeconds: number
   safeMode: boolean
+  downloadsShare?: string // the kind of network share the downloads folder is on, when it is one
   goroutines: number
   memoryBytes: number
   database: {
     journalMode: string
+    share?: string // the kind of network share /config is on, when it is one
     problem?: string
     sizeBytes: number
     walBytes: number
@@ -70,11 +72,12 @@ export function formatSupportReport(d: Diagnostics): string {
     `Running for: ${duration(d.uptimeSeconds)}`,
     `Safe mode: ${d.safeMode ? 'on' : 'off'}`,
     `Memory in use: ${size(d.memoryBytes)}, background tasks: ${d.goroutines}`,
-    db.journalMode === 'wal'
+    (db.journalMode === 'wal'
       ? `Database: fast mode, ${size(db.sizeBytes)} (log file ${size(db.walBytes)})`
-      : `Database: older, slower mode, ${size(db.sizeBytes)}${db.problem ? ` (${db.problem})` : ''}`,
+      : `Database: older, slower mode, ${size(db.sizeBytes)}${db.problem ? ` (${db.problem})` : ''}`) + (db.share ? `, on a network share (${db.share})` : ''),
     `Database connections: ${db.inUse} of ${db.maxOpen} in use, ${db.idle} idle, ${db.waitCount} waits so far (${db.waitSeconds} in total)`,
   ]
+  if (d.downloadsShare) lines.push(`Downloads folder: on a network share (${d.downloadsShare})`)
   if (d.downloadsRunning !== undefined) lines.push(`Downloads running: ${d.downloadsRunning}`)
   const up = d.update
   if (up) {

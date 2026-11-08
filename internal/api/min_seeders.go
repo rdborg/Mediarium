@@ -45,7 +45,7 @@ func (s *Server) keepSeeded(ctx context.Context, results []indexers.Result) ([]i
 	out := make([]indexers.Result, 0, len(results))
 	dropped := 0
 	for _, res := range results {
-		if belowMinSeeders(res) && !cached[releaseHash(res)] {
+		if belowMinSeeders(res) && (!cached[releaseHash(res)] || !s.mayGoToDebrid(res)) {
 			dropped++
 			continue
 		}

@@ -7,6 +7,7 @@ import { t } from './i18n'
 import { AuthProvider, useAuth } from './AuthContext'
 import { ModulesProvider } from './ModulesContext'
 import AppShell from './components/AppShell'
+import TwoPane from './components/TwoPane'
 import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import Splash from './components/Splash'
@@ -174,18 +175,21 @@ function Gate() {
         <Route path="/discover" element={<Discover />} />
         <Route path="/discover/all" element={<DiscoverAll />} />
         <Route path="/discover/music" element={<MusicDiscoverAll />} />
-        <Route path="/library" element={<Library />} />
+        {/* The Library and the pages opened from it share one layout: on a tablet the list stays beside the open page. */}
+        <Route element={<TwoPane list={(pane) => <Library pane={pane} />} />}>
+          <Route path="/library" element={null} />
+          <Route path="/title/:tmdbId" element={<MovieDetail />} />
+          <Route path="/series/:id" element={<SeriesDetail />} />
+          <Route path="/book/:id" element={<BookDetail />} />
+          <Route path="/music/artist/:id" element={<MusicArtist />} />
+        </Route>
         <Route path="/import" element={<AdminOnly fallback="/library"><ImportLibrary /></AdminOnly>} />
-        <Route path="/music/artist/:id" element={<MusicArtist />} />
         <Route path="/music/playlists" element={<MusicPlaylists />} />
         <Route path="/music/playlists/:id" element={<MusicPlaylistPage />} />
         <Route path="/music/album/:id" element={<MusicAlbumRedirect />} />
         <Route path="/music/release/:mbid" element={<MusicRelease />} />
-        <Route path="/book/:id" element={<BookDetail />} />
         <Route path="/books/work/:key" element={<BookWork />} />
         <Route path="/music/import" element={<AdminOnly fallback="/library"><MusicImport /></AdminOnly>} />
-        <Route path="/title/:tmdbId" element={<MovieDetail />} />
-        <Route path="/series/:id" element={<SeriesDetail />} />
         <Route path="/show/:tmdbId" element={<ShowDetail />} />
         <Route path="/person/:id" element={<Person />} />
         <Route path="/wanted" element={<Upcoming tab="wanted" />} />

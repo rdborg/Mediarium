@@ -173,6 +173,7 @@ func (s *Server) runBookPipeline(queueID int64, b books.Book, f books.Format, re
 		plain := plainerror.Message(stepErr)
 		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, plain)
 		noteDownloadFailure(queueID, label, bookLink(b.ID), stepErr)
+		s.doctorNoteFailure(queueID, stepErr)
 		_ = s.BookRepo.SetState(b.ID, f, restore, "", "")
 		_ = s.QueueRepo.LogActivity(0, "failed", fmt.Sprintf("%s (%s): %s", label, f, plain))
 		if s.failureNotifyWanted(stepErr, downloadURL, releaseTitle) {

@@ -96,6 +96,17 @@ func seriesItemFor(sr library.Series, season int, eps []library.Episode) notify.
 	if len(eps) > 1 && season == 0 {
 		season = eps[0].Season
 	}
+	if len(eps) > 1 {
+		lo, hi := eps[0].Season, eps[0].Season
+		for _, ep := range eps {
+			lo, hi = min(lo, ep.Season), max(hi, ep.Season)
+		}
+		if hi > lo {
+			it := seriesItem(sr, 0, nil) // the files of several seasons
+			it.Episode = seasonsLabel(lo, hi)
+			return it
+		}
+	}
 	return seriesItem(sr, season, nil)
 }
 

@@ -198,6 +198,8 @@ jobs:
     environment: release
     permissions:
       contents: write # create the release and upload assets
+      id-token: write # sign the attestations without a key of our own (Sigstore)
+      attestations: write # publish them on the repository's Attestations page
     steps:
       # The repository is needed for the signing tool (tools/signsums) and for
       # the public key it must match (cmd/app/main.go).
@@ -222,6 +224,33 @@ jobs:
           set -euo pipefail
           sha256sum *.tar.gz > sha256sums.txt
           cat sha256sums.txt
+
+      # The list of everything the program is built from (an SBOM, in SPDX
+      # JSON), made from the source with syft. It is published with the
+      # release; it is not in sha256sums.txt, which only lists the programs.
+      - name: SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: spdx-json
+          output-file: release/mediarium-${{ needs.version.outputs.version }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      # Proof of where each archive came from: this workflow, this tag, this
+      # commit. Anyone can check it with `gh attestation verify <file> --repo
+      # rdborg/Mediarium`. Signed with GitHub's short-lived Sigstore
+      # certificate, so there is no key to keep.
+      - name: Attest the archives
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release/*.tar.gz
+
+      - name: Attest the SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: release/*.tar.gz
+          sbom-path: release/mediarium-${{ needs.version.outputs.version }}.spdx.json
 
       # Signs sha256sums.txt with the private key held in the repository secret
       # UPDATE_SIGNING_KEY (base64 of a 32-byte ed25519 seed; make a pair with
@@ -277,6 +306,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # sign the images and their attestations without a key of our own (Sigstore)
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -343,12 +374,17 @@ jobs:
             type=raw,value=${{ needs.version.outputs.major_minor }},enable=${{ needs.version.outputs.prerelease != 'true' }}
             type=raw,value=latest,enable=${{ needs.version.outputs.prerelease != 'true' }}
 
+      # sbom and provenance put BuildKit's own SBOM and build record in the
+      # image index, readable with `docker buildx imagetools inspect`.
       - name: Build and push
+        id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -396,12 +432,15 @@ jobs:
         run: bash docker/smoke-full.sh mediarium-full-smoke:test
 
       - name: Build and push full image
+        id: push_full
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           target: full
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ${{ steps.meta_full.outputs.tags }}
           labels: ${{ steps.meta_full.outputs.labels }}
           build-args: |
@@ -412,6 +451,46 @@ jobs:
             SIMKL_CLIENT_ID=${{ secrets.SIMKL_CLIENT_ID }}
           cache-from: type=gha,scope=full
           cache-to: type=gha,scope=full,mode=max
+
+      # ---- Signatures ----
+      # Both images are signed by digest with cosign, keyless: the certificate
+      # names this workflow and tag. Check with `cosign verify` (see
+      # docs/RELEASING.md, "Checking a release is genuine").
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign the images
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          TAGS_FULL: ${{ steps.meta_full.outputs.tags }}
+          DIGEST_FULL: ${{ steps.push_full.outputs.digest }}
+        run: |
+          set -euo pipefail
+          # Every image name the tags use (ghcr.io and, when set, Docker Hub), once, by digest.
+          sign() { for tag in $1; do echo "${tag%:*}@$2"; done | sort -u | xargs -r cosign sign --yes; }
+          sign "${TAGS}" "${DIGEST}"
+          sign "${TAGS_FULL}" "${DIGEST_FULL}"
+
+      - name: Image name in lower case
+        id: lc
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      # The same build proof as the archives get, stored next to the image on
+      # ghcr.io: `gh attestation verify oci://ghcr.io/rdborg/mediarium:<version>
+      # --repo rdborg/Mediarium`.
+      - name: Attest the image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.lc.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest the full image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.lc.outputs.image }}
+          subject-digest: ${{ steps.push_full.outputs.digest }}
+          push-to-registry: true
 
       # The Docker Hub page shows the README and a one-line description. They
       # are refreshed on a stable release only. The token needs the Read, Write

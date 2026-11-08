@@ -3,6 +3,8 @@ package selfupdate
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -448,5 +450,57 @@ func TestMarkers(t *testing.T) {
 	}
 	if _, _, ok := TakeStuck(dir); ok {
 		t.Fatal("the mark must be read once")
+	}
+}
+
+// Going back puts the kept program in place with its own checksum, and keeps
+// the one that was installed as the previous one, so going forward again is
+// the same step.
+func TestRevertSwapsInThePreviousProgram(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "up1"), "program one")
+	if err := Install(dir, filepath.Join(dir, "up1"), "1.2.0", strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(dir, "up2"), "program two")
+	if err := Install(dir, filepath.Join(dir, "up2"), "1.3.0", strings.Repeat("b", 64)); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(dir, FileBootCount), "2\n")
+
+	v, err := Revert(dir)
+	if err != nil || v != "1.2.0" {
+		t.Fatalf("Revert = %q, %v", v, err)
+	}
+	h := sha256.Sum256([]byte("program one"))
+	pushed, _ := State(dir)
+	if pushed == nil || pushed.Version != "1.2.0" || pushed.SHA256 != hex.EncodeToString(h[:]) || pushed.PreviousVersion != "1.3.0" {
+		t.Fatalf("state after going back = %+v", pushed)
+	}
+	if read(t, filepath.Join(dir, FileApp)) != "program one" || read(t, filepath.Join(dir, FilePrevious)) != "program two" {
+		t.Fatal("the programs weren't swapped")
+	}
+	if BootCount(dir) != 0 {
+		t.Error("the start counter wasn't cleared")
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, tempReleaseGlb)); len(left) != 0 {
+		t.Errorf("left a copy behind: %v", left)
+	}
+	if v, err := Revert(dir); err != nil || v != "1.3.0" {
+		t.Fatalf("going forward again = %q, %v", v, err)
+	}
+}
+
+func TestRevertWithoutAPreviousProgram(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "up1"), "program one")
+	if err := Install(dir, filepath.Join(dir, "up1"), "1.2.0", strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Revert(dir); err == nil {
+		t.Fatal("went back to nothing")
+	}
+	if read(t, filepath.Join(dir, FileApp)) != "program one" {
+		t.Fatal("the installed program was touched")
 	}
 }

@@ -64,6 +64,9 @@ type musicDiscoverItem struct {
 	InLibrary   bool     `json:"inLibrary"`          // the album itself is in the library
 	ArtistID    int64    `json:"artistId,omitempty"` // the artist is in the library
 	AlbumID     int64    `json:"albumId,omitempty"`
+	// Song is the song the music search found it through, when it searched
+	// by song.
+	Song string `json:"song,omitempty"`
 }
 
 type musicDiscoverPayload struct {

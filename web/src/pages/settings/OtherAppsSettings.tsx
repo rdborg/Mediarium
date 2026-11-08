@@ -59,6 +59,22 @@ export default function OtherAppsSettings() {
     }
   }
 
+  // The SABnzbd and qBittorrent look-alike addresses for phone apps: off until an administrator switches them on.
+  const [dlApi, setDlApi] = useState<boolean | null>(null)
+  useEffect(() => {
+    api.downloaderApiSettings().then((m) => setDlApi(m.enabled)).catch(() => setDlApi(false))
+  }, [])
+
+  async function switchDlApi(next: boolean) {
+    try {
+      const m = await api.putDownloaderApiSettings(next)
+      setDlApi(m.enabled)
+      toast.success(m.enabled ? t('Phone apps can now see your downloads.') : t('Phone apps can no longer see your downloads.'))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   return (
     <div className="settings-stack">
       <section className="card wide">
@@ -87,6 +103,51 @@ export default function OtherAppsSettings() {
             </fieldset>
           ))}
         </div>
+      </section>
+
+      <section className="card wide">
+        <h2>{t('Phone apps for downloads (nzb360 and others)')}</h2>
+        <p style={{ color: 'var(--text-dim)' }}>
+          {t("Apps such as nzb360 can show the speed, the time left and the list of your downloads, and pause, resume or remove them, when Mediarium answers like SABnzbd (Usenet) and qBittorrent (torrents). Add Mediarium in the app as that program, with the addresses below.")}
+        </p>
+        {dlApi === null ? (
+          <Loading height={60} />
+        ) : (
+          <>
+            <Switch
+              checked={dlApi}
+              onChange={(v) => void switchDlApi(v)}
+              label={t('Let phone apps see my downloads')}
+              showState
+              description={t("It only works with an administrator's API key. You can switch it off here at any time.")}
+            />
+            {dlApi && (
+              <dl className="other-app-fields">
+                <dt>{t('Usenet: add it as SABnzbd')}</dt>
+                <dd>
+                  <CopyBox text={`${origin}${BASE_PATH}/sabnzbd`} />
+                </dd>
+                <dt>{t('Torrents: add it as qBittorrent')}</dt>
+                <dd>
+                  <CopyBox text={`${origin}${BASE_PATH}/qbittorrent`} />
+                </dd>
+                <dt>{t('The key goes in')}</dt>
+                <dd>
+                  {t("SABnzbd: the API key box. qBittorrent: the password box (the user name can be anything). Make the key in the box further down.")}
+                </dd>
+                <dt>{t('Good to know')}</dt>
+                <dd>
+                  {t("Adding a release from the app only works when its name matches a movie or show in your library. Priority, renaming and speed limits are not available.")}
+                </dd>
+              </dl>
+            )}
+            <p>
+              <a href={`${DOCS_URL}/download-apps.md`} target="_blank" rel="noreferrer">
+                {t('How to set up nzb360 and similar apps')}
+              </a>
+            </p>
+          </>
+        )}
       </section>
 
       <section className="card wide">

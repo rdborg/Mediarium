@@ -27,6 +27,7 @@ type Stat struct {
 	Failures  int
 	Results   int
 	Grabs     int
+	GrabBytes int64 // the size of what was grabbed
 }
 
 // SuccessRate is the share of searches that got an answer, 0 to 1. It is -1
@@ -43,6 +44,11 @@ func (s Stat) SuccessRate() float64 {
 }
 
 func (t *Tracker) bump(id int64, queries, failures, results, grabs int) {
+	t.bumpBytes(id, queries, failures, results, grabs, 0)
+}
+
+// bumpBytes is bump with the size of what was grabbed.
+func (t *Tracker) bumpBytes(id int64, queries, failures, results, grabs int, grabBytes int64) {
 	if t == nil || t.db == nil {
 		return
 	}
@@ -54,10 +60,10 @@ func (t *Tracker) bump(id int64, queries, failures, results, grabs int) {
 	if prune { // once a day
 		t.Prune()
 	}
-	_, err := t.db.Exec(`INSERT INTO indexer_stats (indexer_id, day, queries, failures, results, grabs) VALUES (?, ?, ?, ?, ?, ?)
+	_, err := t.db.Exec(`INSERT INTO indexer_stats (indexer_id, day, queries, failures, results, grabs, grab_bytes) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(indexer_id, day) DO UPDATE SET queries = queries + excluded.queries, failures = failures + excluded.failures,
-		  results = results + excluded.results, grabs = grabs + excluded.grabs`,
-		id, day, queries, failures, results, grabs)
+		  results = results + excluded.results, grabs = grabs + excluded.grabs, grab_bytes = grab_bytes + excluded.grab_bytes`,
+		id, day, queries, failures, results, grabs, max(grabBytes, 0))
 	if err != nil {
 		slog.Warn("indexers: count indexer search", "indexer", id, "err", err)
 	}
@@ -161,10 +167,10 @@ func (t *Tracker) SourceOf(url string) (id int64, ok bool) {
 	return n.id, true
 }
 
-// NoteGrab counts a grab for the indexer that gave the release at url. A
-// release from a search long ago, or one the tracker never saw, is not
-// counted.
-func (t *Tracker) NoteGrab(url string) {
+// NoteGrab counts a grab for the indexer that gave the release at url, with
+// its size (0 when not known). A release from a search long ago, or one the
+// tracker never saw, is not counted.
+func (t *Tracker) NoteGrab(url string, size int64) {
 	if t == nil || url == "" {
 		return
 	}
@@ -174,7 +180,7 @@ func (t *Tracker) NoteGrab(url string) {
 	if !ok || t.now().After(n.expiry) {
 		return
 	}
-	t.bump(n.id, 0, 0, 0, 1)
+	t.bumpBytes(n.id, 0, 0, 0, 1, size)
 	t.CountRequest(n.id, 1) // the release file is fetched from the indexer
 }
 
@@ -184,7 +190,7 @@ func (t *Tracker) Stats(since time.Time) ([]Stat, error) {
 	if t == nil || t.db == nil {
 		return nil, nil
 	}
-	rows, err := t.db.Query(`SELECT i.id, i.name, COALESCE(SUM(s.queries), 0), COALESCE(SUM(s.failures), 0), COALESCE(SUM(s.results), 0), COALESCE(SUM(s.grabs), 0)
+	rows, err := t.db.Query(`SELECT i.id, i.name, COALESCE(SUM(s.queries), 0), COALESCE(SUM(s.failures), 0), COALESCE(SUM(s.results), 0), COALESCE(SUM(s.grabs), 0), COALESCE(SUM(s.grab_bytes), 0)
 		FROM indexers i LEFT JOIN indexer_stats s ON s.indexer_id = i.id AND s.day >= ?
 		GROUP BY i.id, i.name ORDER BY i.id`, since.UTC().Format(dayFmt))
 	if err != nil {
@@ -194,7 +200,7 @@ func (t *Tracker) Stats(since time.Time) ([]Stat, error) {
 	var out []Stat
 	for rows.Next() {
 		var s Stat
-		if err := rows.Scan(&s.IndexerID, &s.Name, &s.Queries, &s.Failures, &s.Results, &s.Grabs); err != nil {
+		if err := rows.Scan(&s.IndexerID, &s.Name, &s.Queries, &s.Failures, &s.Results, &s.Grabs, &s.GrabBytes); err != nil {
 			return nil, fmt.Errorf("read indexer statistics: %w", err)
 		}
 		out = append(out, s)

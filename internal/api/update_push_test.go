@@ -222,6 +222,7 @@ func TestEveryUpdateRouteIsAdminOnly(t *testing.T) {
 		{"GET", "/api/system/update"}, {"POST", "/api/system/update"}, {"DELETE", "/api/system/update"},
 		{"GET", "/api/system/update/latest"}, {"POST", "/api/system/update/check"},
 		{"GET", "/api/system/update/install"}, {"POST", "/api/system/update/install"},
+		{"GET", "/api/system/update/rollback"}, {"POST", "/api/system/update/rollback"},
 		{"GET", "/api/system/options"}, {"PUT", "/api/system/options"},
 		{"POST", "/api/system/restart"}, {"POST", "/api/system/restart?safe=true"}, {"POST", "/api/system/shutdown"},
 	}

@@ -44,6 +44,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// FormatVersion is the version of the file format this Mediarium writes and
+// reads. A file made by a newer Mediarium has a higher number and is refused.
+const FormatVersion = 1
+
+// SecretPlaceholder stands in for a password or key in an export. Read back,
+// it means "keep the one Mediarium has"; for something the file adds it means
+// the password still has to be entered.
+const SecretPlaceholder = "<secret>"
+
+// NewerFormatError is a file made by a newer Mediarium.
+type NewerFormatError struct{ Version int }
+
+func (e *NewerFormatError) Error() string {
+	return fmt.Sprintf("This file was made by a newer version of Mediarium (file format %d; this one reads up to format %d). Update Mediarium, then check the file again.", e.Version, FormatVersion)
+}
+
 // Section is one block of the file and the API address that holds it.
 type Section struct {
 	Name string
@@ -147,18 +163,24 @@ func (c *Client) doRaw(ctx context.Context, method, path string, body any) ([]by
 
 // derived are values a page shows but that are worked out, not chosen: they
 // are left out of an export (and ignored by Mediarium if a file has them).
-var derived = regexp.MustCompile(`^(has[A-Z].*|.*BuiltIn|.*UsingOwnKey|canCheck|legalAcknowledgedAt|onboardingDone)$`)
+var derived = regexp.MustCompile(`^(has[A-Z].*|.*BuiltIn|.*UsingOwnKey|canCheck|legalAcknowledgedAt|onboardingDone|containerFolders)$`)
 
 // Export reads every block from the running Mediarium and writes the file.
 func Export(ctx context.Context, c *Client) ([]byte, error) {
 	var buf bytes.Buffer
-	buf.WriteString("# Mediarium settings. Apply with: mediarium config apply <this file>\n")
+	buf.WriteString("# Mediarium settings. Apply with: mediarium config apply <this file>, or on Settings > System.\n")
 	buf.WriteString("# Keep only the lines you want to control: anything not here is left alone.\n")
-	buf.WriteString("# Passwords and keys are never exported. Write them as ${NAME} to read them from the environment.\n\n")
+	buf.WriteString("# Passwords and keys are never exported: <secret> means one is saved. Write the real one, or ${NAME} to read it from the environment.\n\n")
+	fmt.Fprintf(&buf, "formatVersion: %d\n\n", FormatVersion)
 	for _, s := range Sections {
 		cur, err := c.do(ctx, http.MethodGet, s.Path, nil)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", s.Name, err)
+		}
+		for k := range writeOnly[s.Name] {
+			if on, _ := cur[secretFlag(s.Name, k)].(bool); on {
+				cur[k] = SecretPlaceholder
+			}
 		}
 		for k := range cur {
 			if derived.MatchString(k) {
@@ -197,6 +219,7 @@ func Export(ctx context.Context, c *Client) ([]byte, error) {
 		}
 		out := make([]map[string]any, 0, len(items))
 		for _, it := range items {
+			addListPlaceholders(ls, it)
 			for k := range it {
 				if listDerived.MatchString(k) {
 					delete(it, k)
@@ -204,6 +227,11 @@ func Export(ctx context.Context, c *Client) ([]byte, error) {
 			}
 			out = append(out, it)
 		}
+		sort.SliceStable(out, func(i, j int) bool {
+			a, _ := out[i]["name"].(string)
+			b, _ := out[j]["name"].(string)
+			return strings.ToLower(a) < strings.ToLower(b)
+		})
 		var node yaml.Node
 		if err := node.Encode(map[string]any{ls.Name: out}); err != nil {
 			return nil, err
@@ -216,6 +244,68 @@ func Export(ctx context.Context, c *Client) ([]byte, error) {
 		buf.WriteString("\n")
 	}
 	return buf.Bytes(), nil
+}
+
+// secretFlag is the name of the value a page shows to say a secret is saved.
+func secretFlag(section, key string) string {
+	if section == "debrid" && key == "apiKey" {
+		return "hasKey"
+	}
+	return "has" + strings.ToUpper(key[:1]) + key[1:]
+}
+
+// addListPlaceholders writes <secret> for each password or key an item has
+// saved, and drops what a file doesn't take back.
+func addListPlaceholders(ls ListSection, it map[string]any) {
+	for _, k := range ls.Secrets {
+		if on, _ := it[secretFlag(ls.Name, k)].(bool); on {
+			it[k] = SecretPlaceholder
+		}
+	}
+	if ls.Name != "notifications" {
+		return
+	}
+	cfg, _ := it["config"].(map[string]any)
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	if saved, ok := it["hasSecrets"].(map[string]any); ok {
+		for k, v := range saved {
+			if on, _ := v.(bool); on {
+				cfg[k] = SecretPlaceholder
+			}
+		}
+	}
+	it["config"] = cfg
+	for k := range it {
+		if !ls.has(ls.Fields, k) {
+			delete(it, k)
+		}
+	}
+}
+
+// takePlaceholders removes every <secret> from m (and the maps in it) and
+// returns where they were, as paths like config.password.
+func takePlaceholders(m map[string]any, prefix string) []string {
+	var out []string
+	for k, v := range m {
+		switch t := v.(type) {
+		case string:
+			if t == SecretPlaceholder {
+				delete(m, k)
+				out = append(out, prefix+k)
+			}
+		case map[string]any:
+			out = append(out, takePlaceholders(t, prefix+k+".")...)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// secretKey is how File.Secrets finds the <secret> lines of one list item.
+func secretKey(list, name string) string {
+	return list + "/" + strings.ToLower(strings.TrimSpace(name))
 }
 
 var envRef = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}`)
@@ -265,8 +355,12 @@ func expand(v any, env func(string) (string, bool), where string) (any, error) {
 // File is a parsed settings file: the blocks (name -> its values) and the
 // lists (name -> its items).
 type File struct {
-	Blocks map[string]map[string]any
-	Lists  map[string][]map[string]any
+	Version int // the file format it says it has; 0 when it doesn't say
+	Blocks  map[string]map[string]any
+	Lists   map[string][]map[string]any
+	// Secrets holds where the file has <secret>, per list item (see
+	// secretKey): a password the file doesn't carry.
+	Secrets map[string][]string
 }
 
 // Parse reads a file. env looks up ${NAME}; pass os.LookupEnv.
@@ -279,10 +373,24 @@ func Parse(data []byte, env func(string) (string, bool)) (File, error) {
 	for _, s := range Sections {
 		known[s.Name] = true
 	}
-	out := File{Blocks: map[string]map[string]any{}, Lists: map[string][]map[string]any{}}
+	out := File{Blocks: map[string]map[string]any{}, Lists: map[string][]map[string]any{}, Secrets: map[string][]string{}}
+	if v, said := raw["formatVersion"]; said {
+		delete(raw, "formatVersion")
+		n, ok := v.(int)
+		if !ok || n < 1 {
+			return File{}, fmt.Errorf("formatVersion must be a whole number, 1 or more")
+		}
+		if n > FormatVersion {
+			return File{}, &NewerFormatError{Version: n}
+		}
+		out.Version = n
+	}
 	for name, v := range raw {
 		if ls, ok := listByName(name); ok {
-			items, err := parseList(ls, v, env)
+			if v == nil {
+				continue
+			}
+			items, err := parseList(ls, v, env, out.Secrets)
 			if err != nil {
 				return File{}, err
 			}
@@ -303,7 +411,9 @@ func Parse(data []byte, env func(string) (string, bool)) (File, error) {
 		if err != nil {
 			return File{}, err
 		}
-		out.Blocks[name] = ex.(map[string]any)
+		block := ex.(map[string]any)
+		takePlaceholders(block, "")
+		out.Blocks[name] = block
 	}
 	return out, nil
 }
@@ -319,17 +429,21 @@ func ReadFile(path string) (File, error) {
 
 // Change is one value that differs.
 type Change struct {
-	Section string
-	Key     string
-	Have    string // "" for a value Mediarium doesn't show back (a password, a key)
-	Want    string
-	Secret  bool // not shown back by Mediarium, so it is always sent
-	New     bool // a list item Mediarium doesn't have yet
+	Section string `json:"section"`
+	Key     string `json:"key,omitempty"`
+	Have    string `json:"have,omitempty"` // "" for a value Mediarium doesn't show back (a password, a key)
+	Want    string `json:"want,omitempty"`
+	Secret  bool   `json:"secret,omitempty"`  // not shown back by Mediarium, so it is always sent
+	New     bool   `json:"new,omitempty"`     // a list item Mediarium doesn't have yet
+	Removed bool   `json:"removed,omitempty"` // a list item the file doesn't have (replace mode)
 }
 
 func (c Change) String() string {
 	if c.New {
 		return fmt.Sprintf("%s: will be added", c.Section)
+	}
+	if c.Removed {
+		return fmt.Sprintf("%s: will be removed", c.Section)
 	}
 	if c.Secret {
 		return fmt.Sprintf("%s.%s: (secret) will be set", c.Section, c.Key)
@@ -370,15 +484,108 @@ type Result struct {
 	Applied bool
 }
 
+// ProblemsError is a file with names or values Mediarium can't use. Nothing
+// is written for it.
+type ProblemsError struct {
+	Unknown []string // names that aren't settings
+	Invalid []string // values that can't be used, each a sentence
+}
+
+func (e *ProblemsError) Error() string {
+	var parts []string
+	if len(e.Unknown) > 0 {
+		parts = append(parts, "these aren't settings Mediarium has (check the spelling; nothing was changed): "+strings.Join(e.Unknown, ", "))
+	}
+	if len(e.Invalid) > 0 {
+		parts = append(parts, "these values can't be used (nothing was changed): "+strings.Join(e.Invalid, "; "))
+	}
+	return strings.Join(parts, ". ")
+}
+
+// Problems lists what is wrong, one plain sentence each.
+func (e *ProblemsError) Problems() []string {
+	var out []string
+	for _, u := range e.Unknown {
+		out = append(out, u+" isn't something Mediarium has. Check the spelling.")
+	}
+	return append(out, e.Invalid...)
+}
+
+type blockPlan struct {
+	Result
+	path    string
+	cur     map[string]any
+	body    map[string]any
+	secrets int
+}
+
+// plan is the file compared with the running Mediarium: what would change,
+// and the calls that would change it.
+type plan struct {
+	blocks         []*blockPlan
+	blockUnchanged []string
+	lists          *listPlan
+}
+
 // Plan compares the file with the running Mediarium without changing anything.
 func Plan(ctx context.Context, c *Client, f File) ([]Result, error) {
-	return run(ctx, c, f, false)
+	p, err := build(ctx, c, f, Options{})
+	if err != nil {
+		return nil, err
+	}
+	return p.results(), nil
 }
 
 // Apply makes the running Mediarium match the file. Blocks are applied one by
 // one; one that Mediarium refuses is reported and the rest still go through.
+// (ApplyAll is the all-or-nothing way, used by the Settings page.)
 func Apply(ctx context.Context, c *Client, f File) ([]Result, error) {
-	return run(ctx, c, f, true)
+	p, err := build(ctx, c, f, Options{})
+	if err != nil {
+		return nil, err
+	}
+	for _, b := range p.blocks {
+		if b.Err != nil || len(b.Changes) == 0 {
+			continue
+		}
+		if _, err := c.do(ctx, http.MethodPut, b.path, b.body); err != nil {
+			b.Err = fmt.Errorf("%s: %w", b.Section, err)
+		} else {
+			b.Applied = true
+		}
+	}
+	results := p.blockResults()
+	for _, lr := range p.lists.results {
+		res := lr.Result
+		for _, act := range lr.actions {
+			if _, err := act(ctx, c); err != nil {
+				res.Err = fmt.Errorf("%s: %w", res.Section, err)
+				break
+			}
+		}
+		res.Applied = res.Err == nil && len(res.Changes) > 0
+		results = append(results, res)
+	}
+	return results, nil
+}
+
+func (p *plan) blockResults() []Result {
+	var out []Result
+	for _, b := range p.blocks {
+		out = append(out, b.Result)
+	}
+	return out
+}
+
+func (p *plan) results() []Result {
+	out := p.blockResults()
+	for _, lr := range p.lists.results {
+		out = append(out, lr.Result)
+	}
+	for _, lr := range p.lists.removals {
+		out = append(out, lr.Result)
+	}
+	return out
 }
 
 // writeOnly are the values a page accepts but never shows back, per block:
@@ -394,10 +601,10 @@ var writeOnly = map[string]map[string]bool{
 	"proxy":          {"password": true},
 }
 
-func run(ctx context.Context, c *Client, f File, apply bool) ([]Result, error) {
-	var results []Result
-	var bodies = map[string]map[string]any{}
-	var unknown []string
+// build compares the file with the running Mediarium.
+func build(ctx context.Context, c *Client, f File, opts Options) (*plan, error) {
+	p := &plan{}
+	var unknown, invalid []string
 	for _, s := range Sections {
 		want, ok := f.Blocks[s.Name]
 		if !ok || len(want) == 0 {
@@ -407,19 +614,15 @@ func run(ctx context.Context, c *Client, f File, apply bool) ([]Result, error) {
 		cur, err := c.do(ctx, http.MethodGet, s.Path, nil)
 		if err != nil {
 			res.Err = fmt.Errorf("read %s: %w", s.Name, err)
-			results = append(results, res)
+			p.blocks = append(p.blocks, &blockPlan{Result: res})
 			continue
 		}
-		keys := make([]string, 0, len(want))
-		for k := range want {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
 		body := map[string]any{}
 		for k, v := range cur {
 			body[k] = v
 		}
-		for _, k := range keys {
+		secrets := 0
+		for _, k := range sortedKeys(want) {
 			have, shown := cur[k]
 			if !shown {
 				if !writeOnly[s.Name][k] {
@@ -427,7 +630,12 @@ func run(ctx context.Context, c *Client, f File, apply bool) ([]Result, error) {
 					continue
 				}
 				res.Changes = append(res.Changes, Change{Section: s.Name, Key: k, Secret: true})
+				secrets++
 				body[k] = want[k]
+				continue
+			}
+			if probs := valueProblem(s.Name+"."+k, k, have, want[k]); probs != "" {
+				invalid = append(invalid, probs)
 				continue
 			}
 			if !same(have, want[k]) {
@@ -435,48 +643,20 @@ func run(ctx context.Context, c *Client, f File, apply bool) ([]Result, error) {
 				body[k] = want[k]
 			}
 		}
-		bodies[s.Name] = body
-		results = append(results, res)
+		p.blocks = append(p.blocks, &blockPlan{Result: res, path: s.Path, cur: cur, body: body, secrets: secrets})
+		if len(res.Changes) == 0 {
+			p.blockUnchanged = append(p.blockUnchanged, s.Name)
+		}
 	}
-	listResults, listUnknown, err := planLists(ctx, c, f)
+	lp, err := planLists(ctx, c, f, opts)
 	if err != nil {
 		return nil, err
 	}
-	unknown = append(unknown, listUnknown...)
-	if len(unknown) > 0 {
-		return nil, fmt.Errorf("these aren't settings Mediarium has (check the spelling; nothing was changed): %s", strings.Join(unknown, ", "))
+	unknown = append(unknown, lp.unknown...)
+	invalid = append(invalid, lp.invalid...)
+	if len(unknown)+len(invalid) > 0 {
+		return nil, &ProblemsError{Unknown: unknown, Invalid: invalid}
 	}
-	if apply {
-		for i := range results {
-			r := &results[i]
-			if r.Err != nil || len(r.Changes) == 0 {
-				continue
-			}
-			var path string
-			for _, s := range Sections {
-				if s.Name == r.Section {
-					path = s.Path
-				}
-			}
-			if _, err := c.do(ctx, http.MethodPut, path, bodies[r.Section]); err != nil {
-				r.Err = fmt.Errorf("%s: %w", r.Section, err)
-			} else {
-				r.Applied = true
-			}
-		}
-	}
-	for _, lr := range listResults {
-		res := lr.Result
-		if apply {
-			for _, act := range lr.actions {
-				if err := act(ctx, c); err != nil {
-					res.Err = fmt.Errorf("%s: %w", res.Section, err)
-					break
-				}
-			}
-			res.Applied = res.Err == nil && len(res.Changes) > 0
-		}
-		results = append(results, res)
-	}
-	return results, nil
+	p.lists = lp
+	return p, nil
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type IndexerConfig } from '../api'
+import { api, type IndexerConfig, type TorrentRoute } from '../api'
 import { timeAgo } from '../format'
 import Icon from './Icon'
 import { friendlyIndexerError } from './IndexerForm'
@@ -134,6 +134,24 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
     }
   }
 
+  // Saved as soon as another place is picked.
+  async function saveRoute(route: TorrentRoute) {
+    try {
+      await api.updateIndexer(i.id, { torrentRoute: route })
+      const done: Record<TorrentRoute, string> = {
+        '': t('Torrents from {name} go the usual way again.', { name: i.name }),
+        client: t('Torrents from {name} now go to the download client.', { name: i.name }),
+        debrid: t('Torrents from {name} now go to the debrid service.', { name: i.name }),
+        builtin: t('Torrents from {name} now go to the built-in client.', { name: i.name }),
+      }
+      toast.success(done[route])
+      onChanged()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+  const routeNames: Record<TorrentRoute, string> = { '': t('The usual way'), client: t('The download client'), debrid: t('The debrid service'), builtin: t('The built-in client') }
+
   async function showCategories() {
     setCapsLoading(true)
     try {
@@ -172,6 +190,7 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
           <div className="indexer-title">
             <strong title={i.name}>{i.name}</strong>
             <span className="badge">{i.protocol === 'torrent' ? 'Torrent' : 'Usenet'}</span>
+            {i.fromProwlarr && <span className="badge" title={t('Kept in step with your Prowlarr. Change its name, address or on/off switch in Prowlarr.')}>{t('From Prowlarr')}</span>}
             {!i.enabled && <span className="badge">{t('Off')}</span>}
           </div>
           <small className="indexer-url" title={i.baseUrl}>
@@ -233,6 +252,16 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
         <label className="indexer-minseed">
           <TipLabel text={t('Releases from this indexer with fewer seeders than this are skipped. Releases that a debrid service already has cached are not skipped. 0 means off.')} learnMore="indexers#minimum-seeders">{t('Minimum seeders')}</TipLabel>
           <input type="number" min={0} max={1000} step={1} value={minSeed} onChange={(e) => setMinSeed(e.target.value)} onBlur={() => void saveMinSeeders()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+        </label>
+      )}
+      {i.protocol === 'torrent' && (
+        <label className="indexer-minseed">
+          <TipLabel text={t('Send the torrents from this indexer to one place, for example a private tracker to your download client so it seeds there, and public ones to debrid. If the place you pick is not set up, the usual way is used: the download client, then debrid, then the built-in client.')} learnMore="indexers#where-torrents-go">{t('Where torrents go')}</TipLabel>
+          <select value={i.torrentRoute ?? ''} onChange={(e) => void saveRoute(e.target.value as TorrentRoute)} style={{ width: 'auto' }}>
+            {(['', 'client', 'debrid', 'builtin'] as TorrentRoute[]).map((r) => (
+              <option key={r} value={r}>{routeNames[r]}</option>
+            ))}
+          </select>
         </label>
       )}
       {i.protocol === 'torrent' && <SeedRules indexerId={i.id} />}

@@ -33,6 +33,14 @@ type grabRequest struct {
 	Replace bool `json:"replace,omitempty"`
 }
 
+// musicProtocol is protocol for an album, which may also come from Soulseek.
+func (r grabRequest) musicProtocol() indexers.Protocol {
+	if indexers.Protocol(r.Protocol) == indexers.ProtocolSoulseek {
+		return indexers.ProtocolSoulseek
+	}
+	return r.protocol()
+}
+
 func (r grabRequest) protocol() indexers.Protocol {
 	if indexers.Protocol(r.Protocol) == indexers.ProtocolTorrent {
 		return indexers.ProtocolTorrent
@@ -294,6 +302,6 @@ func (s *Server) findOrAddMovie(match metadata.Movie, userID int64) (library.Mov
 	return s.MovieRepo.Add(library.Movie{
 		TMDBID: match.TMDBID, Title: match.Title, Year: match.Year(), Overview: match.Overview,
 		PosterPath: match.PosterPath, Monitored: true, ReleaseDate: match.ReleaseDate, NoUpgrade: true, AddedBy: userID,
-		RootPath: s.newMovieFolder(),
+		RootPath: s.animeMovieFolderFor(match, s.newMovieFolder()),
 	})
 }

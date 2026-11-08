@@ -284,6 +284,10 @@ type addSeriesRequest struct {
 	// RootPath is the TV folder to keep it in; left out = where new shows go
 	// (Settings > Library > Folders).
 	RootPath string `json:"rootPath"`
+	// Episode asks for one episode instead of the whole show: the show is
+	// added with nothing monitored but that episode, which is searched for.
+	// A show that is in the library already only gets that episode wanted.
+	Episode *episodeRef `json:"episode"`
 }
 
 // handleAddSeries adds a show and its complete episode list (every real
@@ -306,11 +310,28 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
 		return
 	}
+	if !s.mayAskForAge(w, r, "tv", req.TMDBID) {
+		return
+	}
+	if req.Episode != nil && !req.Episode.valid() {
+		writeError(w, http.StatusBadRequest, "Pick an episode from the show's seasons.")
+		return
+	}
 	if existing, ok, err := s.MovieRepo.GetSeriesByTMDBID(req.TMDBID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	} else if ok {
-		writeError(w, http.StatusConflict, fmt.Sprintf("%s is already in your library", existing.Title))
+		if req.Episode == nil {
+			writeError(w, http.StatusConflict, fmt.Sprintf("%s is already in your library", existing.Title))
+			return
+		}
+		if err := s.monitorOneEpisode(existing, *req.Episode); err != nil {
+			writeRemoveError(w, err)
+			return
+		}
+		_, byline := requester(r)
+		_ = s.QueueRepo.LogSeriesActivity(existing.ID, "added", fmt.Sprintf("%s %s is now wanted%s", existing.Title, req.Episode.code(), byline))
+		writeJSON(w, http.StatusOK, toSeriesPayload(existing, s.accountNames()))
 		return
 	}
 
@@ -338,7 +359,11 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		writeUpstreamError(w, "add that show", err)
 		return
 	}
-	if req.Monitor == library.MonitorFuture || req.Monitor == library.MonitorNone {
+	if req.Episode != nil {
+		// One episode: nothing else is wanted, and the show's own switch follows the episode.
+		_, _ = s.MovieRepo.ApplyMonitorMode(created.ID, library.MonitorNone, todayUTC(), false)
+		req.SearchNow = false
+	} else if req.Monitor == library.MonitorFuture || req.Monitor == library.MonitorNone {
 		_, _ = s.MovieRepo.ApplyMonitorMode(created.ID, req.Monitor, todayUTC(), false)
 		if req.Monitor == library.MonitorFuture {
 			// Watching for episodes that have not aired is monitoring: the show's own switch is on.
@@ -358,6 +383,12 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.QueueRepo.LogSeriesActivity(created.ID, "added", created.Title+" (series) added to library"+byline)
+	if req.Episode != nil {
+		// After the quality and sources are set, so the search uses them.
+		if err := s.monitorOneEpisode(created, *req.Episode); err != nil {
+			log.Printf("api: add %q: couldn't want the episode: %v", created.Title, err)
+		}
+	}
 	if req.SearchNow {
 		go s.searchSeriesInBackground(created.ID)
 	}
@@ -374,14 +405,23 @@ func (s *Server) addSeriesFromTMDB(ctx context.Context, tmdbID int, userID int64
 	if err != nil {
 		return library.Series{}, err
 	}
-	sr, err := s.MovieRepo.AddSeries(library.Series{
+	kind := guessSeriesType(detail.Show)
+	show := library.Series{
 		TMDBID: detail.TMDBID, Title: detail.Name, Year: detail.Year(), Overview: detail.Overview,
 		PosterPath: detail.PosterPath, FirstAirDate: detail.FirstAirDate, Monitored: true,
 		NoUpgrade: noUpgrade, AddedBy: userID, Genres: s.TMDB().ShowGenres(ctx, detail.Show),
-		SeriesType: guessSeriesType(detail.Show), RootPath: rootPath,
-	}, toLibraryEpisodes(infos))
+		SeriesType: kind, RootPath: s.animeFolderFor(kind, rootPath),
+	}
+	sr, err := s.MovieRepo.AddSeries(show, s.withTVDBEpisodes(ctx, show, detail.ExternalIDs.TVDBID, toLibraryEpisodes(infos)))
 	if err != nil {
 		return sr, err
+	}
+	// An anime show gets the anime library's profile; a profile picked when
+	// adding it is set afterwards and wins.
+	if id := s.animeDefaultProfileID(); id != 0 && kind == library.SeriesAnime && sr.ProfileID == 0 {
+		if err := s.MovieRepo.SetSeriesProfile(sr.ID, id); err == nil {
+			sr.ProfileID = id
+		}
 	}
 	s.saveSeriesIDs(&sr, detail)
 	s.noteSeriesNumbering(sr)
@@ -511,7 +551,7 @@ func (s *Server) refreshSeries(ctx context.Context, sr library.Series) error {
 			log.Printf("api: refresh %q genres: %v", sr.Title, err)
 		}
 	}
-	eps := toLibraryEpisodes(infos)
+	eps := s.withTVDBEpisodes(ctx, sr, detail.ExternalIDs.TVDBID, toLibraryEpisodes(infos))
 	if err := s.MovieRepo.UpsertEpisodes(sr.ID, eps, sr.Monitored); err != nil {
 		return err
 	}

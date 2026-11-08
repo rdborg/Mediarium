@@ -26,6 +26,9 @@ type Protocol string
 const (
 	ProtocolUsenet  Protocol = "usenet"
 	ProtocolTorrent Protocol = "torrent"
+	// ProtocolSoulseek is music from Soulseek through the person's slskd
+	// (api/soulseek.go); no indexer gives it, only the album search.
+	ProtocolSoulseek Protocol = "soulseek"
 )
 
 // Kind says how an indexer is searched.
@@ -73,6 +76,9 @@ type Instance struct {
 	// ExtraCategories are category numbers the indexer is searched in besides the
 	// standard ones, per kind of media (see ExtraCategories).
 	ExtraCategories ExtraCategories
+	// TorrentRoute is where torrents from this indexer are downloaded: one of
+	// the Route constants, empty for the usual order.
+	TorrentRoute string
 	// SecretError is set when the saved key or password of this indexer could
 	// not be read (usually a secret.key that does not belong to the database).
 	// The indexer is still listed, so it can be fixed, but it is never searched.
@@ -125,6 +131,24 @@ func ParsePriority(v any) (int, bool) {
 		return n, err == nil && n >= PriorityMin && n <= PriorityMax
 	}
 	return 0, false
+}
+
+// Where a torrent is downloaded. An indexer can ask for one of them; empty
+// follows the usual order (client, then debrid, then built-in).
+const (
+	RouteClient  = "client"  // the download client (qBittorrent and the like)
+	RouteDebrid  = "debrid"  // the debrid service
+	RouteBuiltin = "builtin" // the built-in torrent client
+)
+
+// CleanTorrentRoute keeps a stored route to the known ones; anything else is
+// the usual order.
+func CleanTorrentRoute(r string) string {
+	switch r {
+	case RouteClient, RouteDebrid, RouteBuiltin:
+		return r
+	}
+	return ""
 }
 
 // MinSeedersMax is the largest minimum a person can set.
@@ -272,6 +296,7 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 				results[j].Priority = inst.Priority
 				if results[j].Protocol == ProtocolTorrent {
 					results[j].MinSeeders = inst.MinSeeders
+					results[j].TorrentRoute = inst.TorrentRoute
 				}
 			}
 			outcomes[i] = Outcome{IndexerName: inst.Name, Results: results, Err: err, LimitNote: limitNote}

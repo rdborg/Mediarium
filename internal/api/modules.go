@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -20,11 +21,18 @@ const (
 	moduleMusic      = "music"
 	moduleEbooks     = "ebooks"
 	moduleAudiobooks = "audiobooks"
+	moduleAnime      = "anime"
+	moduleLifecycle  = "lifecycle"
+	moduleArchiver   = "archiver"
 )
 
 var (
 	errComingSoon = errors.New("Coming soon")
 	errNoModules  = errors.New("At least one media type has to stay switched on.")
+	// errAnimeNeedsTV: anime shows are shows, so the anime library lives inside TV.
+	errAnimeNeedsTV = errors.New("Anime is part of TV. Switch TV on first.")
+	// errArchiverNotReady wraps what the Channel archiver still needs.
+	errArchiverNotReady = errors.New("the Channel archiver isn't set up yet")
 )
 
 // moduleOnByDefault reads a module switch that is on unless it was set to "0".
@@ -56,6 +64,22 @@ func (s *Server) audiobooksEnabled() bool {
 	return v == "1"
 }
 
+// animeEnabled reports whether anime has its own library (anime.go). It is
+// part of TV, so it is off while TV is.
+func (s *Server) animeEnabled() bool {
+	v, _ := s.Settings.Get(settings.KeyModulesAnime)
+	return v == "1" && s.tvEnabled()
+}
+
+// lifecycleEnabled reports whether the library lifecycle rules are switched on
+// (lifecycle.go). It is off until an administrator switches it on.
+func (s *Server) lifecycleEnabled() bool {
+	v, _ := s.Settings.Get(settings.KeyModulesLifecycle)
+	return v == "1"
+}
+
+// archiverEnabled (archiver.go) reports whether the Channel archiver is on.
+
 // booksEnabled reports whether either book module is on.
 func (s *Server) booksEnabled() bool { return s.ebooksEnabled() || s.audiobooksEnabled() }
 
@@ -70,6 +94,15 @@ type modulesPayload struct {
 	Music      moduleState `json:"music"`
 	Audiobooks moduleState `json:"audiobooks"`
 	Ebooks     moduleState `json:"ebooks"`
+	// Anime is the anime library inside TV (its own tab, folder, profile and names).
+	Anime moduleState `json:"anime"`
+	// Lifecycle is the library lifecycle rules and the Leaving soon shelf. It is
+	// not a kind of media: it only looks after what the library already holds.
+	Lifecycle moduleState `json:"lifecycle"`
+	// Archiver is the Channel archiver (archiver.go). It follows channels with a
+	// yt-dlp file the administrator supplies, and stays off until its warning
+	// is ticked and that file answers.
+	Archiver moduleState `json:"archiver"`
 	// SubtitlesEnabled says whether the subtitles switch is on, so every
 	// account's pages can show or hide the subtitle parts. It is not a media
 	// type and is not changed here (see PUT /api/settings).
@@ -79,6 +112,9 @@ type modulesPayload struct {
 	TrailerBackground bool `json:"trailerBackground"`
 	// TrailerSound starts that trailer with its sound on.
 	TrailerSound bool `json:"trailerSound"`
+	// ArtworkProxy says artwork is loaded through this server instead of
+	// straight from the picture host (Settings > Info, lists and subtitles).
+	ArtworkProxy bool `json:"artworkProxy"`
 	// TorrentsOn says whether torrent releases can be downloaded at all (the
 	// built-in client, a debrid service or a download client), so every
 	// account's release lists can say when they can't. Only an administrator
@@ -93,11 +129,15 @@ func (s *Server) modulesPayload() modulesPayload {
 		Music:      moduleState{Enabled: s.musicEnabled(), Available: true},
 		Audiobooks: moduleState{Enabled: s.audiobooksEnabled(), Available: true},
 		Ebooks:     moduleState{Enabled: s.ebooksEnabled(), Available: true},
+		Anime:      moduleState{Enabled: s.animeEnabled(), Available: true},
+		Lifecycle:  moduleState{Enabled: s.lifecycleEnabled(), Available: true},
+		Archiver:   moduleState{Enabled: s.archiverEnabled(), Available: true},
 
 		SubtitlesEnabled: s.subtitlesEnabled(),
 
 		TrailerBackground: s.trailerBackground(),
 		TrailerSound:      s.trailerSound(),
+		ArtworkProxy:      s.artworkProxy(),
 
 		TorrentsOn: s.torrentReleasesOn(),
 	}
@@ -117,6 +157,9 @@ type moduleChanges struct {
 	Music      *bool `json:"music"`
 	Audiobooks *bool `json:"audiobooks"`
 	Ebooks     *bool `json:"ebooks"`
+	Anime      *bool `json:"anime"`
+	Lifecycle  *bool `json:"lifecycle"`
+	Archiver   *bool `json:"archiver"`
 }
 
 // handlePutModules switches modules on or off (administrators) and answers
@@ -136,7 +179,7 @@ func (s *Server) handlePutModules(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeModulesError(w http.ResponseWriter, err error) {
-	if errors.Is(err, errComingSoon) || errors.Is(err, errNoModules) {
+	if errors.Is(err, errComingSoon) || errors.Is(err, errNoModules) || errors.Is(err, errAnimeNeedsTV) || errors.Is(err, errArchiverNotReady) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -166,6 +209,17 @@ func (s *Server) setModulesIn(st settingSetter, c moduleChanges) error {
 	if !movies && !tv && !music && !ebooks && !audiobooks {
 		return errNoModules
 	}
+	stored, _ := s.Settings.Get(settings.KeyModulesAnime)
+	anime := pick(c.Anime, stored == "1")
+	if c.Anime != nil && anime && !tv {
+		return errAnimeNeedsTV
+	}
+	if c.Archiver != nil && *c.Archiver && !s.archiverEnabled() {
+		// Switching it on needs the ticked warning and a yt-dlp file that answers.
+		if err := s.archiverReady(context.Background()); err != nil {
+			return &archiverGateError{err}
+		}
+	}
 	flag := func(on bool) string {
 		if on {
 			return "1"
@@ -183,6 +237,9 @@ func (s *Server) setModulesIn(st settingSetter, c moduleChanges) error {
 		{c.Music, settings.KeyMusicEnabled, music}, // the older name, kept in step
 		{c.Ebooks, settings.KeyModulesEbooks, ebooks},
 		{c.Audiobooks, settings.KeyModulesAudiobooks, audiobooks},
+		{c.Anime, settings.KeyModulesAnime, anime},
+		{c.Lifecycle, settings.KeyModulesLifecycle, pick(c.Lifecycle, false)},
+		{c.Archiver, settings.KeyModulesArchiver, pick(c.Archiver, false)},
 	} {
 		if w.changed == nil {
 			continue
@@ -234,7 +291,21 @@ func (s *Server) trailerSound() bool {
 	return v == "1"
 }
 
+// artworkProxy says whether posters and backdrops are loaded through this
+// server. It is on until an administrator switches it off.
+func (s *Server) artworkProxy() bool {
+	v, _ := s.Settings.Get(settings.KeyArtworkProxy)
+	return v != "0"
+}
+
 func (s *Server) trailerBackground() bool {
 	v, _ := s.Settings.Get(settings.KeyTrailerBackground)
 	return v != "0"
 }
+
+// archiverGateError is what stopped the Channel archiver from being switched on,
+// in the words to show.
+type archiverGateError struct{ cause error }
+
+func (e *archiverGateError) Error() string { return e.cause.Error() }
+func (e *archiverGateError) Unwrap() error { return errArchiverNotReady }

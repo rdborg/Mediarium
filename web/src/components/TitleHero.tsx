@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
-import type { CastMember, Trailer } from '../api'
+import { api, type CastMember, type OutsideScores, type Trailer } from '../api'
 import { plural, t } from '../i18n'
 import { trailerLabels } from '../trailerLabels'
 import { trailerAllowed, trailerEmbedUrl, trailerLog, trailerLogReset, trailerProblem, useTrailerBackground, useTrailerSound } from '../trailerBackground'
 import { useModules } from '../ModulesContext'
+import { pictureSrcSet } from '../base'
 import Icon from './Icon'
 import TrailerDialog from './TrailerDialog'
 import { PosterFallback } from './PosterCard'
@@ -26,6 +27,52 @@ export interface HeroInfo {
   cast?: CastMember[]
   facts?: { label: string; value: ReactNode }[]
   links?: { label: string; url: string }[] // the film's website, IMDb, TMDB
+  // With both, the IMDb, Rotten Tomatoes and Metacritic scores are asked for
+  // (they only come when an OMDb key is saved).
+  tmdbId?: number
+  imdbId?: string
+}
+
+// The IMDb, Rotten Tomatoes and Metacritic scores, next to TMDB's star (#169).
+// Nothing shows without an OMDb key or when OMDb knows none.
+function ScoreChips({ kind, tmdbId, imdbId }: { kind: 'movie' | 'tv'; tmdbId?: number; imdbId?: string }) {
+  const [scores, setScores] = useState<OutsideScores | null>(null)
+  useEffect(() => {
+    setScores(null)
+    if (!tmdbId || !imdbId) return
+    let live = true
+    api
+      .titleScores(kind, tmdbId, imdbId)
+      .then((r) => live && setScores(r.scores))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [kind, tmdbId, imdbId])
+  if (!scores) return null
+  return <OutsideScoreChips scores={scores} />
+}
+
+export function OutsideScoreChips({ scores, small }: { scores: OutsideScores; small?: boolean }) {
+  return (
+    <>
+      {scores.imdb ? (
+        <span className={`chip-score${small ? ' small' : ''}`} title={scores.imdbVotes ? plural(scores.imdbVotes, 'IMDb, {n} vote', 'IMDb, {n} votes') : 'IMDb'}>
+          <b>IMDb</b> {scores.imdb.toFixed(1)}
+        </span>
+      ) : null}
+      {scores.rottenTomatoes ? (
+        <span className={`chip-score rt${small ? ' small' : ''}`} title={t('Rotten Tomatoes, critics')}>
+          <b>RT</b> {scores.rottenTomatoes}%
+        </span>
+      ) : null}
+      {scores.metacritic && !small ? (
+        <span className="chip-score" title="Metacritic">
+          <b>MC</b> {scores.metacritic}
+        </span>
+      ) : null}
+    </>
+  )
 }
 
 function runtimeLabel(min?: number): string {
@@ -268,7 +315,7 @@ export default function TitleHero({ info, status, actions, children }: { info: H
     <section className={`title-hero kind-${info.kind}`}>
       {info.backdropUrl ? (
         <div ref={scene} className={`title-scene${videoReady ? ' video-on' : ''}${wide ? ' video-wide' : ''}`} aria-hidden="true">
-          <img src={info.backdropUrl} alt="" />
+          <img src={info.backdropUrl} srcSet={pictureSrcSet(info.backdropUrl, [780, 1280])} sizes="100vw" alt="" />
           {playing && started && trailerKey && !ended && (
             <iframe
               key={trailerKey}
@@ -327,6 +374,7 @@ export default function TitleHero({ info, status, actions, children }: { info: H
               <small>/10</small>
             </span>
           ) : null}
+          <ScoreChips kind={info.kind} tmdbId={info.tmdbId} imdbId={info.imdbId} />
           {info.certification && (
             <span className="chip-cert" title={t('Age classification')}>
               {info.certification}

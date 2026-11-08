@@ -8,7 +8,7 @@ A failed download stays in the Queue tab with the reason. **Why did this happen,
 
 Two more tabs belong to the request portal; see [accounts.md](./accounts.md#requests) for how to set it up.
 
-- **Requests** lists the titles accounts asked for. Admins approve or decline them. Someone who has to ask sees their own requests and, when a limit is set, how many they have left ("3 of 5 requests left this week"). A request for the 4K copy has a **4K** tag.
+- **Requests** lists the titles accounts asked for. Admins approve or decline them. Someone who has to ask sees their own requests and, when a limit is set, how many they have left ("3 of 5 requests left this week"). A request for the 4K copy has a **4K** tag. A request for one episode reads "Show S02E05", and a request to take a title out of the library has a **Removal** tag and the reason the person gave; approving it (**Remove**) asks whether to delete the files too, and they stay unless you say so.
 - **Reports** shows once an admin has switched on problem reports (or you already made one). It lists the problems people reported with a movie or show: the title (a link to its page), what is wrong, who reported it, and the answer once there is one. Admins press **Resolve**, write an optional comment and the person is told; **Reopen** takes it back, and the bin removes a report. Everyone else sees only their own.
 
 ## Import a file by hand
@@ -65,6 +65,16 @@ For scripts, `GET /api/wanted?kind=missing` (or `kind=cutoff`) still answers the
 - `media=movie` or `media=tv`, and `q=` (words in the title), with `group=1`.
 - `series=ID`: just that show's episodes, as a plain list like the full one.
 
+### Long wanted
+
+A big wanted list collects titles that may never turn up, for example in your language. **Long wanted** (a tab next to Missing and Upgrades, administrators only) lists the films and shows still missing long after they came out:
+
+- **Out for more than** 6 months, 1 year, 2 years or 5 years. A film counts from its release date, a show from its oldest missing episode (specials left out), with how many aired episodes are missing. Release dates are used rather than the date a title was added, because a title moved over from another app used to get the date of the move. Titles moved over from Radarr and Sonarr from 4.0 on keep the date they were added there.
+- **Came from** says where each title came from: the import list that added it, the request someone made, or the account that added it ("Not known" for titles from before Mediarium kept track). Pick one to see only those.
+- Tick titles (or all of them) and choose **Keep** (they stay wanted and leave this list for a year), **Stop monitoring** (they stay in the library but are no longer searched for) or **Remove** (they leave the library; files already on the disk stay).
+
+For scripts: `GET /api/wanted/review?days=365` lists them (`days` from 30 up), and `POST /api/wanted/review/keep` with `{"items": [{"kind": "movie", "id": 12}]}` keeps them for a year.
+
 ## The series page
 
 A show's seasons start folded, except the one that needs attention (the latest with missing episodes, or else the latest season). The row of season buttons at the top opens a season and jumps to it; a dot marks seasons with missing episodes. **Missing episodes only** shows just the episodes that have aired and are not downloaded. **Open all** and **Close all** do what they say. The facts at the top include the **Next episode** and the day it airs.
@@ -107,6 +117,12 @@ A search with the same outcome as a recent one (the scheduled search finding the
 ![The Activity page, Queue tab: two downloads running, one importing, four waiting in line, one paused, and a failed download below them](images/activity.png)
 
 *Activity, Queue tab: what's running, waiting in line and paused comes first, then failed downloads, then the titles still waiting for a release. History and Blocklist are the other two tabs.*
+
+## Live updates and several tabs
+
+The Queue tab asks the server for news every few seconds, and the server also tells the open pages when something happens (a grab, an import, a failure) so the list changes at once. That uses one open connection, and a browser only allows six at a time to one address. So all the tabs of one browser share a single connection: one tab holds it and passes what it hears to the others, and when that tab closes another one takes over. Open as many tabs as you like. A tab that has been in the background for five minutes lets go of the connection, and reloads what it shows when you come back to it.
+
+If you use a reverse proxy, it must pass `/api/events` through without holding it back. Mediarium tells nginx not to buffer it (`X-Accel-Buffering: no`); other proxies need the same, and a read timeout above 30 seconds. A comment goes down the connection every 20 seconds, so a proxy that closes quiet connections after a minute does not close this one. One account can have 8 of these connections open at once and one address 24; after that the server answers `429 Too Many Requests` with a `Retry-After` header, and the page tries again later. If the connection is not available, nothing breaks: the pages keep asking every few seconds as before.
 
 ## The Queue tab, top to bottom
 
@@ -154,6 +170,8 @@ The **Blocklist** tab (administrators) shows the newest 100 blocked releases, ne
 **Upcoming > Calendar** shows releases, episode air dates, album releases and book releases on their day. Movies and episodes start 30 days back, so a big library's old releases don't fill it (movies further ahead are all shown). Chips at the top show only movies, TV, music or books (when more than one is switched on), and **Not downloaded yet only** hides what you already have.
 
 A monitored movie with a digital release date on a different day from its cinema date is on the calendar twice, marked **Cinema** and **Digital**, so you can see when it can first be downloaded. Both dates are the ones of your country (see [Discover](./discover.md)). TMDB gives them one title at a time, so Mediarium reads them slowly in the background, a few every few minutes, and a movie gets its second marker once it has been read. In `GET /api/calendar` the two entries have `release` set to `cinema` or `digital`.
+
+When both dates fall on the same day, the movie is there once, marked **Cinema and digital**. With movies on the calendar, **Films** above it picks what they show: **Every release**, only **In cinemas**, or only **Digital release** (a movie whose digital date isn't known yet counts as a cinema release). On a tablet, or in a narrow window, each day of the month lists its releases as short lines of text, the title and then the episode or the kind of release, instead of small posters (discussion #170).
 
 The arrows on either side of the month's name go back and forward a month. **Today**, the small button next to them, comes back to this month (it is greyed out when you are already on it). **Posters** shows the month with a big poster in each day and the name in a frosted bubble over it; a day with more than one release has a **+n more** button that opens the whole day as a window of posters. **Backdrops** is the same, but each release is a wide still from the film or show with its logo over it. Mediarium fetches those from TMDB slowly in the background, a few every few minutes and only for what is on the calendar, so a title shows its poster until its picture has arrived (it can take a while the first time with a big calendar). **Month** shows the whole month as a grid, with a small poster for each release (titles show when there's room; point at a poster to read it). Today's square is lit. **Agenda** lists only the days that have something on, each with its date on a ticket stub and the releases as cards with their poster, episode code and status. On a phone all four views work too, drawn to fit: **Month** is a small grid with a dot for each release, and tapping a day lists it underneath; **Posters** and **Backdrops** give each day its own block of posters or wide stills; **Agenda** is the plain list. The calendar remembers which view you picked in this browser.
 

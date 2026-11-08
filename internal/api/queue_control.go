@@ -241,7 +241,7 @@ func (s *Server) preparePipeline(item queue.Item) (func(), error) {
 		if season == 0 && len(episodes) == 0 {
 			return nil, errors.New("Couldn't tell which season this download is for.")
 		}
-		targets, err := s.tvGrabTargets(series.ID, season, episodes)
+		targets, err := s.tvGrabTargetsFor(series.ID, item.ReleaseTitle, season, episodes)
 		if err != nil {
 			return nil, errors.New("Those episodes are already in your library.")
 		}
@@ -357,7 +357,7 @@ func (s *Server) releaseTitleClaims(item queue.Item) {
 		season, episodes := resolveTVTarget(item.ReleaseTitle, item.Season, item.Episode)
 		others := s.otherOpenDownloads(item.SeriesID, item.ID)
 		for _, ep := range eps {
-			if ep.Status != library.StatusDownloading || ep.Season != season || !coversEpisode(season, episodes, ep) {
+			if ep.Status != library.StatusDownloading || !releaseCoversEpisode(item.ReleaseTitle, season, episodes, ep) {
 				continue
 			}
 			if downloadCovers(others, ep) {
@@ -440,7 +440,7 @@ func (s *Server) otherOpenDownloads(seriesID, except int64) []queue.Item {
 func downloadCovers(items []queue.Item, ep library.Episode) bool {
 	for _, it := range items {
 		season, episodes := resolveTVTarget(it.ReleaseTitle, it.Season, it.Episode)
-		if coversEpisode(season, episodes, ep) {
+		if releaseCoversEpisode(it.ReleaseTitle, season, episodes, ep) {
 			return true
 		}
 	}
@@ -672,7 +672,7 @@ func (s *Server) isUpgradeDownload(it queue.Item) bool {
 		season, episodes := resolveTVTarget(it.ReleaseTitle, it.Season, it.Episode)
 		found := false
 		for _, ep := range eps {
-			if !coversEpisode(season, episodes, ep) {
+			if !releaseCoversEpisode(it.ReleaseTitle, season, episodes, ep) {
 				continue
 			}
 			if !fileExists(ep.FilePath) {

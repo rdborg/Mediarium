@@ -11,7 +11,7 @@
 // - plural(n, '{n} movie', '{n} movies') picks the right form for the language.
 import { Fragment, createElement, type ReactNode } from 'react'
 
-export type Lang = 'en' | 'es' | 'de' | 'fr' | 'it' | 'nl' | 'pl' | 'pt' | 'pt-PT' | 'ru' | 'uk'
+export type Lang = 'en' | 'es' | 'de' | 'fr' | 'it' | 'nl' | 'pl' | 'pt' | 'pt-PT' | 'ru' | 'uk' | 'zh-CN'
 
 export const LANGUAGES: { code: Lang; name: string }[] = [
   { code: 'en', name: 'English' },
@@ -25,6 +25,7 @@ export const LANGUAGES: { code: Lang; name: string }[] = [
   { code: 'pt-PT', name: 'Português (Portugal)' },
   { code: 'ru', name: 'Русский' },
   { code: 'uk', name: 'Українська' },
+  { code: 'zh-CN', name: '简体中文' },
 ]
 
 // Each language's catalogue is its own file, fetched only when it is chosen.
@@ -39,6 +40,7 @@ const CATALOGUES: Record<Exclude<Lang, 'en'>, () => Promise<{ default: unknown }
   'pt-PT': () => import('./locales/pt-PT.json'),
   ru: () => import('./locales/ru.json'),
   uk: () => import('./locales/uk.json'),
+  'zh-CN': () => import('./locales/zh-CN.json'),
 }
 
 const STORAGE_KEY = 'mediarium-lang'
@@ -57,6 +59,8 @@ export function preferredLanguage(stored: string | null, browser: readonly strin
     const exact = LANGUAGES.find((l) => l.code.toLowerCase() === b.toLowerCase())
     if (exact) return exact.code
     const code = b.toLowerCase().split('-')[0]
+    // Every Chinese (zh, zh-Hans, zh-SG ...) gets the Simplified translation until Traditional is added.
+    if (code === 'zh') return 'zh-CN'
     if (isLang(code)) return code
   }
   return 'en'

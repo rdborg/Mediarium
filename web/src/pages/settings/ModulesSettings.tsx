@@ -6,6 +6,10 @@ import Switch from '../../components/Switch'
 import { useToast } from '../../components/Toast'
 import { useModules } from '../../ModulesContext'
 import { t, tx } from '../../i18n'
+import AnimeSettingsCard from '../../components/AnimeSettingsCard'
+import FeatureOffers from '../../components/FeatureOffers'
+import ArchiverSettingsCard from '../../components/ArchiverSettingsCard'
+import LifecycleSettingsCard from '../../components/LifecycleSettingsCard'
 
 interface ModuleInfo {
   key: ModuleKey
@@ -32,6 +36,30 @@ const MODULES: ModuleInfo[] = [
     color: 'var(--c-tv)',
     blurb: t('Follow shows and get new episodes as they air.'),
     points: [t('New episodes picked up by themselves'), t('Whole seasons or single episodes'), t('A calendar of what airs next'), t('Filed by show and season')],
+  },
+  {
+    key: 'anime',
+    name: t('Anime'),
+    glyph: 'tv',
+    color: 'var(--c-anime)',
+    blurb: t('Anime in a library of their own, inside TV.'),
+    points: [t('Their own tab in the Library'), t('Their own folder and quality profile'), t('Files named with the absolute number'), t('The same numbering help as before')],
+  },
+  {
+    key: 'lifecycle',
+    name: t('Library lifecycle'),
+    glyph: 'movie',
+    color: 'var(--c-settings)',
+    blurb: t('Remove what nobody watches, with a warning first.'),
+    points: [t('Rules for watched and unwatched titles'), t('A Leaving soon shelf on Home'), t('One click to keep a title'), t('A dry run before anything is removed')],
+  },
+  {
+    key: 'archiver',
+    name: t('Channel archiver'),
+    glyph: 'tv',
+    color: 'var(--c-settings)',
+    blurb: t('Keep YouTube channels with your own yt-dlp.'),
+    points: [t('Videos up to 1080p, or just the audio'), t('New videos found on a timer'), t('Needs a yt-dlp that you supply'), t('Off until you accept the warning')],
   },
   {
     key: 'music',
@@ -66,12 +94,18 @@ export default function ModulesSettings() {
   const { modules, set, refresh } = useModules()
   const toast = useToast()
   const [busy, setBusy] = useState<ModuleKey | null>(null)
+  const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
     void refresh()
+    api
+      .version()
+      .then((v) => setAppVersion(v.version))
+      .catch(() => undefined)
   }, [refresh])
 
-  const onCount = MODULES.filter((m) => modules[m.key].available && modules[m.key].enabled).length
+  // The anime library, the lifecycle rules and the archiver are not kinds of media, so they don't count here.
+  const onCount = MODULES.filter((m) => m.key !== 'anime' && m.key !== 'lifecycle' && m.key !== 'archiver' && modules[m.key].available && modules[m.key].enabled).length
 
   async function change(m: ModuleInfo, next: boolean) {
     const before = modules
@@ -98,7 +132,8 @@ export default function ModulesSettings() {
         {MODULES.map((m) => {
           const st = modules[m.key]
           const soon = !st.available
-          const last = st.enabled && onCount <= 1
+          const last = st.enabled && onCount <= 1 && m.key !== 'anime' && m.key !== 'lifecycle' && m.key !== 'archiver'
+          const needsTV = m.key === 'anime' && !modules.tv.enabled
           return (
             <section key={m.key} className={`module-card${st.enabled ? ' on' : ''}${soon ? ' soon' : ''}`} style={{ ['--mc' as string]: m.color }}>
               <header>
@@ -121,14 +156,19 @@ export default function ModulesSettings() {
                 {soon ? (
                   <span className="badge module-soon">{t('Coming soon')}</span>
                 ) : (
-                  <Switch checked={st.enabled} onChange={(v) => void change(m, v)} disabled={last || busy === m.key} label={st.enabled ? t('Switched on') : t('Switched off')} />
+                  <Switch checked={st.enabled} onChange={(v) => void change(m, v)} disabled={last || needsTV || busy === m.key} label={st.enabled ? t('Switched on') : t('Switched off')} />
                 )}
                 {last && <small className="module-note">{t('At least one has to stay on.')}</small>}
+                {needsTV && <small className="module-note">{t('Part of TV: switch TV on first.')}</small>}
               </footer>
             </section>
           )
         })}
       </div>
+      {modules.anime.enabled && <AnimeSettingsCard />}
+      {modules.lifecycle.enabled && <LifecycleSettingsCard />}
+      <ArchiverSettingsCard />
+      {appVersion && <FeatureOffers mode="settings" version={appVersion} />}
     </div>
   )
 }

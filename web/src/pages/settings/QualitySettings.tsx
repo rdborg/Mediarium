@@ -8,6 +8,7 @@ import Switch from '../../components/Switch'
 import { AUDIO_LANGUAGES } from '../../languages'
 import { useAutosaveSetting } from '../../useAutosave'
 import QualityProfilesSection from '../../components/QualityProfiles'
+import ProfileSimulator from '../../components/ProfileSimulator'
 import SizeLimitsCard from '../../components/SizeLimitsCard'
 import MusicProfilesSection from '../../components/MusicProfiles'
 import MusicFiltersCard from '../../components/MusicFiltersCard'
@@ -33,6 +34,12 @@ function AutomationSection() {
     (v) => ({ unmonitorFinished: v }),
     (saved) => (saved ? t('Saved: finished shows stop being monitored once complete.') : t('Saved: finished shows stay monitored.')),
     false,
+  )
+  const holdUnreleased = useAutosaveSetting<boolean>(
+    (s) => s.holdUnreleased ?? true,
+    (v) => ({ holdUnreleased: v }),
+    (saved) => (saved ? t('Saved: automatic searches wait until a title is out.') : t('Saved: automatic searches also look for titles that are not out yet.')),
+    true,
   )
   const seasonPacks = useAutosaveSetting<boolean>(
     (s) => s.seasonPacks ?? false,
@@ -69,6 +76,14 @@ function AutomationSection() {
         disabled={!unmonitorFinished.loaded || unmonitorFinished.saving}
         label={t('Stop monitoring a show once it has ended and every episode is in')}
         description={t("Checked when the show's details are refreshed and after each import. Shows that are still running stay monitored.")}
+      />
+      <Switch
+        checked={holdUnreleased.value}
+        onChange={holdUnreleased.change}
+        disabled={!holdUnreleased.loaded || holdUnreleased.saving}
+        label={t("Wait until a title is out before searching")}
+        description={t("A movie isn't searched for before its release date and an episode isn't searched for before it airs. The title's history says what it is waiting for. Search now always looks.")}
+        showState
       />
       <Switch
         checked={seasonPacks.value}
@@ -184,6 +199,7 @@ export default function QualitySettings() {
   return (
     <div className="settings-stack">
       <QualityProfilesSection rev={profilesRev} onChanged={() => setFormatsRev((n) => n + 1)} advanced={advanced.value} />
+      <ProfileSimulator />
       {advanced.value && <CustomFormatsSection rev={formatsRev} onChanged={() => setProfilesRev((n) => n + 1)} />}
       <LanguageSection />
       <SizeLimitsCard />

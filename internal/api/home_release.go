@@ -41,7 +41,7 @@ func homeHoldUntil(theatrical, home, now time.Time) (until time.Time, estimated,
 // sentence for its history. It asks TMDB only for films released in the last
 // few months, and lets the search go ahead when TMDB can't be asked.
 func (s *Server) homeReleaseHold(ctx context.Context, m library.Movie, profile quality.Profile) (string, bool) {
-	if profile.AllowsTier(quality.TierPreRelease) || m.ReleaseDate == "" || m.TMDBID == 0 {
+	if !holdUnreleasedOn() || profile.AllowsTier(quality.TierPreRelease) || m.ReleaseDate == "" || m.TMDBID == 0 {
 		return "", false
 	}
 	released, err := time.Parse("2006-01-02", m.ReleaseDate)

@@ -114,8 +114,8 @@ func TestCalendarShowsDigitalReleaseDate(t *testing.T) {
 	if want := []seen{{day(-20), "cinema"}, {day(10), "digital"}}; len(got["Both Dates"]) != 2 || got["Both Dates"][0] != want[0] || got["Both Dates"][1] != want[1] {
 		t.Fatalf("a movie with two dates shows twice, labelled: %v", got["Both Dates"])
 	}
-	if len(got["Same Day"]) != 1 || got["Same Day"][0].release != "" {
-		t.Fatalf("two dates on one day show once, unlabelled: %v", got["Same Day"])
+	if len(got["Same Day"]) != 1 || got["Same Day"][0].release != "both" {
+		t.Fatalf("two dates on one day show once, labelled both: %v", got["Same Day"])
 	}
 	if len(got["Unmonitored"]) != 0 {
 		t.Fatalf("an unmonitored movie is not on the calendar: %v", got["Unmonitored"])

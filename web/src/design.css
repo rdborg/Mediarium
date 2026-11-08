@@ -20,6 +20,7 @@
   --c-about: #34d1bf;
   --c-movie: #34d1bf;
   --c-tv: #a898ff;
+  --c-anime: var(--c-rose); /* the anime library; --c-rose has its own light value */
   --on-sec: #0b0e13;
 }
 
@@ -502,6 +503,10 @@ a.hero-pill:hover { text-decoration: none; transform: translateY(-2px); }
 .chip-rate { font-weight: 700; color: #1a1300; background: #f5c542; }
 .chip-rate svg { fill: #1a1300; }
 .chip-rate small { font-weight: 500; opacity: 0.85; }
+/* IMDb, Rotten Tomatoes and Metacritic scores (#169): plain chips, the source in small capitals before the number. */
+.chip-score { font-weight: 700; color: var(--text); background: var(--surface-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip-score b { font-size: 0.72em; font-weight: 700; letter-spacing: 0.06em; color: var(--text-dim); }
+.pcard-score { margin-left: 4px; padding-left: 6px; border-left: 1px solid rgba(255, 255, 255, 0.28); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chip-cert { font-weight: 700; letter-spacing: 0.04em; border: 1.5px solid var(--text-dim); color: var(--text); }
 .chip-plain { color: var(--text-dim); background: var(--surface-2); }
 .chip-genre { color: var(--hc); background: color-mix(in srgb, var(--hc) 12%, transparent); border: 1px solid color-mix(in srgb, var(--hc) 30%, transparent); }
@@ -3034,6 +3039,16 @@ a.bar-label:hover { color: var(--accent); }
 .whats-new ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 8px; }
 .whats-new h3 { margin: 8px 0 6px; font-size: 0.95rem; color: var(--text-dim); }
 
+/* "Switch this on?" offers: in What's new after an update, and under Settings > Media types. */
+.feature-offers { margin: 14px 0 6px; }
+.feature-offers ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.whats-new .feature-offers ul { padding-left: 0; }
+.feature-offers li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.feature-offers .offer-text { display: grid; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.feature-offers .offer-text small { color: var(--text-dim); }
+.feature-offers .offer-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.module-page > .feature-offers { margin-top: 18px; }
+
 /* The Library's poster size slider. */
 .poster-size { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); }
 .poster-size input[type="range"] { width: 110px; accent-color: var(--accent); }
@@ -3422,3 +3437,56 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
 .custom-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 14px; }
 .custom-search input { flex: 1 1 240px; min-width: 0; max-width: 420px; }
 .custom-search small { flex: 1 1 100%; color: var(--text-dim); }
+
+/* Library lifecycle: the settings card and the Leaving soon shelf */
+.lifecycle-card button, .lifecycle-card label, .lifecycle-card h2, .lifecycle-card h3, .lifecycle-card legend, .lifecycle-card .switch-label, .lifecycle-card .switch-desc { white-space: nowrap; }
+.lifecycle-fields { margin-top: 12px; max-width: 640px; }
+.lifecycle-actions { margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.lifecycle-keeps { margin-top: 14px; }
+.lifecycle-keeps ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.lifecycle-keeps li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lifecycle-keeps li strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cleanup-preview li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Channel archiver: the settings card. Nothing in it wraps; a wide table scrolls inside its box. */
+.archiver-card button, .archiver-card label, .archiver-card h2, .archiver-card h3, .archiver-card th, .archiver-card td, .archiver-card .hint, .archiver-card .switch-label { white-space: nowrap; }
+.archiver-warning { display: flex; align-items: flex-start; gap: 12px; margin: 12px 0 8px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--c-wanted) 60%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--c-wanted) 10%, transparent); font-size: min(0.9rem, 3.2vw); overflow-x: auto; }
+.archiver-warning svg { flex: none; margin-top: 2px; color: var(--c-wanted); }
+.archiver-warning p { margin: 0; white-space: nowrap; }
+.archiver-tick { margin: 4px 0 8px; }
+.archiver-fields { margin-top: 12px; max-width: 760px; }
+.archiver-wide { grid-column: 1 / -1; }
+.archiver-path { display: flex; gap: 8px; align-items: center; }
+.archiver-path input { flex: 1 1 auto; min-width: 0; }
+.archiver-actions { margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.archiver-card h3 { margin: 22px 0 0; }
+.archiver-table-wrap { margin-top: 14px; overflow-x: auto; }
+.archiver-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.archiver-table th, .archiver-table td { text-align: left; padding: 8px 14px 8px 0; border-bottom: 1px solid var(--border); }
+.archiver-table th { color: var(--text-dim); font-weight: 500; }
+.archiver-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.archiver-row-actions { display: flex; gap: 6px; padding-right: 0 !important; }
+.archiver-recent ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.archiver-recent li { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
+.archiver-recent li strong { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.archiver-recent li .hint { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.archiver-recent li.is-failed svg { color: var(--c-wanted); }
+.leaving-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.leaving-list li { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.leaving-list img, .leaving-poster { width: 34px; height: 51px; border-radius: 6px; object-fit: cover; flex: none; background: var(--surface-2); }
+.leaving-main { flex: 1; min-width: 0; display: grid; }
+.leaving-main a, .leaving-main small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaving-main small { color: var(--text-dim); }
+.leaving-days, .leaving-list button { white-space: nowrap; flex: none; }
+.leaving-days.soon { color: var(--warning); }
+.rel-why-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.rel-why-check { display: flex; gap: 8px; align-items: baseline; overflow-wrap: anywhere; }
+.rel-why-mark { flex: none; width: 1em; text-align: center; font-weight: 700; }
+.rel-why-check.ok .rel-why-mark { color: var(--success, #3fb950); }
+.rel-why-check.bad .rel-why-mark { color: var(--danger, #f85149); }
+.rel-why-check.info .rel-why-mark { color: var(--text-dim); }
+.rel-why-rank { color: var(--text); }
+.profile-sim-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 12px; }
+.profile-sim .field > span { white-space: nowrap; }
+.profile-sim-result { margin-top: 16px; }
+.profile-sim-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; font-weight: 600; }
+.profile-sim .rel-why { position: static; width: auto; }

@@ -33,6 +33,7 @@ import { useModules } from '../ModulesContext'
 import { api, can, isAdmin, isViewer, type Episode, type SearchResult, type SeriesDetail as SeriesDetailData, type TVDetail } from '../api'
 import { formatBytes, qualityText, withNameTag } from '../format'
 import { showStatusLabel } from '../showStatus'
+import { offersCompleteSearch } from '../completeSeries'
 import { rescanMessage } from '../rescanMessage'
 import { CastCard, PeopleLinks, titleLinks } from '../components/TitlePreview'
 import { crewWith } from '../people'
@@ -100,6 +101,7 @@ function SeriesPage() {
   const [searching, setSearching] = useState(false)
   const [grabbing, setGrabbing] = useState<string | null>(null)
   const [searchingNow, setSearchingNow] = useState(false)
+  const [searchingComplete, setSearchingComplete] = useState(false)
   const [subsOpen, setSubsOpen] = useState<number | null>(null)
   // Which seasons are open (unset: only the one that needs attention), and the
   // "Missing episodes only" switch.
@@ -268,6 +270,21 @@ function SeriesPage() {
     }
   }
 
+  async function searchComplete() {
+    setSearchingComplete(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await api.searchCompleteSeries(seriesId)
+      setMessage(res.message)
+      if (res.grabbed > 0) setTimeout(load, 500)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSearchingComplete(false)
+    }
+  }
+
   const [refreshing, setRefreshing] = useState(false)
   const [rescanning, setRescanning] = useState(false)
   const [changingFolder, setChangingFolder] = useState(false)
@@ -412,6 +429,8 @@ function SeriesPage() {
           overview: tv?.overview || series.overview,
           certification: tv?.contentRating,
           links: titleLinks('tv', series.tmdbId, tv?.imdbId, tv?.homepage),
+          tmdbId: series.tmdbId,
+          imdbId: tv?.imdbId,
           facts: [
             ...(creators.length ? [{ label: creators.length > 1 ? t('Creators') : t('Creator'), value: <PeopleLinks people={creators} /> }] : []),
             ...(series.showStatus ? [{ label: t('Status'), value: showStatusLabel(series.showStatus) }] : []),
@@ -434,6 +453,12 @@ function SeriesPage() {
               </button>
             )}
             {canManage && <InfoTip text={t('Searches your indexers right now for the episodes that are still missing, even if the show is not monitored. To search one season or one episode, use the buttons further down.')} />}
+            {canManage && offersCompleteSearch(series.showStatus, seasons.filter(([s]) => s > 0).length) && (
+              <button className="btn-with-icon" onClick={searchComplete} disabled={searchingComplete || searchingNow}>
+                <Icon name="search" size={16} /> {searchingComplete ? t('Searching…') : t('Search for the complete series')}
+              </button>
+            )}
+            {canManage && offersCompleteSearch(series.showStatus, seasons.filter(([s]) => s > 0).length) && <InfoTip text={t('Looks for a season pack of every monitored season that has missing episodes. When a season has no pack of its own, it looks for one pack of the whole series (such as Complete Series or S01-S09) that covers them all and fits your quality profile.')} />}
             {!viewer && (
               <button className="btn-with-icon" onClick={refresh} disabled={refreshing}>
                 <Icon name="refresh" size={16} /> {refreshing ? t('Refreshing…') : t('Refresh episodes')}

@@ -31,7 +31,10 @@ type NamingContext struct {
 	// MoreEpisodes are the other episodes of the same season in the same file
 	// (S01E01E02), in order: {Episode} then reads "01-E02".
 	MoreEpisodes []int
-	AirDate      string // YYYY-MM-DD, empty when unknown
+	// Absolute is the episode's number counted from the show's first episode
+	// (anime are released by it), 0 when not known.
+	Absolute int
+	AirDate  string // YYYY-MM-DD, empty when unknown
 
 	// From the release name, for the Radarr/Sonarr-style tokens (tokens.go).
 	AudioCodec string
@@ -72,6 +75,11 @@ const (
 	TVSeriesFolder = "{Series Title} ({Year})"
 	TVSeasonFolder = "Season {Season:00}"
 )
+
+// AnimeFormat is the suggested file name of an anime episode: the season and
+// episode for the media servers, and the number from the first episode the
+// way anime releases count.
+const AnimeFormat = "{Series Title} - S{Season:00}E{Episode:00} - {Absolute:000} - {Episode Title} [{Quality}]"
 
 var TVPresets = map[string]string{
 	"plex":     "{Series Title} - S{Season:00}E{Episode:00} - {Episode Title}",

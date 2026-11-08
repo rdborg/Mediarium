@@ -29,6 +29,10 @@ func resolveTVTarget(releaseTitle string, hintSeason, hintEpisode int) (season i
 	if rel.Season > 0 || (rel.Special && len(rel.Episodes) > 0) {
 		return rel.Season, rel.Episodes
 	}
+	// A pack of the whole series: it starts at the first season.
+	if from, to, ok := rel.SeasonSpan(); ok && to == 0 {
+		return from, nil
+	}
 	if hintEpisode > 0 {
 		return hintSeason, []int{hintEpisode}
 	}
@@ -99,7 +103,7 @@ func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, 
 		s.grabMu.Unlock()
 		return 0, err
 	}
-	targets, err := s.tvGrabTargets(series.ID, season, episodes)
+	targets, err := s.tvGrabTargetsFor(series.ID, releaseTitle, season, episodes)
 	if err != nil {
 		s.grabMu.Unlock()
 		return 0, err
@@ -133,6 +137,9 @@ func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, 
 	grabbed := s.grabbedMessage(releaseTitle, series.Title)
 	_ = s.QueueRepo.LogSeriesActivity(series.ID, "grabbed", grabbed)
 	grabbedItem := s.localizedSeriesItem(series, season, episodes)
+	if lo, hi := releaseSeasonRange(releaseTitle, season); hi > lo && len(episodes) == 0 {
+		grabbedItem.Episode = seasonsLabel(lo, hi) // a pack of several seasons
+	}
 	grabbedItem.Quality, grabbedItem.SizeBytes, grabbedItem.Release = string(quality.Classify(parser.Parse(releaseTitle))), sizeBytes, releaseTitle
 	s.seriesReleaseDetails(&grabbedItem, series, releaseTitle, downloadURL)
 	s.notifyItem("grabbed", grabbedItem)
@@ -193,6 +200,7 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		plain := plainerror.Message(stepErr)
 		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, plain)
 		noteDownloadFailure(queueID, series.Title, fmt.Sprintf("/series/%d", series.ID), stepErr)
+		s.doctorNoteFailure(queueID, stepErr)
 		blocklisted := isBadRelease(stepErr) && s.blocklistBadRelease(releaseTitle, protocol, 0, series.ID, stepErr)
 		releaseTargets()
 		message := fmt.Sprintf("%s: %s", series.Title, plain)
@@ -631,6 +639,9 @@ func (s *Server) buildTVDestPathFor(series library.Series, eps []library.Episode
 	} else if p, ok := organizer.TVPresets[preset]; ok {
 		format = p
 	}
+	if f := s.animeEpisodeFormat(series); f != "" {
+		format = f // the anime library's own names
+	}
 
 	ep, more, epTitle := multiEpisodeNaming(eps)
 	ctx := organizer.NamingContext{
@@ -641,6 +652,9 @@ func (s *Server) buildTVDestPathFor(series library.Series, eps []library.Episode
 		AudioCodec: release.AudioCodec, HDR: release.HDR, Is3D: release.Is3D,
 		Proper: release.Proper, Repack: release.Repack, Languages: release.Languages,
 		OriginalTitle: releaseTitle, OriginalFilename: originalStem(videoFile),
+	}
+	if strings.Contains(strings.ToLower(format), "{absolute") {
+		ctx.Absolute = s.absoluteNumber(series, ep)
 	}
 	mode, replacement := s.illegalCharSettings()
 	// The show folder and the episode file use the title in the info language.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import Icon from './Icon'
+import { applyLook } from '../look'
 
 type Theme = 'light' | 'dark'
 
@@ -25,6 +26,7 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     applyTheme(theme)
+    applyLook() // the browser bar colour follows light or dark
     try {
       localStorage.setItem(STORAGE_KEY, theme)
     } catch {

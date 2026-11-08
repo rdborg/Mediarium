@@ -25,6 +25,8 @@ func (s *Server) notifyEvent(eventType, title, message string) {
 
 // sendNotification sends a composed event to the targets that listen for it.
 func (s *Server) sendNotification(event notify.Event) {
+	// Open browsers refresh what they show; only the kind of event goes out.
+	s.publishEvent("activity", map[string]string{"type": event.Type})
 	if !s.cfg.PauseAutomation && s.holdForQuietHours(event, time.Now()) {
 		return
 	}

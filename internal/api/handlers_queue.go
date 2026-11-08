@@ -181,6 +181,7 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 	categories, _ := s.TorrentOpts.Categories()
 	namer := s.newQueueNamer(items)
 	preferred := s.preferredLanguage()
+	now := time.Now()
 	// Asked once for the whole list, and only when a row needs it.
 	var diskNote string
 	var held map[string]bool
@@ -245,6 +246,8 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 			p.Note = diskNote
 		case it.Status == queue.StatusFailed && held[nzbLinkHoldKey(it.NZBURL, it.ReleaseTitle)]:
 			p.Note = nzbLinkHeldNote
+		case it.Status == queue.StatusDownloading:
+			p.Note = s.stuckNote(it.ID, now)
 		}
 		out[i] = p
 	}

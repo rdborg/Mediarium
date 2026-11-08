@@ -151,6 +151,7 @@ func (s *Server) runMusicPipelineFrom(queueID, artistID, albumID int64, restore 
 		plain := plainerror.Message(stepErr)
 		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, plain)
 		noteDownloadFailure(queueID, label, fmt.Sprintf("/music/artist/%d", artistID), stepErr)
+		s.doctorNoteFailure(queueID, stepErr)
 		blocklisted := isBadRelease(stepErr) && s.blocklistAlbumRelease(albumID, releaseTitle, protocol, stepErr)
 		_ = s.MusicRepo.SetAlbumStatus(albumID, restore)
 		message := fmt.Sprintf("%s: %s", label, plain)
@@ -179,7 +180,11 @@ func (s *Server) runMusicPipelineFrom(queueID, artistID, albumID int64, restore 
 		if err := s.QueueRepo.SetStatus(queueID, queue.StatusDownloading, ""); err != nil {
 			return fail(err)
 		}
-		dir, err = s.prepareDownload(ctx, queueID, downloadURL, protocol)
+		if protocol == indexers.ProtocolSoulseek {
+			dir, err = s.downloadSoulseek(ctx, queueID, downloadURL)
+		} else {
+			dir, err = s.prepareDownload(ctx, queueID, downloadURL, protocol)
+		}
 		if err != nil {
 			return fail(err)
 		}

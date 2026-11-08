@@ -213,6 +213,10 @@ func (s *Server) watchedJob(ctx context.Context) {
 	}
 	rules := s.cleanupRules()
 	lastClean, _ := time.Parse(time.RFC3339, st.LastClean)
+	if s.lifecycleEnabled() {
+		s.lifecycleTick(ctx) // the lifecycle rules replace the plain cleanup while they are on
+		return
+	}
 	if rules.Enabled && time.Since(lastClean) >= cleanupRunEvery {
 		if _, err := s.runLibraryCleanup(rules, false, nil); err != nil {
 			slog.Info("cleanup: run failed", "err", err)

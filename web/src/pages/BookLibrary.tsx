@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useOpenFromList } from '../useTwoPane'
 import { api, isRequested, type Book, type BookFormat, type BookFound, type QueueItem } from '../api'
 import BookImport from '../components/BookImport'
 import { listenPath, openBookApp, readPath } from '../bookshelf/open'
@@ -60,6 +61,7 @@ export default function BookLibrary({
   reload: () => void
   admin: boolean
 }) {
+  const openFromList = useOpenFromList()
   // The search and filters live in the address, so Back from a book returns to the same list.
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [ui, patchUi] = useUrlState({ bq: '', bf: 'all', bs: 'added' })
@@ -171,7 +173,7 @@ export default function BookLibrary({
             return (
               <PosterCard
                 key={b.id}
-                to={`/book/${b.id}`}
+                to={openFromList(`/book/${b.id}`)}
                 kind={format === 'audiobook' ? 'audiobook' : 'book'}
                 poster={b.coverUrl}
                 title={b.title}

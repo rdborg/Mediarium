@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/queue"
 	"github.com/rdborg/mediarium/internal/settings"
 )
@@ -168,7 +169,7 @@ func (s *Server) resumeDepsFor() resumeDeps {
 		Builtin: func(it queue.Item) bool {
 			switch it.Protocol {
 			case queue.ProtocolTorrent:
-				return s.torrentReleasesOn() && !s.downloadClientOn() && !s.debridOn()
+				return s.torrentReleasesOn() && s.itemTorrentRoute(it) == indexers.RouteBuiltin
 			case queue.ProtocolUsenet:
 				return true
 			}

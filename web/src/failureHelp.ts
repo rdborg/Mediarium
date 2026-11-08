@@ -9,7 +9,7 @@ export interface FailureHelp {
 
 const has = (msg: string, ...words: string[]) => words.some((w) => msg.includes(w))
 
-export function failureHelp(error: string | undefined, protocol: 'usenet' | 'torrent' | undefined): FailureHelp | null {
+export function failureHelp(error: string | undefined, protocol: 'usenet' | 'torrent' | 'soulseek' | undefined): FailureHelp | null {
   const msg = (error ?? '').toLowerCase()
   if (!msg) return null
   if (has(msg, "couldn't be found on your usenet servers", 'articles were not found', 'missing articles')) {

@@ -11,6 +11,10 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0b0d18" />
+    <!-- The installed app is drawn under the status strip (clock, signal, battery) instead of leaving a black bar; the page keeps its own content clear of it (fold.ts, fold.css). -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <!-- Loading screen shown before the app's code arrives (same look as components/Splash.tsx:
          the shapes and their places match components/AmbientBackdrop.tsx). Self-contained: no
          stylesheet of the app is needed to draw it. -->

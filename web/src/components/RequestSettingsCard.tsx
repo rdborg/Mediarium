@@ -50,6 +50,15 @@ export default function RequestSettingsCard() {
   if (!data) return null
   const o = data.options
   const askers = data.accounts.filter((a) => a.mustAsk)
+  const members = data.accounts.filter((a) => !a.admin)
+  // The ratings an age limit can be set to; each stands for its whole level (PG-13 and TV-14 count the same).
+  const ageChoices: { value: string; label: string }[] = [
+    { value: '', label: t('No age limit') },
+    { value: 'G', label: t('Up to G and TV-G (all ages)') },
+    { value: 'PG', label: t('Up to PG and TV-PG') },
+    { value: 'PG-13', label: t('Up to PG-13 and TV-14') },
+    { value: 'R', label: t('Up to R and TV-MA') },
+  ]
   const suggested = profiles.find((p) => /4k|2160/i.test(p.name))
   return (
     <fieldset className="group span-all rp-card">
@@ -144,6 +153,60 @@ export default function RequestSettingsCard() {
           </table>
         )}
       </div>
+
+      {members.length > 0 && (
+        <div className="rp-block">
+          <h3 className="rp-h3"><TipLabel help="accounts#the-request-portal-settings">{t('Age limits')}</TipLabel></h3>
+          <p className="field-hint">{t('The most mature rating a person may ask for or add. Ratings from different countries are put on one scale, so PG-13 and TV-14 count the same. A title with no rating is allowed unless you tick the box.')}</p>
+          <table className="rp-people rp-age">
+            <thead>
+              <tr>
+                <th>{t('Person')}</th>
+                <th>{t('Highest rating')}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((a) => {
+                const known = ageChoices.some((c) => c.value === a.maxRating)
+                return (
+                  <tr key={a.id}>
+                    <td>{a.name}</td>
+                    <td>
+                      <select
+                        value={a.maxRating}
+                        disabled={busy}
+                        aria-label={t('Age limit for {name}', { name: a.name })}
+                        onChange={(e) => void save({ ageLimits: { [String(a.id)]: { maxRating: e.target.value, blockUnrated: e.target.value === '' ? false : a.blockUnrated } } }, t('Saved.'))}
+                      >
+                        {!known && <option value={a.maxRating}>{t('Up to {rating}', { rating: a.maxRating })}</option>}
+                        {ageChoices.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      {a.maxRating !== '' && (
+                        <label className="rp-unrated">
+                          <input
+                            type="checkbox"
+                            checked={a.blockUnrated}
+                            disabled={busy}
+                            onChange={(e) => void save({ ageLimits: { [String(a.id)]: { maxRating: a.maxRating, blockUnrated: e.target.checked } } }, t('Saved.'))}
+                          />
+                          {t('Also refuse titles with no rating')}
+                        </label>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="rp-block">
         <h3 className="rp-h3"><TipLabel help="accounts#the-request-portal-settings">{t('4K requests')}</TipLabel></h3>

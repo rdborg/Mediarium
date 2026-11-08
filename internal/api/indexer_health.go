@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -84,6 +86,7 @@ type indexerStatPayload struct {
 	Failures    int     `json:"failures"`
 	Results     int     `json:"results"`
 	Grabs       int     `json:"grabs"`
+	GrabBytes   int64   `json:"grabBytes"`   // the size of the releases grabbed
 	SuccessRate float64 `json:"successRate"` // 0 to 1, -1 when it was not searched
 	PausedUntil string  `json:"pausedUntil,omitempty"`
 }
@@ -91,6 +94,20 @@ type indexerStatPayload struct {
 type indexerStatsPayload struct {
 	Days     int                  `json:"days"`
 	Indexers []indexerStatPayload `json:"indexers"`
+	// Servers is what each Usenet server delivered to the built-in
+	// downloader over the same days (#167).
+	Servers []serverTrafficPayload `json:"servers"`
+}
+
+// serverTrafficPayload is one Usenet server's line on the Statistics page.
+type serverTrafficPayload struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Host     string `json:"host"`
+	Enabled  bool   `json:"enabled"`
+	Bytes    int64  `json:"bytes"`
+	Articles int64  `json:"articles"`
+	Missing  int64  `json:"missing"` // articles the server didn't have
 }
 
 // statsDays is the period the Statistics page adds up.
@@ -120,7 +137,7 @@ func (s *Server) handleIndexerStats(w http.ResponseWriter, r *http.Request) {
 		inst := byID[st.IndexerID]
 		p := indexerStatPayload{
 			ID: st.IndexerID, Name: st.Name, Protocol: string(inst.Protocol), Enabled: inst.Enabled,
-			Queries: st.Queries, Failures: st.Failures, Results: st.Results, Grabs: st.Grabs, SuccessRate: st.SuccessRate(),
+			Queries: st.Queries, Failures: st.Failures, Results: st.Results, Grabs: st.Grabs, GrabBytes: st.GrabBytes, SuccessRate: st.SuccessRate(),
 		}
 		if until, paused := tr.PausedUntil(st.IndexerID); paused {
 			p.PausedUntil = until.UTC().Format(time.RFC3339)
@@ -129,5 +146,25 @@ func (s *Server) handleIndexerStats(w http.ResponseWriter, r *http.Request) {
 	}
 	// The busiest first.
 	sort.SliceStable(out.Indexers, func(i, j int) bool { return out.Indexers[i].Queries > out.Indexers[j].Queries })
+	out.Servers = []serverTrafficPayload{}
+	_ = s.ClientRepo.SaveTraffic(now) // what was counted in the last minute, too
+	if servers, err := s.ClientRepo.TrafficSince(now.AddDate(0, 0, -(indexerStatsDays - 1))); err == nil {
+		for _, t := range servers {
+			out.Servers = append(out.Servers, serverTrafficPayload{ID: t.ServerID, Name: t.Name, Host: t.Host, Enabled: t.Enabled, Bytes: t.Bytes, Articles: t.Articles, Missing: t.Missing})
+		}
+	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// serverTrafficJob saves what each Usenet server delivered, and once a day
+// forgets days older than the indexer counters keep.
+func (s *Server) serverTrafficJob(context.Context) {
+	now := time.Now()
+	if err := s.ClientRepo.SaveTraffic(now); err != nil {
+		slog.Warn("statistics: save usenet server traffic", "err", err)
+	}
+	if day := now.UTC().Format("2006-01-02"); day != s.trafficPrunedOn { // the scheduler runs one job at a time
+		s.trafficPrunedOn = day
+		s.ClientRepo.PruneTraffic(now, indexers.StatsKeepDays)
+	}
 }

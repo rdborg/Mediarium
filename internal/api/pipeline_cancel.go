@@ -36,6 +36,7 @@ func (s *Server) Shutdown(wait time.Duration) {
 	if s.dispatch != nil {
 		s.dispatch.Stop()
 	}
+	s.archiverStop(time.Second) // ends a running Channel archiver check; yt-dlp is stopped with it
 	s.pipelines.shutdown(0) // flag and cancel them first, so stopping the torrents is not read as a failure
 	stopped := make(chan struct{})
 	go func() {

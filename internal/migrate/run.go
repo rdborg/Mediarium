@@ -336,6 +336,12 @@ func (im *Importer) importMovie(ctx context.Context, mp moviePlan) (outcome, rea
 				slog.Warn("migrate: set movie profile", "movie", m.Title, "err", err)
 			}
 		}
+		// Keep the date it was added there, so "wanted for a long time" (#168) tells the truth.
+		if keepAdded(mp.movie.Added) {
+			if err := lib.SetAddedAt("movie", m.ID, mp.movie.Added); err != nil {
+				slog.Warn("migrate: keep the date the movie was added", "movie", m.Title, "err", err)
+			}
+		}
 		outcome = OutcomeAdded
 		im.activity(m.ID, 0, m.Title+" added to library from Radarr")
 	}
@@ -439,6 +445,11 @@ func (im *Importer) importSeries(ctx context.Context, sp seriesPlan) (outcome, r
 		}, eps)
 		if err != nil {
 			return OutcomeFailed, err.Error(), 0
+		}
+		if keepAdded(sp.series.Added) {
+			if err := lib.SetAddedAt("series", series.ID, sp.series.Added); err != nil {
+				slog.Warn("migrate: keep the date the show was added", "series", series.Title, "err", err)
+			}
 		}
 		if sp.item.ProfileID != 0 {
 			if err := lib.SetSeriesProfile(series.ID, sp.item.ProfileID); err != nil {
@@ -611,3 +622,7 @@ func joinReason(a, b string) string {
 	}
 	return a + "; " + b
 }
+
+// keepAdded reports whether a date another app gives for when a title was
+// added can be kept: one that is set and not in the future.
+func keepAdded(at time.Time) bool { return !at.IsZero() && at.Before(time.Now()) }

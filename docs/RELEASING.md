@@ -154,6 +154,22 @@ The workflows also pin every action to a full commit (with the version as a comm
 
 Check a release by hand: `sha256sum -c sha256sums.txt` verifies the archives against the list. The signature is base64 of an ed25519 signature over the exact bytes of `sha256sums.txt`.
 
+### Checking a release is genuine
+
+From 4.0 on, every release also carries proof of where it was built, signed without a key anyone has to keep: GitHub hands the workflow a short-lived Sigstore certificate that names this repository, the workflow and the tag. Nothing to set up; the workflow has `id-token: write` and `attestations: write` for it.
+
+- **The archives** have a build attestation, listed on the repository's **Attestations** page. Check one with the GitHub CLI:
+  ```
+  gh attestation verify mediarium_4.0.0_linux_amd64.tar.gz --repo rdborg/Mediarium
+  ```
+- **The SBOM** (the list of everything the program is built from, in SPDX JSON) is attached to each release as `mediarium-<version>.spdx.json`, made from the source with syft, and attested for every archive.
+- **The Docker images** (normal and `-full`) are signed with cosign and carry the same build attestation on ghcr.io:
+  ```
+  cosign verify ghcr.io/rdborg/mediarium:4.0.0     --certificate-identity-regexp '^https://github.com/rdborg/Mediarium/.github/workflows/release.yml@refs/tags/v'     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  gh attestation verify oci://ghcr.io/rdborg/mediarium:4.0.0 --repo rdborg/Mediarium
+  ```
+  Each image also has BuildKit's own SBOM and build record inside: `docker buildx imagetools inspect ghcr.io/rdborg/mediarium:4.0.0 --format '{{ json .SBOM }}'`.
+
 ## Pushing a test build
 
 `tools/push-update.sh` builds the committed `HEAD` in Docker (the repository's own `Dockerfile`, so the interface is included), stamps the version and the app-wide keys from the git-ignored `.env` (`TMDB_API_KEY`, `OPENSUBTITLES_API_KEY`, `TRAKT_CLIENT_ID`; they are passed to Docker through the environment and never printed), computes the SHA-256 and uploads it to an install that has **Allow updates pushed through the API** switched on. It is for the maintainer, for testing a build on a real install before a release, and for installs that cannot rebuild their container.

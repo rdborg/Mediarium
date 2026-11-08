@@ -122,6 +122,10 @@ Using SABnzbd or NZBGet instead? See [SABnzbd and NZBGet](#sabnzbd-and-nzbget).
 
 Connections close when a download finishes, fails or is cancelled, and when you remove or switch off a server or change its address or login. Lowering the number of connections takes effect at once, even for a download that's running.
 
+### How much each provider delivered
+
+**Settings > System > Statistics** has a **Usenet providers, last 30 days** card (administrators only): for each news server, how much it delivered, how many articles, and how many it didn't have (those were asked for on the next server). It helps to see whether a block account or a second plan is worth keeping. Only the built-in downloader counts; SABnzbd and NZBGet don't say which server served what. The counts are saved every minute and kept for 90 days, and a server that is removed takes its counts with it. Script: `servers` in `GET /api/stats/indexers` (#167, nexus4004).
+
 ## What is checked when you save
 
 Every field in Settings points out a mistake under the box when you leave it, or when you press the button, before anything is sent. The server checks the same things, so a script can't save a value the page would refuse.
@@ -273,6 +277,16 @@ Not supported: the downloader's own post-processing scripts are left to it, Medi
 
 Scripts (administrators): `GET` and `PUT /api/usenet-client` (the secrets are `apiKey` and `password`, write only), `POST /api/usenet-client/test`, `GET /api/usenet-client/jobs?scope=mine|all`, `POST /api/usenet-client/jobs/{id}/pause|resume|remove|remove-files`.
 
+## Soulseek for music
+
+Music can also come from [Soulseek](https://www.slsknet.org), through your own [slskd](https://github.com/slskd/slskd), the Soulseek client with a web page. Mediarium never connects to Soulseek itself: slskd does, with your Soulseek account and the files you share.
+
+- **Setting it up.** Run slskd, make an API key with the `readwrite` role (under `web > authentication > api_keys` in `slskd.yml`), and mount slskd's downloads folder into Mediarium's container too. Then, under **Settings > Downloading > Download rules > Soulseek through slskd**, enter slskd's address (for example `http://192.168.1.10:5030`), the key and the downloads folder as Mediarium sees it. **Save** checks that slskd answers with the key and that Mediarium can see the folder. The card is there while music is switched on.
+- **Finding an album.** **Choose a release** on an album also asks Soulseek, alongside your indexers (a Soulseek search takes up to half a minute). Each user's folder with the album's tracks is one release, named after the folder with its format (FLAC, FLAC 24bit, MP3 320...), and the source says **Soulseek** and the user's name. Folders with the whole album come first, then users with a free upload slot, a short queue and a fast connection. A folder with fewer tracks than the album, or a user whose upload slots are all busy, says so.
+- **Downloading.** Picking one asks slskd for that user's audio files. Activity follows the download as any other. Soulseek users often have queues, so a download may wait: Mediarium gives a user up to 6 hours to start sending and 30 minutes without any data once it has started, then puts the release on the blocklist and you can pick another. If the user goes offline, or some files fail, the same happens.
+- **Importing.** When every file is in slskd's folder, Mediarium imports them like any album: tagged, renamed and put in your music folder. The files in slskd's folder stay where they are, so slskd keeps sharing them. Delete them there when you want the room back.
+- Automatic searches don't use Soulseek yet: it is for **Choose a release**.
+
 ## Seeding
 
 A finished torrent is imported straight away and keeps seeding in the background until its **seeding goal** is met: the seed ratio limit (`torrent.seed_ratio_limit`, uploaded divided by size, for example 2.0) or the seed time limit (`torrent.seed_time_limit_h`, hours), whichever comes first. A torrent indexer can have rules of its own, and a torrent from it follows those instead (see [Seeding rules for one indexer](#seeding-rules-for-one-indexer)). With both empty, a torrent seeds until Mediarium stops or torrents are switched off. Empty is the default, and it is what a `0` in an older version became when you updated, so nothing changed for you. A `0` in either box now means **don't seed**: the torrent is stopped as soon as it has downloaded and the files stay for the import (a hardlinked library file is not affected). Some trackers need you to share, and private trackers may ban accounts that don't seed. Seeding doesn't survive a restart. When the goal is met the torrent stops and its data is deleted from the downloads folder (see below).
@@ -398,6 +412,12 @@ A torrent whose download finished but then failed (the import was refused, the f
 The times can be changed under **Settings > Downloading > Torrents > Stalled torrents**, in **Give up on a torrent that gets no data for**: 1 hour to 72 hours, **never**, or the usual time. One choice covers the built-in client, download clients and debrid services (`torrentStallHours` in `PUT /api/settings`; `downloads.stall_hours`; absent or -1 is the usual time, 0 is never).
 
 A torrent you want to give up on sooner can be dealt with by hand on **Activity > Download clients**: **Give up and search again** blocklists the release, removes the torrent and its files and searches for another.
+
+## When something on your computer is the trouble
+
+Some failures aren't the release's fault but your computer's: a folder Mediarium may not write to, a full disk, or a network share (NFS, SMB) that dropped away for a moment. Those downloads are tried again by themselves, from the files already downloaded: after 10 minutes, then 30 minutes, then 2 hours. The history of the title says when the next try is. After the third try it stays failed and the history says "Tried again 3 times by itself and it still fails". Fix the cause, then press **Retry**. A download you retry, remove or blocklist yourself first is left alone. A release that is broken goes the other way: it is blocklisted and another one is searched for, as above.
+
+**Downloads that stop moving.** When a running download hasn't moved for half an hour (in the built-in clients, a download client, SABnzbd, NZBGet or a debrid service), its row in Activity says "Nothing has moved for 45 minutes" with what to check. Mediarium doesn't stop a Usenet job in SABnzbd or NZBGet by itself: their own schedules can hold the whole queue for hours, which looks the same from outside.
 
 ## Speed and space
 

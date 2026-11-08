@@ -38,6 +38,7 @@ func (r *Repo) MovieCounts(ctx context.Context) (MovieCounts, error) {
 // left out).
 type SeriesCounts struct {
 	Series             int
+	Anime              int // of those, the anime shows
 	Episodes           int // the episodes a show counts: not unmonitored specials without a file
 	EpisodesDownloaded int
 }
@@ -47,7 +48,7 @@ type SeriesCounts struct {
 // it is monitored or has its file.
 func (r *Repo) SeriesCounts(ctx context.Context) (SeriesCounts, error) {
 	var c SeriesCounts
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM series WHERE copy_of IS NULL`).Scan(&c.Series); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(CASE WHEN series_type = 'anime' THEN 1 ELSE 0 END), 0) FROM series WHERE copy_of IS NULL`).Scan(&c.Series, &c.Anime); err != nil {
 		return SeriesCounts{}, fmt.Errorf("count series: %w", err)
 	}
 	err := r.db.QueryRowContext(ctx, `SELECT

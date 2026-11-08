@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import BrandMark from './BrandMark'
 import Icon, { type IconName } from './Icon'
 import type { ItemState } from './state'
+import type { OutsideScores } from '../api'
 import { t } from '../i18n'
 import { coverThumb, isMusicCover, THUMB_SIDE } from '../coverThumb'
 
@@ -92,11 +93,13 @@ export function EagerImagesProvider({ children, afterMs = 1500 }: { children: Re
 
 // A TMDB poster comes in several sizes. A card is a couple of hundred pixels wide, so the
 // browser gets the 342 wide one, and the 500 wide one only on a sharp screen.
+// The address is TMDB's own, or this server's copy of it (/api/img/tmdb/w500/...).
+const W500 = /\/(t\/p|api\/img\/tmdb)\/w500\//
 function cardPoster(url: string, width: number): string {
-  return url.replace('/t/p/w500/', `/t/p/w${width}/`)
+  return url.replace(W500, `/$1/w${width}/`)
 }
 function cardSrcSet(url: string): string | undefined {
-  return url.includes('/t/p/w500/') ? `${cardPoster(url, 342)} 342w, ${url} 500w` : undefined
+  return W500.test(url) ? `${cardPoster(url, 342)} 342w, ${url} 500w` : undefined
 }
 
 export default function PosterCard({
@@ -113,6 +116,7 @@ export default function PosterCard({
   state,
   genres,
   rating,
+  scores,
   kind,
   progress,
   ribbon,
@@ -132,6 +136,8 @@ export default function PosterCard({
   state?: ItemState
   genres?: string[]
   rating?: number
+  // IMDb, Rotten Tomatoes and Metacritic, when kept (#169): the card shows Rotten Tomatoes, or IMDb without it.
+  scores?: OutsideScores
   kind?: CardKind
   ribbon?: CardRibbon
   progress?: { pct: number; label?: string }
@@ -139,6 +145,9 @@ export default function PosterCard({
   // Remember which address failed, so a poster that changes later (an import finishes) gets its own try.
   const [brokenSrc, setBrokenSrc] = useState<string | undefined>()
   const eager = useContext(EagerImages)
+  // The card whose page is open beside the list (the tablet layout) is marked.
+  const here = useLocation().pathname
+  const current = !!to && !selection && to.split('?')[0] === here
   // A music cover on this server comes as a small thumbnail (the server keeps it), always at low priority so a
   // grid of them never holds up a click.
   const thumb = isMusicCover(poster)
@@ -153,7 +162,7 @@ export default function PosterCard({
   const wanted = !!state && WANTED.has(state.key)
   const live = state?.key === 'downloading'
   const pct = progress?.pct ?? (live ? Number(/(\d+)%/.exec(state.label)?.[1] ?? NaN) : NaN)
-  const cls = ['pcard', dim && 'dim', selection?.selected && 'selected', kind && `kind-${kind}`, state && `st-${state.key}`, wanted && 'is-wanted', live && 'is-live'].filter(Boolean).join(' ')
+  const cls = ['pcard', dim && 'dim', selection?.selected && 'selected', current && 'pcard-current', kind && `kind-${kind}`, state && `st-${state.key}`, wanted && 'is-wanted', live && 'is-live'].filter(Boolean).join(' ')
   return (
     <article className={cls}>
       {wanted && (
@@ -171,7 +180,7 @@ export default function PosterCard({
             </span>
           </button>
         ) : to ? (
-          <Link to={to} className="pcard-link" aria-label={title}>
+          <Link to={to} className="pcard-link" aria-label={title} aria-current={current ? 'page' : undefined}>
             {image}
           </Link>
         ) : (
@@ -187,6 +196,15 @@ export default function PosterCard({
         {rating ? (
           <span className="pcard-rating" title={t('Rating')}>
             <Icon name="star" size={11} /> {rating.toFixed(1)}
+            {scores?.rottenTomatoes ? (
+              <span className="pcard-score" title={t('Rotten Tomatoes, critics')}>
+                RT {scores.rottenTomatoes}%
+              </span>
+            ) : scores?.imdb ? (
+              <span className="pcard-score" title="IMDb">
+                IMDb {scores.imdb.toFixed(1)}
+              </span>
+            ) : null}
           </span>
         ) : null}
         {ribbon && (

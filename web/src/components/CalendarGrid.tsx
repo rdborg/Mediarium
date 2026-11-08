@@ -44,7 +44,7 @@ const LEGEND_LABEL: Record<GlyphKind, string> = { movie: t('Movies'), tv: t('TV'
 const STATUS_LABEL: Record<CalendarEntry['status'], string> = { downloaded: t('Have it'), downloading: t('Downloading'), missing: t('Waiting') }
 
 // A movie that is on the calendar twice says which of its dates this is.
-const releaseLabel = (e: CalendarEntry) => (e.release === 'cinema' ? t('Cinema') : e.release === 'digital' ? t('Digital') : undefined)
+const releaseLabel = (e: CalendarEntry) => (e.release === 'cinema' ? t('Cinema') : e.release === 'digital' ? t('Digital') : e.release === 'both' ? t('Cinema and digital') : undefined)
 
 // "S03E09 · Second Service" splits into the code and the episode's name.
 function splitSubtitle(e: CalendarEntry): { code?: string; rest?: string } {

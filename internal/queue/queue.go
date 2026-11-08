@@ -44,8 +44,9 @@ const (
 type Protocol string
 
 const (
-	ProtocolUsenet  Protocol = "usenet"
-	ProtocolTorrent Protocol = "torrent"
+	ProtocolUsenet   Protocol = "usenet"
+	ProtocolTorrent  Protocol = "torrent"
+	ProtocolSoulseek Protocol = "soulseek" // music through slskd
 )
 
 // Priority orders the download line. Something a person asked for goes before

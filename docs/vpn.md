@@ -122,6 +122,13 @@ Docker gives a container IPv4 only unless you turn IPv6 on. If the server addres
 
 When a host name has both kinds of address and your container can reach IPv6, Mediarium tries IPv4 first and switches to IPv6 if the server doesn't answer within a few seconds.
 
+### Speed
+
+The built-in VPN runs entirely inside Mediarium, so it needs no special container rights, and the tunnel itself is fast (well over 100 MB/s on a home server). What sets the speed is the path to the VPN server: the further away it is, the more a lost packet now and then slows each connection down. Mediarium's tunnel uses CUBIC, as Linux does, so a connection recovers from a loss quickly. Two things help most:
+
+- **A VPN server near you.** Pick one in your own country or the next one over.
+- **More peers for torrents.** Behind a VPN, other peers can only connect to you through a forwarded port, and most providers don't forward one. Then only the peers you reach yourself count, and a torrent with few peers stays slow. A download client outside Mediarium gets peers that connect to it as well, which is why it can be faster on the same line.
+
 ## The kill switch
 
 The switch is called **Kill switch (optional): only run torrents while a VPN is connected**.

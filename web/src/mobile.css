@@ -153,6 +153,10 @@
 @media (max-width: 900px) {
   .menu-pop { position: fixed; top: 64px; right: 10px; left: auto; }
 }
+/* with the bottom bar the menu stops above it instead of running under it */
+@media (max-width: 700px) {
+  .menu-pop { max-height: calc(100dvh - 64px - var(--bn-h, 0px) - 12px); }
+}
 
 /* ==== Layout pass: phones ================================================ */
 @media (max-width: 640px) {
@@ -262,3 +266,55 @@
   .prog-round { width: 44px; height: 44px; }
   .rail-head .rail-more { padding-block: 10px; margin-block: -6px; }
 }
+
+/* ==== Phones: the bar along the bottom (V4 B1) ==========================
+   Home, Discover, Library, Activity and More, where a thumb reaches them.
+   More opens the menu, so the header's menu button goes. The open page wears
+   its section colour; nothing else glows. */
+.bottom-nav { display: none; }
+@media (max-width: 700px) {
+  :root { --bn-h: calc(60px + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
+    height: var(--bn-h); padding: 0 max(4px, env(safe-area-inset-left, 0px)) env(safe-area-inset-bottom, 0px) max(4px, env(safe-area-inset-right, 0px));
+    background: var(--bg); border-top: 1px solid var(--border);
+  }
+  .bottom-nav > a, .bottom-nav > button {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 44px;
+    padding: 6px 2px 4px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--text-dim);
+    font: inherit; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.01em; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .bottom-nav .bn-label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bottom-nav .bn-ico { position: relative; display: grid; place-items: center; width: 48px; height: 28px; border-radius: 4px 14px 14px 14px; transition: background 0.16s ease, color 0.16s ease; }
+  .bottom-nav .active { color: var(--text); }
+  .bottom-nav .active .bn-ico { color: var(--nc, var(--accent)); background: color-mix(in srgb, var(--nc, var(--accent)) 16%, transparent); }
+  .bottom-nav :focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 10px; }
+  .bn-count {
+    position: absolute; top: -5px; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+    font-size: 0.62rem; font-weight: 700; line-height: 17px; text-align: center; font-variant-numeric: tabular-nums;
+    background: var(--c-activity); color: #06101f; box-shadow: 0 0 0 2px var(--bg);
+  }
+  /* the page, the music bar and Back to top keep clear of it */
+  .content { padding-bottom: calc(var(--bn-h) + 16px); }
+  .mp-dock { bottom: calc(var(--bn-h) + 8px); }
+  .to-top { bottom: calc(var(--bn-h) + 12px); }
+  body.has-player .content { padding-bottom: calc(var(--bn-h) + 188px); }
+  body.has-player .to-top { bottom: calc(var(--bn-h) + 196px); }
+  .topbar .menu-button { display: none; }
+  /* a pop-up has the screen to itself */
+  body:has(.modal-backdrop:not([hidden])) .bottom-nav { display: none; }
+}
+
+/* ==== Phones: pop-ups as sheets (V4 B2) =================================
+   They rise from the bottom edge, clear of the home bar; the Back button
+   closes them (sheetBack.ts). The command palette stays at the top, where
+   the keyboard doesn't cover it. */
+@media (max-width: 640px) {
+  .modal-backdrop:not(.palette-backdrop) > .modal {
+    max-height: 92dvh; padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: sheet-up 0.32s cubic-bezier(0.05, 0.7, 0.1, 1) both;
+  }
+}
+@keyframes sheet-up { from { transform: translateY(32%); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .modal-backdrop > .modal { animation: none; } }
+

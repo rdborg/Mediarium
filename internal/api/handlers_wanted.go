@@ -247,7 +247,8 @@ func (s *Server) handleSeriesSearchNow(w http.ResponseWriter, r *http.Request) {
 	}
 	var req seriesSearchNowRequest
 	_ = decodeJSON(r, &req) // an empty body means the whole series
-	if _, err := s.MovieRepo.GetSeries(id); errors.Is(err, sql.ErrNoRows) {
+	sr, err := s.MovieRepo.GetSeries(id)
+	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "That show isn't in your library.")
 		return
 	} else if err != nil {
@@ -268,6 +269,8 @@ func (s *Server) handleSeriesSearchNow(w http.ResponseWriter, r *http.Request) {
 	msg := "Nothing suitable was found right now."
 	if n > 0 {
 		msg = fmt.Sprintf("Started %s. You can follow the progress in Activity.", plural(n, "download"))
+	} else if hint := foreignShowHint(sr); hint != "" {
+		msg += " " + hint
 	}
 	writeJSON(w, http.StatusOK, searchNowResponse{Grabbed: n, Message: msg})
 }

@@ -44,6 +44,8 @@ import * as check from '../validate'
 import { FieldError, FormProblem, useValidation, type Errors } from '../useValidation'
 import { chooseLanguage, currentLanguage, LANGUAGES, t, tc, tx, type Lang } from '../i18n'
 import AmbientBackdrop from '../components/AmbientBackdrop'
+import TheTVDBCard from '../components/TheTVDBCard'
+import OMDbCard from '../components/OMDbCard'
 
 // First-run onboarding wizard: linear, can't be skipped, each
 // step validated before moving on. Every step is also independently
@@ -143,16 +145,17 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
     typesLoaded.current = true
     api
       .modules()
-      .then((m) => setChosen({ movies: m.movies?.enabled !== false, tv: m.tv?.enabled !== false, music: m.music?.enabled === true, ebooks: m.ebooks?.enabled === true, audiobooks: m.audiobooks?.enabled === true }))
+      .then((m) => setChosen({ movies: m.movies?.enabled !== false, tv: m.tv?.enabled !== false, music: m.music?.enabled === true, ebooks: m.ebooks?.enabled === true, audiobooks: m.audiobooks?.enabled === true, anime: m.anime?.enabled === true, lifecycle: m.lifecycle?.enabled === true }))
       .catch(() => undefined)
   }, [step])
   function toggleType(key: keyof Chosen) {
-    if (chosen[key] && Object.values({ ...chosen, [key]: false }).every((on) => !on)) {
+    if (key !== 'anime' && key !== 'lifecycle' && chosen[key] && nothingChosen({ ...chosen, [key]: false })) {
       setLastOneHint(true)
       return
     }
     setLastOneHint(false)
-    setChosen({ ...chosen, [key]: !chosen[key] })
+    // The anime library goes with TV.
+    setChosen({ ...chosen, [key]: !chosen[key], ...(key === 'tv' && chosen.tv ? { anime: false } : {}) })
   }
 
   const [svc, setSvc] = useState<SettingsData | null>(null)
@@ -351,7 +354,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
         await api.putSettings({ legalAcknowledged: true })
         legalSaved.current = true
       }
-      await api.setModules({ movies: chosen.movies, tv: chosen.tv, music: chosen.music, ebooks: !!chosen.ebooks, audiobooks: !!chosen.audiobooks })
+      await api.setModules({ movies: chosen.movies, tv: chosen.tv, music: chosen.music, ebooks: !!chosen.ebooks, audiobooks: !!chosen.audiobooks, anime: !!chosen.anime && chosen.tv, lifecycle: !!chosen.lifecycle })
       loadSvc()
       setStep(S.paths)
     })
@@ -593,6 +596,8 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
                 <ServiceKeyCard service="tmdb" {...TMDB_COPY} builtIn={false} configured={svc.hasTmdbApiKey} onSaved={loadSvc} />
               )}
               <InfoLanguageCard />
+              {chosen.tv && <TheTVDBCard />}
+              {(chosen.movies || chosen.tv) && <OMDbCard />}
               {svc.openSubtitlesKeyBuiltIn ? (
                 <ConnectedServiceCard
                   icon="chat"

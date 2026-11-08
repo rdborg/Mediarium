@@ -98,3 +98,21 @@ test('the Score column equals the sum of the parts listed in the details, fix bo
     assert.equal(w.total, w.formats.reduce((n, f) => n + f.score, 0) + w.terms.reduce((n, x) => n + x.score, 0) + w.fix)
   }
 })
+
+test('the checks and the ranking note come through, and ranking is no reason to skip', () => {
+  const w = whyOf({
+    checks: [{ kind: 'quality', state: 'ok', text: 'Quality: WEBDL-1080p.' }, { kind: 'size', state: 'bad', text: 'too big' }],
+    reasons: [{ kind: 'rank', text: 'It ranks above the next release.' }, { kind: 'size', text: 'too big' }],
+  })
+  assert.ok(w)
+  assert.equal(w.checks.length, 2)
+  assert.deepEqual(w.rank, ['It ranks above the next release.'])
+  assert.deepEqual(w.reasons.map((r) => r.kind), ['size'])
+})
+
+test('a release with only checks still has details', () => {
+  const w = whyOf({ checks: [{ kind: 'quality', state: 'ok', text: 'Quality: WEBDL-1080p.' }] })
+  assert.ok(w)
+  assert.equal(w.reasons.length, 0)
+  assert.equal(whyOf({ rejections: [], checks: [] }), null)
+})

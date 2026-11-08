@@ -17,6 +17,23 @@ import (
 	"time"
 )
 
+// SeasonSpan says which seasons a pack of several seasons or a whole series
+// holds: from the first season to the last, where to is 0 when the name says
+// "complete" without naming the seasons. ok is false for anything else (an
+// episode, a single season, a name that says nothing of the kind).
+func (r Release) SeasonSpan() (from, to int, ok bool) {
+	if len(r.Episodes) > 0 || r.AirDate != "" {
+		return 0, 0, false
+	}
+	switch {
+	case r.SeasonTo > r.Season:
+		return r.Season, r.SeasonTo, true
+	case r.Complete && r.Season == 0 && !r.Special:
+		return 1, 0, true
+	}
+	return 0, 0, false
+}
+
 // parseCalls counts calls to Parse, so a test can show that a run parses each
 // release once.
 var parseCalls atomic.Int64
@@ -36,6 +53,9 @@ type Release struct {
 	YearLate   bool
 	Season     int   // 0 = not a TV release
 	SeasonTo   int   // last season of a pack of several (S01-S03 gives 3), else 0
+	// Complete is set when the name says it holds a whole series ("Complete.Series",
+	// "Complete.Collection", "All.Seasons"), with or without the seasons listed.
+	Complete bool
 	Episode    int   // 0 = season pack / not episode-specific
 	Episodes   []int // populated for multi-episode releases (e.g. E01E02)
 	Resolution string
@@ -170,6 +190,8 @@ var (
 		// several seasons: S01-S03, S01-03, Season 1-3. A name that already
 		// gave an episode keeps that episode's season.
 		{seasonWordRe, assignSeasonPack},
+		// "Complete.Series", "The.Complete.Collection", "All.Seasons": a whole show.
+		{completeRe, func(r *Release, _ []string) { r.Complete = true }},
 		{seasonPackRe, assignSeasonPack},
 		// Airdate style: 2021.05.14 or 2021-05-14
 		{airDateRe, func(r *Release, m []string) {
@@ -184,7 +206,8 @@ var (
 	titleWordBeforeYear = regexp.MustCompile(`(?i)^web\.(?:19|20)\d{2}(?:[.\-)\]]|$)`)
 	seasonEpisodeRe     = regexp.MustCompile(`(?i)[Ss]((?:19|20)\d{2}|\d{1,2})[._-]?([Ee]\d{1,3}(?:\.?[Ee]\d{1,3})*(?:-(?:[Ss]\d{1,2})?[Ee]?\d{1,3}\b)?)`)
 	crossEpisodeRe      = regexp.MustCompile(`(?i)\b(\d{1,2})x(\d{2,3})(?:-(?:(\d{1,2})x)?(\d{2,3}))?\b`)
-	seasonWordRe        = regexp.MustCompile(`(?i)\bSeason[. ]?(\d{1,2})(?:-(\d{1,2}))?\b`)
+	seasonWordRe        = regexp.MustCompile(`(?i)\bSeasons?[. ]?(\d{1,2})(?:(?:-|\.to\.|\.thru\.)(\d{1,2}))?\b`)
+	completeRe          = regexp.MustCompile(`(?i)\b(?:the\.)?(?:complete\.(?:tv\.)?(?:series|collection|show|box\.?set|seasons)|all\.seasons)\b`)
 	seasonPackRe        = regexp.MustCompile(`(?i)\bS(\d{1,2})(?:-S?(\d{1,2}))?\b`)
 
 	// junkSuffixRe is what posting tools add after the group ("-GRP-postbot",

@@ -45,3 +45,6 @@
 .search-page table td:last-child { border-radius: 0 12px 12px 0; text-align: right; }
 .search-page table tr:hover > td { background: color-mix(in srgb, var(--text) 5.5%, transparent); }
 .search-page table .badge { font-family: var(--font-mono); font-size: 0.64rem; font-weight: 500; letter-spacing: 0.06em; border-radius: 3px 8px 8px 8px; }
+
+/* Music search by artist, album or song (#143). */
+.search-page .search-by { margin: 0 0 16px; }

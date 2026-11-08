@@ -109,8 +109,8 @@ func (r *Repo) Create(inst Instance, secret Secrets) (Instance, error) {
 		return Instance{}, err
 	}
 	res, err := r.db.Exec(
-		`INSERT INTO indexers (name, definition_id, base_url, api_key_encrypted, protocol, enabled, kind, settings_json, secrets_encrypted, requests_per_day, priority_rank, min_seeders, extra_categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		inst.Name, inst.DefinitionID, inst.BaseURL, encAPIKey, string(inst.Protocol), inst.Enabled, string(inst.Kind), settingsJSON, encSecrets, max(0, inst.RequestsPerDay), ClampPriority(inst.Priority), ClampMinSeeders(inst.MinSeeders), inst.ExtraCategories.Encode(),
+		`INSERT INTO indexers (name, definition_id, base_url, api_key_encrypted, protocol, enabled, kind, settings_json, secrets_encrypted, requests_per_day, priority_rank, min_seeders, extra_categories, torrent_route) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		inst.Name, inst.DefinitionID, inst.BaseURL, encAPIKey, string(inst.Protocol), inst.Enabled, string(inst.Kind), settingsJSON, encSecrets, max(0, inst.RequestsPerDay), ClampPriority(inst.Priority), ClampMinSeeders(inst.MinSeeders), inst.ExtraCategories.Encode(), CleanTorrentRoute(inst.TorrentRoute),
 	)
 	if err != nil {
 		return Instance{}, fmt.Errorf("insert indexer: %w", err)
@@ -122,6 +122,7 @@ func (r *Repo) Create(inst Instance, secret Secrets) (Instance, error) {
 	inst.ID = id
 	inst.Priority = ClampPriority(inst.Priority)
 	inst.MinSeeders = ClampMinSeeders(inst.MinSeeders)
+	inst.TorrentRoute = CleanTorrentRoute(inst.TorrentRoute)
 	inst.Tracker = r.tracker
 	if inst.IsCardigann() {
 		inst.Cardigann = r.cardigann
@@ -148,8 +149,8 @@ func (r *Repo) Update(inst Instance, secret Secrets) error {
 		return err
 	}
 	res, err := r.db.Exec(
-		`UPDATE indexers SET name = ?, base_url = ?, api_key_encrypted = ?, settings_json = ?, secrets_encrypted = ?, enabled = ?, protocol = ?, kind = ?, requests_per_day = ?, min_seeders = ?, extra_categories = ? WHERE id = ?`,
-		inst.Name, inst.BaseURL, encAPIKey, settingsJSON, encSecrets, inst.Enabled, string(inst.Protocol), string(defaultKind(inst)), max(0, inst.RequestsPerDay), ClampMinSeeders(inst.MinSeeders), inst.ExtraCategories.Encode(), inst.ID,
+		`UPDATE indexers SET name = ?, base_url = ?, api_key_encrypted = ?, settings_json = ?, secrets_encrypted = ?, enabled = ?, protocol = ?, kind = ?, requests_per_day = ?, min_seeders = ?, extra_categories = ?, torrent_route = ? WHERE id = ?`,
+		inst.Name, inst.BaseURL, encAPIKey, settingsJSON, encSecrets, inst.Enabled, string(inst.Protocol), string(defaultKind(inst)), max(0, inst.RequestsPerDay), ClampMinSeeders(inst.MinSeeders), inst.ExtraCategories.Encode(), CleanTorrentRoute(inst.TorrentRoute), inst.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update indexer %d: %w", inst.ID, err)
@@ -162,7 +163,7 @@ func (r *Repo) Update(inst Instance, secret Secrets) error {
 	return nil
 }
 
-const indexerColumns = `id, name, definition_id, base_url, api_key_encrypted, protocol, enabled, kind, settings_json, secrets_encrypted, last_test_error, last_test_at, priority_rank, requests_per_day, min_seeders, extra_categories`
+const indexerColumns = `id, name, definition_id, base_url, api_key_encrypted, protocol, enabled, kind, settings_json, secrets_encrypted, last_test_error, last_test_at, priority_rank, requests_per_day, min_seeders, extra_categories, torrent_route`
 
 // List returns every configured indexer instance, secrets decrypted.
 func (r *Repo) List() ([]Instance, error) {
@@ -204,7 +205,7 @@ func (r *Repo) scan(sc scanner) (Instance, error) {
 		extraJSON             string
 	)
 	if err := sc.Scan(&inst.ID, &inst.Name, &inst.DefinitionID, &inst.BaseURL, &encAPIKey, &protocol, &inst.Enabled,
-		&kind, &settingsJSON, &encSecrets, &inst.LastTestError, &testAt, &inst.Priority, &inst.RequestsPerDay, &inst.MinSeeders, &extraJSON); err != nil {
+		&kind, &settingsJSON, &encSecrets, &inst.LastTestError, &testAt, &inst.Priority, &inst.RequestsPerDay, &inst.MinSeeders, &extraJSON, &inst.TorrentRoute); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Instance{}, err
 		}
@@ -212,6 +213,7 @@ func (r *Repo) scan(sc scanner) (Instance, error) {
 	}
 	inst.Tracker = r.tracker
 	inst.ExtraCategories = DecodeExtraCategories(extraJSON)
+	inst.TorrentRoute = CleanTorrentRoute(inst.TorrentRoute)
 	inst.Protocol = Protocol(protocol)
 	inst.Kind = Kind(kind)
 	inst.Kind = defaultKind(inst)

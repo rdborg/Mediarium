@@ -59,6 +59,10 @@ With the module on, music shows up next to movies and TV. Basic users can browse
 
 Search for the artist by name. A short description ("jazz", "UK rock band") tells artists with the same name apart. When you add one, Mediarium lists its **albums, EPs and singles**. Live albums, compilations, remixes, soundtracks and DJ mixes are left out unless you change that (see [Choosing what to show](#choosing-what-to-show)), so by default the list is the artist's own studio releases.
 
+### Searching by album or song
+
+On the **Music** tab of the search page, **Artists**, **Albums** and **Songs** pick what you search by. **Albums** finds albums, EPs and singles by their title. **Songs** finds the albums a song is on, so a soundtrack can be found by a song from the film ("Cornfield Chase" finds *Interstellar*); each card says which song it has. **Add** on an album opens the same dialog as for an artist, with **Only this album** picked. A soundtrack or compilation that isn't one of the artist's own albums is added to that artist all the same, as a wanted album. Scripts: `GET /api/music/search?type=album` or `type=song` (#143, SanketBaraiya).
+
 The Add dialog is the same everywhere you can add an artist (Discover and the header search), with these choices:
 
 | Choice | What is monitored |

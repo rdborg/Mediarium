@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import BackupCard from '../../components/BackupCard'
 import CloudBackupCard from '../../components/CloudBackupCard'
+import ConfigFileCard from '../../components/ConfigFileCard'
 import Icon from '../../components/Icon'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmProvider'
@@ -86,6 +87,7 @@ export default function BackupSettings() {
     <div className="settings-stack">
       <BackupCard />
       <CloudBackupCard />
+      <ConfigFileCard />
 
       <fieldset className="group alerts">
         <legend>

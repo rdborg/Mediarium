@@ -6,6 +6,8 @@ The page **Settings > Connections > Other apps** shows the addresses to use and 
 
 Chat programs and voice assistants that support MCP connect in a different way, with their own address and switch. See [mcp.md](./mcp.md).
 
+To see the speed and queue of the built-in downloaders in nzb360 and similar apps, Mediarium can also answer like SABnzbd and qBittorrent. See [download-apps.md](./download-apps.md).
+
 ## What to fill in
 
 Each app gets its own address, because Radarr and Sonarr use the same paths:

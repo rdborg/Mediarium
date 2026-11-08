@@ -60,3 +60,30 @@ button.link-button {
   background: none; border: none; padding: 0; color: var(--text-dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.88rem;
 }
 button.link-button:hover { color: var(--accent); }
+
+/* Settings > General: going back after an update. */
+.rollback-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.rollback-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.rollback-list li > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rollback-list small { color: var(--text-dim); }
+
+/* Settings > System > Settings file: the review of a file before it is applied. */
+.cfg-nowrap { white-space: nowrap; }
+.cfg-review { margin-top: 14px; }
+.cfg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cfg-chip { white-space: nowrap; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); }
+.cfg-chip.zero { opacity: 0.55; }
+.cfg-chip.cfg-added:not(.zero) { border-color: var(--success); }
+.cfg-chip.cfg-changed:not(.zero) { border-color: var(--accent); }
+.cfg-chip.cfg-removed:not(.zero) { border-color: var(--danger); }
+.cfg-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; max-height: 360px; overflow-y: auto; }
+.cfg-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 12px; border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; background: var(--surface-2); }
+.cfg-item.cfg-added { border-left-color: var(--success); }
+.cfg-item.cfg-changed { border-left-color: var(--accent); }
+.cfg-item.cfg-removed { border-left-color: var(--danger); }
+.cfg-item.cfg-unchanged { opacity: 0.7; }
+.cfg-name, .cfg-item small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cfg-item small { color: var(--text-dim); }
+.cfg-problems { padding: 10px 12px; border: 1px solid var(--danger); border-radius: 10px; background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.cfg-problems ul, .cfg-secrets ul { margin: 6px 0 0; padding-left: 18px; }
+.cfg-secrets { margin-top: 12px; }

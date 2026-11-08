@@ -499,3 +499,54 @@ func TestPlexWatchlistsShowInTheListView(t *testing.T) {
 	}
 	postJSON[map[string]any](t, admin, base+"/api/import-lists/plex/9999/run", nil, http.StatusNotFound)
 }
+
+// An RSS feed list adds the titles its entries name, by id or by name, and
+// with "also download" on it grabs a wanted release from the feed (#160).
+func TestImportListFromAnRSSFeed(t *testing.T) {
+	server, base, admin := listsServer(t)
+	var feedURL string
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".nzb") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/rss+xml")
+		fmt.Fprintf(w, `<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>
+<item><title>Alpha.2010.1080p.BluRay.x264-GRP</title><guid>a</guid><enclosure url="%[1]s/a.nzb" length="8000000000" type="application/x-nzb"/><newznab:attr name="imdb" value="0000100"/></item>
+<item><title>Delta.2022.720p.WEB-DL.x264-GRP</title><guid>d</guid></item>
+<item><title>Show.One.S01E01.1080p.WEB.h264-GRP</title><guid>s</guid><newznab:attr name="tvdbid" value="5000"/></item>
+</channel></rss>`, feedURL)
+	}))
+	t.Cleanup(feed.Close)
+	feedURL = feed.URL
+
+	created := postJSON[map[string]any](t, admin, base+"/api/import-lists", map[string]any{
+		"source": "rss", "media": "both", "config": map[string]any{"url": feed.URL + "/rss?apikey=K", "grab": true}, "intervalHours": 24, "searchNow": false,
+	}, http.StatusCreated)
+	waitBackground(t, server)
+	l := readList(t, admin, base, created["id"].(float64))
+	if l["lastAdded"] != float64(3) {
+		t.Fatalf("rss list: %v", l)
+	}
+	if got := libraryTMDBIDs(t, admin, base, "/api/movies"); !got[100] || !got[103] {
+		t.Errorf("movies from the feed: %v", got)
+	}
+	if got := libraryTMDBIDs(t, admin, base, "/api/series"); !got[200] {
+		t.Errorf("show from the feed: %v", got)
+	}
+	queue := getJSON[[]map[string]any](t, admin, base+"/api/queue")
+	grabbed := false
+	for _, q := range queue {
+		if q["releaseTitle"] == "Alpha.2010.1080p.BluRay.x264-GRP" {
+			grabbed = true
+		}
+	}
+	if !grabbed {
+		t.Errorf("the wanted release from the feed was not grabbed: %v (list: %v)", queue, l["lastMessage"])
+	}
+
+	// A web page is not a feed.
+	postJSON[map[string]any](t, admin, base+"/api/import-lists", map[string]any{
+		"source": "rss", "media": "both", "config": map[string]any{"url": "ftp://nope"}, "intervalHours": 24,
+	}, http.StatusBadRequest)
+}

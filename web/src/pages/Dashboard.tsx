@@ -24,6 +24,7 @@ import { useLive } from '../useLive'
 import { anyMoving, pollEvery } from '../pollPlan'
 import { useUnreadErrors } from '../useProblems'
 import TwoStepTip from '../components/TwoStepTip'
+import LeavingSoon from '../components/LeavingSoon'
 
 // Counts up to its target once, so the numbers feel alive when the page opens.
 function useCountUp(target: number, ms = 700): number {
@@ -663,6 +664,8 @@ export default function Dashboard() {
           )}
         </Tile>
       </div>
+
+      {on('lifecycle') && <LeavingSoon />}
 
       <section className="tile tone-settings wide-tile folders-tile">
         <div className="tile-head">

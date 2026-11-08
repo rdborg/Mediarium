@@ -164,3 +164,53 @@ func TestFallbackJournalSyncsFully(t *testing.T) {
 		t.Errorf("synchronous = %d, want 2 (FULL)", sync)
 	}
 }
+
+// The copies are listed newest first with the time of the update from their
+// name, a name that isn't one of them is refused, and a setting is read from a
+// copy without changing it.
+func TestSafetyCopiesAreListed(t *testing.T) {
+	path := oldInstall(t, len(migrationNames(t))-1, func(db *sql.DB) {
+		mustExec(t, db, `INSERT INTO settings (key, value, encrypted) VALUES ('system.version', '3.9.2', 0), ('secret', 'x', 1)`)
+	})
+	dir := filepath.Dir(path)
+	older := filepath.Join(dir, "pre-migration-0100_old-20261001-080000.db")
+	if err := os.WriteFile(older, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	got := store.SafetyCopies(path)
+	if len(got) != 2 || got[1].Name != filepath.Base(older) || got[0].Path != store.Mode(db).SafetyCopy {
+		t.Fatalf("copies = %+v", got)
+	}
+	if want := time.Date(2026, 10, 1, 8, 0, 0, 0, time.Local); !got[1].At.Equal(want) {
+		t.Errorf("the older copy is from %v, want %v", got[1].At, want)
+	}
+	if time.Since(got[0].At) > time.Minute || got[0].Size == 0 {
+		t.Errorf("the new copy = %+v", got[0])
+	}
+	if p, ok := store.SafetyCopyPath(path, got[0].Name); !ok || p != got[0].Path {
+		t.Errorf("SafetyCopyPath = %q, %v", p, ok)
+	}
+	for _, bad := range []string{"app.db", "../app.db", "pre-migration-nope.db", ""} {
+		if _, ok := store.SafetyCopyPath(path, bad); ok {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+	if v := store.CopySetting(got[0].Path, "system.version"); v != "3.9.2" {
+		t.Errorf("version in the copy = %q", v)
+	}
+	if v := store.CopySetting(got[0].Path, "secret"); v != "" {
+		t.Errorf("an encrypted setting was read: %q", v)
+	}
+	if v := store.CopySetting(older, "system.version"); v != "" {
+		t.Errorf("a broken copy gave %q", v)
+	}
+	if m, _ := filepath.Glob(got[0].Path + "-*"); len(m) != 0 {
+		t.Errorf("reading the copy left files: %v", m)
+	}
+}

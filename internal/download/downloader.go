@@ -544,6 +544,7 @@ func runWorker(ctx context.Context, st *dlState, nzb *NZB, cfg ClientConfig, job
 			if err != nil {
 				var ne *NNTPError
 				if errors.As(err, &ne) && (ne.Code == 430 || ne.Code == 423) {
+					countTraffic(cfg, 0, true)
 					last = outcome{kind: failNotFound, err: &ReleaseError{fmt.Errorf("fetch segment %s: %w", seg.MessageID, err)}}
 					break
 				}
@@ -551,6 +552,7 @@ func runWorker(ctx context.Context, st *dlState, nzb *NZB, cfg ClientConfig, job
 				last = outcome{kind: failConn, err: fmt.Errorf("fetch segment %s: %w", seg.MessageID, err)}
 				continue
 			}
+			countTraffic(cfg, int64(len(body)), false)
 			part, err := DecodeYenc(bytesReader(body))
 			if err != nil {
 				last = outcome{kind: failDecode, err: &ReleaseError{fmt.Errorf("decode segment %s: %w", seg.MessageID, err)}}

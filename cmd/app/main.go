@@ -133,6 +133,8 @@ func run() error {
 	// The torrent engine logs on its own; send it through the same scrubber.
 	torrentclient.SetLogOutput(logOut)
 
+	applyMemoryLimit("/")
+
 	cfg := config.Load()
 	for _, problem := range config.Problems() {
 		log.Print("warning: " + problem)
@@ -183,6 +185,7 @@ func run() error {
 		return fmt.Errorf("open database at %s: %w", cfg.DBPath, err)
 	}
 	defer db.Close()
+	go store.Optimize(context.Background(), db, true) // statistics for the query planner, without holding up the start
 
 	box, err := loadSecretKey(db, cfg.SecretKeyPath)
 	if err != nil {
@@ -265,6 +268,14 @@ func run() error {
 		IdleTimeout:       2 * time.Minute,
 		MaxHeaderBytes:    64 << 10,
 	}
+
+	// Live streams stay open until they are closed: end them when the stop
+	// starts, so it does not wait for them.
+	httpServer.RegisterOnShutdown(server.CloseEventStreams)
+
+	// With the switch on, the settings file in the config folder is applied
+	// when it changed since last time. It never stops the start.
+	go server.ApplyConfigFileAtStart()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

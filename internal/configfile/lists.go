@@ -34,13 +34,17 @@ var Lists = []ListSection{
 	},
 	{
 		Name: "indexers", Path: "/api/indexers", Partial: true,
-		Fields:  []string{"name", "kind", "definitionId", "baseUrl", "apiKey", "protocol", "enabled", "settings", "priority", "requestsPerDay", "minSeeders", "extraCategories"},
+		Fields:  []string{"name", "kind", "definitionId", "baseUrl", "apiKey", "protocol", "enabled", "settings", "priority", "requestsPerDay", "minSeeders", "extraCategories", "torrentRoute"},
 		Secrets: []string{"apiKey"},
 	},
 	{
 		Name: "mediaServers", Path: "/api/media-servers",
 		Fields:  []string{"name", "kind", "baseUrl", "publicUrl", "token", "apiKey", "enabled", "refreshAfterImport", "pathMap"},
 		Secrets: []string{"token", "apiKey"},
+	},
+	{
+		Name: "notifications", Path: "/api/notifications",
+		Fields: []string{"name", "type", "enabled", "events", "config"},
 	},
 	{
 		Name: "qualityProfiles", Path: "/api/quality-profiles", Wrap: "profiles",
@@ -69,19 +73,16 @@ func (l ListSection) has(list []string, k string) bool {
 
 // listDerived are the values a page shows that are worked out, not chosen:
 // they are left out of an export and never sent back.
-var listDerived = regexp.MustCompile(`^(id|inUse|has[A-Z].*|webUrl|machineIdentifier|lastError|lastCheckedAt|lastTestError|lastTestAt|storedSecrets|failures|pausedUntil|pausedNote|pausedWhy)$`)
+var listDerived = regexp.MustCompile(`^(id|inUse|has[A-Z].*|webUrl|machineIdentifier|lastError|lastCheckedAt|lastTestError|lastTestAt|storedSecrets|failures|pausedUntil|pausedNote|pausedWhy|secretError)$`)
 
 // parseList checks the shape of a list in the file and takes ${NAME} from the environment.
-func parseList(ls ListSection, v any, env func(string) (string, bool)) ([]map[string]any, error) {
-	if v == nil {
-		return nil, nil
-	}
+func parseList(ls ListSection, v any, env func(string) (string, bool), secrets map[string][]string) ([]map[string]any, error) {
 	raw, ok := v.([]any)
 	if !ok {
 		return nil, fmt.Errorf("%q must be a list: each item starts with a dash and has a name", ls.Name)
 	}
 	seen := map[string]bool{}
-	var out []map[string]any
+	out := []map[string]any{}
 	for i, x := range raw {
 		m, ok := x.(map[string]any)
 		if !ok {
@@ -101,7 +102,11 @@ func parseList(ls ListSection, v any, env func(string) (string, bool)) ([]map[st
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, ex.(map[string]any))
+		item := ex.(map[string]any)
+		if held := takePlaceholders(item, ""); len(held) > 0 {
+			secrets[secretKey(ls.Name, name)] = held
+		}
+		out = append(out, item)
 	}
 	return out, nil
 }
@@ -132,7 +137,8 @@ func currentList(ctx context.Context, c *Client, ls ListSection) ([]map[string]a
 
 type listResult struct {
 	Result
-	actions []func(context.Context, *Client) error
+	actions []action
+	secrets int // values that are passwords or keys, which can't be put back
 }
 
 func idOf(m map[string]any) (int64, bool) {
@@ -140,34 +146,63 @@ func idOf(m map[string]any) (int64, bool) {
 	return int64(f), ok
 }
 
+// Options are the choices made for a check or an apply.
+type Options struct {
+	// Replace also removes what Mediarium has in a list the file has but that
+	// is not in the file. Without it a file only adds and changes.
+	Replace bool
+}
+
+// action makes one change. It returns what puts the change back, nil when the
+// change can't be undone.
+type action func(context.Context, *Client) (undo func(context.Context, *Client) error, err error)
+
+// listPlan is what comparing the file's lists with Mediarium's found.
+type listPlan struct {
+	results   []listResult
+	removals  []listResult // run after everything else
+	unknown   []string
+	invalid   []string
+	unchanged []string // items that already match
+	missing   []string // secrets a new item needs but the file doesn't hold
+}
+
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // planLists compares every list in the file with what Mediarium has and
 // returns what would change, with the calls that would make it so.
-func planLists(ctx context.Context, c *Client, f File) ([]listResult, []string, error) {
-	var out []listResult
-	var unknown []string
+func planLists(ctx context.Context, c *Client, f File, opts Options) (*listPlan, error) {
+	lp := &listPlan{}
 	for _, ls := range Lists {
-		items := f.Lists[ls.Name]
-		if len(items) == 0 {
+		items, present := f.Lists[ls.Name]
+		if !present || (len(items) == 0 && !opts.Replace) {
 			continue
 		}
 		cur, err := currentList(ctx, c, ls)
 		if err != nil {
-			out = append(out, listResult{Result: Result{Section: ls.Name, Err: fmt.Errorf("read %s: %w", ls.Name, err)}})
+			lp.results = append(lp.results, listResult{Result: Result{Section: ls.Name, Err: fmt.Errorf("read %s: %w", ls.Name, err)}})
 			continue
 		}
 		var refs *profileRefs
 		inFile := map[string]bool{}
 		if ls.Name == "qualityProfiles" {
 			if refs, err = loadProfileRefs(ctx, c, cur); err != nil {
-				out = append(out, listResult{Result: Result{Section: ls.Name, Err: fmt.Errorf("read %s: %w", ls.Name, err)}})
+				lp.results = append(lp.results, listResult{Result: Result{Section: ls.Name, Err: fmt.Errorf("read %s: %w", ls.Name, err)}})
 				continue
 			}
 			for i := range cur {
 				cur[i] = refs.toNames(cur[i])
 			}
-			for _, item := range items {
-				inFile[strings.ToLower(strings.TrimSpace(item["name"].(string)))] = true
-			}
+		}
+		for _, item := range items {
+			inFile[strings.ToLower(strings.TrimSpace(item["name"].(string)))] = true
 		}
 		var defs map[string]map[string]bool
 		if ls.Name == "indexers" {
@@ -185,7 +220,7 @@ func planLists(ctx context.Context, c *Client, f File) ([]listResult, []string, 
 			bad := false
 			for k := range item {
 				if !ls.has(ls.Fields, k) {
-					unknown = append(unknown, label+"."+k)
+					lp.unknown = append(lp.unknown, label+"."+k)
 					bad = true
 				}
 			}
@@ -195,34 +230,61 @@ func planLists(ctx context.Context, c *Client, f File) ([]listResult, []string, 
 			have, exists := byName[strings.ToLower(name)]
 			if ls.Name == "indexers" {
 				if typos := checkIndexerSettings(label, have, item, defs); len(typos) > 0 {
-					unknown = append(unknown, typos...)
+					lp.unknown = append(lp.unknown, typos...)
 					continue
 				}
+			}
+			if probs := valueProblems(label, have, item, ls.Name); len(probs) > 0 {
+				lp.invalid = append(lp.invalid, probs...)
+				continue
 			}
 			res := listResult{Result: Result{Section: label}}
 			if refs != nil {
 				if err := refs.checkNames(item, inFile); err != nil {
 					res.Err = fmt.Errorf("%s: %w", label, err)
-					out = append(out, res)
+					lp.results = append(lp.results, res)
 					continue
 				}
 			}
 			if !exists {
 				res.Changes = append(res.Changes, Change{Section: label, New: true})
 				res.actions = append(res.actions, createAction(ls, item))
+				for _, k := range f.Secrets[secretKey(ls.Name, name)] {
+					lp.missing = append(lp.missing, label+"."+k)
+				}
 			} else {
 				changes, body, prio := diffItem(ls, label, have, item)
 				res.Changes = changes
 				if len(changes) > 0 {
 					res.actions = append(res.actions, updateAction(ls, have, body, prio))
+				} else {
+					lp.unchanged = append(lp.unchanged, label)
+				}
+			}
+			for _, ch := range res.Changes {
+				if ch.Secret {
+					res.secrets++
 				}
 			}
 			if len(res.Changes) > 0 {
-				out = append(out, res)
+				lp.results = append(lp.results, res)
+			}
+		}
+		if opts.Replace {
+			for _, m := range cur {
+				n, _ := m["name"].(string)
+				if n == "" || inFile[strings.ToLower(strings.TrimSpace(n))] {
+					continue
+				}
+				label := fmt.Sprintf("%s[%s]", ls.Name, strings.TrimSpace(n))
+				lp.removals = append(lp.removals, listResult{
+					Result:  Result{Section: label, Changes: []Change{{Section: label, Removed: true}}},
+					actions: []action{deleteAction(ls, m)},
+				})
 			}
 		}
 	}
-	return out, unknown, nil
+	return lp, nil
 }
 
 // diffItem lists what differs between one item and what the file wants.
@@ -258,9 +320,9 @@ func diffItem(ls ListSection, label string, have, want map[string]any) ([]Change
 		case ls.has(ls.Secrets, k):
 			changes = append(changes, Change{Section: label, Key: k, Secret: true})
 			body[k] = w
-		case k == "settings":
+		case k == "settings" || (k == "config" && ls.Name == "notifications"):
 			ws, _ := w.(map[string]any)
-			hs, _ := have["settings"].(map[string]any)
+			hs, _ := have[k].(map[string]any)
 			sub := map[string]any{}
 			subKeys := make([]string, 0, len(ws))
 			for sk := range ws {
@@ -270,16 +332,27 @@ func diffItem(ls ListSection, label string, have, want map[string]any) ([]Change
 			for _, sk := range subKeys {
 				hv, shown := hs[sk]
 				if !shown {
-					// A password or cookie of the site: never shown back, so always sent.
-					changes = append(changes, Change{Section: label, Key: "settings." + sk, Secret: true})
+					// A password or cookie: never shown back, so always sent.
+					changes = append(changes, Change{Section: label, Key: k + "." + sk, Secret: true})
 					sub[sk] = ws[sk]
-				} else if !same(hv, ws[sk]) {
-					changes = append(changes, Change{Section: label, Key: "settings." + sk, Have: show(hv), Want: show(ws[sk])})
+				} else if !same(hv, fmt.Sprint(ws[sk])) && !(ls.Name != "notifications" && same(hv, ws[sk])) {
+					changes = append(changes, Change{Section: label, Key: k + "." + sk, Have: show(hv), Want: show(ws[sk])})
 					sub[sk] = ws[sk]
 				}
 			}
 			if len(sub) > 0 {
-				body["settings"] = sub
+				if !ls.Partial {
+					// The whole block is sent back: what is there, with the changes on top.
+					merged := map[string]any{}
+					for hk, hv := range hs {
+						merged[hk] = hv
+					}
+					for sk, sv := range sub {
+						merged[sk] = sv
+					}
+					sub = merged
+				}
+				body[k] = sub
 			}
 		case ls.Name == "indexers" && k == "priority":
 			if !same(have[k], priorityNumber(w)) {
@@ -409,8 +482,8 @@ func checkIndexerSettings(label string, have, item map[string]any, defs map[stri
 	return bad
 }
 
-func createAction(ls ListSection, item map[string]any) func(context.Context, *Client) error {
-	return func(ctx context.Context, c *Client) error {
+func createAction(ls ListSection, item map[string]any) action {
+	return func(ctx context.Context, c *Client) (func(context.Context, *Client) error, error) {
 		body := map[string]any{}
 		for k, v := range item {
 			body[k] = v
@@ -424,8 +497,11 @@ func createAction(ls ListSection, item map[string]any) func(context.Context, *Cl
 		}
 		if ls.Name == "qualityProfiles" {
 			if err := toIDs(ctx, c, body); err != nil {
-				return fmt.Errorf("add %v: %w", item["name"], err)
+				return nil, fmt.Errorf("add %v: %w", item["name"], err)
 			}
+		}
+		if ls.Name == "notifications" {
+			stringifyConfig(body)
 		}
 		var prio, enabled any
 		if ls.Name == "indexers" {
@@ -436,52 +512,170 @@ func createAction(ls ListSection, item map[string]any) func(context.Context, *Cl
 		}
 		data, err := c.doRaw(ctx, http.MethodPost, ls.Path, body)
 		if err != nil {
-			return fmt.Errorf("add %v: %w", item["name"], err)
-		}
-		if prio == nil && enabled == nil {
-			return nil
+			return nil, fmt.Errorf("add %v: %w", item["name"], err)
 		}
 		var made map[string]any
 		_ = json.Unmarshal(data, &made)
-		id, ok := idOf(made)
-		if !ok {
-			return nil
+		id, haveID := idOf(made)
+		var undo func(context.Context, *Client) error
+		if haveID {
+			undo = func(ctx context.Context, c *Client) error {
+				_, err := c.doRaw(ctx, http.MethodDelete, fmt.Sprintf("%s/%d", ls.Path, id), nil)
+				return err
+			}
+		}
+		if prio == nil && enabled == nil {
+			return undo, nil
+		}
+		if !haveID {
+			return nil, nil
 		}
 		if enabled != nil {
 			if _, err := c.do(ctx, http.MethodPut, fmt.Sprintf("%s/%d", ls.Path, id), map[string]any{"enabled": enabled}); err != nil {
-				return fmt.Errorf("set %v: %w", item["name"], err)
+				return undo, fmt.Errorf("set %v: %w", item["name"], err)
 			}
 		}
 		if prio != nil {
 			if _, err := c.do(ctx, http.MethodPut, fmt.Sprintf("%s/%d/priority", ls.Path, id), map[string]any{"priority": prio}); err != nil {
-				return fmt.Errorf("set the priority of %v: %w", item["name"], err)
+				return undo, fmt.Errorf("set the priority of %v: %w", item["name"], err)
 			}
 		}
-		return nil
+		return undo, nil
 	}
 }
 
-func updateAction(ls ListSection, have, body map[string]any, prio any) func(context.Context, *Client) error {
-	return func(ctx context.Context, c *Client) error {
+// stringifyConfig turns the values under config: into text, the only kind a
+// notification's settings hold (a file may write a port as a number).
+func stringifyConfig(body map[string]any) {
+	cfg, ok := body["config"].(map[string]any)
+	if !ok {
+		return
+	}
+	out := map[string]any{}
+	for k, v := range cfg {
+		switch t := v.(type) {
+		case string:
+			out[k] = t
+		case bool, int, int64, uint64, float64:
+			out[k] = fmt.Sprint(t)
+		default:
+			out[k] = v
+		}
+	}
+	body["config"] = out
+}
+
+// undoBody is what puts an item back as it was after body changed it. Values
+// Mediarium never shows back (passwords, keys) can't be put back: they are
+// left out, and the count says how many.
+func undoBody(ls ListSection, have, body map[string]any) (map[string]any, int) {
+	out := map[string]any{}
+	lost := 0
+	for k := range body {
+		switch {
+		case ls.has(ls.Secrets, k):
+			lost++
+		case k == "settings" || (k == "config" && ls.Name == "notifications"):
+			hs, _ := have[k].(map[string]any)
+			ws, _ := body[k].(map[string]any)
+			sub := map[string]any{}
+			for sk := range ws {
+				if hv, shown := hs[sk]; shown {
+					sub[sk] = hv
+				} else {
+					lost++
+				}
+			}
+			if ls.Name == "notifications" {
+				// The whole block is sent, so what was there is all of it.
+				for sk, hv := range hs {
+					sub[sk] = hv
+				}
+			}
+			if len(sub) > 0 {
+				out[k] = sub
+			}
+		default:
+			if hv, shown := have[k]; shown {
+				out[k] = hv
+			}
+		}
+	}
+	return out, lost
+}
+
+func updateAction(ls ListSection, have, body map[string]any, prio any) action {
+	return func(ctx context.Context, c *Client) (func(context.Context, *Client) error, error) {
 		id, ok := idOf(have)
 		if !ok {
-			return fmt.Errorf("%v has no id", have["name"])
+			return nil, fmt.Errorf("%v has no id", have["name"])
+		}
+		back, _ := undoBody(ls, have, body)
+		if ls.Name == "notifications" {
+			stringifyConfig(body)
 		}
 		if ls.Name == "qualityProfiles" {
 			if err := toIDs(ctx, c, body); err != nil {
-				return fmt.Errorf("change %v: %w", have["name"], err)
+				return nil, fmt.Errorf("change %v: %w", have["name"], err)
 			}
+		}
+		undo := func(ctx context.Context, c *Client) error {
+			if ls.Name == "qualityProfiles" {
+				if err := toIDs(ctx, c, back); err != nil {
+					return err
+				}
+			}
+			if ls.Name == "notifications" {
+				stringifyConfig(back)
+			}
+			if len(back) > 0 {
+				if _, err := c.do(ctx, http.MethodPut, fmt.Sprintf("%s/%d", ls.Path, id), back); err != nil {
+					return err
+				}
+			}
+			if prio != nil {
+				if old, ok := have["priority"]; ok {
+					if _, err := c.do(ctx, http.MethodPut, fmt.Sprintf("%s/%d/priority", ls.Path, id), map[string]any{"priority": old}); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
 		}
 		if len(body) > 0 {
 			if _, err := c.do(ctx, http.MethodPut, fmt.Sprintf("%s/%d", ls.Path, id), body); err != nil {
-				return fmt.Errorf("change %v: %w", have["name"], err)
+				return nil, fmt.Errorf("change %v: %w", have["name"], err)
 			}
 		}
 		if prio != nil {
 			if _, err := c.do(ctx, http.MethodPut, fmt.Sprintf("%s/%d/priority", ls.Path, id), map[string]any{"priority": prio}); err != nil {
-				return fmt.Errorf("set the priority of %v: %w", have["name"], err)
+				return undo, fmt.Errorf("set the priority of %v: %w", have["name"], err)
 			}
 		}
-		return nil
+		return undo, nil
+	}
+}
+
+// deleteAction removes an item the file doesn't have (replace mode). Putting
+// it back adds it again from what Mediarium showed, without its passwords.
+func deleteAction(ls ListSection, have map[string]any) action {
+	return func(ctx context.Context, c *Client) (func(context.Context, *Client) error, error) {
+		id, ok := idOf(have)
+		if !ok {
+			return nil, fmt.Errorf("%v has no id", have["name"])
+		}
+		if _, err := c.doRaw(ctx, http.MethodDelete, fmt.Sprintf("%s/%d", ls.Path, id), nil); err != nil {
+			return nil, fmt.Errorf("remove %v: %w", have["name"], err)
+		}
+		item := map[string]any{}
+		for k, v := range have {
+			if !listDerived.MatchString(k) && ls.has(ls.Fields, k) {
+				item[k] = v
+			}
+		}
+		return func(ctx context.Context, c *Client) error {
+			_, err := createAction(ls, item)(ctx, c)
+			return err
+		}, nil
 	}
 }

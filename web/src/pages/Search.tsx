@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type BookFound, type MusicArtistResult, type TitleResult } from '../api'
+import { api, type BookFound, type MusicArtistResult, type MusicDiscoverItem, type TitleResult } from '../api'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import AddMusicDialog from '../components/AddMusicDialog'
 import { artistKind } from '../components/artistKind'
@@ -41,6 +41,10 @@ export default function Search() {
   const [artistHits, setArtistHits] = useState<MusicArtistResult[] | null>(null)
   const [artistError, setArtistError] = useState('')
   const [addingArtist, setAddingArtist] = useState<MusicArtistResult | null>(null)
+  // Music can be searched by artist, album or song (a soundtrack by a song from the film).
+  const [musicBy, setMusicBy] = useState<'artist' | 'album' | 'song'>('artist')
+  const [albumHits, setAlbumHits] = useState<(MusicDiscoverItem & { song?: string })[] | null>(null)
+  const [addingAlbum, setAddingAlbum] = useState<MusicDiscoverItem | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => inputRef.current?.focus(), [])
@@ -119,11 +123,27 @@ export default function Search() {
     const term = q.trim()
     if (!musicOn || term.length < 2) {
       setArtistHits(null)
+      setAlbumHits(null)
       setArtistError('')
       return
     }
     const ctl = new AbortController()
     const timer = setTimeout(() => {
+      if (musicBy !== 'artist') {
+        setAlbumHits(null)
+        api
+          .musicSearchTitles(term, musicBy, ctl.signal)
+          .then((r) => {
+            setAlbumHits(r)
+            setArtistError('')
+          })
+          .catch((e) => {
+            if (e instanceof DOMException && e.name === 'AbortError') return
+            setAlbumHits([])
+            setArtistError(e instanceof Error ? e.message : String(e))
+          })
+        return
+      }
       api
         .musicSearch(term, ctl.signal)
         .then((r) => {
@@ -140,7 +160,7 @@ export default function Search() {
       clearTimeout(timer)
       ctl.abort()
     }
-  }, [q, musicOn])
+  }, [q, musicOn, musicBy])
 
   // A book added from a card on this page moves up to "In your library".
   useEffect(() => {
@@ -208,6 +228,27 @@ export default function Search() {
     </div>
   )
 
+  const albumGrid = (list: (MusicDiscoverItem & { song?: string })[]) => (
+    <div className="poster-grid">
+      {list.map((a) => (
+        <PosterCard
+          key={a.mbid}
+          to={a.albumId ? `/music/album/${a.albumId}` : undefined}
+          poster={a.coverUrl}
+          title={a.title}
+          meta={[a.artistName, a.releaseDate?.slice(0, 4) || null, a.song ? t('has “{song}”', { song: a.song }) : null].filter(Boolean).join(' · ')}
+          kind="music"
+          state={a.inLibrary ? { ...describeState('downloaded'), label: t('In library') } : undefined}
+          actions={
+            a.inLibrary && a.albumId
+              ? [{ icon: 'open', label: t('Open'), onClick: () => navigate(`/music/album/${a.albumId}`) }]
+              : [{ icon: 'plus', label: t('Add'), onClick: () => setAddingAlbum(a), primary: true }]
+          }
+        />
+      ))}
+    </div>
+  )
+
   const owned = results?.filter((r) => r.inLibrary) ?? []
   const fresh = results?.filter((r) => !r.inLibrary) ?? []
   const books = splitBooks(bookHits ?? [], booksAdded)
@@ -250,7 +291,7 @@ export default function Search() {
           type="search"
           value={q}
           onChange={(e) => setQ(capitalizeFirst(e.target.value))}
-          placeholder={onBooks ? t('Type a book title or an author…') : onMusic ? t('Type an artist or band name…') : t('Type a movie or show name…')}
+          placeholder={onBooks ? t('Type a book title or an author…') : onMusic ? (musicBy === 'album' ? t('Type an album title…') : musicBy === 'song' ? t('Type a song title…') : t('Type an artist or band name…')) : t('Type a movie or show name…')}
           aria-label={t('Search')}
         />
       </div>
@@ -300,6 +341,26 @@ export default function Search() {
       )}
 
       {onMusic && (
+        <div className="seg search-by" role="group" aria-label={t('Search music by')}>
+          {(['artist', 'album', 'song'] as const).map((by) => (
+            <button key={by} type="button" aria-pressed={musicBy === by} className={musicBy === by ? 'active' : ''} onClick={() => setMusicBy(by)}>
+              {by === 'artist' ? t('Artists') : by === 'album' ? t('Albums') : t('Songs')}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {onMusic && musicBy !== 'artist' && (
+        <>
+          {artistError && <p className="error-text">{artistError}</p>}
+          {albumHits === null && term.length < 2 && <div className="search-hint">{musicBy === 'song' ? t('Type a song to find the albums it is on, a soundtrack too.') : t('Type an album title.')}</div>}
+          {albumHits === null && term.length >= 2 && <div className="search-hint">{t('Searching…')}</div>}
+          {albumHits !== null && albumHits.length === 0 && !artistError && <div className="search-hint">{t('Nothing found for “{q}”.', { q: term })}</div>}
+          {albumHits !== null && albumHits.length > 0 && albumGrid(albumHits)}
+        </>
+      )}
+
+      {onMusic && musicBy === 'artist' && (
         <>
           {artistError && <p className="error-text">{artistError}</p>}
           {artistHits === null && term.length < 2 && (
@@ -363,6 +424,16 @@ export default function Search() {
         </section>
       )}
 
+      {addingAlbum && (
+        <AddMusicDialog
+          target={{ kind: 'album', item: addingAlbum }}
+          onClose={() => setAddingAlbum(null)}
+          onAdded={(id, albumId) => {
+            setAddingAlbum(null)
+            navigate(albumId ? `/music/album/${albumId}` : `/music/artist/${id}`)
+          }}
+        />
+      )}
       {addingArtist && (
         <AddMusicDialog
           target={{ kind: 'artist', mbid: addingArtist.mbid, name: addingArtist.name, type: addingArtist.type, country: addingArtist.country, disambiguation: addingArtist.disambiguation }}

@@ -160,6 +160,10 @@ type settingsPayload struct {
 	// TrailerBackground plays the trailer behind movie and show pages for every
 	// account (a browser can still switch it off for itself).
 	TrailerBackground *bool `json:"trailerBackground,omitempty"`
+	// ArtworkProxy loads posters, backdrops and pictures of people through this
+	// server (on by default); off lets each browser fetch them from the picture
+	// host itself.
+	ArtworkProxy *bool `json:"artworkProxy,omitempty"`
 	// TrailerSound starts that trailer with its sound on (a browser that does
 	// not allow it keeps it muted, and each browser can choose for itself).
 	TrailerSound      *bool `json:"trailerSound,omitempty"`
@@ -167,6 +171,9 @@ type settingsPayload struct {
 	// SeasonPacks looks for a season pack once a season has ended (off unless
 	// switched on; a show can say otherwise for itself).
 	SeasonPacks *bool `json:"seasonPacks,omitempty"`
+	// HoldUnreleased makes automatic searches wait for a movie's release and for
+	// an episode to air (on unless switched off; hold_unreleased.go).
+	HoldUnreleased *bool `json:"holdUnreleased,omitempty"`
 	// FoldersInInfoLanguage names new movie and show folders and files with the
 	// title in the info language (off unless switched on).
 	FoldersInInfoLanguage *bool `json:"foldersInInfoLanguage,omitempty"`
@@ -391,6 +398,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	osEnabled, subdlEnabled, addonsEnabled := sources.OpenSubtitles.Switch, sources.SubDL.Switch, sources.Addons.Switch
 	unmonitorDownloaded, unmonitorFinished := s.unmonitorDownloaded(), s.unmonitorFinished()
 	seasonPacks := s.seasonPackDefault()
+	holdUnreleased := holdUnreleasedOn()
 	foldersInInfoLanguage := s.settingOn(settings.KeyFoldersInInfoLanguage, false)
 	tvmazeAirTimes := s.tvmazeOn()
 	qualityLanguageOnly := s.languageOnly()
@@ -398,6 +406,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	trashFormatsAuto := s.trashAutoUpdate()
 	trashFormatsEveryDays := s.trashEveryDays()
 	trailerBackground := s.trailerBackground()
+	artworkProxy := s.artworkProxy()
 	trailerSound := s.trailerSound()
 	subtitlesOn := s.subtitlesEnabled()
 	osUser, _ := s.Settings.Get(settings.KeyOpenSubtitlesUsername)
@@ -499,9 +508,11 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		TrashFormatsAuto:         &trashFormatsAuto,
 		TrashFormatsEveryDays:    &trashFormatsEveryDays,
 		TrailerBackground:        &trailerBackground,
+		ArtworkProxy:             &artworkProxy,
 		TrailerSound:             &trailerSound,
 		UnmonitorFinished:        &unmonitorFinished,
 		SeasonPacks:              &seasonPacks,
+		HoldUnreleased:           &holdUnreleased,
 		FoldersInInfoLanguage:    &foldersInInfoLanguage,
 		TVmazeAirTimes:           &tvmazeAirTimes,
 		HasOpenSubtitlesAccount:  s.Subtitles().HasCredentials(),
@@ -926,6 +937,12 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if req.ArtworkProxy != nil {
+		if err := setBool(tx, settings.KeyArtworkProxy, *req.ArtworkProxy); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
 	if req.TrailerBackground != nil {
 		if err := setBool(tx, settings.KeyTrailerBackground, *req.TrailerBackground); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -984,6 +1001,14 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+	}
+
+	if req.HoldUnreleased != nil {
+		if err := setBool(tx, settings.KeyHoldUnreleased, *req.HoldUnreleased); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		setHoldUnreleased(*req.HoldUnreleased)
 	}
 
 	if req.SeasonPacks != nil {

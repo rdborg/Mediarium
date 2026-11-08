@@ -67,31 +67,31 @@ func scoreParts(profile quality.Profile, title string) string {
 // where the two differ; an exact tie is settled the way preferOver settles it
 // (indexer priority, protocol, cached, seeders), or by the order they were found.
 func whyNotBest(profile quality.Profile, best *indexers.Result, bestRel parser.Release, res *indexers.Result, rel parser.Release) releaseReason {
-	bk, k := keyFor(profile, bestRel, best), keyFor(profile, rel, res)
+	step, bk, k := rankStepOf(profile, best, res)
 	text := ""
-	switch {
-	case bk.alive != k.alive:
+	switch step {
+	case stepAlive:
 		text = "It has no seeders, so an automatic search only takes it when nothing alive is left."
-	case bk.language != k.language:
+	case stepLanguage:
 		text = "The best match fits your preferred language better."
 		if len(quality.ParseLanguages(profile.Language)) > 1 {
 			text = "The best match names your languages better."
 		}
-	case bk.tier != k.tier:
+	case stepTier:
 		text = fmt.Sprintf("The best match has a higher quality: %s against %s.", quality.Classify(bestRel), quality.Classify(rel))
-	case bk.sub != k.sub:
+	case stepGroup:
 		text = fmt.Sprintf("Both are in the same quality group, but the best match is the better one in it: %s against %s.", quality.Classify(bestRel), quality.Classify(rel))
-	case bk.cached != k.cached:
+	case stepCached:
 		text = "The best match is cached at your debrid service, and your settings put a cached release ahead of a higher score."
-	case bk.score != k.score:
+	case stepScore:
 		text = fmt.Sprintf("The best match has a higher score: %d against %d. Best match: %s. This release: %s.", bk.score, k.score, scoreParts(profile, best.Title), scoreParts(profile, res.Title))
-	case indexerRank(best.Priority) < indexerRank(res.Priority):
+	case stepIndexer:
 		text = "It is an equal match, but the best match comes from an indexer with a higher priority."
-	case indexerRank(best.Priority) == indexerRank(res.Priority) && best.Protocol == preferredProtocol() && res.Protocol != preferredProtocol():
+	case stepProtocol:
 		text = "It is an equal match, but your settings put the protocol of the best match first."
-	case best.Cached && !res.Cached:
+	case stepDebrid:
 		text = "It is an equal match, but the best match is cached at your debrid service."
-	case best.SeedersKnown && res.SeedersKnown && best.Seeders > res.Seeders:
+	case stepSeeders:
 		text = fmt.Sprintf("It is an equal match, but the best match has more seeders: %d against %d.", best.Seeders, res.Seeders)
 	default:
 		text = "It is an equal match that was found after the best match, so the first one was kept."

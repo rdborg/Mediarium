@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -52,8 +53,17 @@ func isMemory(path string) bool {
 // same change (after a backup is restored, say) from replacing the copy made
 // at the first one.
 func snapshotBeforeMigrating(conn *sql.DB, path, version string) (string, error) {
-	dir := filepath.Dir(path)
-	base := safetyCopyPrefix + version + "-" + time.Now().Format("20060102-150405")
+	final, err := writeCopy(conn, filepath.Dir(path), safetyCopyPrefix+version+"-"+time.Now().Format("20060102-150405"))
+	if err != nil {
+		return "", err
+	}
+	pruneSafetyCopies(filepath.Dir(path))
+	return final, nil
+}
+
+// writeCopy makes <base>.db (or <base>-2.db, and so on, when that name is
+// taken) in dir as a copy of the open database.
+func writeCopy(conn *sql.DB, dir, base string) (string, error) {
 	final := filepath.Join(dir, base+".db")
 	for i := 2; ; i++ { // two starts within the same second
 		if _, err := os.Lstat(final); os.IsNotExist(err) {
@@ -76,7 +86,33 @@ func snapshotBeforeMigrating(conn *sql.DB, path, version string) (string, error)
 	if err := os.Rename(tmp, final); err != nil {
 		return "", fmt.Errorf("save the copy: %w", err)
 	}
-	pruneSafetyCopies(dir)
+	return final, nil
+}
+
+const configCopyPrefix = "pre-config-"
+
+// keepConfigCopies is how many of the copies made before a settings file is
+// applied are kept.
+const keepConfigCopies = 3
+
+// SnapshotBeforeConfig writes a copy of the database to
+// pre-config-<YYYYMMDD-HHMMSS>.db next to it, readable by the owner only, and
+// keeps the newest few. It is made before a settings file is applied. It is
+// not one of the copies "going back after an update" offers.
+func SnapshotBeforeConfig(conn *sql.DB, path string) (string, error) {
+	if isMemory(path) {
+		return "", nil
+	}
+	dir := filepath.Dir(path)
+	final, err := writeCopy(conn, dir, configCopyPrefix+time.Now().Format("20060102-150405"))
+	if err != nil {
+		return "", err
+	}
+	matches, _ := filepath.Glob(filepath.Join(dir, configCopyPrefix+"*.db"))
+	sort.Strings(matches) // the time stamp sorts oldest first
+	for _, m := range matches[:max(0, len(matches)-keepConfigCopies)] {
+		_ = os.Remove(m)
+	}
 	return final, nil
 }
 
@@ -97,4 +133,67 @@ func pruneSafetyCopies(dir string) {
 	for _, f := range files[min(keepSafetyCopies, len(files)):] {
 		_ = os.Remove(f.path)
 	}
+}
+
+// SafetyCopy is one of the copies made before an update changed the tables.
+type SafetyCopy struct {
+	Name string    `json:"name"`
+	Path string    `json:"-"`
+	At   time.Time `json:"at"` // when the update started, the moment the copy shows
+	Size int64     `json:"size"`
+}
+
+// copyStamp finds the time in a copy's name: ...-20261101-190412.db, maybe
+// with -2 after it for a second copy within the same second.
+var copyStamp = regexp.MustCompile(`-(\d{8}-\d{6})(?:-\d+)?\.db$`)
+
+// SafetyCopies lists the copies next to the database at dbPath, newest first.
+func SafetyCopies(dbPath string) []SafetyCopy {
+	if isMemory(dbPath) {
+		return nil
+	}
+	matches, _ := filepath.Glob(filepath.Join(filepath.Dir(dbPath), safetyCopyPrefix+"*.db"))
+	var out []SafetyCopy
+	for _, m := range matches {
+		info, err := os.Stat(m)
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		at := info.ModTime()
+		if sm := copyStamp.FindStringSubmatch(filepath.Base(m)); sm != nil {
+			if t, err := time.ParseInLocation("20060102-150405", sm[1], time.Local); err == nil {
+				at = t
+			}
+		}
+		out = append(out, SafetyCopy{Name: filepath.Base(m), Path: m, At: at, Size: info.Size()})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].At.After(out[j].At) })
+	return out
+}
+
+// SafetyCopyPath is the copy called name next to the database at dbPath. Only
+// a name SafetyCopies lists is accepted, so it can't point anywhere else.
+func SafetyCopyPath(dbPath, name string) (string, bool) {
+	for _, c := range SafetyCopies(dbPath) {
+		if c.Name == name {
+			return c.Path, true
+		}
+	}
+	return "", false
+}
+
+// CopySetting reads one setting that isn't encrypted from a database copy,
+// without changing the file. It is "" when the copy doesn't have it.
+func CopySetting(path, key string) string {
+	escaped := strings.NewReplacer("%", "%25", "?", "%3F", "#", "%23").Replace(path)
+	conn, err := sql.Open("sqlite", "file:"+escaped+"?mode=ro&immutable=1")
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	var v string
+	if err := conn.QueryRow(`SELECT value FROM settings WHERE key = ? AND encrypted = 0`, key).Scan(&v); err != nil {
+		return ""
+	}
+	return v
 }

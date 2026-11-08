@@ -13,6 +13,7 @@ import (
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/settings"
+	"github.com/rdborg/mediarium/internal/store"
 )
 
 const (
@@ -29,6 +30,7 @@ const (
 // is constructed.
 func (s *Server) StartAutomation() *automation.Scheduler {
 	s.applySpeedLimit(time.Now())
+	s.archiver.notBefore = time.Now().Add(archiverFirstRun)
 	_, _ = s.QueueRepo.ClearSettledFailures()
 	if n, err := s.MovieRepo.RepairFutureOnlyMonitoring(todayUTC()); err != nil {
 		log.Printf("library: %v", err)
@@ -43,6 +45,7 @@ func (s *Server) StartAutomation() *automation.Scheduler {
 		sched := automation.NewScheduler(
 			automation.Job{Name: "download-line", Interval: downloadLineCheck, Run: func(context.Context) { s.kickDownloads() }},
 			automation.Job{Name: "music-import-wait", Interval: musicWaitJobTick, Run: s.retryMusicWaits}, // tries the imports that were waiting for MusicBrainz
+			automation.Job{Name: "server-traffic", Interval: time.Minute, Run: s.serverTrafficJob},
 			automation.Job{Name: "speed-limit", Interval: speedCheck, Run: s.speedJob},
 		)
 		sched.Start()
@@ -57,18 +60,24 @@ func (s *Server) StartAutomation() *automation.Scheduler {
 		automation.Job{Name: "rss-sync", Interval: s.releaseCheckInterval(), IntervalFunc: s.releaseCheckInterval, Run: s.heavy(s.rssSync)},
 		automation.Job{Name: "hunt", Interval: s.huntInterval(), IntervalFunc: s.huntInterval, Run: s.heavy(s.hunt)},
 		automation.Job{Name: "delayed-grabs", Interval: time.Minute, Run: s.delayedGrabsJob},          // searches again when a held release has waited long enough
+		automation.Job{Name: "download-doctor", Interval: time.Minute, Run: s.downloadDoctorJob},      // tries again a download that failed for a local reason
 		automation.Job{Name: "music-import-wait", Interval: musicWaitJobTick, Run: s.retryMusicWaits}, // tries the imports that were waiting for MusicBrainz
 		automation.Job{Name: "speed-limit", Interval: speedCheck, Run: s.speedJob},
 		automation.Job{Name: "quiet-hours", Interval: speedCheck, Run: s.quietHoursJob},
 		automation.Job{Name: "cleanup", Interval: cleanupCheckInterval, Run: s.cleanupJob},
 		automation.Job{Name: "backup", Interval: backupCheck, Run: s.backupJob},
 		automation.Job{Name: "stats-snapshot", Interval: statsSnapshotEvery, Run: s.statsSnapshotJob},
-		automation.Job{Name: "weekly-summary", Interval: digestCheck, Run: s.digestJob},                           // does nothing until a day is chosen
-		automation.Job{Name: "request-available", Interval: requestAvailableInterval, Run: s.requestAvailableJob}, // does nothing until request messages are switched on
+		automation.Job{Name: "db-optimize", Interval: 6 * time.Hour, Run: func(ctx context.Context) { store.Optimize(ctx, s.db, false) }}, // fresh statistics for the query planner
+		automation.Job{Name: "server-traffic", Interval: time.Minute, Run: s.serverTrafficJob},                                            // saves what each Usenet server delivered
+		automation.Job{Name: "weekly-summary", Interval: digestCheck, Run: s.digestJob},                                                   // does nothing until a day is chosen
+		automation.Job{Name: "request-available", Interval: requestAvailableInterval, Run: s.requestAvailableJob},                         // does nothing until request messages are switched on
 		automation.Job{Name: "series-refresh", Interval: seriesRefreshInterval, Run: s.heavy(s.refreshAllSeries)},
 		automation.Job{Name: "music-refresh", Interval: musicRefreshInterval, Run: s.heavy(s.refreshMusicArtists)},
+		// channel-archiver does nothing until the Channel archiver is switched on, and never runs in the first ten minutes.
+		automation.Job{Name: "channel-archiver", Interval: archiverTick, Run: s.heavy(s.archiverJob)},
 		automation.Job{Name: "watched", Interval: watchedJobTick, Run: s.heavy(s.watchedJob)},              // does nothing until switched on
 		automation.Job{Name: "plex-watchlist", Interval: watchlistInterval, Run: s.heavy(s.watchlistJob)},  // does nothing until an account connects one
+		automation.Job{Name: "prowlarr-sync", Interval: prowlarrSyncEvery, Run: s.heavy(s.prowlarrJob)},    // does nothing until a Prowlarr is linked
 		automation.Job{Name: "import-lists", Interval: listsCheckInterval, Run: s.heavy(s.importListsJob)}, // does nothing until a list is added
 		automation.Job{Name: "trash-formats", Interval: time.Hour, Run: s.heavy(s.trashFormatsJob)},        // does nothing until switched on; reads the guides once a day
 		automation.Job{Name: "genre-backfill", Interval: genreBackfillInterval, Run: s.heavy(s.backfillGenres)},
@@ -214,7 +223,7 @@ func huntWantsMovie(m library.Movie, profile quality.Profile) bool {
 	}
 	switch m.Status {
 	case library.StatusMissing:
-		return !unreleased(m.ReleaseDate)
+		return !waitingForRelease(m.ReleaseDate)
 	case library.StatusDownloaded:
 		return !m.NoUpgrade && wantsUpgrade(profile, m.Quality, m.ReleaseTitle)
 	}
@@ -233,7 +242,8 @@ func (s *Server) huntMovie(ctx context.Context, m library.Movie, instances []ind
 	sources := s.sourcesFor(m.SourcePref)
 	switch m.Status {
 	case library.StatusMissing:
-		if !force && unreleased(m.ReleaseDate) {
+		if !force && waitingForRelease(m.ReleaseDate) {
+			s.noteHold(m.ID, 0, unreleasedMovieNote(m.ReleaseDate))
 			return false // nothing to download yet
 		}
 		if !force {
@@ -324,7 +334,7 @@ func (s *Server) rssSync(ctx context.Context) {
 		}
 		switch m.Status {
 		case library.StatusMissing:
-			if !unreleased(m.ReleaseDate) {
+			if !waitingForRelease(m.ReleaseDate) {
 				if note, hold := s.homeReleaseHold(context.Background(), m, profiles.resolve(m.ProfileID)); hold {
 					s.noteHomeHold(m, note)
 					continue

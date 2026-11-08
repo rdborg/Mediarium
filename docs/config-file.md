@@ -1,6 +1,6 @@
 # Keep your settings in a file
 
-If you like your setup in git, or you set up Mediarium from a script, you can keep the settings in one YAML file and apply it. This is a command you run yourself. Mediarium doesn't read the file when it starts, so nothing changes behind your back, and you can still change anything on the Settings pages.
+If you like your setup in git, or you set up Mediarium from a script, you can keep the settings in one YAML file and apply it. This is a command you run yourself. Mediarium doesn't read the file when it starts unless you switch that on (see [Settings file with a check](config-as-code.md)), so nothing changes behind your back, and you can still change anything on the Settings pages. The same file can also be downloaded, checked and applied from Settings > System, with a check first and a copy of the database before anything changes.
 
 The command talks to your running Mediarium through its API, so every value is checked exactly as it is on the Settings pages. A value Mediarium refuses is reported, and nothing is written for that block.
 
@@ -24,10 +24,11 @@ Things you add several of are **lists**. Each item has a `name`, and Mediarium f
 | `usenetServers` | Settings > Downloading > Usenet servers |
 | `mediaServers` | Settings > Media servers (Plex, Jellyfin, Emby, Kodi) |
 | `qualityProfiles` | Settings > Profiles |
+| `notifications` | Settings > Notifications (the `config:` lines are the fields of that kind of channel) |
 
 An item Mediarium doesn't have is **added**, one it has is **changed** to match the file, and one that is not in the file is **left alone**. Nothing is ever deleted by the file: delete on the Settings page.
 
-Custom formats, notifications and accounts are not in the file yet.
+Custom formats, import lists and accounts are not in the file yet.
 
 In `settings`, `defaultProfileId` is the quality profile movies use when they have none of their own, and `defaultTvProfileId` is the one shows use (`0` means shows use the movie default). Both are profile numbers, as shown by `config export`.
 
@@ -50,6 +51,7 @@ indexers:
     priority: 10         # 1 to 50, lower is tried first (25 = default)
     requestsPerDay: 25   # most requests a day (0 = none set)
     minSeeders: 5        # torrent indexers: skip releases with fewer seeders (0 = off, up to 1000)
+    torrentRoute: client # torrent indexers: client, debrid or builtin (left out = the usual order)
     extraCategories:     # more category numbers to search, per kind: movies, tv, music, books, audiobooks
       tv: [105000]
       books: [7120]
@@ -106,7 +108,9 @@ debrid:
 
 ## Secrets
 
-Write a password or a key as `${NAME}`. It is replaced with the environment variable `NAME` when the file is applied, so the secret never has to be in the file or in git. `${NAME:-fallback}` uses `fallback` when `NAME` isn't set. A `${NAME}` with no value and no fallback stops the command before anything is changed.
+An export writes `<secret>` where Mediarium has a password or key saved: it means "keep the one that is saved", and a `<secret>` for something the file adds means the password is still to be entered. The first line of a file, `formatVersion: 1`, is the version of the file format; a file from a newer Mediarium is refused.
+
+To put a real one in the file, write a password or a key as `${NAME}`. It is replaced with the environment variable `NAME` when the file is applied, so the secret never has to be in the file or in git. `${NAME:-fallback}` uses `fallback` when `NAME` isn't set. A `${NAME}` with no value and no fallback stops the command before anything is changed.
 
 These are the values Mediarium accepts but never shows back: in `settings` `tmdbApiKey`, `openSubtitlesApiKey`, `openSubtitlesUsername`, `openSubtitlesPassword`, `subdlApiKey`, `traktClientId` and `simklClientId`; `password` in `downloadClient` and `proxy`; `apiKey` in `debrid`; and in the lists the `password` of a Usenet server, the `apiKey` of an indexer (and the passwords of a site's `settings`) and the `token` of a media server. Because they can't be compared, they are sent again every time you apply.
 

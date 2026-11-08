@@ -292,6 +292,7 @@ Most settings live under **Settings**. Besides the folders, `PUID`, `PGID` and `
 | `MEDIARIUM_PAUSE_AUTOMATION` | Set to `1` to start in **safe mode**: nothing searches, downloads, refreshes, checks connections or looks for new versions by itself. Downloads waiting in line come back paused. You can still search and download by hand, and the dashboard says "Safe mode is on". Remove it to go back to normal. See [Troubleshooting](#troubleshooting). |
 | `MEDIARIUM_DISABLE_SSO` | Set to `1` as a way back in if single sign-on or directory sign-in locked people out: both are switched off and password sign-in is on, whatever is saved in Settings. Remove it to use the saved settings again. See [accounts.md](./accounts.md#if-you-are-locked-out). |
 | `MEDIARIUM_SUPERVISED` | Set to `1` only for a program you run yourself when a service manager other than Docker, systemd or launchd starts it again after it exits. It lets the Restart buttons work. |
+| `GOMEMLIMIT` | Normally not needed. When the container has a memory limit (`mem_limit` or `--memory`), Mediarium keeps its memory use under about 85% of it by itself, so a small NAS or Raspberry Pi cleans up before the system kills the container. Set `GOMEMLIMIT` (for example `600MiB`) only to choose another value; then Mediarium leaves it alone. |
 | `MEDIARIUM_SKIP_INSTALLED_UPDATE` | Set to any value to make the Docker entrypoint ignore an [installed update](#update-now-docker-image) and start the program inside the image. |
 
 The Docker images set `BUNDLED_FLARESOLVERR` (the `-full` image only) and `MEDIARIUM_IMAGE_VERSION` themselves. Don't set those two.
@@ -439,11 +440,16 @@ Run these in the folder with your `docker-compose.yml`:
 
 ## Using it as an app on a phone, tablet or computer
 
-Mediarium installs like an app. In Chrome, Edge or Safari on a computer, choose **Install** in the address bar; on an Android phone or tablet, **Add to Home screen** (or **Install app**); on an iPhone or iPad, Share > **Add to Home Screen**. It then opens in its own window, with its own icon, and a long press on the icon (or a right click) offers shortcuts to Activity, Calendar, Library and Discover. Installing needs an https address (or `localhost`), for example through a reverse proxy.
+Mediarium installs like an app. In Chrome, Edge or Safari on a computer, choose **Install** in the address bar; on an Android phone or tablet, **Add to Home screen** (or **Install app**); on an iPhone or iPad, Share > **Add to Home Screen**. It then opens in its own window, with its own icon, and a long press on the icon (or a right click) offers shortcuts to Activity, Calendar, Library and Discover. Installing needs an https address (or `localhost`), for example through a reverse proxy: browsers only allow installing, and the background program below, on a secure address. Over plain `http` on your home network the page works as always, but there is nothing to install.
 
-- The menu fits tablets (a narrower menu on a tablet in landscape, a wider drawer in portrait, bigger touch targets on a screen you press) and foldable phones.
+**Settings > General > Install as an app** helps with it. Chrome, Edge and Android show an **Install app** button. Safari has no such button, so the card gives the steps instead: on an iPhone, Share > **Add to Home Screen**; on an iPad, Share at the top > **Add to Home Screen**; in Safari on a Mac (Sonoma or newer), **File > Add to Dock**. The card disappears once Mediarium runs as an app.
+
+- **Your look:** under **Settings > General > Light or dark**, besides light and dark, **Pure black background** gives the dark look a black ground for OLED screens (and a black browser bar on a phone), and **Text size** makes all text Large or Larger. Both are kept in each browser, so a phone and a computer can differ.
+- **On a phone** the main pages sit in a bar along the bottom of the screen, where your thumb reaches them: Home, Discover, Library, Activity (with the number of downloads running) and **More**, which opens the menu with everything else. Pop-ups rise from the bottom edge, and the phone's Back button (or the back swipe) closes a pop-up or the menu instead of leaving the page.
+- The menu fits tablets (a narrower menu on a tablet in landscape, a wider drawer in portrait, bigger touch targets on a screen you press) and foldable phones. On a tablet the [Library](./library.md) shows its list on the left and the open film, show, artist or book on the right.
 - When the server can't be reached (you are away from the home network and the VPN is off, or the server is down), the installed app shows a short "Mediarium can't be reached" page with a **Try again** button instead of the browser's error. There is no offline mode: Mediarium shows nothing from memory, so it never shows stale data.
-- The same small background program (`push-sw.js`) also receives [push notifications](./notifications.md#push-to-this-device). It saves only that one page.
+- The small background program (`push-sw.js`, a service worker) keeps the program's own scripts and styles, so the app opens faster. It never keeps pages, anything from the API (your library, queue, settings) or the live updates, so nothing you see can be out of date or readable by someone else on the device. It also receives [push notifications](./notifications.md#push-to-this-device).
+- After an update the new version takes over by itself, and a small notice says **A new version is ready** with a **Reload** button. Under a [sub-path](#running-under-a-sub-path-url-base) it works the same: it lives at that path.
 
 ## Updating
 
@@ -454,7 +460,7 @@ docker compose up -d
 
 That downloads the newest image and restarts Mediarium with it. Your settings and library stay put, and the database updates itself on start. Nothing updates on its own unless you switch on **Install new versions overnight** (see below). A restart pauses running downloads; press **Resume** in Activity.
 
-- Read the [changelog](../CHANGELOG.md) first, and [back up](#backup-and-restore) `/config` before a big update. There is no way back to an older version once the database has been updated, except restoring a backup. When an update is going to change the database, Mediarium first saves a copy next to it (`pre-migration-<number>-<date>-<time>.db` in `/config`, the newest two are kept); that is the file to put back as `app.db` if an update goes wrong. From 3.1.3 on, if that version or a later one is started on a database that a newer version already changed, it still starts, but writes a warning to the log and to Health that says so. Versions before 3.1.3 don't check this and start without any warning.
+- Read the [changelog](../CHANGELOG.md) first, and [back up](#backup-and-restore) `/config` before a big update. When an update is going to change the database, Mediarium first saves a copy next to it (`pre-migration-<number>-<date>-<time>.db` in `/config`, the newest two are kept), and [Going back after an update](#going-back-after-an-update) puts it back. From 3.1.3 on, if that version or a later one is started on a database that a newer version already changed, it still starts, but writes a warning to the log and to Health that says so. Versions before 3.1.3 don't check this and start without any warning.
 - `:latest` always follows the newest release. To stay on a version, use its number instead. Each release has these tags (add `-full` for the [Cloudflare helper version](#optional-getting-past-cloudflare-checks)):
 
   | Tag | Moves when |
@@ -480,6 +486,15 @@ Once a day Mediarium asks GitHub for the newest release (the first time about tw
 ### What's new after an update
 
 The first time you open Mediarium after it moves to a newer version, a short note lists the highlights, with a link to every change. It shows once in each browser and not at all on a fresh install.
+
+### Going back after an update
+
+If an update goes wrong, **Settings > General > Going back after an update** lists the copies of the database Mediarium made before updates changed it (the newest two), each with the date of the update and the version that used it. The box only shows when there is something to go back to.
+
+- **Go back to this** asks first, then restarts and puts that copy back in place of the database. Anything that changed since then is lost: titles added, downloads that finished, settings you changed. The database in use until then is not deleted: it moves to a `before-restore-<date>-<time>` folder in `/config`, the same as when you [restore a backup](#backup-and-restore).
+- **The older program:** if the update was installed from inside the app (**Update now** or overnight), the newest copy also brings back the program that ran before, so the older version starts by itself. After a `docker compose pull`, change the image tag in your compose file to the version you had (for example `ghcr.io/rdborg/mediarium:3.9.2`) and recreate the container. If the newer version starts again instead, it updates the database again, and nothing is lost by that either.
+- Copies from before 4.0 don't say which version used them; they show as "From an earlier version".
+- Only from a signed-in browser: a request with an API key is refused.
 
 ### Update now (Docker image)
 
@@ -692,7 +707,7 @@ Add at least one indexer under Settings > Indexers & Search and press its **Test
 Open the title and look at its activity log: it says what happened in plain words ([activity.md](./activity.md)). Password-protected or damaged releases are blocklisted and the next one is tried.
 
 **Pages do not load, or say "Reconnecting to Mediarium".**
-Update to the newest version first. Then check that the settings folder (`/config`) is on a disk inside your server, not on a network share: the dashboard says so when it isn't. Mediarium logs any database call that takes more than three seconds, and a page that waits more than ten seconds shows "Mediarium is taking longer than usual to answer" with a **Try again** button. If the pages still won't open, start in safe mode: add `MEDIARIUM_PAUSE_AUTOMATION=1` under `environment` and run `docker compose up -d`. Nothing searches, downloads, refreshes or checks connections by itself, so the pages load and you can pause things or read the log. Remove the line and run `docker compose up -d` again to go back to normal. If the pages do open, **Restart with automation paused** (see [Restarting Mediarium](#restarting-mediarium)) does the same for one start.
+Update to the newest version first. Then check that the settings folder (`/config`) is on a disk inside your server, not on a network share: the dashboard says so when it isn't (Health names NFS, SMB and Ceph shares even when the database still manages its faster mode there), and the support report says which kind of share `/config` and the downloads folder are on. Every few hours, and once after each start, Mediarium lets SQLite refresh the statistics it plans its queries with (`PRAGMA optimize`), which keeps the lists quick as a library grows. Mediarium logs any database call that takes more than three seconds, and a page that waits more than ten seconds shows "Mediarium is taking longer than usual to answer" with a **Try again** button. If the pages still won't open, start in safe mode: add `MEDIARIUM_PAUSE_AUTOMATION=1` under `environment` and run `docker compose up -d`. Nothing searches, downloads, refreshes or checks connections by itself, so the pages load and you can pause things or read the log. Remove the line and run `docker compose up -d` again to go back to normal. If the pages do open, **Restart with automation paused** (see [Restarting Mediarium](#restarting-mediarium)) does the same for one start.
 
 **The time in the log is wrong.**
 Set `TZ` and run `docker compose up -d`.

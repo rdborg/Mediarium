@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rdborg/mediarium/internal/indexers"
 )
@@ -66,6 +67,7 @@ type arrMovie struct {
 	RootFolderPath   string        `json:"rootFolderPath"`
 	QualityProfileID int           `json:"qualityProfileId"`
 	MovieFile        *arrMovieFile `json:"movieFile"`
+	Added            time.Time     `json:"added"` // when it was added to Radarr
 }
 
 type arrSeason struct {
@@ -89,6 +91,7 @@ type arrSeries struct {
 	RootFolderPath   string         `json:"rootFolderPath"`
 	QualityProfileID int            `json:"qualityProfileId"`
 	SeriesType       string         `json:"seriesType"` // Sonarr: standard, daily or anime
+	Added            time.Time      `json:"added"`      // when it was added to Sonarr
 	Seasons          []arrSeason    `json:"seasons"`
 	Statistics       arrSeriesStats `json:"statistics"`
 }

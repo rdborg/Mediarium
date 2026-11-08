@@ -60,6 +60,17 @@ func TestParseEdgeCases(t *testing.T) {
 		{"multi-season pack", "Show.S01-S03.1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 3, Resolution: "1080p"}},
 		{"multi-season pack without the second S", "Show.S01-03.1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 3, Resolution: "1080p"}},
 		{"multi-season pack in words", "Show.Season.1-4.1080p.BluRay-GRP", parser.Release{Title: "Show", Season: 1, SeasonTo: 4, Resolution: "1080p", Source: "BluRay", Group: "GRP"}},
+		{"multi-season pack with Seasons", "The.Mentalist.Seasons.1-7.1080p.BluRay-GRP", parser.Release{Title: "The Mentalist", Season: 1, SeasonTo: 7, Resolution: "1080p", Source: "BluRay", Group: "GRP"}},
+		{"multi-season pack with spaces", "The Office US Seasons 1 to 9 720p", parser.Release{Title: "The Office US", Season: 1, SeasonTo: 9, Resolution: "720p"}},
+		{"multi-season pack with thru", "Show.Season.1.thru.4.1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 4, Resolution: "1080p"}},
+		{"multi-season pack and complete", "Show.S01-S09.Complete.Series.1080p.WEB-DL-GRP", parser.Release{Title: "Show", Season: 1, SeasonTo: 9, Complete: true, Resolution: "1080p", Source: "WEB-DL", Group: "GRP"}},
+		{"complete series without seasons", "The.Office.US.Complete.Series.1080p.BluRay.x265-GRP", parser.Release{Title: "The Office US", Complete: true, Resolution: "1080p", Source: "BluRay", Codec: "x265", Group: "GRP"}},
+		{"the complete series, spaced", "The Mentalist - The Complete Series (720p)", parser.Release{Title: "The Mentalist", Complete: true, Resolution: "720p"}},
+		{"complete collection", "Show.Name.Complete.Collection.2160p", parser.Release{Title: "Show Name", Complete: true, Resolution: "2160p"}},
+		{"all seasons", "Show.All.Seasons.720p.HDTV", parser.Release{Title: "Show", Complete: true, Resolution: "720p", Source: "HDTV"}},
+		{"complete box set", "Show.Complete.Boxset.1080p", parser.Release{Title: "Show", Complete: true, Resolution: "1080p"}},
+		{"complete alone is not a complete series", "Show.Complete.1080p", parser.Release{Title: "Show Complete", Resolution: "1080p"}},
+		{"a title with complete in it", "The.Complete.Idiots.Guide.2012.720p", parser.Release{Title: "The Complete Idiots Guide", Year: 2012, Resolution: "720p"}},
 		{"backwards season range is one season", "Show.S03-S01.1080p", parser.Release{Title: "Show", Season: 3, Resolution: "1080p"}},
 		{"season pack followed by a resolution", "Show.S01-720p", parser.Release{Title: "Show", Season: 1, Resolution: "720p"}},
 		{"season pack with a group", "Show.S02-GRP", parser.Release{Title: "Show", Season: 2, Group: "GRP"}},
@@ -208,6 +219,29 @@ func TestYearSpanStartsWithTheFirstYear(t *testing.T) {
 		r := parser.Parse(c.in)
 		if r.Title != c.title || r.Year != c.year {
 			t.Errorf("Parse(%q) = %q %d, want %q %d", c.in, r.Title, r.Year, c.title, c.year)
+		}
+	}
+}
+
+func TestSeasonSpan(t *testing.T) {
+	cases := []struct {
+		in       string
+		from, to int
+		ok       bool
+	}{
+		{"Show.S01-S09.1080p", 1, 9, true},
+		{"Show.Seasons.2-4.720p", 2, 4, true},
+		{"Show.Complete.Series.1080p", 1, 0, true},
+		{"Show.S01-S05.Complete.Series.1080p", 1, 5, true},
+		{"Show.S03.1080p", 0, 0, false},
+		{"Show.S03.Complete.Series.1080p", 0, 0, false},
+		{"Show.S01E05.1080p", 0, 0, false},
+		{"Show.1080p", 0, 0, false},
+	}
+	for _, c := range cases {
+		from, to, ok := parser.Parse(c.in).SeasonSpan()
+		if from != c.from || to != c.to || ok != c.ok {
+			t.Errorf("SeasonSpan(%q) = %d, %d, %v; want %d, %d, %v", c.in, from, to, ok, c.from, c.to, c.ok)
 		}
 	}
 }

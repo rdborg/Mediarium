@@ -49,6 +49,11 @@ const table: { name: string; input: Diagnostics; has: string[]; lacks?: string[]
     lacks: ['fast mode'],
   },
   {
+    name: 'the settings and downloads folders on network shares',
+    input: sample({ downloadsShare: 'SMB', database: { ...sample().database, share: 'NFS' } }),
+    has: ['Database: fast mode, 12.0 MB (log file 512 KB), on a network share (NFS)', 'Downloads folder: on a network share (SMB)'],
+  },
+  {
     name: 'safe mode with nothing to report',
     input: sample({ safeMode: true, health: [], log: [], downloadsRunning: undefined, uptimeSeconds: 45 }),
     has: ['Safe mode: on', 'Running for: 45 seconds', 'Setup warnings:\n  none', 'Recent log (0 lines):\n  nothing yet'],

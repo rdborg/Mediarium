@@ -94,6 +94,12 @@ export interface Chosen {
   music: boolean
   ebooks?: boolean
   audiobooks?: boolean
+  // The anime library, part of TV: never a kind of media on its own.
+  anime?: boolean
+  // The library lifecycle rules: not a kind of media either.
+  lifecycle?: boolean
+  // The Channel archiver can't be picked here (it needs a yt-dlp file and a ticked warning), so the wizard only points to Settings.
+  archiver?: boolean
 }
 
 export const nothingChosen = (c: Chosen) => !c.movies && !c.tv && !c.music && !c.ebooks && !c.audiobooks

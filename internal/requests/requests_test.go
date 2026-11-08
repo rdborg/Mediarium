@@ -90,3 +90,29 @@ func TestUnannouncedAndFourK(t *testing.T) {
 		t.Fatalf("available at %q", back.AvailableAt)
 	}
 }
+
+// A removal request keeps its reason, reads back as a removal, and never
+// counts against the quota or gets a "ready to watch" message.
+func TestRemovalRequestsAreNotAdds(t *testing.T) {
+	repo, _ := newRepo(t)
+	old, err := repo.Create(requests.Request{Kind: "movie", Title: "Old", Payload: `{}`, RequestedBy: 7})
+	if err != nil || old.Action != requests.ActionAdd {
+		t.Fatalf("a request without an action is an add: %+v, %v", old, err)
+	}
+	rm, err := repo.Create(requests.Request{Kind: "movie", Title: "Dune", Payload: `{"libraryId":4,"tmdbId":438631,"reason":"Nobody watches it"}`, RequestedBy: 7, Action: requests.ActionRemove})
+	if err != nil || rm.Action != requests.ActionRemove || rm.Reason != "Nobody watches it" {
+		t.Fatalf("removal: %+v, %v", rm, err)
+	}
+	if n, _, _ := repo.CountSince(7, "2000-01-01T00:00:00Z"); n != 1 {
+		t.Fatalf("only the add counts for the quota, got %d", n)
+	}
+	if err := repo.Decide(rm.ID, requests.Approved, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := repo.Unannounced(); len(got) != 0 {
+		t.Fatalf("an approved removal is not announced as ready: %+v", got)
+	}
+	if list, _ := repo.List(0); len(list) != 2 {
+		t.Fatalf("list: %+v", list)
+	}
+}

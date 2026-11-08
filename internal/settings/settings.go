@@ -15,9 +15,14 @@ import (
 const (
 	KeyMoviesPath          = "library.movies_path"
 	KeyTVPath              = "library.tv_path"                  // falls back to the TV_DIR env default when unset
+	KeyAnimePath           = "library.anime_path"               // with the anime module on, the folder new anime shows go to; unset = the TV folder
+	KeyAnimeMoviesPath     = "library.anime_movies_path"        // with the anime module on, the folder new anime films (animated, in Japanese) go to; unset = where other movies go
+	KeyAnimeEpisodeFormat  = "library.anime_episode_format"     // with the anime module on, the file name format of anime episodes (tokens as for episodes, plus {Absolute:000}); unset = the TV episode format
+	KeyLastVersion         = "system.version"                   // the version that last started, written at every start; a copy made before an update keeps the version it belonged to
 	KeyPushVAPID           = "notify.vapid_key"                 // this server's key for push notifications (encrypted; made on first start)
 	KeyTrailerSound        = "ui.trailer_sound"                 // "1" starts the trailer behind a title page with its sound on, where the browser allows it; unset or "0" starts it muted
 	KeyTrailerBackground   = "ui.trailer_background"            // unset or "1" plays the trailer behind movie and show pages for everyone, unless a browser chose otherwise; "0" switches it off for everyone
+	KeyArtworkProxy        = "ui.artwork_proxy"                 // unset or "1" loads posters, backdrops and pictures of people through this server (resized, kept here, so the browser never contacts the picture host); "0" lets each browser load them straight from the picture host
 	KeyShowAdvanced        = "ui.show_advanced"                 // "1" shows custom formats and format scores on the Quality page; unset follows whether any custom format exists
 	KeyTrashFormatsAuto    = "formats.trash_auto_update"        // "1" re-reads the TRaSH Guides once a day and updates the custom formats that came from them; unset or "0" only updates on request
 	KeyTrashFormatsLast    = "formats.trash_last_update"        // when the TRaSH Guides were last read for the daily update (RFC 3339)
@@ -105,17 +110,18 @@ const (
 	KeyUsenetClientRemoveOnStop   = "usenetclient.remove_on_stop"      // "0" leaves a stopped or removed download's job in the client; unset or "1" removes it too (only an unfinished job Mediarium added)
 
 	// Automation (RSS sync, scheduled search, hunting).
-	KeyAutomationEnabled  = "automation.enabled"            // "0" disables; anything else (including unset) enables
-	KeyQualityProfile     = "library.quality_profile"       // legacy: an old preset key (any-1080p, ultra-hd, any); only read once to pick the initial default profile
-	KeyQualityLanguage    = "quality.language"              // the audio language wanted, as a name like "English" (the default when unset); a release clearly in another language only is not picked automatically
-	KeyInfoLanguage       = "info.language"                 // the language titles, plots, genres and posters are read in, as a TMDB tag like "de-DE" (en-US when unset); with naming.folders_in_info_language on, new movie and show folders and file names use that language's title too
-	KeyReleaseCountry     = "info.release_country"          // the country release dates are read for, as a code like "IN"; unset = the country of the info language
-	KeySubtitleAddons     = "subtitles.addons"              // subtitle add-ons (JSON list of {id, name, url}; the url can hold the person's own key for a site, so it is stored encrypted)
-	KeyDefaultSources     = "library.default_sources"       // usenet | torrent | both (default both)
-	KeySeasonPacks        = "library.season_packs"          // "1" looks for a season pack once a season has ended (a show can say otherwise for itself); unset or "0" leaves it off
-	KeyDefaultProfileID   = "library.default_profile_id"    // id of the stored quality profile used by items with no profile of their own
-	KeyDefaultTVProfileID = "library.default_profile_id_tv" // id of the quality profile shows with none of their own use; unset = the same default as movies
-	KeyPresetsVersion     = "library.presets_version"       // revision of the built-in quality presets last applied; unset means never (set at start, not user-editable)
+	KeyAutomationEnabled     = "automation.enabled"               // "0" disables; anything else (including unset) enables
+	KeyQualityProfile        = "library.quality_profile"          // legacy: an old preset key (any-1080p, ultra-hd, any); only read once to pick the initial default profile
+	KeyQualityLanguage       = "quality.language"                 // the audio language wanted, as a name like "English" (the default when unset); a release clearly in another language only is not picked automatically
+	KeyInfoLanguage          = "info.language"                    // the language titles, plots, genres and posters are read in, as a TMDB tag like "de-DE" (en-US when unset); with naming.folders_in_info_language on, new movie and show folders and file names use that language's title too
+	KeyReleaseCountry        = "info.release_country"             // the country release dates are read for, as a code like "IN"; unset = the country of the info language
+	KeySubtitleAddons        = "subtitles.addons"                 // subtitle add-ons (JSON list of {id, name, url}; the url can hold the person's own key for a site, so it is stored encrypted)
+	KeyDefaultSources        = "library.default_sources"          // usenet | torrent | both (default both)
+	KeySeasonPacks           = "library.season_packs"             // "1" looks for a season pack once a season has ended (a show can say otherwise for itself); unset or "0" leaves it off
+	KeyDefaultProfileID      = "library.default_profile_id"       // id of the stored quality profile used by items with no profile of their own
+	KeyDefaultTVProfileID    = "library.default_profile_id_tv"    // id of the quality profile shows with none of their own use; unset = the same default as movies
+	KeyDefaultAnimeProfileID = "library.default_profile_id_anime" // with the anime module on, the quality profile anime shows with none of their own use; unset = the TV default
+	KeyPresetsVersion        = "library.presets_version"          // revision of the built-in quality presets last applied; unset means never (set at start, not user-editable)
 
 	// Folder and file names.
 	KeyFoldersInInfoLanguage = "naming.folders_in_info_language" // "1" names new movie and show folders and files with the title in the info language; unset or "0" keeps the English title
@@ -150,6 +156,18 @@ const (
 	KeySimklExpires      = "metadata.simkl_expires"     // when the access token runs out (Unix seconds), when Simkl said; unset for a token that does not expire
 	KeyHardcoverToken    = "books.hardcover_token"      // encrypted; a personal Hardcover API token for better book series and release dates. Unset = Open Library only
 	KeyGoogleBooksAPIKey = "books.google_books_api_key" // encrypted; an optional personal Google Books API key. Book search asks Google Books without one. A key is for people who reach Google's limit.
+	KeySoulseekURL       = "soulseek.url"               // slskd's address (Soulseek for music, api/soulseek.go); unset = off
+	KeySoulseekAPIKey    = "soulseek.api_key"           // encrypted; a read-write slskd API key
+	KeySoulseekFolder    = "soulseek.folder"            // the folder slskd downloads into, as Mediarium sees it
+	KeyTVDBAPIKey        = "metadata.tvdb_api_key"      // encrypted; a TheTVDB v4 API key, for filling in shows TMDB is missing seasons or episodes of. Unset = TMDB only
+	KeyOMDbAPIKey        = "metadata.omdb_api_key"      // the person's own OMDb key, for IMDb, Rotten Tomatoes and Metacritic scores (encrypted); unset = off
+	KeyTVDBPIN           = "metadata.tvdb_pin"          // encrypted; the subscriber PIN that goes with a TheTVDB user key, when it needs one
+	KeyProwlarrURL       = "indexers.prowlarr_url"      // the address of a running Prowlarr whose indexers Mediarium keeps in step; unset = no link
+	KeyProwlarrAPIKey    = "indexers.prowlarr_api_key"  // encrypted; that Prowlarr's API key
+	KeyProwlarrSync      = "indexers.prowlarr_sync"     // "1" keeps the linked Prowlarr's indexers in Mediarium up to date every few hours
+	KeyProwlarrLinks     = "indexers.prowlarr_links"    // which Mediarium indexer is each Prowlarr indexer: JSON {"5": 12}
+	KeyProwlarrResult    = "indexers.prowlarr_result"   // what the last sync did, as a sentence, and when (JSON)
+	KeyTVDBFill          = "metadata.tvdb_fill"         // "1" fills in seasons and episodes TMDB is missing from TheTVDB when a show is refreshed; off by default
 
 	// Illegal filename character handling ("configurable
 	// (replace vs. strip)"). The engine (internal/organizer.Sanitize) has
@@ -276,6 +294,8 @@ const (
 	KeyModulesMusic      = "modules.music"      // "1" switches music on; unset or "0" leaves it off (unset falls back to music.enabled)
 	KeyModulesAudiobooks = "modules.audiobooks" // "1" switches it on; unset or "0" leaves it off
 	KeyModulesEbooks     = "modules.ebooks"     // "1" switches it on; unset or "0" leaves it off
+	KeyFeatureOffers     = "ui.feature_offers"  // what an administrator chose for each "switch this on?" offer after an update: JSON {"anime": "never" | "later:4.0.0"}
+	KeyModulesAnime      = "modules.anime"      // "1" gives anime its own library (tab, folder, quality profile and episode names) inside TV; unset or "0" keeps anime with the other shows
 
 	// Updates and restarts (Settings > System). See docs/security.md.
 	KeyStatsChoice        = "stats.choice"                   // the administrator's answer about sharing anonymous usage numbers: "yes", "no", or unset when not asked yet. Nothing is sent unless it is "yes" (see docs/usage-stats.md)
@@ -283,6 +303,9 @@ const (
 	KeyStatsLastSent      = "stats.last_sent"                // the day (UTC) the numbers were last sent; set by the app, not user-editable
 	KeyUpdatesCheck       = "updates.check"                  // "0" turns the daily check for a new version off; anything else (including unset) leaves it on
 	KeyUpdatesAutoInstall = "updates.auto_install"           // "1" installs a new, signed release overnight when nothing is downloading; unset or "0" leaves updating to you
+	KeyConfigFileAtStart  = "system.config_file_at_start"    // "1" applies mediarium-config.yaml, .yml or .json from the config folder at start, when it changed since it was last applied; unset or "0" never reads it. Only a signed-in browser session can switch it on
+	KeyConfigFileHash     = "system.config_file_hash"        // SHA-256 of the file last applied (or tried) at start; set by the app, not user-editable
+	KeyConfigFileResult   = "system.config_file_result"      // what the last apply at start did (JSON); set by the app, not user-editable
 	KeyUpdatesAllowPush   = "updates.allow_push"             // "1" lets an administrator replace the program by uploading a file through the API; unset or "0" refuses. Only a signed-in browser session can switch it on, not an API key
 	KeyUpdatesLatest      = "updates.latest"                 // the newest release the last check found (JSON; set by the app, not user-editable)
 	KeyUpdatesCheckedAt   = "updates.last_checked_at"        // when the last check ran (RFC 3339; set by the app, not user-editable)
@@ -290,10 +313,18 @@ const (
 	KeyAutoRestartStuck   = "system.auto_restart_when_stuck" // "0" stops Mediarium restarting itself when it has not answered for three minutes; anything else (including unset) leaves it on
 	KeyMCPEnabled         = "mcp.enabled"                    // "1" lets AI assistants connect to the MCP address (POST /mcp) with an administrator's API key; unset or "0" keeps it off. Only a signed-in browser session can switch it on, not an API key
 
+	// The SABnzbd and qBittorrent look-alike addresses for phone apps (Settings > Other apps). Off by default.
+	KeyDownloaderAPIEnabled = "compat.downloader_api" // "1" lets phone apps such as nzb360 use the SABnzbd-style address (/sabnzbd/api) and the qBittorrent-style address (/qbittorrent/api/v2) of the built-in downloaders, with an administrator's API key; unset or "0" keeps both off. Only a signed-in browser session can switch it on, not an API key
+
 	// Watched status and cleanup rules (Settings > Connections > Media servers). Both off by default.
-	KeyWatchedSync   = "watched.sync"   // "1" reads what's been watched from Plex, Jellyfin and Emby every six hours; unset or "0" leaves it off
-	KeyWatchedStatus = "watched.status" // the last read and cleanup (JSON; set by the app, not user-editable)
-	KeyCleanupRules  = "cleanup.rules"  // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
+	KeyWatchedSync      = "watched.sync"      // "1" reads what's been watched from Plex, Jellyfin and Emby every six hours; unset or "0" leaves it off
+	KeyWatchedStatus    = "watched.status"    // the last read and cleanup (JSON; set by the app, not user-editable)
+	KeyLifecycleRules   = "lifecycle.rules"   // the library lifecycle rules (JSON: days per rule, graceDays, keepTags, actForReal); nothing is removed unless actForReal is true
+	KeyLifecycleStatus  = "lifecycle.status"  // the last lifecycle run (JSON; set by the app, not user-editable)
+	KeyModulesLifecycle = "modules.lifecycle" // "1" switches the library lifecycle rules on (the Leaving soon shelf); unset or "0" leaves them off
+	KeyModulesArchiver  = "modules.archiver"  // "1" switches the Channel archiver on; unset or "0" leaves it off. It can only be switched on after the warning is ticked and the yt-dlp file answers
+	KeyArchiverConfig   = "archiver.config"   // the Channel archiver's settings (JSON: yt-dlp path, folder, format, limits, other websites, the ticked warning)
+	KeyCleanupRules     = "cleanup.rules"    // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
 
 	// Sign-in through a reverse proxy (Settings > Accounts). See docs/security.md.
 	KeyAuthProxyHeader    = "auth.proxy_header"    // the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key
@@ -313,9 +344,10 @@ const (
 	KeyScriptLastRun     = "scripts.last_run"     // what the last run did (JSON; set by the app, not user-editable)
 
 	// Search and quality (Settings > Library). Both off until switched on.
-	KeySearchDelay  = "search.delay_profile"  // delay profile (JSON: preferredProtocol, usenetMinutes, torrentMinutes, bypassIfHighestQuality): automatic searches hold back releases of the less liked protocol for that many minutes; unset or 0 minutes = no wait
-	KeyMinSizeCheck = "search.min_size_check" // "0" turns the built-in minimum size per quality off (Settings > Library > Quality > Size limits); anything else, including unset, leaves it on
-	KeySizeLimits   = "quality.size_limits"   // size limits per quality for movies in MB per minute of runtime (JSON: enabled, limits); applied only while enabled is true
+	KeySearchDelay    = "search.delay_profile"   // delay profile (JSON: preferredProtocol, usenetMinutes, torrentMinutes, bypassIfHighestQuality): automatic searches hold back releases of the less liked protocol for that many minutes; unset or 0 minutes = no wait
+	KeyMinSizeCheck   = "search.min_size_check"  // "0" turns the built-in minimum size per quality off (Settings > Library > Quality > Size limits); anything else, including unset, leaves it on
+	KeyHoldUnreleased = "search.hold_unreleased" // "0" lets automatic searches look for a movie before its release date and an episode before it airs; anything else, including unset, leaves them waiting (Settings > Library > Quality > Automation)
+	KeySizeLimits     = "quality.size_limits"    // size limits per quality for movies in MB per minute of runtime (JSON: enabled, limits); applied only while enabled is true
 
 	// The same table for shows (it started as a copy of the movie table).
 	KeySizeLimitsTV = "quality.size_limits_tv"

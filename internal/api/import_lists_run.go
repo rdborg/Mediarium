@@ -269,6 +269,13 @@ func (s *Server) fetchListItems(ctx context.Context, l importList) ([]importlist
 		}
 		return out, nil
 
+	case listRSS:
+		entries, err := s.readFeedEntries(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		return feedListItems(entries, l.Media), nil
+
 	case listMDBList:
 		user, name, err := importlists.ParseMDBListAddress(cfg.URL)
 		if err != nil {
@@ -425,6 +432,10 @@ type listRunResult struct {
 	// searchMovies and searchSeries are the library ids of what this read added
 	// to a list that is set to search for what it adds.
 	searchMovies, searchSeries []int64
+	// feed is what an RSS feed list read, for the downloads it may start;
+	// grabbed is how many of its releases went to the download line.
+	feed    []importlists.FeedEntry
+	grabbed int
 }
 
 func (r listRunResult) skipped() int {
@@ -462,6 +473,9 @@ func (r listRunResult) message() string {
 	if r.off > 0 {
 		parts = append(parts, fmt.Sprintf("%d were left out because that kind of media is switched off.", r.off))
 	}
+	if r.grabbed > 0 {
+		parts = append(parts, fmt.Sprintf("Downloading %s from the feed.", plural(r.grabbed, "release")))
+	}
 	if r.failed > 0 {
 		msg := fmt.Sprintf("%d couldn't be added and will be tried again.", r.failed)
 		if r.firstFailure != "" {
@@ -484,6 +498,9 @@ func (s *Server) runImportList(ctx context.Context, id int64) {
 	var res listRunResult
 	err = s.processImportList(ctx, l, &res)
 	s.searchListAdditions(res)
+	if err == nil && l.Source == listRSS && l.Config.Grab {
+		res.grabbed = s.grabFromFeed(ctx, l, res.feed)
+	}
 	status, msg := "ok", res.message()
 	if err != nil {
 		status, msg = "error", listErrorText(err)
@@ -507,7 +524,16 @@ func (s *Server) processImportList(ctx context.Context, l importList, res *listR
 	if !s.TMDB().HasAPIKey() {
 		return metadata.ErrNoAPIKey
 	}
-	items, err := s.fetchListItems(ctx, l)
+	var items []importlists.Item
+	var err error
+	if l.Source == listRSS {
+		// The feed is read once: for its titles, and for its releases after.
+		if res.feed, err = s.readFeedEntries(ctx, l.Config); err == nil {
+			items = feedListItems(res.feed, l.Media)
+		}
+	} else {
+		items, err = s.fetchListItems(ctx, l)
+	}
 	if err != nil {
 		return err
 	}

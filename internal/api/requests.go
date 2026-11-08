@@ -99,6 +99,9 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 		if json.Unmarshal(body, &req) != nil || req.TMDBID <= 0 {
 			return requestInfo{}, errors.New("Pick a show from the search results.")
 		}
+		if req.Episode != nil {
+			return s.describeEpisodeRequest(ctx, req.TMDBID, *req.Episode)
+		}
 		if _, ok, _ := s.MovieRepo.GetSeriesByTMDBID(req.TMDBID); ok {
 			return requestInfo{inLibrary: true}, nil
 		}
@@ -150,11 +153,12 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 // "book:OL27448W"). Two requests with the same key ask for the same thing.
 func requestKey(kind, payload string) string {
 	var v struct {
-		TMDBID    int    `json:"tmdbId"`
-		MBID      string `json:"mbid"`
-		AlbumMBID string `json:"albumMbid"`
-		OLKey     string `json:"olKey"`
-		FourK     bool   `json:"fourK"`
+		TMDBID    int         `json:"tmdbId"`
+		MBID      string      `json:"mbid"`
+		AlbumMBID string      `json:"albumMbid"`
+		OLKey     string      `json:"olKey"`
+		FourK     bool        `json:"fourK"`
+		Episode   *episodeRef `json:"episode"`
 	}
 	if json.Unmarshal([]byte(payload), &v) != nil {
 		return ""
@@ -162,6 +166,9 @@ func requestKey(kind, payload string) string {
 	switch kind {
 	case "movie", "tv":
 		if v.TMDBID > 0 {
+			if v.Episode != nil && kind == "tv" { // one episode is its own request
+				return fmt.Sprintf("tv:tmdb:%d:%s", v.TMDBID, strings.ToLower(v.Episode.code()))
+			}
 			if v.FourK { // the 4K copy is its own request
 				return fmt.Sprintf("%s:tmdb:%d:4k", kind, v.TMDBID)
 			}
@@ -192,6 +199,13 @@ func (s *Server) fileRequest(w http.ResponseWriter, r *http.Request, kind string
 	fourK := payloadFourK(body)
 	if fourK && !s.fourKReady(kind) {
 		writeError(w, http.StatusBadRequest, "Asking for a 4K copy isn't available here.")
+		return
+	}
+	if _, one := payloadEpisode(string(body)); one && (fourK || kind != "tv") {
+		writeError(w, http.StatusBadRequest, "A single episode can't be asked for in 4K.")
+		return
+	}
+	if !s.mayAskForAge(w, r, kind, payloadTMDBID(string(body))) {
 		return
 	}
 	info, err := s.describeRequest(ctx, kind, body)
@@ -329,6 +343,10 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "This request has already been answered.")
 		return
 	}
+	if req.Action == requests.ActionRemove {
+		s.approveRemoval(w, r, req)
+		return
+	}
 	handler := map[string]http.HandlerFunc{"movie": s.handleAddMovie, "tv": s.handleAddSeries, "music": s.handleAddArtist, "book": s.handleAddBook}[req.Kind]
 	if handler == nil {
 		writeError(w, http.StatusBadRequest, "This request can't be approved.")
@@ -430,6 +448,12 @@ func (s *Server) handleDeclineRequest(w http.ResponseWriter, r *http.Request) {
 	adminID, byline := requester(r)
 	if err := s.Requests.Decide(req.ID, requests.Declined, note, adminID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if req.Action == requests.ActionRemove {
+		s.declineRemoval(req, note, byline)
+		out, _ := s.Requests.Get(req.ID)
+		writeJSON(w, http.StatusOK, out)
 		return
 	}
 	_ = s.QueueRepo.LogActivity(0, "removed", fmt.Sprintf("Request for %s declined%s", requestLabel(req), byline))

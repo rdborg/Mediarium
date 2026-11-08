@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, type Settings as SettingsData } from '../../api'
 import GoogleBooksCard from '../../components/GoogleBooksCard'
 import HardcoverCard from '../../components/HardcoverCard'
+import TheTVDBCard from '../../components/TheTVDBCard'
+import OMDbCard from '../../components/OMDbCard'
 import InfoLanguageCard from '../../components/InfoLanguageCard'
 import ServiceKeyCard from '../../components/ServiceKeyCard'
 import { TMDB_COPY } from '../../components/serviceCopy'
@@ -43,6 +45,30 @@ function TrailerCard() {
         disabled={!sound.loaded || sound.saving || !trailer.value}
         label={t('Start the trailer with its sound on')}
         description={t('Browsers only let a page play sound after you have clicked something on it, so the trailer may still start muted when a page is opened straight from a link. The small sound button on the page changes it for that browser.')}
+        showState
+      />
+    </section>
+  )
+}
+
+// Where posters and backdrops are loaded from: this server (the default) or TMDB's picture host directly.
+function ArtworkCard() {
+  const { refresh } = useModules()
+  const art = useAutosaveSetting<boolean>(
+    (s) => s.artworkProxy ?? true,
+    (v) => ({ artworkProxy: v }),
+    (saved) => (saved ? t('Saved: artwork loads through Mediarium.') : t('Saved: browsers load artwork straight from TMDB.')),
+    true,
+  )
+  return (
+    <section className="card">
+      <h2>{t('Artwork from TMDB')}</h2>
+      <Switch
+        checked={art.value}
+        onChange={(v) => void art.change(v).then(refresh)}
+        disabled={!art.loaded || art.saving}
+        label={t('Load artwork through Mediarium')}
+        description={t('Mediarium gets each poster, backdrop and picture of a person from TMDB once, makes it the size the page needs and keeps a copy. Your browsers then never contact TMDB, and phones load small pictures. Switched off, every browser loads artwork from TMDB itself. Pages that are open change when they load again.')}
         showState
       />
     </section>
@@ -125,8 +151,11 @@ export default function MetadataSettings() {
       <InfoLanguageCard />
       <NumberingCard />
       <AirTimesCard />
+      <ArtworkCard />
       <TrailerCard />
       <HardcoverCard />
+      <TheTVDBCard />
+      <OMDbCard />
       <GoogleBooksCard />
     </div>
   )

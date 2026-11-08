@@ -94,6 +94,10 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
       if (choice === 'album' && item && existingArtist) {
         if (!found) found = (await api.getArtist(artistId)).albums?.find((a) => a.mbid === item.mbid)
         if (!found) {
+          // A soundtrack or compilation the artist is on, but not one of their own albums.
+          found = await api.addArtistAlbum(artistId, item.mbid).catch(() => undefined)
+        }
+        if (!found) {
           toast.info(t('{name} was added, but "{album}" is not in their list of albums.', { name: artistName, album: item.title }))
         } else {
           albumId = found.id

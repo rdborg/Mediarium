@@ -331,18 +331,22 @@ a.prog-card:hover { text-decoration: none; border-color: color-mix(in srgb, var(
 /* Mid width: the days are too narrow for titles, so each shows its posters
    side by side; the title is in the tooltip and read out by screen readers. */
 @container prog (max-width: 980px) {
-  .prog-slots { display: flex; flex-wrap: wrap; gap: 6px; }
-  .prog-slot { padding: 3px; gap: 0; }
-  .prog-slot-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .prog-slot .prog-thumb { --tw: 34px; --th: 51px; }
-  .prog-slot .prog-thumb.f-music { --tw: 40px; --th: 40px; margin-right: 10px; }
-  .prog-slot .prog-thumb.f-audiobook { --tw: 38px; --th: 38px; }
+  /* Tablets (discussion #170): each day lists its releases as short lines of text, the title and then the
+     episode or the kind of release, with the kind's colour as a thin edge instead of the poster. */
+  .prog-slots { gap: 3px; }
+  .prog-slot { padding: 2px 4px 2px 6px; gap: 0; border-radius: 3px 7px 7px 3px; box-shadow: inset 2px 0 0 var(--kc); }
+  .prog-slot .prog-thumb { display: none; }
+  .prog-slot-title { display: block; font-size: 0.7rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  .prog-slot-meta { font-size: 0.6rem; }
+  .prog-slot-meta svg { display: none; }
   .prog-dows span { padding-left: 8px; padding-right: 4px; letter-spacing: 0.1em; }
 }
 /* Phones and narrow panels: the same four views, drawn to fit (a compact month with dots, posters or stills by day, the list). */
 @container prog (max-width: 688px) {
   .prog-views { display: flex; width: 100%; }
-  .prog-views button { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
+  .prog-views button { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+  /* Four views in a phone's width: each name stays whole, the text a little smaller instead of breaking. */
+  main.content .prog-views button { white-space: nowrap; overflow-wrap: normal; word-break: normal; font-size: clamp(0.7rem, 3.3vw, 0.9rem); }
   .prog-day { grid-template-columns: 64px minmax(0, 1fr); }
   .prog-stub-num { font-size: 1.9rem; }
   .prog-cards { padding-left: 10px; gap: 8px; }

@@ -4,6 +4,7 @@ import Icon from '../../components/Icon'
 import IndexerCard from '../../components/IndexerCard'
 import IndexerForm from '../../components/IndexerForm'
 import IrcAnnounceCard from '../../components/IrcAnnounceCard'
+import ProwlarrLinkCard from '../../components/ProwlarrLinkCard'
 import { useToast } from '../../components/Toast'
 import { useLive } from '../../useLive'
 import { useConfirm } from '../../components/ConfirmProvider'
@@ -140,6 +141,7 @@ export default function IndexerSettings() {
           </div>
         )}
       </fieldset>
+      <ProwlarrLinkCard onSynced={reload} />
       <fieldset className="group torrent flare-card">
         <legend>
           <Icon name="shield" size={14} /> <TipLabel text={t('Some sites show a "checking your browser" page that only a real browser passes. FlareSolverr opens it for Mediarium and passes the cookies back.')} learnMore="indexers#sites-behind-a-cloudflare-check">{t('Cloudflare sites (optional)')}</TipLabel>

@@ -202,6 +202,7 @@ func (s *Server) addCollectionMovie(ctx context.Context, tmdbID, collectionID in
 	if problem != "" {
 		rootPath = s.newMovieFolder() // the folder was taken out of the settings
 	}
+	rootPath = s.animeMovieFolderFor(*tm, rootPath)
 	created, err := s.MovieRepo.Add(library.Movie{
 		TMDBID: tm.TMDBID, Title: tm.Title, Year: tm.Year(),
 		Overview: tm.Overview, PosterPath: tm.PosterPath, Monitored: o.Monitored, ReleaseDate: tm.ReleaseDate,

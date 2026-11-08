@@ -5,6 +5,7 @@ import { t } from '../i18n'
 import { useFocusTrap } from '../useFocusTrap'
 import { notesToShow, SEEN_KEY, titleVersion, type ReleaseNotes } from '../whatsNew'
 import Icon from './Icon'
+import FeatureOffers from './FeatureOffers'
 
 function readSeen(): string | null {
   try {
@@ -29,6 +30,7 @@ function writeSeen(v: string) {
 // for this one instead of opening on top of it.
 export default function WhatsNew({ version, onDone }: { version: string; onDone?: () => void }) {
   const [notes, setNotes] = useState<ReleaseNotes[]>([])
+  const [lastSeen, setLastSeen] = useState<string | null>(null)
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export default function WhatsNew({ version, onDone }: { version: string; onDone?
     }
     const due = notesToShow(seen, version)
     if (due.length > 0) {
+      setLastSeen(seen)
       setNotes(due)
       return
     }
@@ -62,10 +65,10 @@ export default function WhatsNew({ version, onDone }: { version: string; onDone?
   })
 
   if (notes.length === 0) return null
-  return <WhatsNewDialog notes={notes} version={version} onClose={close} box={box} />
+  return <WhatsNewDialog notes={notes} version={version} lastSeen={lastSeen} onClose={close} box={box} />
 }
 
-function WhatsNewDialog({ notes, version, onClose, box }: { notes: ReleaseNotes[]; version: string; onClose: () => void; box: React.RefObject<HTMLDivElement | null> }) {
+function WhatsNewDialog({ notes, version, lastSeen, onClose, box }: { notes: ReleaseNotes[]; version: string; lastSeen: string | null; onClose: () => void; box: React.RefObject<HTMLDivElement | null> }) {
   // Start at the top of the notes: focusing the last button would scroll a long list to its end on a phone.
   useEffect(() => {
     box.current?.focus({ preventScroll: true })
@@ -93,6 +96,7 @@ function WhatsNewDialog({ notes, version, onClose, box }: { notes: ReleaseNotes[
               </ul>
             </section>
           ))}
+          <FeatureOffers mode="update" version={version} lastSeen={lastSeen} onOpen={onClose} />
           <p className="hint">
             <a href={`${REPO_URL}/blob/main/CHANGELOG.md`} target="_blank" rel="noreferrer">
               {t('See every change')}

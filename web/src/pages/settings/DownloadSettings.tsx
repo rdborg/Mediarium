@@ -1,6 +1,8 @@
 import DebridCard from '../../components/DebridCard'
 import DownloadChecksCard, { UsenetRetentionCard } from '../../components/DownloadChecksCard'
 import DownloadClientCard from '../../components/DownloadClientCard'
+import SoulseekCard from '../../components/SoulseekCard'
+import { useModules } from '../../ModulesContext'
 import UsenetClientCard from '../../components/UsenetClientCard'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -85,6 +87,7 @@ function useDownloadsState() {
 // torrents alike.
 export default function DownloadRulesSettings() {
   const { settings, loadSettings, setTorrentEnabled } = useDownloadsState()
+  const musicOn = useModules().on('music') // Soulseek is for music only
   return (
     <div className="settings-stack">
       <div className="half-cols span-all">
@@ -132,6 +135,7 @@ export default function DownloadRulesSettings() {
         </legend>
         <DownloadChecksCard />
       </fieldset>
+      {musicOn && <SoulseekCard />}
       </div>
     </div>
   )

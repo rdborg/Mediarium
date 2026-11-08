@@ -10,6 +10,18 @@ export interface ReleaseNotes {
 
 export const WHATS_NEW: ReleaseNotes[] = [
   {
+    version: '4.0.0',
+    items: [
+      t('Press Ctrl+K (Cmd+K on a Mac) to go to any page or setting by typing a few letters of its name.'),
+      t('With a free OMDb key, film and show pages show IMDb, Rotten Tomatoes and Metacritic scores.'),
+      t('Albums can come from Soulseek, through your own slskd.'),
+      t('Anime can have a library of their own: a tab, a folder, a quality profile and file names with the absolute number. Switch it on under Settings > Media types.'),
+      t('Import lists can read RSS feeds, and download better releases from them for titles you have.'),
+      t('Each torrent indexer can send its torrents to your download client, debrid or the built-in client.'),
+      t('With your own TheTVDB key, shows missing seasons on TMDB are filled in from TheTVDB.'),
+    ],
+  },
+  {
     version: '3.9.1',
     items: [
       t('UDP trackers and DHT can go through the built-in VPN. The switch is under Settings > Downloading > VPN and proxy, off until you turn it on, and tracker names are looked up through the VPN too.'),

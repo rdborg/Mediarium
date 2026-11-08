@@ -3,6 +3,7 @@ import { sortProfiles } from './qualityBlurb'
 import { useEffect, useRef, useState } from 'react'
 import { api, can, isAdmin, isRequested, isViewer, type DashboardData, type QualityProfile, type RequestStatus, type SourcePref } from '../api'
 import { useAuth } from '../AuthContext'
+import { useModules } from '../ModulesContext'
 import type { NewTitleFolder } from '../api'
 import { addChoices, mostRoomNote } from '../newTitleFolder'
 import Icon from './Icon'
@@ -72,6 +73,8 @@ function AddForm({
   const asks = !can(useAuth().user, 'addDirect')
   const toast = useToast()
   const isMovie = target.kind === 'movie'
+  const { on } = useModules()
+  const animeOn = !isMovie && on('anime') && on('tv')
   const [profiles, setProfiles] = useState<QualityProfile[]>([])
   const [defaultProfileId, setDefaultProfileId] = useState(0)
   const [defaultSources, setDefaultSources] = useState<SourcePref>('both')
@@ -218,6 +221,7 @@ function AddForm({
                 </option>
               ))}
             </select>
+            {animeOn && profileId === 0 && <small className="field-hint">{t("An anime show left on Default gets the anime library's profile and goes to its folder.")}</small>}
           </label>
 
           {folders.length > 1 && (

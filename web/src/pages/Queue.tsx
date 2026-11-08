@@ -27,6 +27,7 @@ import { lostMarkerFolder } from '../rootMarker'
 import { useModules } from '../ModulesContext'
 import { bulkState, groupQueue, RUNNING, stateNote, statusLabel, stillWaiting, unpackLine } from '../queueView'
 import { useLive } from '../useLive'
+import { useLiveEvents } from '../useLiveEvents'
 import { anyMoving, pollEvery } from '../pollPlan'
 import { etaText, nextSample, type RateSample } from '../transferRate'
 import { locale, plural, t, tx, st } from '../i18n'
@@ -240,7 +241,7 @@ function QueueDetails({ q, admin }: { q: QueueItem; admin: boolean }) {
           </>
         )}
         <dt>{t('Source')}</dt>
-        <dd>{q.protocol === 'torrent' ? 'Torrent' : 'Usenet'}</dd>
+        <dd>{q.protocol === 'torrent' ? 'Torrent' : q.protocol === 'soulseek' ? 'Soulseek' : 'Usenet'}</dd>
         {q.category && (
           <>
             <dt>{t('Category')}</dt>
@@ -330,8 +331,8 @@ function QueueRow({ q, admin, busy, act, stop, remove, picked, onPick }: RowProp
           {link ? <Link to={link}>{q.title}</Link> : <span>{q.title}</span>}
           {q.subtitle && <span className="badge">{q.subtitle}</span>}
           <span className={`badge ${q.status === 'completed' ? 'downloaded' : q.status}`}>{statusLabel(q)}</span>
-          <span className="qproto" title={q.protocol === 'torrent' ? 'Torrent' : 'Usenet'}>
-            {q.protocol === 'torrent' ? 'torrent' : 'usenet'}
+          <span className="qproto" title={q.protocol === 'torrent' ? 'Torrent' : q.protocol === 'soulseek' ? 'Soulseek' : 'Usenet'}>
+            {q.protocol === 'torrent' ? 'torrent' : q.protocol === 'soulseek' ? 'soulseek' : 'usenet'}
           </span>
           {q.category && (
             <span className="badge qcat" title={t('Torrent category')}>
@@ -594,6 +595,8 @@ export default function Queue() {
   }, [load])
   // Every 3 seconds while a download moves, every 10 when nothing does.
   useLive(load, pollEvery(anyMoving(queue), 3000, 10000))
+  // And at once when the server says something changed, from the stream the browser tabs share.
+  useLiveEvents(load)
 
   // The number next to the Blocklist tab.
   const loadBlocklistCount = useCallback(() => {

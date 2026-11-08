@@ -246,6 +246,65 @@ func Stage(configDir, zipPath string) (Manifest, error) {
 	return manifest, nil
 }
 
+// StageCopy stages a database copy that sits in the config folder (one made
+// before an update changed the tables) the way Stage stages a backup, with
+// the encryption key in use now: the copy came from this same install. The
+// copy itself stays where it is. Unstage takes it back before a restart.
+func StageCopy(configDir, dbCopy string) (Manifest, error) {
+	staging, err := os.MkdirTemp(configDir, PendingDir+".tmp-")
+	if err != nil {
+		return Manifest{}, fmt.Errorf("create staging folder: %w", err)
+	}
+	cleanup := true
+	defer func() {
+		if cleanup {
+			os.RemoveAll(staging)
+		}
+	}()
+	if err := copyPrivate(dbCopy, filepath.Join(staging, DBFile)); err != nil {
+		return Manifest{}, err
+	}
+	if err := copyPrivate(filepath.Join(configDir, KeyFile), filepath.Join(staging, KeyFile)); err != nil {
+		return Manifest{}, err
+	}
+	manifest, err := validateFiles(staging)
+	if err != nil {
+		return Manifest{}, err
+	}
+	pending := filepath.Join(configDir, PendingDir)
+	if err := os.RemoveAll(pending); err != nil {
+		return Manifest{}, fmt.Errorf("replace earlier staged restore: %w", err)
+	}
+	if err := os.Rename(staging, pending); err != nil {
+		return Manifest{}, fmt.Errorf("stage restore: %w", err)
+	}
+	cleanup = false
+	return manifest, nil
+}
+
+// Unstage removes a staged restore that hasn't been applied.
+func Unstage(configDir string) error {
+	return os.RemoveAll(filepath.Join(configDir, PendingDir))
+}
+
+// copyPrivate copies src to a new file dst that only the owner can read.
+func copyPrivate(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", filepath.Base(src), err)
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", filepath.Base(dst), err)
+	}
+	_, copyErr := io.Copy(out, in)
+	if err := errors.Join(copyErr, out.Close()); err != nil {
+		return fmt.Errorf("copy %s: %w", filepath.Base(src), err)
+	}
+	return nil
+}
+
 // extractAndValidate unpacks the zip into dir (which must exist) and runs
 // every check. Only the three known entry names are accepted, so there is no
 // path handling to get wrong: an entry whose name is anything else, however

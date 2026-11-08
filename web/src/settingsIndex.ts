@@ -46,7 +46,7 @@ const PAGE_WORDS: Record<string, string> = {
   subtitles: 'opensubtitles captions srt languages',
   'media-servers': 'plex jellyfin emby kodi scan',
   notifications: 'discord telegram email webhook alerts push ntfy gotify',
-  'other-apps': 'overseerr jellyseerr homepage nzb360 lunasea ruddarr radarr sonarr api',
+  'other-apps': 'overseerr jellyseerr homepage nzb360 lunasea ruddarr radarr sonarr api sabnzbd qbittorrent phone downloads',
   addons: 'links apps sidebar',
   profile: 'name email password api key avatar',
   security: 'passkey sessions devices api keys',
@@ -152,6 +152,7 @@ function cardSpecs(): Spec[] {
     { to: 'notifications', label: t('Connection watch'), words: 'offline alert health down' },
     // Other apps
     { to: 'other-apps', label: t('Connect apps made for Radarr, Sonarr and Lidarr'), words: 'overseerr jellyseerr homepage homarr nzb360 lunasea ruddarr api' },
+    { to: 'other-apps', label: t('Phone apps for downloads (nzb360 and others)'), words: 'nzb360 sabnzbd qbittorrent speed queue time left phone app api' },
     { to: 'other-apps', label: t('The API key'), words: 'api key token integration' },
     { to: 'other-apps', label: t('Let AI assistants connect (MCP)'), words: 'mcp ai assistant chat voice home assistant llm' },
     // Your profile

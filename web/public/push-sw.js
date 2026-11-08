@@ -1,16 +1,24 @@
 // Mediarium's service worker. It shows the notifications the server sends and
 // opens the right page when one is tapped, and when the server can't be
 // reached it answers a page that was asked for with a short "can't be reached"
-// page (offline.html) instead of the browser's own error. It caches nothing
-// else: every page and file comes from the server each time, so the app is
-// never served stale.
+// page (offline.html) instead of the browser's own error. It also keeps the
+// built scripts and styles (the files under /assets/, whose names change with
+// their content) so the app opens fast. It never keeps a page, an API answer
+// or anything else: those come from the server each time, so the app never
+// shows stale data. Each build writes its own id and file list below (see
+// vite.config.ts), which changes this file and so makes browsers pick up the
+// new version.
 
 // When Mediarium is served under a sub-path (URL_BASE, like /mediarium) this
 // file is too, and the worker's scope is that path. Addresses of the app's own
 // files and pages start with it.
 const base = new URL(self.registration.scope).pathname.replace(/\/+$/, '')
 
+const BUILD = 'dev'
+const PRECACHE = []
 const OFFLINE_CACHE = 'mediarium-offline-v1'
+const ASSET_CACHE = 'mediarium-assets-' + BUILD
+const ASSET_PREFIX = base + '/assets/'
 const OFFLINE_PAGE = base + '/offline.html'
 const OFFLINE_FILES = [OFFLINE_PAGE, base + '/offline.js']
 
@@ -20,6 +28,7 @@ self.addEventListener('install', (event) => {
       .open(OFFLINE_CACHE)
       .then((cache) => cache.addAll(OFFLINE_FILES.map((f) => new Request(f, { cache: 'reload' }))))
       .catch(() => undefined) // without the page the browser's own error shows
+      .then(() => keepAssets())
       .then(() => self.skipWaiting()),
   )
 })
@@ -27,11 +36,40 @@ self.addEventListener('activate', (event) =>
   event.waitUntil(
     caches
       .keys()
-      .then((names) => Promise.all(names.filter((n) => n.startsWith('mediarium-offline-') && n !== OFFLINE_CACHE).map((n) => caches.delete(n))))
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((n) => (n.startsWith('mediarium-offline-') && n !== OFFLINE_CACHE) || (n.startsWith('mediarium-assets-') && n !== ASSET_CACHE))
+            .map((n) => caches.delete(n)),
+        ),
+      )
       .catch(() => undefined)
       .then(() => self.clients.claim()),
   ),
 )
+
+// Saves the scripts and styles the page starts with. One that can't be
+// fetched is skipped (it is saved when first used instead).
+async function keepAssets() {
+  try {
+    const cache = await caches.open(ASSET_CACHE)
+    await Promise.all(PRECACHE.map((f) => cache.add(base + '/' + f).catch(() => undefined)))
+  } catch {
+    // saved when first used
+  }
+}
+
+// A built file: from the saved copy if there is one, else from the network,
+// saving it for next time. The names carry a hash of the content, so a saved
+// copy is never out of date.
+async function asset(req) {
+  const cache = await caches.open(ASSET_CACHE)
+  const hit = await cache.match(req)
+  if (hit) return hit
+  const res = await fetch(req)
+  if (res.ok && res.type === 'basic') await cache.put(req, res.clone())
+  return res
+}
 
 // Makes sure the page for a missing server is saved. It is saved when the
 // worker installs; this tries again after a page loaded fine, in case that
@@ -71,6 +109,8 @@ self.addEventListener('fetch', (event) => {
     )
   } else if (new URL(req.url).pathname === base + '/offline.js') {
     event.respondWith(fetch(req).catch(async () => (await caches.match(base + '/offline.js')) || Response.error()))
+  } else if (req.method === 'GET' && new URL(req.url).origin === self.location.origin && new URL(req.url).pathname.startsWith(ASSET_PREFIX)) {
+    event.respondWith(asset(req))
   }
 })
 

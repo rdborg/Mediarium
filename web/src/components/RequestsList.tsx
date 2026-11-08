@@ -3,6 +3,7 @@ import { api, isAdmin, type RequestQuota, type TitleRequest } from '../api'
 import { useAuth } from '../AuthContext'
 import { useLive } from '../useLive'
 import { locale, plural, t, tx } from '../i18n'
+import { useConfirm } from './ConfirmProvider'
 import Icon from './Icon'
 import { PosterFallback } from './PosterCard'
 import { useToast } from './Toast'
@@ -32,6 +33,7 @@ function timeAgoFuture(iso: string): string {
 
 export default function RequestsList({ onCount }: { onCount?: (pending: number) => void }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const admin = isAdmin(useAuth().user)
   const [list, setList] = useState<TitleRequest[] | null>(null)
   const [busy, setBusy] = useState(0)
@@ -70,6 +72,28 @@ export default function RequestsList({ onCount }: { onCount?: (pending: number) 
     }
   }
 
+  // Approving a removal asks first, with the same choice about the files as the Remove button.
+  async function approve(r: TitleRequest) {
+    if (r.action !== 'remove') {
+      await act(r, () => api.approveRequest(r.id), t('{title} approved and added.', { title: r.title }))
+      return
+    }
+    const answer = await confirm({
+      title: t('Remove {title} from your library?', { title: r.title }),
+      body: <p>{t('Mediarium stops tracking it and cancels anything still downloading for it. You can add it back any time.')}</p>,
+      confirmLabel: t('Remove'),
+      danger: true,
+      option: {
+        label: t('Also delete its files from the disk'),
+        hint: t('This deletes their folders in your library too. It cannot be undone.'),
+        defaultChecked: false,
+        warning: r.kind === 'movie' ? t('The files of this movie will be deleted for good.') : t('The files of this show will be deleted for good.'),
+      },
+    })
+    if (!answer) return
+    await act(r, () => api.approveRequest(r.id, answer.checked), t('Removed {title}.', { title: r.title }))
+  }
+
   if (list === null) return <div className="skeleton" style={{ height: 120 }} />
   const quotaLine =
     quota && quota.limit > 0 ? (
@@ -104,11 +128,13 @@ export default function RequestsList({ onCount }: { onCount?: (pending: number) 
               <Icon name={KIND_ICON[r.kind]} size={13} /> {r.title}
               {r.year ? ` (${r.year})` : ''}
               {r.fourK && <span className="fourk-tag">4K</span>}
+              {r.action === 'remove' && <span className="fourk-tag removal-tag">{t('Removal')}</span>}
             </strong>
             <small>
               {[KIND_LABEL[r.kind], admin && r.requester ? t('asked by {name}', { name: r.requester }) : '', day(r.createdAt)].filter(Boolean).join(' · ')}
               {r.note ? ` · ${r.note}` : ''}
             </small>
+            {r.reason && <small>{t('Reason: {reason}', { reason: r.reason })}</small>}
           </div>
           <span className={`state-tag st-${r.status === 'approved' ? 'added' : r.status === 'declined' ? 'failed' : 'pending'}`}>
             {r.status === 'pending' ? t('Waiting') : r.status === 'approved' ? t('Approved') : t('Declined')}
@@ -116,8 +142,8 @@ export default function RequestsList({ onCount }: { onCount?: (pending: number) 
           <div className="row-actions">
             {admin && r.status === 'pending' && (
               <>
-                <button className="primary btn-sm btn-with-icon" disabled={busy === r.id} onClick={() => void act(r, () => api.approveRequest(r.id), t('{title} approved and added.', { title: r.title }))}>
-                  <Icon name="check" size={14} /> {t('Approve')}
+                <button className="primary btn-sm btn-with-icon" disabled={busy === r.id} onClick={() => void approve(r)}>
+                  <Icon name={r.action === 'remove' ? 'trash' : 'check'} size={14} /> {r.action === 'remove' ? t('Remove') : t('Approve')}
                 </button>
                 <button className="btn-sm" disabled={busy === r.id} onClick={() => setDeclining(r)}>
                   {t('Decline')}

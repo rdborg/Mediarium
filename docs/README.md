@@ -13,6 +13,8 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 | See what it can and cannot do today, and what is planned | [FEATURES.md](./FEATURES.md) |
 | Move over from Radarr, Sonarr, Prowlarr, SABnzbd and other apps without redoing your setup or moving files | [migrate.md](./migrate.md) |
 | Add movies and shows you already have on disk (Import existing in the Library) | [import-library.md](./import-library.md) |
+| Use the whole screen of a foldable or dual-screen phone, and tune it | [foldable-phones.md](./foldable-phones.md) |
+| Know where posters and backdrops come from, why your browsers no longer contact TMDB, the sizes and the cache, and how to switch it off | [artwork.md](./artwork.md) |
 | Find something to add (Discover): more like your library, browse more, older titles, and the Add dialog | [discover.md](./discover.md) |
 | Open the torrent port (58264), seeding, Real-Debrid, TorBox and Premiumize, qBittorrent, RDT-Client and Decypharr, how many downloads run at once, cleaning up the downloads folder, what removing a title deletes | [downloads.md](./downloads.md) |
 | Send torrent traffic through the built-in WireGuard VPN, and what the kill switch does | [vpn.md](./vpn.md) |
@@ -24,7 +26,7 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 | Reach Mediarium from the internet safely (reverse proxy checklist, trusted proxies, what the app protects) | [security.md](./security.md) |
 | Seed the same files on more than one tracker (cross-seeding) next to Mediarium, with Qui or cross-seed | [cross-seeding.md](./cross-seeding.md) |
 | Choose a quality profile (the built-in presets, cutoffs, upgrades, fallback profiles) | [quality-profiles.md](./quality-profiles.md) |
-| Use Mediarium in Spanish, German, French, Italian, Dutch, Polish, Russian, Ukrainian or Portuguese (Brazil or Portugal), or help with a translation | [languages.md](./languages.md) |
+| Use Mediarium in Spanish, German, French, Italian, Dutch, Polish, Russian, Ukrainian, Simplified Chinese or Portuguese (Brazil or Portugal), or help with a translation | [languages.md](./languages.md) |
 | Report a problem or share an idea from inside Mediarium, privately or on GitHub, with a screenshot and the support report | [report-a-problem.md](./report-a-problem.md) |
 | Know what the optional anonymous usage numbers are, what is sent, where it goes, and how to switch it off or use the survey instead | [usage-stats.md](./usage-stats.md) |
 | See who suggested what, and how to suggest something yourself | [community.md](./community.md) |
@@ -32,13 +34,17 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 | See why a title has not downloaded, read the Activity page, pause, resume or stop a download, retry without downloading again | [activity.md](./activity.md) |
 | Subtitles: the on/off switch, release subtitles, offers, daily limits, dismissing | [subtitles.md](./subtitles.md) |
 | Switch movies, TV, music, ebooks and audiobooks on or off (Settings > Media types) | [modules.md](./modules.md) |
+| Remove what nobody watches, with a dry run, a Leaving soon shelf and a Keep button | [lifecycle.md](./lifecycle.md) |
+| Follow YouTube channels and playlists and keep their videos or just the audio, with a yt-dlp you supply yourself (off by default, with a warning) | [archiver.md](./archiver.md) |
 | Change many movies, shows or artists at once from the Library (monitor, better versions, quality profile, download from, search now, remove) | [library.md](./library.md) |
 | Manage music (switch on the music module, artists and albums, audio quality, importing a collection) | [music.md](./music.md) |
 | Ebooks and audiobooks (switch them on, add books, which release is picked, where files go) | [books.md](./books.md) |
 | Connect Plex, Jellyfin or Emby (library refresh after imports, "Watch in" links, finding the token or API key, path mapping) | [media-servers.md](./media-servers.md) |
 | Run a script of your own after each import (what it is told, how to try it) | [scripts.md](./scripts.md) |
 | Keep your settings in a YAML file (for git or a deploy script) and apply it | [config-file.md](./config-file.md) |
+| Download your settings as one file, check a file and see what it would change, then apply it (or apply it at start) | [config-as-code.md](./config-as-code.md) |
 | Connect Overseerr, Jellyseerr, Homepage, Homarr, nzb360, LunaSea or Ruddarr (apps made for Radarr, Sonarr and Lidarr) | [other-apps.md](./other-apps.md) |
+| Watch downloads from nzb360 and other phone apps (the built-in downloaders answer like SABnzbd and qBittorrent) | [download-apps.md](./download-apps.md) |
 | Ask your library questions from a chat program or a voice assistant (MCP) | [mcp.md](./mcp.md) |
 | Set up notifications (email, ntfy, Gotify, Pushover, Slack, Discord, Telegram, Matrix, Home Assistant, Apprise, webhook), turn them on and off, test them | [notifications.md](./notifications.md) |
 | Find out what went wrong (a failed download, "too many connections", a full disk) and what to try, copy a report for support | [logs-and-errors.md](./logs-and-errors.md) |

@@ -158,6 +158,13 @@ func enableWAL(conn *sql.DB) Info {
 	return Info{JournalMode: ModeWAL}
 }
 
+// renumbered lists migrations that 3.x shipped under another number than 4.0
+// uses (4.0 already had files at those numbers). New name -> name 3.x recorded.
+var renumbered = map[string]string{
+	"0238_display_faces":         "0234_display_faces",
+	"0239_display_face_overview": "0235_display_face_overview",
+}
+
 func migrate(conn *sql.DB, path string, info *Info) error {
 	if _, err := conn.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
@@ -179,7 +186,21 @@ func migrate(conn *sql.DB, path string, info *Info) error {
 	if err != nil {
 		return err
 	}
+	// A change that 3.x recorded under its old number is the same change as
+	// the renumbered file here: record the new name and do not run it again
+	// (adding a column twice fails).
+	for newName, oldName := range renumbered {
+		if applied[oldName] && !applied[newName] {
+			if _, err := conn.Exec(`INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)`, newName); err != nil {
+				return fmt.Errorf("record %s: %w", newName, err)
+			}
+			applied[newName] = true
+		}
+	}
 	known := map[string]bool{}
+	for _, oldName := range renumbered {
+		known[oldName] = true
+	}
 	var pending []string
 	for _, name := range names {
 		version := strings.TrimSuffix(name, filepath.Ext(name))

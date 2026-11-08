@@ -20,7 +20,9 @@ To do the same thing to many titles at once, use **Select**.
 - **Sort.** **Recently added**, **Title A–Z** (without a leading "The", "A" or "An", so The Matrix is under M), **Newest release** (release date, or the date a show started), **Largest on disk** (the movie's file, or all of a show's downloaded episodes) and **Status**.
 - **Sort direction.** The button with the up-and-down arrows next to **Sort** reverses the order (oldest first, Z to A, smallest first). The sort and its direction are remembered in this browser.
 - **Poster size.** In the grid, the slider next to the grid and list buttons makes the posters bigger or smaller. It is remembered in this browser (and hidden on small screens).
+- **On a tablet the list stays beside the page.** On a screen between about 768 and 1180 pixels wide (an iPad upright or on its side, or a window that size) and tall enough to leave room, opening a film, show, artist or book from the Library keeps the list on the left and puts the page on the right. Picking another one only swaps the right side; the one that is open is outlined in the list. The address still points at the page, so refresh and Back work, and the list keeps its tab and filters. **Esc** (when you are not typing in a box and no pop-up is open) closes the right side and gives the list the whole width again. On a phone, and on a computer screen, nothing changes: the list and a page are separate pages. A film that you open from Discover, not from the Library, opens on its own.
 - **Press `/`** anywhere (except while you type in a box) to jump to the search box at the top, and **Esc** to leave it.
+- **Press Ctrl+K** (Cmd+K on a Mac) anywhere to go somewhere by name: type a few letters of a page or a settings page (`index` for Indexers & Search) and press Enter. Administrators can also pause or resume all downloads and hold the background searches for an hour from there. The titles in your library that match turn up in the list as you type, whatever you remember of a name: the start of any word is enough (`star w` finds Star Wars), accents don't matter, and a translated title finds the film too. It covers films, shows, books, artists and albums. Anything else you type is searched for.
 - **The search box also finds settings.** Type `folders` or `temp folder` and a **Settings** group appears with the page or the setting, for example **Library › Folders** or **Temporary download folder** under Download rules. Pick one to open the page; it scrolls to the card and lights it up for a moment. Accents and capitals don't matter, and a small typo is forgiven. You only see the pages your account may open. The group lists the best three matches under the titles (when what you typed is a setting's name it comes first), with a **Show all** row when there are more. When settings match, **All | Media | Settings** tabs appear at the top of the popup: pick **Media** once if you never want settings in there, and the choice is remembered in this browser.
 
 ## Looking at the files on your disk again
@@ -86,6 +88,23 @@ Neither button moves, renames or deletes anything, and the browser only shows yo
 ## Finding the missing episodes of one season
 
 A show with many seasons doesn't have to be searched all at once. **Find missing** in a season's header searches your indexers right now for that season's missing episodes only, and downloads what it finds. The rest of the show is left alone, and the search keeps to the same indexer limits and pacing as any other search. **Find missing episodes** at the top of the show page does the whole show. Scripts: `POST /api/series/{id}/search-now` with `{"season": 2}`.
+
+## Search for the complete series
+
+A show that has finished, like The Office or The Mentalist, is often easiest to get as packs. **Search for the complete series** at the top of the show page does that in one click. A running show with more than one season has the button too.
+
+It works in two steps:
+
+1. It looks for a season pack of every monitored season that still has missing episodes. A season where something is downloading already is left alone, and so are the specials.
+2. If some of those seasons have no pack of their own, it searches for one pack of the whole series: a release called "Complete Series", "Complete Collection", "All Seasons", "S01-S09" or "Seasons 1-9". It takes that pack only when it covers every season that is wanted, is for this show, and fits the quality profile. It is then downloaded instead of the single season packs, so nothing is downloaded twice.
+
+If no whole-series pack fits but some seasons have a pack, those season packs are downloaded and the message says which seasons got nothing. **Find missing episodes** can then look for the rest one episode at a time.
+
+Everything else works as in any search you start yourself: the blocklist, the downloader choice of the show, the indexer limits, the size limits and a profile that never downloads season packs (in that case there is nothing to search for, and the message says so). The profile's largest size and the size table are meant for one season, so for a pack of several seasons they are applied per season: a 90 GB pack of nine seasons counts as 10 GB a season. The delay profile does not hold a search you start by hand.
+
+The show's history (Activity on the show page) says what was searched, which pack was taken, and, when nothing was taken, how many releases were found and why none was acceptable. A show made outside the English-speaking world gets the usual hint that many indexers carry mostly English releases.
+
+A pack of several seasons is filed season by season: every file goes to the episode its own name says, into `Season 01`, `Season 02` and so on. Files whose names don't say which episode they are can't be placed and are left out. Scripts: `POST /api/series/{id}/search-complete`, which answers with `{"grabbed": 1, "message": "..."}` like `search-now`.
 
 ## Deleting a file and keeping the title
 
@@ -166,6 +185,18 @@ Some daily shows air two episodes on the same day. Then the words after the date
 
 The counting follows TMDB's seasons. When a show's seasons on TMDB are split differently from how a fansub group counts, an episode can come out a few places off; Choose a release on the episode always works as a fallback. Scripts: `seriesType` on a show, and `PUT /api/series/{id}/type` with `{"type": "standard" | "anime" | "daily"}`.
 
+### The anime library
+
+Anime shows normally sit with your other shows. Switch on **Anime** under **Settings > Media types** and they get a library of their own inside TV:
+
+- **Their own tab.** The Library gets an **Anime** tab after TV, and the left menu a line for it. The TV tab shows the other shows. A show counts as anime when its **Episode numbering** is *Anime*; change that on the show's page to move it from one tab to the other.
+- **Their own folder.** Under the module cards, **The anime library** has an **Anime folder**. An anime show added from then on goes there instead of the TV folder (unless you pick another folder when you add it). It has to be a folder of its own, not inside the TV folder. A show already in your library stays where it is; use **Move to another folder** on it to move its files. The anime folder counts as one of your TV folders everywhere else (Health, rescans, moving), also while the module is off, so its shows keep their folder.
+- **Anime films.** **Anime films folder** is where a new anime film goes: one TMDB lists as animation and made in Japanese. It goes there when it is added without a folder of its own choosing (from Add, a followed collection, a grab or an app such as Overseerr), and counts as one of your movie folders everywhere else. Left empty, anime films go where your other movies go.
+- **Their own quality profile.** **Quality profile for anime** is what an anime show gets when it is added with the profile left on *Default*. Each show can still have its own. To prefer some fansub groups, open that profile and use **Add anime groups** under its preferred terms (see [Anime release groups](./quality-profiles.md#anime-release-groups)).
+- **Their own file names.** **Anime episode names** is the file name format for anime episodes. It takes the same tokens as other episodes, plus `{Absolute:000}`, the number counted from the very first episode (specials left out), the way anime releases count. **Use names with the absolute number** fills in `{Series Title} - S{Season:00}E{Episode:00} - {Absolute:000} - {Episode Title} [{Quality}]`, which Plex, Jellyfin and Emby read by season and episode. Left empty, anime are named like your other shows. **Rename files** applies a new format to the files already there.
+
+Everything else is the same as for any show: the searches, the absolute numbering, TheXEM and the anime lists, Choose a release and the downloads. Switching the module off puts anime back on the TV tab and nothing is moved or deleted. Scripts: `GET`/`PUT /api/settings/anime` with `path`, `moviesPath`, `episodeFormat` and `profileId`; the module is `anime` in `GET`/`PUT /api/modules`; the settings are `modules.anime`, `library.anime_path`, `library.anime_movies_path`, `library.anime_episode_format` and `library.default_profile_id_anime`.
+
 ### Scene and anime numbering
 
 Release names don't always count a show's episodes the way TMDB does. Scene releases follow TheXEM's numbering, so a show TMDB calls `S02E01` can be released as `S01E21`. Anime groups count from the first episode of a season or of a part of one: `[Group] Long Voyage Season 3 Part 2 - 05` is the fifth episode of that part, which is episode 17 of season 3 on TMDB. Mediarium reads how a show is numbered from three free services and uses it to match release names, to search under the names releases use, and to import downloaded files:
@@ -237,6 +268,30 @@ TMDB only knows the day an episode airs, not the hour, so two shows that both ai
 - **Switching it off.** **Settings > Metadata > Air times > Look up air times on TVmaze** (on by default). Off means TVmaze is never contacted; times already found stay until the show's dates change.
 
 The data comes from TVmaze under the [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) licence, and the calendar says so ("Air times from TVmaze"). For scripts: `GET /api/calendar` and the episodes of `GET /api/series/{id}` carry `airAt` (RFC 3339, UTC) next to the date when a time is known; in the Sonarr-style API `airDateUtc` uses it, and `tvMazeId` is the show's TVmaze id. The setting is `metadata.tvmaze_air_times` (`tvmazeAirTimes` in `GET`/`PUT /api/settings`).
+
+## TheTVDB as a second source
+
+A show's seasons and episodes come from TMDB, so a show is only as complete as its TMDB page. A few pages are missing a lot: Formula 1 has one episode on TMDB while [TheTVDB](https://thetvdb.com) has every season. With your own TheTVDB key, Mediarium can fill those in.
+
+- **Turning it on.** **Settings > Info, lists and subtitles > TheTVDB (shows)**: make a key on thetvdb.com (Dashboard, API keys), paste it and press **Save**. A user key also needs your subscriber PIN. Mediarium checks the key with TheTVDB first and keeps it encrypted. Saving it turns on **Fill in shows from TheTVDB**; the switch turns it off again without removing the key. Off, and without a key, which is how Mediarium starts, TheTVDB is never asked.
+- **When it happens.** When a show is added and each time it is refreshed (daily, and with the **Refresh** button). Mediarium reads the show's episodes on TheTVDB by its TheTVDB id and adds what TMDB doesn't list.
+- **Only where both count the same way.** A season TMDB has is compared with TheTVDB's: when the episodes both list mostly aired on the same days, the episodes missing from TMDB's season are added. A season TMDB doesn't have at all is added when TMDB's page is nearly empty (three episodes or fewer), or when every season both have agrees. A show the two number differently is left as TMDB has it, so you never get each episode twice. Specials and anime are never filled, since the two often split those in different ways.
+- **TMDB wins.** An episode TMDB has keeps TMDB's title, date and summary. Once TMDB adds an episode itself, it simply carries on from there.
+- **Monitoring.** Episodes added this way are monitored like any new episode of a monitored show. For a show with decades of seasons, switch monitoring off for the old ones you don't want before a search runs.
+- **What is sent.** Only the show's TheTVDB id and your key. Nothing about you or your library.
+
+For scripts: `GET /api/settings/thetvdb` answers `{"set": true, "fill": true}`; `PUT` takes `key` (and `pin`), `fill`, or `remove: true`. The settings are `metadata.tvdb_api_key`, `metadata.tvdb_pin` and `metadata.tvdb_fill`. Metadata provided by TheTVDB.
+
+## Scores from IMDb, Rotten Tomatoes and Metacritic
+
+TMDB's score (the star) is always shown. With a free key from [OMDb](https://www.omdbapi.com), film and show pages also show the IMDb score, the Rotten Tomatoes critics score and the Metascore, and the cards on Discover (also the "more like this" rows on a film's page) show the Rotten Tomatoes score (or IMDb's when there is none).
+
+- **Getting a key.** Open [omdbapi.com/apikey.aspx](https://www.omdbapi.com/apikey.aspx), pick **FREE**, fill in your email and send. OMDb emails you the key with a link to activate it: open that link first, or the key doesn't work.
+- **Turning it on.** **Settings > Info, lists and subtitles > Scores from IMDb, Rotten Tomatoes and Metacritic**: paste the key and press **Save**. Mediarium checks it with OMDb first. **Remove the key** turns the scores off again.
+- **How many lookups.** A free key allows 1,000 a day. Scores are kept for a week, also "OMDb doesn't know this title", so a page you open again costs nothing. A film or show page asks when you open it. Discover cards show the scores already kept and look up the ones they don't have in the background, one every few seconds and at most 400 a day, so browsing never uses up the key. When the key has used its day, nothing more is asked until the next day (UTC).
+- **What is sent.** Only the title's IMDb id and your key. Nothing about you or your library.
+
+For scripts: `GET /api/scores/{movie|tv}/{tmdbId}?imdb=tt...` answers `{"set": true, "scores": {"imdb": 8.7, "imdbVotes": 2100000, "rottenTomatoes": 83, "metacritic": 73}}`; `GET`/`PUT /api/settings/omdb` with `key` or `remove: true`. The setting is `metadata.omdb_api_key`.
 
 ## Only monitoring new episodes of a show you already have
 

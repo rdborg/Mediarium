@@ -26,10 +26,12 @@ export default function Calendar() {
   const [entries, setEntries] = useState<CalendarEntry[] | null>(null)
   const [error, setError] = useState('')
   // The kind and the "not downloaded" tick live in the address, so Back returns to them.
-  const [ui, patchUi] = useUrlState({ show: 'all', missing: '' })
+  const [ui, patchUi] = useUrlState({ show: 'all', missing: '', film: '' })
   const show: Show = (['movie', 'episode', 'album', 'book'] as const).find((k) => k === ui.show) ?? 'all'
   const setShow = (k: Show) => patchUi({ show: k })
   const missingOnly = ui.missing === '1'
+  // Films by the release they show for (discussion #170): every one, or only cinema or only digital releases.
+  const film: '' | 'cinema' | 'digital' = ui.film === 'cinema' || ui.film === 'digital' ? ui.film : ''
   const setMissingOnly = (v: boolean) => patchUi({ missing: v ? '1' : '' })
   const [feedOpen, setFeedOpen] = useState(false)
   // Which time zone the days and times are read in: this device's, or one picked here (kept in this browser only).
@@ -53,7 +55,8 @@ export default function Calendar() {
   useLive(() => api.calendar().then(setEntries).catch(() => undefined), 30000)
 
   const options: Show[] = ['all', ...(kinds.includes('movie') ? (['movie'] as const) : []), ...(kinds.includes('tv') ? (['episode'] as const) : []), ...(kinds.includes('music') ? (['album'] as const) : []), ...(on('ebooks') || on('audiobooks') ? (['book'] as const) : [])]
-  const shown = (entries ?? []).filter((e) => (show === 'all' || e.kind === show) && (!missingOnly || e.status !== 'downloaded'))
+  const shown = (entries ?? []).filter((e) => (show === 'all' || e.kind === show) && (!missingOnly || e.status !== 'downloaded') && (film === '' || e.kind !== 'movie' || e.release === 'both' || (e.release ?? 'cinema') === film))
+  const filmsShown = (show === 'all' || show === 'movie') && kinds.includes('movie')
 
   return (
     <div>
@@ -85,6 +88,16 @@ export default function Calendar() {
               <input type="checkbox" checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)} />
               {t('Not downloaded yet only')}
             </label>
+            {filmsShown && (
+              <label className="inline-field">
+                {t('Films')}
+                <select value={film} onChange={(e) => patchUi({ film: e.target.value })}>
+                  <option value="">{t('Every release')}</option>
+                  <option value="cinema">{t('In cinemas')}</option>
+                  <option value="digital">{t('Digital release')}</option>
+                </select>
+              </label>
+            )}
           </div>
           {entries.length === 0 && <p style={{ color: 'var(--text-dim)' }}>{t('Nothing is scheduled yet. Monitored movies and shows appear here once their release or air dates are known.')}</p>}
           <CalendarGrid entries={shown} zone={zone} />

@@ -511,6 +511,22 @@ function ListForm({
             </label>
           )}
 
+          {d.source === 'rss' && (
+            <>
+              <label className="il-wide">
+                {t('Address of the feed')}
+                <input value={d.config.url ?? ''} onChange={(e) => setCfg({ url: e.target.value })} placeholder="https://indexer.example/rss?t=2000&apikey=…" spellCheck={false} autoComplete="off" />
+                <small className="field-hint">{t('If the feed needs your key, keep it in the address. The address is kept on your server and only sent to that site.')}</small>
+              </label>
+              <label className="check-row il-check il-wide">
+                <input type="checkbox" checked={!!d.config.grab} onChange={(e) => setCfg({ grab: e.target.checked })} />
+                <TipLabel text={t('Releases in the feed that have a download link are checked like a new release from an indexer: one that fits the quality profile of a title you have, missing or as a better version than its file, is downloaded. The usual limit of 10 automatic downloads an hour applies.')} learnMore="adding#rss-feeds">
+                  {t('Also download wanted releases from this feed')}
+                </TipLabel>
+              </label>
+            </>
+          )}
+
           {d.source === 'simkl' && (
             <label className="il-wide">
               {t('Which Simkl list')}

@@ -42,6 +42,7 @@ const (
 	listMDBList        = "mdblist"
 	listLetterboxd     = "letterboxd"
 	listSimkl          = "simkl"
+	listRSS            = "rss"
 )
 
 // listSource describes a source for the page that adds lists.
@@ -63,6 +64,7 @@ func listSources() []listSource {
 		{listIMDB, "IMDb list", "both", "An IMDb list or watchlist exported as a CSV file. IMDb doesn't let programs download lists, so you export the file in your browser and upload it here."},
 		{listMDBList, "MDBList list", "both", "A public list on mdblist.com. Needs your own MDBList API key."},
 		{listSimkl, "Simkl list", "both", "Your own Plan to Watch, Watching or Completed list on simkl.com, movies, shows and anime. Needs your Simkl account connected."},
+		{listRSS, "RSS feed", "both", "A feed of releases or titles, such as an indexer's RSS feed or a site that posts new releases. Each entry's IMDb or TMDB id, or else its name, says which movie or show it is. It can also download better releases from the feed for titles you have."},
 		{listLetterboxd, "Letterboxd list", "movie", "A Letterboxd list or watchlist exported as a CSV file. Letterboxd doesn't let programs read its pages, so you export the file in your browser and upload it here. Movies only."},
 	}
 }
@@ -86,6 +88,7 @@ type listConfig struct {
 	Language string `json:"language,omitempty"` // TMDB charts: original language, like "ko"
 	Csv      string `json:"csv,omitempty"`      // IMDb and Letterboxd: the exported file's text
 	Status   string `json:"status,omitempty"`   // Simkl: which of the account's lists to read, like "plantowatch"
+	Grab     bool   `json:"grab,omitempty"`     // RSS feeds: also download the feed's releases that are wanted
 }
 
 // importList is one list as it is stored and as the page sees it. Csv and the
@@ -451,6 +454,11 @@ func (s *Server) checkImportListInput(in importListInput, cur *importList) (impo
 			}
 		}
 		cfg = listConfig{URL: cfg.URL, Csv: cfg.Csv}
+	case listRSS:
+		if _, err := importlists.FeedAddress(cfg.URL); err != nil {
+			return l, err.Error() + "."
+		}
+		cfg = listConfig{URL: cfg.URL, Grab: cfg.Grab}
 	case listSimkl:
 		cfg.Status = strings.TrimSpace(cfg.Status)
 		if cfg.Status == "" {

@@ -23,6 +23,8 @@ var savedSettingNames = map[string]string{
 	settings.KeySimklToken:             "the Simkl sign-in",
 	settings.KeySimklRefresh:           "the Simkl sign-in",
 	settings.KeyHardcoverToken:         "the Hardcover token",
+	settings.KeyTVDBAPIKey:             "the TheTVDB key",
+	settings.KeyTVDBPIN:                "the TheTVDB PIN",
 	settings.KeyDebridAPIKey:           "the debrid service key",
 	settings.KeyDownloadClientPassword: "the download client password",
 	settings.KeyUsenetClientPassword:   "the Usenet downloader password",

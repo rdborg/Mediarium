@@ -1,0 +1,75 @@
+/* ==== Tablet: the Library list beside the open page ====================
+   TwoPane.tsx adds these classes only between 768px and 1180px wide (a portrait
+   iPad up to a landscape one, split view included). The list on the left keeps
+   its own scroll; the page on the right scrolls with the rest of the app.
+   The right side is never wider than about 600px, so the rules that a phone gets
+   from its width (mobile.css) are repeated here for the pages that sit in it. */
+.twopane { display: grid; grid-template-columns: clamp(320px, 38%, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.twopane > * { min-width: 0; }
+
+.twopane-list {
+  position: sticky; top: 0; align-self: start;
+  max-height: calc(100dvh - 104px); overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; scrollbar-width: thin;
+  padding: 0 6px 4px 0;
+}
+.twopane-detail { outline: none; container-type: inline-size; }
+
+/* -- the list: a narrow column of posters, the open one marked -- */
+.twopane-list .poster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; min-height: 0; }
+.twopane-list .empty-state { min-height: 0; }
+.twopane-list .pcard-current { border-color: var(--kc, var(--accent)); box-shadow: 0 0 0 2px var(--kc, var(--accent)); }
+.twopane-list .pcard-current .pcard-title { color: var(--kc, var(--accent)); }
+.twopane-list .lib-toolbar, .twopane-list .toolbar.filter-bar { padding: 12px; gap: 8px; }
+.twopane-list .lib-toolbar .poster-size, .twopane-list .toolbar-end > .seg { display: none; }
+.twopane-list .toolbar.collapsible { display: flex; flex-wrap: wrap; align-items: center; }
+.twopane-list .toolbar.collapsible > .seg.kind-tabs { flex: 1 1 100%; order: 1; }
+.twopane-list .toolbar.collapsible > input[type='search'] { flex: 1 1 120px; min-width: 0; order: 2; max-width: none; }
+.twopane-list .toolbar.collapsible > .filters-toggle { display: inline-flex; order: 3; }
+.twopane-list .toolbar.collapsible > .toolbar-add { order: 4; flex: none; }
+.twopane-list .toolbar.collapsible > .fold { order: 5; display: none; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.twopane-list .toolbar.collapsible.filters-open > .fold { display: flex; }
+.twopane-list .toolbar.collapsible > .fold > .dropdown { flex: 1 1 120px; min-width: 0; }
+.twopane-list .toolbar.collapsible > .fold > .dropdown .dropdown-btn { min-width: 0; }
+.twopane-list .toolbar.collapsible > .fold > .toolbar-end { margin-left: 0; flex: 1 1 100%; flex-wrap: wrap; }
+.twopane-list .seg.kind-tabs, .twopane-list .chip-row.state-chips {
+  flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  margin-inline: -2px; padding-inline: 2px; padding-bottom: 2px;
+}
+.twopane-list .seg.kind-tabs > button, .twopane-list .chip-row.state-chips > * { flex: none; white-space: nowrap; }
+.twopane-list .chip-row.state-chips > .lib-total { display: none; }
+.twopane-list .lib-total-line { display: flex; margin: 0 0 8px; }
+.twopane-list .bulkbar { top: 0; }
+
+/* -- the page on the right: the same arrangement a phone gets -- */
+.twopane-detail .title-hero { grid-template-columns: 140px minmax(0, 1fr); padding-inline: 0; }
+.twopane-detail .title-hero .title-info { display: contents; }
+.twopane-detail .title-hero .title-info > * { grid-column: 1 / -1; }
+.twopane-detail .title-hero .title-info > .title-kicker { grid-column: 2; grid-row: 1; align-self: end; }
+.twopane-detail .title-hero .title-kicker > * { white-space: nowrap; max-width: 100%; }
+.twopane-detail .title-hero .title-kicker > .state-tag[class*='st-mon-'] { white-space: normal; border-radius: 14px; }
+.twopane-detail .title-hero .title-info > h1 { grid-column: 2; grid-row: 2; align-self: start; font-size: clamp(1.4rem, 6cqw, 2rem); line-height: 1.05; text-wrap: balance; }
+.twopane-detail .title-hero > .title-side, .twopane-detail .title-hero > .title-sleeve, .twopane-detail .title-hero > .release-sleeve, .twopane-detail .title-hero > .title-poster { grid-column: 1; grid-row: 1 / span 2; }
+.twopane-detail .title-side { position: static; }
+.twopane-detail .title-scene { width: 100%; border-radius: 0; }
+.twopane-detail .title-stub { padding: 10px 12px; }
+.twopane-detail .title-stub .stub-data { display: none; }
+.twopane-detail .title-chin .knob { width: 16px; height: 16px; }
+.twopane-detail .half-cols { grid-template-columns: minmax(0, 1fr); }
+.twopane-detail .poster-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 16px 12px; }
+.twopane-detail .season-bar .chip { min-height: 38px; }
+.twopane-detail .ep-table, .twopane-detail .lib-list { display: block; position: relative; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* a title keeps room for whole words; the table scrolls sideways inside its own box when the row is wider than the pane */
+.twopane-detail .ep-table td:nth-child(3) { min-width: 9rem; overflow-wrap: normal; word-break: normal; }
+.twopane-detail .card, .twopane-detail section { min-width: 0; }
+.twopane-detail p, .twopane-detail small, .twopane-detail li, .twopane-detail h2, .twopane-detail h3 { overflow-wrap: anywhere; }
+.twopane-detail code { overflow-wrap: anywhere; word-break: break-word; }
+.twopane-detail .row-actions { flex-wrap: wrap; }
+
+/* The episode table is the widest thing in a pane: the size and quality columns step aside as it narrows. */
+@container (max-width: 560px) {
+  .ep-table th:nth-child(7), .ep-table td:nth-child(7) { display: none; }
+}
+@container (max-width: 480px) {
+  .ep-table th:nth-child(6), .ep-table td:nth-child(6) { display: none; }
+}

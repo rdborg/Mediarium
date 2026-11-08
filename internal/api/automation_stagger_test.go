@@ -35,7 +35,7 @@ func TestAutomationJobsStartOneAfterTheOther(t *testing.T) {
 	}
 
 	// Nothing starts before the pages have had their minute, and all of it is
-	// under way within about five minutes.
+	// under way within about seven minutes.
 	var last time.Duration
 	for _, d := range delay {
 		if d < startupDelay {
@@ -43,8 +43,8 @@ func TestAutomationJobsStartOneAfterTheOther(t *testing.T) {
 		}
 		last = max(last, d)
 	}
-	if last > 6*time.Minute {
-		t.Errorf("the last job first runs after %v, want within 6 minutes", last)
+	if last > 7*time.Minute {
+		t.Errorf("the last job first runs after %v, want within 7 minutes", last)
 	}
 
 	// Downloads, the release feeds and the hunt come before everything else.

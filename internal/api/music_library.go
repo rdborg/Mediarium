@@ -160,6 +160,11 @@ func (s *Server) handleMusicSearchArtists(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "q is required")
 		return
 	}
+	switch r.URL.Query().Get("type") {
+	case "album", "song":
+		s.musicSearchAlbums(w, r, q, r.URL.Query().Get("type") == "song")
+		return
+	}
 	found, err := s.MusicBrainz().SearchArtists(r.Context(), q, 25)
 	if err != nil {
 		musicBrainzError(w, err, "nothing found")
@@ -263,13 +268,27 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s added to the music library with %s%s", artist.Name, plural(len(albums), "release"), byline))
 	if want := strings.TrimSpace(req.AlbumMBID); want != "" {
+		found := false
 		for i, a := range albums {
-			if a.MBID == want && !a.Monitored {
+			if a.MBID != want {
+				continue
+			}
+			found = true
+			if !a.Monitored {
 				if err := s.MusicRepo.SetAlbumMonitored(a.ID, true); err != nil {
 					writeError(w, http.StatusInternalServerError, err.Error())
 					return
 				}
 				albums[i].Monitored = true
+			}
+		}
+		// A soundtrack or compilation found through one of its songs is not in
+		// the artist's own list of albums: it is added to the artist all the same.
+		if !found && mbidPattern.MatchString(want) {
+			if added, err := s.addAlbumByMBID(r.Context(), artist.ID, want); err == nil {
+				albums = append(albums, added)
+			} else {
+				slog.Info("music: add the album picked with the artist", "album", want, "err", err)
 			}
 		}
 	}
@@ -688,4 +707,41 @@ func (s *Server) wantedAlbums(upgrades bool) ([]wantedAlbum, error) {
 		out = append(out, wantedAlbum{album: al, artist: artist, profile: profile})
 	}
 	return out, nil
+}
+
+// musicSearchAlbums answers a music search by album title, or by song title
+// with the albums the song is on (#143): a soundtrack can be found by a song
+// from the film. The answer has the shape of a Discover album, marked when it
+// is already in the library.
+func (s *Server) musicSearchAlbums(w http.ResponseWriter, r *http.Request, q string, bySong bool) {
+	var found []musicbrainz.FoundAlbum
+	var err error
+	if bySong {
+		found, err = s.MusicBrainz().SearchSongs(r.Context(), q, 25)
+	} else {
+		found, err = s.MusicBrainz().SearchAlbums(r.Context(), q, 25)
+	}
+	if err != nil {
+		musicBrainzError(w, err, "nothing found")
+		return
+	}
+	cands := make([]discoverCandidate, 0, len(found))
+	songs := make([]string, 0, len(found))
+	for _, f := range found {
+		typ := strings.ToLower(f.PrimaryType)
+		if t, ok := discoverType(f.PrimaryType); ok {
+			typ = t
+		}
+		cands = append(cands, discoverCandidate{mbid: f.ID, title: f.Title, typ: typ, artistName: f.ArtistName, artistMBID: f.ArtistID, date: f.FirstReleaseDate})
+		songs = append(songs, f.Song)
+	}
+	items, err := s.discoverItems(cands)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for i := range items {
+		items[i].Song = songs[i]
+	}
+	writeJSON(w, http.StatusOK, items)
 }

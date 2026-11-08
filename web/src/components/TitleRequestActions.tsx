@@ -1,17 +1,20 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
-import { api, isAdmin, isRequested, isViewer, type IssueCategory, type RequestStatus } from '../api'
+import { api, isAdmin, isRequested, isViewer, type IssueCategory, type RequestStatus, type SeasonInfo } from '../api'
 import { useAuth } from '../AuthContext'
 import { st as serverText, t } from '../i18n'
 import { useFocusTrap } from '../useFocusTrap'
 import { ISSUE_CATEGORY } from './issueCategories'
 import Icon from './Icon'
+import { AskEpisodeDialog, AskRemovalDialog } from './RequestDialogs'
 import { useToast } from './Toast'
 import './RequestPortal.css'
 
 // On a movie or show that is in the library: "Ask for a 4K copy" (for an
-// account that has to ask, when an administrator allows it) and "Report a
-// problem" (for anyone signed in, when an administrator allows it).
+// account that has to ask, when an administrator allows it), "Ask for one
+// episode" (a show, for an account that has to ask), "Ask to remove" (for
+// every account but an administrator) and "Report a problem" (for anyone
+// signed in, when an administrator allows it).
 export default function TitleRequestActions({
   kind,
   tmdbId,
@@ -31,6 +34,8 @@ export default function TitleRequestActions({
   const [st, setSt] = useState<RequestStatus | null>(null)
   const [reporting, setReporting] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [seasons, setSeasons] = useState<SeasonInfo[] | null>(null)
   // The title already has a second copy in the 4K quality.
   const [hasFourK, setHasFourK] = useState(false)
   useEffect(() => {
@@ -47,7 +52,19 @@ export default function TitleRequestActions({
 
   if (viewer || !st) return null
   const canAskFourK = !admin && st.asksToAdd && (kind === 'movie' ? st.fourK.movie : st.fourK.tv) && !hasFourK
-  if (!canAskFourK && !st.reports) return null
+  const canAskEpisode = !admin && st.asksToAdd && kind === 'tv'
+  if (!canAskFourK && !canAskEpisode && admin && !st.reports) return null
+
+  async function askEpisode() {
+    setBusy(true)
+    try {
+      setSeasons((await api.tmdbTVDetail(tmdbId)).seasonList ?? [])
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function askFourK() {
     setBusy(true)
@@ -70,12 +87,24 @@ export default function TitleRequestActions({
             <Icon name="disc" size={15} /> {t('Ask for a 4K copy')}
           </button>
         )}
+        {canAskEpisode && (
+          <button className="btn-with-icon" disabled={busy} onClick={() => void askEpisode()}>
+            <Icon name="tv" size={15} /> {t('Ask for one episode')}
+          </button>
+        )}
+        {!admin && (
+          <button className="btn-with-icon" onClick={() => setRemoving(true)}>
+            <Icon name="trash" size={15} /> {t('Ask to remove')}
+          </button>
+        )}
         {st.reports && (
           <button className="btn-with-icon" onClick={() => setReporting(true)}>
             <Icon name="bug" size={15} /> {t('Report a problem')}
           </button>
         )}
       </div>
+      {seasons && <AskEpisodeDialog tmdbId={tmdbId} title={title} seasons={seasons} onClose={() => setSeasons(null)} />}
+      {removing && <AskRemovalDialog kind={kind} libraryId={libraryId} title={title} onClose={() => setRemoving(false)} />}
       {reporting && <ProblemDialog kind={kind} libraryId={libraryId} title={title} onClose={() => setReporting(false)} />}
     </>
   )

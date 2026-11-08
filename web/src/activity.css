@@ -13,8 +13,9 @@
 @media (max-width: 700px) {
   .activity-page > .page-header > .seg { flex-wrap: nowrap; }
   .activity-page > .page-header > .queue-actions svg { flex: none; }
-  .activity-page > .page-header > .queue-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
-  .activity-page > .page-header > .queue-actions > * { justify-content: center; text-align: center; white-space: normal; line-height: 1.2; min-height: 44px; padding-inline: 8px; margin: 0; }
+  /* One per row, each on one line; the text gets a touch smaller where a language needs the room. */
+  .activity-page > .page-header > .queue-actions { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); }
+  .activity-page > .page-header > .queue-actions > * { justify-content: center; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: clamp(0.74rem, 3.6vw, 0.95rem); line-height: 1.2; min-height: 44px; padding-inline: 8px; margin: 0; }
 }
 
 /* ---- Add a download by hand (a dialog, outside .activity-page) ------- */

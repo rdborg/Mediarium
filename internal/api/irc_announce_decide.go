@@ -82,11 +82,18 @@ func isTVRelease(r parser.Release) bool {
 
 // Decide implements announce.Decider.
 func (d ircDecider) Decide(ctx context.Context, c announce.Connection, a announce.Announce, o announce.DecideOptions) announce.Decision {
+	res := indexers.Result{Title: a.Release, SizeBytes: a.SizeBytes, Protocol: indexers.ProtocolTorrent, Torrent: true, DownloadURL: "irc-announce", IndexerName: c.Name, PublishDate: time.Now()}
+	return d.decideRelease(ctx, res, o)
+}
+
+// decideRelease is Decide for any one release, from an IRC announce or an RSS
+// feed list: is it wanted for a title in the library, and if so, grab it.
+func (d ircDecider) decideRelease(ctx context.Context, res indexers.Result, o announce.DecideOptions) announce.Decision {
 	s := d.s
 	if !s.automationEnabled() {
 		return skipped("Automatic searching and downloading is switched off.")
 	}
-	rel := parser.Parse(a.Release)
+	rel := parser.Parse(res.Title)
 	if rel.Title == "" {
 		return skipped("Couldn't work out a title from the release name.")
 	}
@@ -98,10 +105,10 @@ func (d ircDecider) Decide(ctx context.Context, c announce.Connection, a announc
 	// Most announcements are for something nobody asked for: say so from the
 	// cached titles before anything else is read.
 	tv := isTVRelease(rel)
-	if tv && !anyShowMatches(a.Release, rel, series) {
+	if tv && !anyShowMatches(res.Title, rel, series) {
 		return skipped("No show in your library matches this.")
 	}
-	if !tv && !anyMovieMatches(a.Release, movies) {
+	if !tv && !anyMovieMatches(res.Title, movies) {
 		return skipped("No movie in your library matches this.")
 	}
 	profiles, err := s.loadProfiles()
@@ -109,7 +116,6 @@ func (d ircDecider) Decide(ctx context.Context, c announce.Connection, a announc
 		slog.Warn("irc announce: could not read the quality profiles", "error", err)
 		return announce.Decision{Action: announce.DecisionFailed, Reason: "Couldn't read the quality profiles."}
 	}
-	res := indexers.Result{Title: a.Release, SizeBytes: a.SizeBytes, Protocol: indexers.ProtocolTorrent, Torrent: true, DownloadURL: "irc-announce", IndexerName: c.Name, PublishDate: time.Now()}
 	if tv {
 		if !s.tvEnabled() {
 			return skipped("Shows are switched off in Settings > Media types.")
@@ -162,6 +168,14 @@ func (d ircDecider) finish(o announce.DecideOptions, item string, grab func(url 
 	return announce.Decision{Action: announce.DecisionGrabbed, Reason: "Sent to the download line.", Item: item}
 }
 
+// onlyOtherSource says a title takes only the other kind of download.
+func onlyOtherSource(title string, res indexers.Result) string {
+	if res.Protocol == indexers.ProtocolTorrent {
+		return fmt.Sprintf("%s only uses Usenet downloads.", title)
+	}
+	return fmt.Sprintf("%s only uses torrent downloads.", title)
+}
+
 func capitalizeSentence(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -206,14 +220,14 @@ func (d ircDecider) decideMovie(ctx context.Context, res indexers.Result, movies
 			case blocked[blocklist.Key(res.Title)]:
 				why = "That release is on the blocklist."
 			default:
-				why = fmt.Sprintf("%s only uses Usenet downloads.", movieLabel(m))
+				why = onlyOtherSource(movieLabel(m), res)
 			}
 			continue
 		}
 		var best *indexers.Result
 		switch m.Status {
 		case library.StatusMissing:
-			if unreleased(m.ReleaseDate) {
+			if waitingForRelease(m.ReleaseDate) {
 				why = fmt.Sprintf("%s isn't released yet.", movieLabel(m))
 				continue
 			}
@@ -255,7 +269,7 @@ func (d ircDecider) decideMovie(ctx context.Context, res indexers.Result, movies
 		}
 		m := m
 		return d.finish(o, movieLabel(m), func(url string) error {
-			if _, err := s.grabMovie(m, res.Title, url, res.SizeBytes, indexers.ProtocolTorrent, grabAutomatic); err != nil {
+			if _, err := s.grabMovie(m, res.Title, url, res.SizeBytes, res.Protocol, grabAutomatic); err != nil {
 				return err
 			}
 			if m.Status == library.StatusMissing {
@@ -291,7 +305,7 @@ func (d ircDecider) decideTV(ctx context.Context, rel parser.Release, res indexe
 			} else if blocked[blocklist.Key(res.Title)] {
 				why = "That release is on the blocklist."
 			} else {
-				why = fmt.Sprintf("%s only uses Usenet downloads.", sr.Title)
+				why = onlyOtherSource(sr.Title, res)
 			}
 			continue
 		}
@@ -365,7 +379,7 @@ func (d ircDecider) decideTV(ctx context.Context, rel parser.Release, res indexe
 			item = fmt.Sprintf("%s season %d", sr.Title, season)
 		}
 		return d.finish(o, item, func(url string) error {
-			if _, err := s.grabTV(sr, season, episode, res.Title, url, res.SizeBytes, indexers.ProtocolTorrent, grabAutomatic); err != nil {
+			if _, err := s.grabTV(sr, season, episode, res.Title, url, res.SizeBytes, res.Protocol, grabAutomatic); err != nil {
 				return err
 			}
 			s.noteFallbackGrab(0, sr.ID, sr.Title, profile, res.Title)

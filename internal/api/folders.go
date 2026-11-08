@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -74,17 +75,35 @@ func (s *Server) movieFolders() []string {
 	if main != "" {
 		out = append(out, main)
 	}
-	return append(out, s.extraFolders(settings.KeyMoviesExtraPaths, main)...)
+	out = append(out, s.extraFolders(settings.KeyMoviesExtraPaths, main)...)
+	// The anime films folder (anime.go) is one of them while it is set, like
+	// the anime folder for shows.
+	if a, _ := s.Settings.Get(settings.KeyAnimeMoviesPath); strings.TrimSpace(a) != "" {
+		a = filepath.Clean(strings.TrimSpace(a))
+		if !slices.ContainsFunc(out, func(f string) bool { return filepath.Clean(f) == a }) {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
-// tvFolders is movieFolders for shows.
+// tvFolders is movieFolders for shows. The anime folder (anime.go) is one of
+// them while it is set, also with the anime module off, so the shows already
+// in it keep their folder.
 func (s *Server) tvFolders() []string {
 	main := s.tvRoot()
 	out := []string{}
 	if main != "" {
 		out = append(out, main)
 	}
-	return append(out, s.extraFolders(settings.KeyTVExtraPaths, main)...)
+	out = append(out, s.extraFolders(settings.KeyTVExtraPaths, main)...)
+	if a, _ := s.Settings.Get(settings.KeyAnimePath); strings.TrimSpace(a) != "" {
+		a = filepath.Clean(strings.TrimSpace(a))
+		if !slices.ContainsFunc(out, func(f string) bool { return filepath.Clean(f) == a }) {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // chosenFolder returns want when it is one of the folders on offer, else def.

@@ -329,6 +329,8 @@ function MoviePage() {
             ...(inLibrary && movie.filePath && diskBytes > 0 ? [{ label: t('Size on disk'), value: formatBytes(diskBytes) }] : []),
           ],
           links: titleLinks('movie', movie.tmdbId, movie.imdbId, movie.homepage),
+          tmdbId: movie.tmdbId,
+          imdbId: movie.imdbId,
         }}
         status={
           state && (
@@ -491,7 +493,7 @@ function MoviePage() {
           </div>
           <div className="poster-grid">
             {similar.map((m) => (
-              <PosterCard key={m.tmdbId} to={`/title/${m.tmdbId}`} poster={m.posterUrl} title={m.title} meta={m.year || undefined} genres={m.genres} rating={m.rating} kind="movie" />
+              <PosterCard key={m.tmdbId} to={`/title/${m.tmdbId}`} poster={m.posterUrl} title={m.title} meta={m.year || undefined} genres={m.genres} rating={m.rating} scores={m.scores} kind="movie" />
             ))}
           </div>
         </section>

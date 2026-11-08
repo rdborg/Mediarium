@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -14,7 +15,7 @@ import (
 // when the download is resumed (downloadViaClient). Pausing only ended
 // Mediarium's own watching before; the torrent kept downloading in the client.
 func (s *Server) pauseClientTorrent(item queue.Item) {
-	if item.Protocol != queue.ProtocolTorrent || !s.downloadClientOn() {
+	if item.Protocol != queue.ProtocolTorrent || !s.downloadClientOn() || s.itemTorrentRoute(item) != indexers.RouteClient {
 		return
 	}
 	hash := ""

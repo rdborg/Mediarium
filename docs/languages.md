@@ -1,12 +1,12 @@
 # Languages
 
-Mediarium's screens come in **English, Spanish (Español), German (Deutsch), French (Français), Italian (Italiano), Dutch (Nederlands), Polish (Polski), Brazilian Portuguese (Português do Brasil), European Portuguese (Português de Portugal), Russian (Русский) and Ukrainian (Українська)**.
+Mediarium's screens come in **English, Spanish (Español), German (Deutsch), French (Français), Italian (Italiano), Dutch (Nederlands), Polish (Polski), Brazilian Portuguese (Português do Brasil), European Portuguese (Português de Portugal), Russian (Русский) and Ukrainian (Українська) and Simplified Chinese (简体中文)**.
 
 ## Choosing a language
 
 - **Settings > General > App language** changes it for the browser you're using, and so does **App language** in the profile menu. The page reloads in the new language. It only changes the language of the app itself, not the audio or subtitle language.
 - The sign-in page and the first step of setup have the same list, so you can switch before signing in.
-- Until you pick one, Mediarium follows your browser's language when it has a translation, and English otherwise. A browser set to Portuguese from Portugal gets the European Portuguese translation, any other Portuguese the Brazilian one.
+- Until you pick one, Mediarium follows your browser's language when it has a translation, and English otherwise. A browser set to Portuguese from Portugal gets the European Portuguese translation, any other Portuguese the Brazilian one. Any Chinese setting gets Simplified Chinese until a Traditional translation exists.
 
 The choice is kept per browser, so a phone and a laptop can each use their own language. Dates and numbers follow the language too.
 
@@ -29,7 +29,7 @@ The language for movie and show information is its own choice, apart from the sc
 
 ## Helping with a translation
 
-The text lives in `web/src/locales/`, one file per language: `es.json`, `de.json`, `fr.json`, `it.json`, `nl.json`, `pl.json`, `pt.json` (Brazil), `pt-PT.json` (Portugal), `ru.json` and `uk.json`. Each line pairs the English phrase with its translation:
+The text lives in `web/src/locales/`, one file per language: `es.json`, `de.json`, `fr.json`, `it.json`, `nl.json`, `pl.json`, `pt.json` (Brazil), `pt-PT.json` (Portugal), `ru.json`, `uk.json` and `zh-CN.json` (Simplified Chinese; Chinese has no plural forms, so only the one phrase is translated). Each line pairs the English phrase with its translation:
 
 ```json
 "Add to library": "Añadir a la biblioteca",

@@ -1,0 +1,61 @@
+/* Foldable and dual-screen phones (fold.ts). The installed app is drawn under the
+   system status strip (index.html), so no black bar is left; the page keeps its own
+   content out of the clock, signal and battery icons with the safe-area values. */
+
+/* The light look has pale pages, and the system icons are white. A dark strip
+   behind them keeps them readable. It is 0 high where there is no strip. */
+:root[data-theme='light'] body::before {
+  content: '';
+  position: fixed; left: 0; right: 0; top: 0; z-index: 200;
+  height: env(safe-area-inset-top, 0px);
+  background: linear-gradient(#0b0d18, #0b0d18d9);
+  pointer-events: none;
+}
+
+/* Held upright: the header sits in the top strip, beside the system icons
+   instead of under them, and keeps clear of them on the right. A foldable iPhone
+   reports no safe area for its clock group, so the strip is a fixed height. */
+:root[data-fold='tall'] .topbar {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: max(env(safe-area-inset-top, 0px), 88px);
+  align-items: center;
+  padding-right: max(12px, env(safe-area-inset-right, 0px), var(--fold-top, 150px));
+}
+
+/* Held upright: the profile menu opens under that header, above the bottom bar. */
+:root[data-fold='tall'] .menu-pop { top: calc(max(env(safe-area-inset-top, 0px), 88px) + 6px); max-height: calc(100dvh - max(env(safe-area-inset-top, 0px), 88px) - var(--bn-h, 0px) - 18px); }
+
+/* The bottom bar uses the whole width: a phone that opens flat can report a wide
+   safe area at one side that is not covered, and the bar then sat off to one side. */
+:root[data-fold] .bottom-nav { padding-left: 8px; padding-right: 8px; }
+
+/* Held sideways: the system icons sit at one side. The header keeps its title and the
+   search box. Only the profile and theme buttons go in a strip down that side, under
+   the icons (the page gives the strip its width); the tool buttons (players, help,
+   report, GitHub, support) move to the bottom of the menu on the left, where they
+   already sit on a narrow screen. */
+:root[data-fold='wide'] .app-shell { box-sizing: border-box; }
+:root[data-fold='wide'][data-fold-side='right'] .app-shell { padding-right: var(--fold-strip, 88px); }
+:root[data-fold='wide'][data-fold-side='left'] .app-shell { padding-left: var(--fold-strip, 88px); }
+/* a blurred header would become the box the fixed strip is placed in */
+:root[data-fold='wide'] .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; padding-top: max(10px, env(safe-area-inset-top, 0px)); }
+:root[data-fold='wide'] .top-tools, :root[data-fold='wide'] .top-actions .demo-chip { display: none; }
+:root[data-fold='wide'] .sidebar .side-tools { display: flex; position: static; background: none !important; padding: 10px 8px 4px; margin-top: auto; justify-content: flex-start; gap: 6px; }
+:root[data-fold='wide'] .top-actions {
+  position: fixed; top: var(--fold-side, 130px); z-index: 60;
+  width: var(--fold-strip, 88px); box-sizing: border-box; padding: 0; margin: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  background: none; box-shadow: none; border-radius: 0;
+}
+:root[data-fold='wide'][data-fold-side='right'] .top-actions { right: 0; }
+:root[data-fold='wide'][data-fold-side='left'] .top-actions { left: 0; }
+:root[data-fold='wide'] .top-actions .top-theme { display: inline-flex; }
+/* the profile menu opens beside the strip and fits the screen */
+:root[data-fold='wide'] .menu-pop { position: fixed; top: max(12px, env(safe-area-inset-top, 0px)); bottom: auto; max-height: calc(100dvh - 24px); overflow-y: auto; }
+:root[data-fold='wide'][data-fold-side='right'] .menu-pop { right: calc(var(--fold-strip, 88px) + 6px); left: auto; }
+:root[data-fold='wide'][data-fold-side='left'] .menu-pop { left: calc(var(--fold-strip, 88px) + 6px); right: auto; }
+
+/* Settings > General: the readout of the screen. */
+.fold-facts { margin: 8px 0 0; padding: 0; list-style: none; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.fold-facts li { margin: 2px 0; }

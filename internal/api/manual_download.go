@@ -485,6 +485,16 @@ func tvTargetMismatch(title string, t manualTarget) string {
 	if season == -1 {
 		return "" // the name says nothing about the season
 	}
+	if lo, hi := releaseSeasonRange(title, season); hi > lo {
+		// A pack of several seasons, or of the whole series.
+		switch {
+		case t.episode > 0:
+			return fmt.Sprintf("The name says this holds several seasons, but you chose episode %d.", t.episode)
+		case t.season < lo || t.season > hi:
+			return fmt.Sprintf("The name says seasons %d to %d, but you chose season %d.", lo, min(hi, 99), t.season)
+		}
+		return ""
+	}
 	if season != t.season {
 		return fmt.Sprintf("The name says season %d, but you chose season %d.", season, t.season)
 	}

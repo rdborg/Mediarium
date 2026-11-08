@@ -45,6 +45,7 @@ export const TOPICS: TopicDef[] = [
     sources: [
       { file: 'INSTALL.md', only: ['Quick start', 'The setup wizard'] },
       { file: 'modules.md', title: 'Media types' },
+      { file: 'lifecycle.md', title: 'Library lifecycle' },
       { file: 'languages.md', title: 'Languages' },
     ],
   },
@@ -80,6 +81,13 @@ export const TOPICS: TopicDef[] = [
     summary: 'Adding books, which release is picked, reading and listening, and e-readers.',
     group: 'Your media',
     sources: [{ file: 'books.md' }],
+  },
+  {
+    id: 'archiver',
+    title: 'Channel archiver',
+    summary: 'Following YouTube channels with a yt-dlp you supply, what the warning means and where files go.',
+    group: 'Your media',
+    sources: [{ file: 'archiver.md' }],
   },
   {
     id: 'quality',
@@ -131,6 +139,7 @@ export const TOPICS: TopicDef[] = [
     sources: [
       { file: 'media-servers.md' },
       { file: 'other-apps.md', title: 'Overseerr, dashboards and phone apps' },
+      { file: 'download-apps.md', title: 'Watching downloads from your phone (nzb360)' },
       { file: 'mcp.md', title: 'Chat programs and voice assistants (MCP)' },
       { file: 'scripts.md', title: 'Running a script after each import' },
     ],
@@ -150,6 +159,7 @@ export const TOPICS: TopicDef[] = [
     sources: [
       { file: 'INSTALL.md', only: ['Updating', 'Updating without rebuilding the container', 'Backup and restore'] },
       { file: 'config-file.md', title: 'Keeping your settings in a file' },
+      { file: 'config-as-code.md', title: 'Settings file with a check' },
     ],
   },
   {
@@ -169,6 +179,20 @@ export const TOPICS: TopicDef[] = [
     summary: 'The optional message that helps the project see which devices are popular: what is in it, where it goes, and how to say no.',
     group: 'Looking after it',
     sources: [{ file: 'usage-stats.md' }],
+  },
+  {
+    id: 'artwork',
+    title: 'Artwork and privacy',
+    summary: 'Where posters and backdrops come from, why your browsers no longer contact TMDB, the sizes, the cache and the switch.',
+    group: 'Looking after it',
+    sources: [{ file: 'artwork.md' }],
+  },
+  {
+    id: 'foldable-phones',
+    title: 'Foldable and dual-screen phones',
+    summary: 'Using the whole screen of a foldable phone: the top and side strips, the Automatic setting and how to tune it.',
+    group: 'Looking after it',
+    sources: [{ file: 'foldable-phones.md' }],
   },
   {
     id: 'internet',

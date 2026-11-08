@@ -30,7 +30,7 @@ import (
 )
 
 // dirs are the packages whose sentences reach the screen.
-var dirs = []string{"internal/api", "internal/indexers", "internal/problems", "internal/health", "internal/plainerror", "internal/inputcheck", "internal/vpn", "internal/library", "internal/store"}
+var dirs = []string{"internal/api", "internal/indexers", "internal/problems", "internal/health", "internal/plainerror", "internal/inputcheck", "internal/vpn", "internal/library", "internal/store", "internal/ytdlp"}
 
 // out is the file the list is written to.
 const out = "web/src/serverText.json"
@@ -77,7 +77,8 @@ func main() {
 			}
 			// The MCP server (mcp*.go in internal/api) talks to AI assistants, not to
 			// the screen: its sentences are not translated.
-			if d == "internal/api" && strings.HasPrefix(name, "mcp") {
+			// The same for the SABnzbd and qBittorrent look-alike addresses (compat_*.go).
+			if d == "internal/api" && (strings.HasPrefix(name, "mcp") || strings.HasPrefix(name, "compat_")) {
 				continue
 			}
 			scan(filepath.Join(*root, d, name), found)

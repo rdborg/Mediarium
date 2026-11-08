@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, isAdmin, type IndexerStat, type LibraryStats, type WatchStats, type WatchedStatTitle } from '../api'
+import { api, isAdmin, type IndexerStat, type ServerTraffic, type LibraryStats, type WatchStats, type WatchedStatTitle } from '../api'
 import { useAuth } from '../AuthContext'
 import { formatBytes, timeAgo } from '../format'
 import KindGlyph from '../components/KindGlyph'
@@ -180,13 +180,17 @@ export default function Statistics() {
 // names the indexers.
 function IndexerStats() {
   const admin = isAdmin(useAuth().user)
-  const [data, setData] = useState<{ days: number; indexers: IndexerStat[] } | null>(null)
+  const [data, setData] = useState<{ days: number; indexers: IndexerStat[]; servers?: ServerTraffic[] } | null>(null)
   useEffect(() => {
     if (admin) api.indexerStats().then(setData).catch(() => undefined)
   }, [admin])
-  if (!admin || !data || data.indexers.length === 0) return null
+  if (!admin || !data) return null
   const busiest = Math.max(1, ...data.indexers.map((i) => i.queries))
+  const servers = (data.servers ?? []).filter((s) => s.enabled || s.bytes > 0)
   return (
+    <>
+    {servers.length > 0 && <ServerTrafficStats days={data.days} servers={servers} />}
+    {data.indexers.length > 0 && (
     <section className="card" style={{ marginTop: 16 }}>
       <h2><TipLabel help="indexers#how-each-indexer-is-doing">{plural(data.days, 'Indexers, last {n} day', 'Indexers, last {n} days')}</TipLabel></h2>
       <div style={{ overflowX: 'auto' }}>
@@ -216,13 +220,62 @@ function IndexerStats() {
                 <td style={{ textAlign: 'right' }}>{i.failures}</td>
                 <td style={{ textAlign: 'right' }}>{i.successRate < 0 ? '–' : `${Math.round(i.successRate * 100)}%`}</td>
                 <td style={{ textAlign: 'right' }}>{i.results}</td>
-                <td style={{ textAlign: 'right' }}>{i.grabs}</td>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {i.grabs}
+                  {(i.grabBytes ?? 0) > 0 && <small className="mono" style={{ color: 'var(--text-dim)' }}> · {formatBytes(i.grabBytes ?? 0)}</small>}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="field-hint">{t('A search is one question to one indexer. Grabs count the releases taken from it, by hand or by Mediarium. An indexer that is paused after repeated failures is not asked, and those skipped searches are not counted.')}</p>
+      <p className="field-hint">{t('A search is one question to one indexer. Grabs count the releases taken from it, by hand or by Mediarium, with their size. An indexer that is paused after repeated failures is not asked, and those skipped searches are not counted.')}</p>
+    </section>
+    )}
+    </>
+  )
+}
+
+// What each Usenet provider delivered over the same days, so you can see which
+// paid plan or block account does the work (#167). Only the built-in
+// downloader counts: SABnzbd and NZBGet don't say which server served what.
+function ServerTrafficStats({ days, servers }: { days: number; servers: ServerTraffic[] }) {
+  const most = Math.max(1, ...servers.map((s) => s.bytes))
+  return (
+    <section className="card" style={{ marginTop: 16 }}>
+      <h2><TipLabel help="downloads#how-much-each-provider-delivered">{plural(days, 'Usenet providers, last {n} day', 'Usenet providers, last {n} days')}</TipLabel></h2>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="indexer-stats" style={{ width: '100%' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left' }}>{t('Server')}</th>
+              <th style={{ textAlign: 'right' }}>{t('Downloaded')}</th>
+              <th style={{ textAlign: 'right' }}>{t('Articles')}</th>
+              <th style={{ textAlign: 'right' }}>{t('Missing')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {servers.map((s) => {
+              const asked = s.articles + s.missing
+              return (
+                <tr key={s.id} style={{ opacity: s.enabled ? 1 : 0.55 }}>
+                  <td>
+                    <strong>{s.name}</strong> <small className="mono" style={{ color: 'var(--text-dim)' }}>{s.host}</small>
+                    {!s.enabled && <small> · {t('Off')}</small>}
+                    <span className="bar-track" style={{ display: 'block', marginTop: 4, maxWidth: 220 }}>
+                      <span className="bar-fill" style={{ width: `${(s.bytes * 100) / most}%` }} />
+                    </span>
+                  </td>
+                  <td className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{formatBytes(s.bytes)}</td>
+                  <td className="mono" style={{ textAlign: 'right' }}>{s.articles.toLocaleString(locale())}</td>
+                  <td className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{asked > 0 ? `${s.missing.toLocaleString(locale())} (${((s.missing * 100) / asked).toFixed(1)}%)` : '–'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="field-hint">{t('What each server delivered to the built-in downloader, and the articles it did not have, which the next server was then asked for. Downloads that SABnzbd or NZBGet make are not counted here.')}</p>
     </section>
   )
 }

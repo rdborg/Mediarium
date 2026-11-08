@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -178,6 +179,8 @@ type Movie struct {
 	Genres       []Genre `json:"genres"` // only on the single-movie endpoint
 	// OriginalTitle is the title in the film's own language.
 	OriginalTitle string `json:"original_title"`
+	// OriginalLanguage is the language the film was made in ("ja").
+	OriginalLanguage string `json:"original_language"`
 	// BelongsToCollection is the collection (a series of films) this film is
 	// part of, on the single-movie endpoint; nil for a film that is on its own.
 	BelongsToCollection *CollectionRef `json:"belongs_to_collection"`
@@ -188,6 +191,22 @@ type Movie struct {
 // Year extracts the 4-digit release year from ReleaseDate ("2024-03-01"),
 // or 0 if unknown/unparsed.
 func (m Movie) Year() int { return yearOfDate(m.ReleaseDate) }
+
+// genreAnimation is TMDB's id for the Animation genre.
+const genreAnimation = 16
+
+// IsAnime reports whether the film is anime: animated, and made in Japanese.
+func (m Movie) IsAnime() bool {
+	if m.OriginalLanguage != "ja" {
+		return false
+	}
+	for _, g := range m.Genres {
+		if g.ID == genreAnimation {
+			return true
+		}
+	}
+	return slices.Contains(m.GenreIDs, genreAnimation)
+}
 
 // yearOfDate reads the year from the start of a TMDB date ("2024-03-01"): four
 // digits, or 0. (fmt's %d also takes signs and stops at the first non-digit, so

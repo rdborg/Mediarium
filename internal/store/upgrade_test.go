@@ -241,3 +241,28 @@ func TestAFailingMigrationRollsBackCleanly(t *testing.T) {
 		t.Errorf("column %s.%s from the failed migration was left behind", first.table, first.name)
 	}
 }
+
+// A database that 3.x already changed (it recorded the info-language tables
+// under their 3.x numbers) opens in 4.0 without adding the column twice.
+func TestRenumberedMigrationsAreNotRunTwice(t *testing.T) {
+	names := migrationNames(t)
+	var upTo int
+	for i, n := range names {
+		if strings.HasPrefix(n, "0238_") {
+			upTo = i
+			break
+		}
+	}
+	if upTo == 0 {
+		t.Skip("no 0238 migration")
+	}
+	path := oldInstall(t, upTo, func(db *sql.DB) {
+		mustExec(t, db, `CREATE TABLE display_faces (kind TEXT NOT NULL, tmdb_id INTEGER NOT NULL, language TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', poster TEXT NOT NULL DEFAULT '', overview TEXT, PRIMARY KEY (kind, tmdb_id, language))`)
+		mustExec(t, db, `INSERT INTO schema_migrations (version) VALUES ('0234_display_faces'), ('0235_display_face_overview')`)
+	})
+	s, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	s.Close()
+}

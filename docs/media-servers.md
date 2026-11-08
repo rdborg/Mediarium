@@ -281,6 +281,8 @@ What is never removed: a title with a keep tag; a movie or episode downloaded ag
 
 What a removal does: the title's files are deleted, or moved to the recycle bin when it is on (Settings > System). The title stays in your library as missing and stops being looked for, so it isn't downloaded again; switch monitoring back on to get it again. Every removal is written to Activity. For an episode only its own file and the files named after it go, never the show's folder. A run removes at most 50 titles, the ones that have waited longest first. Nothing runs unless what's been watched was read from every media server in the last two days: if one of them doesn't answer, or answers with no libraries or titles at all (for example Plex started before its drive was mounted), cleanup waits, because its plays would be missing. **Remove these now** removes exactly what the preview listed; change a rule and it asks for a new preview.
 
+With **Library lifecycle** on (Settings > Media types), the same rules put titles on a Leaving soon shelf first and the daily run above stops: see [lifecycle.md](./lifecycle.md).
+
 ## Troubleshooting
 
 | Message | What to check |

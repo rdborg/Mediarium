@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useUrlState } from '../useUrlState'
+import WantedReview from '../components/WantedReview'
 import { api, can, isAdmin, type Book, type BookFormat, type Movie, type MusicWanted, type Series, type SubtitleQuota, type SubtitleWanted, type WaitingRelease, type WantedItem, type WantedPage, type WantedRow } from '../api'
 import { mergeRefreshed } from '../wantedPage'
 import { releaseLabel, localDate } from '../bookSeries'
@@ -440,7 +441,7 @@ export default function Wanted() {
   )
   const total = (k: Kind) => (counts[k] === undefined ? undefined : counts[k]! + (k === 'subtitles' ? 0 : (musicCounts[k] ?? 0)) + (k === 'missing' ? missingBooks.length : 0))
   const tab = (k: Kind, label: string) => (
-    <button aria-pressed={kind === k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)}>
+    <button aria-pressed={kind === k && ui.tab !== 'review'} className={kind === k && ui.tab !== 'review' ? 'active' : ''} onClick={() => setKind(k)}>
       {label} {total(k) !== undefined && <small>({total(k)})</small>}
     </button>
   )
@@ -474,17 +475,36 @@ export default function Wanted() {
     </div>
   )
 
+  // Wanted for a long time (#168): a review of what is still missing long after it came out. Administrators only.
+  const reviewing = admin && ui.tab === 'review'
+  const header = (
+    <div className="page-header">
+      <h1>{t('Wanted')}</h1>
+      <div className="seg">
+        {tab('missing', t('Missing'))}
+        {tab('cutoff', t('Upgrades'))}
+        {subtitlesOn && tab('subtitles', t('Subtitles'))}
+        {admin && (
+          <button aria-pressed={reviewing} className={reviewing ? 'active' : ''} onClick={() => patchUi({ tab: 'review' })}>
+            {t('Long wanted')}
+          </button>
+        )}
+      </div>
+      <HelpLink topic="activity#the-wanted-page" text={t('Missing: monitored titles that have no file yet. Upgrades: titles you have that are below the quality you asked for. Subtitles: downloaded titles that lack a subtitle in your languages.')} />
+    </div>
+  )
+  if (reviewing) {
+    return (
+      <div>
+        {header}
+        <WantedReview />
+      </div>
+    )
+  }
+
   return (
     <div>
-      <div className="page-header">
-        <h1>{t('Wanted')}</h1>
-        <div className="seg">
-          {tab('missing', t('Missing'))}
-          {tab('cutoff', t('Upgrades'))}
-          {subtitlesOn && tab('subtitles', t('Subtitles'))}
-        </div>
-        <HelpLink topic="activity#the-wanted-page" text={t('Missing: monitored titles that have no file yet. Upgrades: titles you have that are below the quality you asked for. Subtitles: downloaded titles that lack a subtitle in your languages.')} />
-      </div>
+      {header}
 
       {error && <p className="error-text">{error}</p>}
       {kindChips}

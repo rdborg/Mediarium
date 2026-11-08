@@ -7,7 +7,7 @@ import { useToast } from './Toast'
 
 // The TMDB language that goes with each screen language, for the "use the same
 // as the screen" shortcut.
-const FOR_SCREEN: Record<Lang, string> = { en: 'en-US', es: 'es-ES', de: 'de-DE', fr: 'fr-FR', it: 'it-IT', nl: 'nl-NL', pl: 'pl-PL', pt: 'pt-BR', 'pt-PT': 'pt-PT', ru: 'ru-RU', uk: 'uk-UA' }
+const FOR_SCREEN: Record<Lang, string> = { en: 'en-US', es: 'es-ES', de: 'de-DE', fr: 'fr-FR', it: 'it-IT', nl: 'nl-NL', pl: 'pl-PL', pt: 'pt-BR', 'pt-PT': 'pt-PT', ru: 'ru-RU', uk: 'uk-UA', 'zh-CN': 'zh-CN' }
 
 // A country's name in the screen language ("IN" gives "India"), or the code
 // itself where the browser doesn't know it.

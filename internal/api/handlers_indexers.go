@@ -43,6 +43,11 @@ type indexerPayload struct {
 	// ExtraCategories are category numbers the indexer is also searched in, per
 	// kind of media ("movies", "tv", "music", "books", "audiobooks").
 	ExtraCategories map[string][]int `json:"extraCategories"`
+	// TorrentRoute is where torrents from this indexer are downloaded:
+	// "client", "debrid", "builtin", or empty for the usual order.
+	TorrentRoute string `json:"torrentRoute"`
+	// FromProwlarr is set for an indexer the linked Prowlarr keeps in step.
+	FromProwlarr bool `json:"fromProwlarr,omitempty"`
 	// Back-off: set while searches skip the indexer after repeated failures.
 	Failures    int    `json:"failures,omitempty"`    // failures in a row
 	PausedUntil string `json:"pausedUntil,omitempty"` // RFC 3339; searches skip the indexer until then
@@ -71,7 +76,7 @@ func (p indexerPayload) isCardigann() bool {
 func (s *Server) toIndexerPayload(inst indexers.Instance) indexerPayload {
 	p := indexerPayload{
 		ID: inst.ID, Name: inst.Name, Kind: string(inst.Kind), DefinitionID: inst.DefinitionID, BaseURL: inst.BaseURL,
-		Protocol: string(inst.Protocol), Enabled: inst.Enabled, LastTestError: inst.LastTestError, RequestsPerDay: inst.RequestsPerDay, MinSeeders: inst.MinSeeders, ExtraCategories: inst.ExtraCategories,
+		Protocol: string(inst.Protocol), Enabled: inst.Enabled, LastTestError: inst.LastTestError, RequestsPerDay: inst.RequestsPerDay, MinSeeders: inst.MinSeeders, ExtraCategories: inst.ExtraCategories, TorrentRoute: inst.TorrentRoute,
 		HasAPIKey: inst.APIKey != "", Priority: indexerRank(inst.Priority),
 	}
 	if !inst.LastTestAt.IsZero() {
@@ -117,9 +122,14 @@ func (s *Server) handleListIndexers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	linked := map[int64]bool{}
+	for _, id := range s.prowlarrLinks() {
+		linked[id] = true
+	}
 	out := make([]indexerPayload, len(list))
 	for i, inst := range list {
 		out[i] = s.toIndexerPayload(inst)
+		out[i].FromProwlarr = linked[inst.ID]
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -156,7 +166,7 @@ func (s *Server) handleCreateIndexer(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := s.IndexerRepo.Create(indexers.Instance{
 		Name: req.Name, DefinitionID: req.DefinitionID, BaseURL: req.BaseURL, APIKey: req.APIKey, Protocol: protocol, Enabled: true,
-		RequestsPerDay: req.RequestsPerDay, MinSeeders: req.MinSeeders,
+		RequestsPerDay: req.RequestsPerDay, MinSeeders: req.MinSeeders, TorrentRoute: indexers.CleanTorrentRoute(req.TorrentRoute),
 		ExtraCategories: indexers.ExtraCategories(req.ExtraCategories).Normalize(),
 	}, nil)
 	if err != nil {
@@ -268,7 +278,7 @@ func (s *Server) createCardigannIndexer(w http.ResponseWriter, r *http.Request, 
 	}
 	created, err := s.IndexerRepo.Create(indexers.Instance{
 		Name: name, Kind: indexers.KindCardigann, DefinitionID: sum.ID, BaseURL: base, Protocol: protocol,
-		Enabled: true, Settings: settingsMap, RequestsPerDay: req.RequestsPerDay, MinSeeders: req.MinSeeders,
+		Enabled: true, Settings: settingsMap, RequestsPerDay: req.RequestsPerDay, MinSeeders: req.MinSeeders, TorrentRoute: indexers.CleanTorrentRoute(req.TorrentRoute),
 		ExtraCategories: indexers.ExtraCategories(req.ExtraCategories).Normalize(),
 	}, sum.IsSecret)
 	if err != nil {
@@ -329,6 +339,9 @@ type indexerUpdate struct {
 	// ExtraCategories replaces the extra category numbers (an empty object
 	// clears them). Left out keeps the saved ones.
 	ExtraCategories map[string][]int `json:"extraCategories"`
+	// TorrentRoute is where torrents from this indexer go: "client", "debrid",
+	// "builtin", or "" for the usual order. Left out keeps the saved value.
+	TorrentRoute *string `json:"torrentRoute"`
 }
 
 // handleUpdateIndexer edits a saved indexer. Every field is optional: what
@@ -381,6 +394,14 @@ func (s *Server) handleUpdateIndexer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		inst.ExtraCategories = extra.Normalize()
+	}
+	if req.TorrentRoute != nil {
+		route := strings.TrimSpace(*req.TorrentRoute)
+		if route != indexers.CleanTorrentRoute(route) {
+			writeError(w, http.StatusBadRequest, "Choose where torrents from this indexer go: the usual order, the download client, the debrid service or the built-in client.")
+			return
+		}
+		inst.TorrentRoute = route
 	}
 	var secret indexers.Secrets
 	if inst.IsCardigann() {

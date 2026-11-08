@@ -595,3 +595,67 @@ func TestBackupHoldsWritesThatOnlyExistInTheWAL(t *testing.T) {
 		t.Fatalf("integrity check = %q, %v", check, err)
 	}
 }
+
+// A copy made before an update is put back with the key in use now, the copy
+// itself stays, and Unstage takes it back before anything is applied.
+func TestStageCopyRoundTrip(t *testing.T) {
+	db, dir := newInstall(t, "after the update")
+	key := mustRead(t, filepath.Join(dir, backup.KeyFile))
+	copyPath := filepath.Join(dir, "pre-migration-0200_x-20261101-190000.db")
+	if _, err := db.Exec(`UPDATE settings SET value = 'before the update' WHERE key = 'marker'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`VACUUM INTO '` + strings.ReplaceAll(copyPath, "'", "''") + `'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE settings SET value = 'after the update' WHERE key = 'marker'`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	if _, err := backup.StageCopy(dir, copyPath); err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+	if err := backup.Unstage(dir); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := backup.ApplyPending(dir, fixedNow); err != nil || res.Applied {
+		t.Fatalf("an unstaged copy was applied: %+v, %v", res, err)
+	}
+
+	if _, err := backup.StageCopy(dir, copyPath); err != nil {
+		t.Fatalf("stage again: %v", err)
+	}
+	res, err := backup.ApplyPending(dir, fixedNow)
+	if err != nil || !res.Applied {
+		t.Fatalf("apply: %+v, %v", res, err)
+	}
+	if got := readMarker(t, dir); got != "before the update" {
+		t.Errorf("marker = %q", got)
+	}
+	if !bytes.Equal(mustRead(t, filepath.Join(dir, backup.KeyFile)), key) {
+		t.Error("the key changed")
+	}
+	if got := readMarker(t, res.BeforeDir); got != "after the update" {
+		t.Errorf("the database in use wasn't kept: %q", got)
+	}
+	if _, err := os.Stat(copyPath); err != nil {
+		t.Errorf("the copy itself went: %v", err)
+	}
+}
+
+func TestStageCopyRefusesABrokenCopy(t *testing.T) {
+	_, dir := newInstall(t, "x")
+	bad := filepath.Join(dir, "pre-migration-0200_x-20261101-190000.db")
+	if err := os.WriteFile(bad, []byte("not a database"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := backup.StageCopy(dir, bad)
+	var invalid *backup.InvalidError
+	if !errors.As(err, &invalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, backup.PendingDir)); !os.IsNotExist(err) {
+		t.Error("something was staged")
+	}
+}

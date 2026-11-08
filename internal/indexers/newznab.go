@@ -41,6 +41,9 @@ type Result struct {
 	// MinSeeders is the minimum the indexer was given for torrents (0 = off);
 	// set by the engine on torrent results only.
 	MinSeeders int
+	// TorrentRoute is where the indexer sends its torrents (see Instance);
+	// set by the engine on torrent results only.
+	TorrentRoute string
 	// Cached is set by the search code (never by an indexer) when the debrid
 	// service in use already has this torrent. False means "not cached or not
 	// known".

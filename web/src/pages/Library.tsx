@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { paneDefaultTab } from '../twoPane'
+import { useOpenFromList } from '../useTwoPane'
 import { api, can, isAdmin, type Book, type BookFormat, type BulkResult, type BulkTitle, type CollectionListItem, type MediaSummary, type Movie, type MusicArtist, type QualityProfile, type QueueItem, type Series, type SourcePref } from '../api'
 import { useAuth } from '../AuthContext'
 import { defaultProfileFor } from '../profileDefaults'
@@ -49,6 +51,7 @@ const SORTS: Sort[] = ['added', 'title', 'released', 'size', 'status', 'profile'
 interface Item {
   key: string
   kind: Kind
+  anime?: boolean // a show of the anime type (its own tab with the anime library on)
   id: number
   tmdbId: number
   title: string
@@ -117,7 +120,7 @@ function fromMovie(m: Movie, queue: QueueItem[]): Item {
 function fromSeries(s: Series, queue: QueueItem[]): Item {
   const status: Item['status'] = s.episodeCount > 0 && s.downloadedCount === s.episodeCount ? 'downloaded' : s.downloadedCount > 0 ? 'partial' : 'missing'
   return {
-    key: `tv-${s.id}`, kind: 'tv', id: s.id, tmdbId: s.tmdbId, title: s.title, tag: s.nameTag, year: s.year, posterUrl: s.posterUrl,
+    key: `tv-${s.id}`, kind: 'tv', anime: s.seriesType === 'anime', id: s.id, tmdbId: s.tmdbId, title: s.title, tag: s.nameTag, year: s.year, posterUrl: s.posterUrl,
     monitored: s.monitored, profileId: s.profileId ?? 0, status, have: s.downloadedCount, total: s.episodeCount,
     state: detailsState(s) ?? seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id), genres: s.genres ?? [], tags: s.tags ?? [],
     gettingDetails: !!s.detailsState,
@@ -154,16 +157,20 @@ const FILTERS: Record<Kind, { id: string; label: string; test: (i: Item) => bool
 // most a click away on every item (search for a release, monitor, open,
 // remove) and a select mode for doing them to many at once.
 // A Library tab: a kind of media, or one of the two book formats.
-type Tab = MediaKind | BookFormat
+type Tab = MediaKind | 'anime' | BookFormat
 // Each tab wears its kind's colour, as everywhere else.
-const TAB_COLOR: Record<Tab, string> = { movie: 'var(--c-movie)', tv: 'var(--c-tv)', music: 'var(--c-music)', ebook: 'var(--c-book)', audiobook: 'var(--c-audiobook)' }
+const TAB_COLOR: Record<Tab, string> = { movie: 'var(--c-movie)', tv: 'var(--c-tv)', anime: 'var(--c-anime)', music: 'var(--c-music)', ebook: 'var(--c-book)', audiobook: 'var(--c-audiobook)' }
 
-const TAB_LABEL: Record<Tab, string> = { movie: t('Movies'), tv: t('TV'), music: t('Music'), ebook: t('Ebooks'), audiobook: t('Audiobooks') }
+const TAB_LABEL: Record<Tab, string> = { movie: t('Movies'), tv: t('TV'), anime: t('Anime'), music: t('Music'), ebook: t('Ebooks'), audiobook: t('Audiobooks') }
 
-export default function Library() {
+// `pane` is true while the Library is the left side of the tablet layout (see TwoPane): the posters
+// come as a narrow column and the page keeps its tab from the title that is open beside it.
+export default function Library({ pane = false }: { pane?: boolean }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const openFromList = useOpenFromList()
+  const loc = useLocation()
   const toast = useToast()
   // Removing titles, changing their quality profile and importing a library
   // are for administrators.
@@ -172,7 +179,7 @@ export default function Library() {
   // Searching and monitoring need the "manage" permission; a viewer only looks.
   const canManage = can(me, 'manage')
   // The tab and the filters live in the address, so Back from a title brings the list back as it was.
-  const [ui, patchUi] = useUrlState({ kind: 'movie', st: 'all', q: '', genre: '', tag: '', decade: '', collection: '', profile: '', ...NO_FILE_FILTERS })
+  const [ui, patchUi] = useUrlState({ kind: pane ? paneDefaultTab(loc.pathname) : 'movie', st: 'all', q: '', genre: '', tag: '', decade: '', collection: '', profile: '', ...NO_FILE_FILTERS })
   const { on } = useModules()
   const musicOn = on('music')
   const booksOn = on('ebooks') || on('audiobooks')
@@ -182,9 +189,12 @@ export default function Library() {
   // The Library opens on the first tab (Movies) unless the address asks for another;
   // a kind that is switched off cannot be shown, so the first that is on opens instead.
   const active: Tab = activeLibraryTab(kinds, ui.kind)
-  const kind: Kind = active === 'tv' ? 'tv' : 'movie'
+  // The anime tab is the TV view, for the anime shows (the TV tab then shows the others).
+  const animeOn = on('anime') && on('tv')
+  const onAnime = active === 'anime'
+  const kind: Kind = active === 'tv' || onAnime ? 'tv' : 'movie'
   const onMovies = active === 'movie'
-  const onTV = active === 'tv'
+  const onTV = active === 'tv' || onAnime
   const [bookList, setBookList] = useState<Book[] | null>(null)
   const [queueNow, setQueueNow] = useState<QueueItem[]>([])
   const [artists, setArtists] = useState<MusicArtist[] | null>(null)
@@ -192,7 +202,7 @@ export default function Library() {
   const [movies, setMovies] = useState<Item[] | null>(null)
   const [shows, setShows] = useState<Item[] | null>(null)
   // How many movies and shows there are, for the tab whose list is not loaded.
-  const [titleCounts, setTitleCounts] = useState<{ movies: number; shows: number } | null>(null)
+  const [titleCounts, setTitleCounts] = useState<{ movies: number; shows: number; anime?: number } | null>(null)
   const [profiles, setProfiles] = useState<QualityProfile[]>([])
   const [defaultProfile, setDefaultProfile] = useState(0)
   const [defaultTvProfile, setDefaultTvProfile] = useState(0)
@@ -275,7 +285,7 @@ export default function Library() {
         seen.current.shows = [q, s]
         setShows(same(s.map((x) => fromSeries(x, q))))
       }).catch(failed)
-    api.libraryCounts().then((c) => setTitleCounts((prev) => (prev && prev.movies === c.movies && prev.shows === c.shows ? prev : c))).catch(() => undefined)
+    api.libraryCounts().then((c) => setTitleCounts((prev) => (prev && prev.movies === c.movies && prev.shows === c.shows && prev.anime === c.anime ? prev : c))).catch(() => undefined)
     // Only the shown tab's list is read each time. The artists and books are also read once (below) for the numbers
     // on their tabs, so a Movies tab does not ask for them every few seconds.
     const tick = libraryTick(active)
@@ -313,7 +323,9 @@ export default function Library() {
   }, [admin])
   const folderChoices = kind === 'movie' ? libraryFolders.movies : libraryFolders.tv
 
-  const items = kind === 'movie' ? movies : shows
+  // With the anime library on, anime shows have their own tab and the TV tab the others.
+  const tabShows = useMemo(() => (shows && animeOn ? shows.filter((s) => !!s.anime === onAnime) : shows), [shows, animeOn, onAnime])
+  const items = kind === 'movie' ? movies : tabShows
   const shown = useMemo(() => {
     if (!items) return null
     const test = FILTERS[kind].find((f) => f.id === filter)?.test ?? (() => true)
@@ -378,7 +390,7 @@ export default function Library() {
     remember(STORAGE.view, v)
   }
 
-  const openPath = (i: Item) => (i.kind === 'movie' ? `/title/${i.tmdbId}` : `/series/${i.id}`)
+  const openPath = (i: Item) => openFromList(i.kind === 'movie' ? `/title/${i.tmdbId}` : `/series/${i.id}`)
 
   async function run(fn: () => Promise<unknown>, done: string) {
     setBusy(true)
@@ -649,7 +661,8 @@ export default function Library() {
   const bookCount = (f: BookFormat) => bookList?.filter((b) => b[f].wanted || b[f].status === 'downloaded').length
   const counts: Record<Tab, number | undefined> = {
     movie: active === 'movie' && movies ? movies.length : titleCounts?.movies,
-    tv: active === 'tv' && shows ? shows.length : titleCounts?.shows,
+    tv: onTV && shows ? (animeOn ? shows.filter((s) => !s.anime).length : shows.length) : titleCounts?.shows,
+    anime: onTV && shows ? shows.filter((s) => s.anime).length : titleCounts?.anime,
     music: artists?.length,
     ebook: bookCount('ebook'),
     audiobook: bookCount('audiobook'),
@@ -658,7 +671,7 @@ export default function Library() {
     <div className="seg kind-tabs">
       {kinds.map((k) => (
         <button key={k} aria-pressed={active === k} className={active === k ? 'active' : ''} style={{ ['--kc' as string]: TAB_COLOR[k] }} onClick={() => chooseKind(k)}>
-          <KindGlyph kind={k === 'ebook' ? 'book' : k} size={17} />
+          <KindGlyph kind={k === 'ebook' ? 'book' : k === 'anime' ? 'tv' : k} size={17} />
           {TAB_LABEL[k]} {counts[k] !== undefined ? <small className="mono">{counts[k]}</small> : null}
         </button>
       ))}
@@ -672,7 +685,7 @@ export default function Library() {
     <div>
       <div className={`toolbar lib-toolbar collapsible${filtersOpen ? ' filters-open' : ''}`}>
         {kindSwitch}
-        <input type="search" placeholder={kind === 'movie' ? t('Find in your movies…') : t('Find in your shows…')} value={text} onChange={(e) => setText(e.target.value)} aria-label={t('Find in your library')} />
+        <input type="search" placeholder={kind === 'movie' ? t('Find in your movies…') : onAnime ? t('Find in your anime…') : t('Find in your shows…')} value={text} onChange={(e) => setText(e.target.value)} aria-label={t('Find in your library')} />
         <FilterToggle open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)} active={filtersActive} />
         <div className="fold">
         {tagOptions.length > 0 && (
@@ -905,7 +918,7 @@ export default function Library() {
           <Icon name={kind === 'movie' ? 'film' : 'tv'} size={44} />
           {total === 0 ? (
             <>
-              <p>{kind === 'movie' ? t('Your movie library is empty.') : t('Your TV library is empty.')}</p>
+              <p>{kind === 'movie' ? t('Your movie library is empty.') : onAnime ? t("No anime yet. An anime show you add lands here, and so does a show whose episode numbering you set to Anime.") : t('Your TV library is empty.')}</p>
               <div className="row-actions">
                 <button className="primary btn-with-icon" onClick={() => navigate('/search')}>
                   <Icon name="search" size={16} /> {kind === 'movie' ? t('Search to add a movie') : t('Search to add a show')}
@@ -928,7 +941,7 @@ export default function Library() {
         </div>
         {total === 0 && <StarterPicks key={`picks-${kind}`} kind={kind} onAdded={load} />}
         </>
-      ) : view === 'grid' ? (
+      ) : view === 'grid' || pane ? (
         <WindowedGrid
           key={`grid-${active}`}
           style={{ '--poster-min': `${posterSize}px` } as CSSProperties}

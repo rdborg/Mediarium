@@ -357,6 +357,7 @@ func (s *Server) arrAddMovie(w http.ResponseWriter, r *http.Request) {
 	if problem != "" {
 		rootPath = s.newMovieFolder()
 	}
+	rootPath = s.animeMovieFolderFor(*tm, rootPath)
 	created, err := s.MovieRepo.Add(library.Movie{
 		TMDBID: tm.TMDBID, Title: tm.Title, Year: tm.Year(), Overview: tm.Overview, PosterPath: tm.PosterPath,
 		Monitored: monitored, ReleaseDate: tm.ReleaseDate, NoUpgrade: true, AddedBy: userID,

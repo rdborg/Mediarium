@@ -401,6 +401,9 @@ func (s *Server) noteTVSearch(ctx context.Context, force bool, series library.Se
 		what = fmt.Sprintf("Searched for S%02dE%02d", season, episode)
 	}
 	msg, level := v.message(what, "")
+	if hint := foreignShowHint(series); hint != "" && (strings.Contains(msg, "none acceptable") || strings.Contains(msg, "no releases found")) {
+		msg += ". " + hint
+	}
 	s.itemEvent(0, series.ID, "searched", level, msg)
 }
 

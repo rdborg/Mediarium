@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useOpenFromList } from '../useTwoPane'
 import { api, type BulkResult, type MusicArtist, type MusicProfile } from '../api'
 import ActionMenu from '../components/ActionMenu'
 import BulkBar from '../components/BulkBar'
@@ -61,6 +62,7 @@ export default function MusicLibrary({
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const navigate = useNavigate()
+  const openFromList = useOpenFromList()
   const confirm = useConfirm()
   const toast = useToast()
   const player = useMusicPlayer()
@@ -218,7 +220,7 @@ export default function MusicLibrary({
 
   const actionsFor = (a: MusicArtist): CardAction[] => [
     ...(player && a.downloadedCount > 0 ? [{ icon: 'play', label: t('Play'), onClick: () => void playArtist(a) } satisfies CardAction] : []),
-    { icon: 'open', label: t('Open'), onClick: () => navigate(`/music/artist/${a.id}`) },
+    { icon: 'open', label: t('Open'), onClick: () => navigate(openFromList(`/music/artist/${a.id}`)) },
     ...(admin ? [{ icon: 'trash', label: t('Remove from library'), onClick: () => void remove(a), danger: true, disabled: busy } satisfies CardAction] : []),
   ]
 
@@ -357,7 +359,7 @@ export default function MusicLibrary({
             return (
               <PosterCard
                 key={a.id}
-                to={`/music/artist/${a.id}`}
+                to={openFromList(`/music/artist/${a.id}`)}
                 poster={a.imageUrl}
                 title={a.name}
                 meta={[a.disambiguation || null, plural(a.albumCount, '{have} of {n} album', '{have} of {n} albums', { have: a.downloadedCount }), missing > 0 ? t('{n} missing', { n: missing }) : null, a.monitored ? null : t('not followed')].filter(Boolean).join(' · ')}

@@ -16,7 +16,9 @@ import { useModules } from '../ModulesContext'
 import { libraryEntries, type LibraryTab } from '../libraryTabs'
 import { afterClick, afterKey, type NavGroup, type OpenGroup } from '../navGroups'
 import BackToTop from './BackToTop'
+import BottomNav from './BottomNav'
 import BrandMark from './BrandMark'
+import CommandPalette from './CommandPalette'
 import PageLoading from './PageLoading'
 import FeedbackNudge from './FeedbackNudge'
 import ImportBanner from './ImportBanner'
@@ -29,9 +31,11 @@ import SearchBox from './SearchBox'
 import ThemeToggle from './ThemeToggle'
 import UsageStatsPrompt from './UsageStats'
 import WhatsNew from './WhatsNew'
+import UpdateNotice from './UpdateNotice'
 import { t, tc } from '../i18n'
 import { useGuideShortcut } from '../guide/shortcut.ts'
 import AmbientBackdrop from './AmbientBackdrop'
+import { watch as watchSheetBack } from '../sheetBack'
 
 const NAV: { to: string; label: string; icon: IconName; sec: SectionKey; end?: boolean }[] = [
   { to: '/', label: t('Dashboard'), icon: 'grid', sec: 'dashboard', end: true },
@@ -47,6 +51,7 @@ const NAV: { to: string; label: string; icon: IconName; sec: SectionKey; end?: b
 const LIBRARY_LINE: Record<LibraryTab, { label: string; glyph: 'movie' | 'tv' | 'music' | 'book' | 'audiobook'; color: string }> = {
   movie: { label: t('Movies'), glyph: 'movie', color: 'var(--c-movie)' },
   tv: { label: t('TV shows'), glyph: 'tv', color: 'var(--c-tv)' },
+  anime: { label: t('Anime'), glyph: 'tv', color: 'var(--c-anime)' },
   music: { label: t('Music'), glyph: 'music', color: 'var(--c-music)' },
   ebook: { label: t('Ebooks'), glyph: 'book', color: 'var(--c-book)' },
   audiobook: { label: t('Audiobooks'), glyph: 'audiobook', color: 'var(--c-audiobook)' },
@@ -241,6 +246,7 @@ function Shell() {
     </span>
   )
   useGuideShortcut()
+  useEffect(watchSheetBack, []) // on a phone, Back closes an open pop-up
   const specificTitle = useSpecificTitle()
   useEffect(() => {
     document.title = titleFor(specificTitle || heading)
@@ -574,7 +580,10 @@ function Shell() {
         {!demoEnabled() && <WhatsNew version={version} onDone={onNotesDone} />}
         {!demoEnabled() && admin && notesDone && <UsageStatsPrompt />}
         <FeedbackNudge />
+        <UpdateNotice />
         <ReportHost />
+        <CommandPalette />
+        <BottomNav active={active} menuOpen={menuOpen} onMenu={() => setMenuOpen((o) => !o)} />
       </div>
     </div>
   )

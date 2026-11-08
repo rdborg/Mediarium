@@ -1,6 +1,6 @@
 # Import lists
 
-An import list is a list somewhere else (on Trakt, TMDB, IMDb, MDBList, Simkl or Letterboxd) that Mediarium reads on a schedule. Whatever is new on it is added to your library, with the quality profile, folder, monitoring and tags you chose for that list. It is the same idea as Lists in Radarr and Sonarr.
+An import list is a list somewhere else (on Trakt, TMDB, IMDb, MDBList, Simkl or Letterboxd, or an RSS feed) that Mediarium reads on a schedule. Whatever is new on it is added to your library, with the quality profile, folder, monitoring and tags you chose for that list. It is the same idea as Lists in Radarr and Sonarr.
 
 You find it under **Settings > Info, lists and subtitles > Import lists**. It is for administrators. Nothing is added until you add a list yourself.
 
@@ -66,6 +66,13 @@ If the saved sign-in can no longer be read (the key file `secret.key` does not b
 ### Letterboxd (a CSV file)
 
 Letterboxd does not let programs read its pages (it shows them a check meant for people), so, as with IMDb, you export the file yourself: your watchlist from **Settings > Import & Export** on letterboxd.com, or a single list exported as CSV, and upload it. Letterboxd files do not carry TMDB numbers, so Mediarium finds each movie by its name and year. A title is only taken when the name matches and the year is within one year; a few titles may not be found, and the list's result says how many. Movies only.
+
+### RSS feeds
+
+Any RSS or Atom feed: an indexer's own RSS feed, a tracker's, or a site that posts new releases or titles. Paste the feed's address. If it needs your key, keep the key in the address; the address is kept on your server and only sent to that site.
+
+- **Which title an entry is.** An entry's IMDb, TMDB or TheTVDB id says it exactly, when the feed has one (Newznab and Torznab feeds usually do, and a link to the title's IMDb or TMDB page counts too). Otherwise the entry's name is read like a release name: `Dune.Part.Two.2024.2160p.WEB-DL-GRP` is Dune: Part Two from 2024, and a name with a season or episode (`Fargo.S05E03`) is a show. The many releases of one title count once.
+- **Also download wanted releases from this feed.** Off at first. When it's on, every entry with a download link (an NZB, a torrent file or a magnet link) is checked the way a new release from an indexer is: it is downloaded when it is for a monitored title in your library that is missing, or when it is a better version than the file the title has, under that title's quality profile. The limit of 10 automatic downloads an hour, the blocklist, the size limits and the delay profile all apply. Up to 200 entries are checked each time the feed is read. This works for titles the feed just added and for titles that were already in your library, so a feed of new releases can bring you upgrades (#160).
 
 ### Plex watchlists
 

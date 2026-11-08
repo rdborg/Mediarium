@@ -5,7 +5,9 @@ import Icon from '../components/Icon'
 import TitleHero from '../components/TitleHero'
 import { CastCard, PeopleLinks, SeasonsCard, titleLinks } from '../components/TitlePreview'
 import { crewWith } from '../people'
-import { api, type TVDetail } from '../api'
+import { api, isViewer, type RequestStatus, type TVDetail } from '../api'
+import { useAuth } from '../AuthContext'
+import { AskEpisodeDialog } from '../components/RequestDialogs'
 import { useDocumentTitle } from '../documentTitle'
 import { t } from '../i18n'
 
@@ -19,6 +21,14 @@ export default function ShowDetail() {
   useDocumentTitle(show?.title)
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
+  const [askingEpisode, setAskingEpisode] = useState(false)
+  // An account that has to ask can ask for one episode instead of the whole show.
+  const viewer = isViewer(useAuth().user)
+  const [status, setStatus] = useState<RequestStatus | null>(null)
+  useEffect(() => {
+    if (viewer) return
+    api.requestStatus().then(setStatus).catch(() => setStatus(null))
+  }, [viewer])
 
   useEffect(() => {
     api
@@ -46,15 +56,23 @@ export default function ShowDetail() {
   return (
     <div>
       <TitleHero
-        info={{ ...show, kind: 'tv', certification: show.contentRating ?? show.certification, facts, links: titleLinks('tv', show.tmdbId, show.imdbId, show.homepage) }}
+        info={{ ...show, kind: 'tv', certification: show.contentRating ?? show.certification, facts, links: titleLinks('tv', show.tmdbId, show.imdbId, show.homepage), tmdbId: show.tmdbId, imdbId: show.imdbId }}
         actions={
-          <button className="primary btn-with-icon big" onClick={() => setAdding(true)}>
-            <Icon name="plus" size={18} /> {t('Add to library')}
-          </button>
+          <>
+            <button className="primary btn-with-icon big" onClick={() => setAdding(true)}>
+              <Icon name="plus" size={18} /> {t('Add to library')}
+            </button>
+            {status?.asksToAdd && (show.seasonList ?? []).length > 0 && (
+              <button className="btn-with-icon big" onClick={() => setAskingEpisode(true)}>
+                <Icon name="tv" size={18} /> {t('Ask for one episode')}
+              </button>
+            )}
+          </>
         }
       />
       <SeasonsCard seasons={show.seasonList ?? []} />
       <CastCard cast={show.cast ?? []} />
+      {askingEpisode && <AskEpisodeDialog tmdbId={show.tmdbId} title={show.title} seasons={show.seasonList ?? []} onClose={() => setAskingEpisode(false)} />}
       {adding && (
         <AddDialog
           target={{ kind: 'tv', tmdbId: show.tmdbId, title: show.title, year: show.year, posterUrl: show.posterUrl, overview: show.overview }}

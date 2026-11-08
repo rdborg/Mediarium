@@ -60,6 +60,12 @@ func (s *Server) collectHealth() []healthItem {
 		addHealth("database-mode", "warn", "Keep the settings folder on a local disk",
 			"The database can't use its faster mode, usually because /config is on a network drive. Pages may be slow during downloads. Move /config to a local disk.",
 			"", "")
+	} else if kind, ok := fsinfo.NetworkFilesystem(s.cfg.ConfigDir); ok {
+		// The faster mode can switch on over a network share and still be slow
+		// there, and a share that drops for a moment can damage the database.
+		addHealth("database-network", "warn", "Keep the settings folder on a local disk",
+			fmt.Sprintf("The settings folder (/config) is on a network share (%s). The database is slow there and can be damaged when the share drops for a moment. Move /config to a local disk; downloads and your library can stay on the share.", kind),
+			"", "")
 	}
 
 	if in := store.Mode(s.db); len(in.NewerMigrations) > 0 {

@@ -13,6 +13,13 @@
 .request-quota.out strong { color: var(--bad, #e57373); }
 .fourk-tag { margin-left: 6px; padding: 1px 6px; border-radius: 3px 7px 7px 7px; border: 1px solid var(--rim); font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.06em; }
 
+.removal-tag { color: var(--bad, #e57373); border-color: currentColor; }
+.rp-nowrap { white-space: nowrap; }
+.rp-modal { max-width: min(92vw, 460px); }
+.rp-modal select { min-width: 120px; }
+.rp-age td, .rp-age th { white-space: nowrap; }
+.rp-age .rp-unrated { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
 .issue-list { display: grid; gap: 8px; }
 .issue-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .issue-row .qthumb { width: 44px; height: 66px; }

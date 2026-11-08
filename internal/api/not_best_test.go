@@ -88,8 +88,9 @@ func TestNotBestSkipsReleasesAutomationRejects(t *testing.T) {
 	if !payloads[0].Best {
 		t.Fatalf("first should be the best match")
 	}
-	if len(payloads[1].Reasons) != 1 || payloads[1].Reasons[0].Kind != "notBest" {
-		t.Fatalf("an accepted release gets the reason: %+v", payloads[1].Reasons)
+	// An accepted release says why it was not the best match and where it ranks.
+	if len(payloads[1].Reasons) != 2 || payloads[1].Reasons[0].Kind != "rank" || payloads[1].Reasons[1].Kind != "notBest" {
+		t.Fatalf("an accepted release gets the reasons: %+v", payloads[1].Reasons)
 	}
 	if len(payloads[2].Reasons) != 0 {
 		t.Fatalf("a blocklisted release gets none: %+v", payloads[2].Reasons)

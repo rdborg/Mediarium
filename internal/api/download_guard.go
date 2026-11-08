@@ -78,6 +78,7 @@ func (s *Server) checkEpisodesNotDownloading(seriesID int64, hintSeason, hintEpi
 	if season == 0 && len(episodes) == 0 {
 		return nil // the grab itself reports this
 	}
+	lo, hi := releaseSeasonRange(releaseTitle, season)
 	items, err := s.QueueRepo.ListUnfinished()
 	if err != nil {
 		return fmt.Errorf("check downloads in progress: %w", err)
@@ -87,7 +88,8 @@ func (s *Server) checkEpisodesNotDownloading(seriesID int64, hintSeason, hintEpi
 			continue
 		}
 		busySeason, busyEpisodes := resolveTVTarget(it.ReleaseTitle, it.Season, it.Episode)
-		if busySeason == season && episodesOverlap(episodes, busyEpisodes) {
+		busyLo, busyHi := releaseSeasonRange(it.ReleaseTitle, busySeason)
+		if busyLo <= hi && lo <= busyHi && episodesOverlap(episodes, busyEpisodes) {
 			return alreadyDownloadingError{release: it.ReleaseTitle, paused: it.Status == queue.StatusPaused, item: it}
 		}
 	}

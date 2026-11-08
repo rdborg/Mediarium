@@ -35,6 +35,7 @@ export function DiscoverCards({ items, kind, owned, onAdd }: { items: DiscoverMo
             meta={coming ? <span className="coming-soon">{coming}</span> : m.year || undefined}
             genres={m.genres}
             rating={coming ? undefined : m.rating}
+            scores={coming ? undefined : m.scores}
             kind={kind}
             state={own?.state}
             footer={

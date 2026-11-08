@@ -7,6 +7,7 @@ import { indexerChoices, type Searched } from '../searched'
 import { FIRST_DIRECTION, ageOf, defaultOrder, filterReleases, publishedAt, qualitiesIn, scoreOf, sortReleases, type ReleaseSortKey, type SortDir } from '../releaseSort'
 import Dropdown from './Dropdown'
 import Icon from './Icon'
+import ReleaseChecks from './ReleaseChecks'
 import TorrentsOffNote from './TorrentsOffNote'
 
 // Interactive-search results: every release with quality info, badges for
@@ -232,7 +233,7 @@ export default function ReleaseTable({
                   )}
                   <td className="rel-fit">
                     <span className="badge" title={r.protocol}>
-                      {r.protocol === 'torrent' ? '⇅' : '⇩'} {r.indexerName}
+                      {r.protocol === 'torrent' ? '⇅' : r.protocol === 'soulseek' ? '♫' : '⇩'} {r.indexerName}
                     </span>
                   </td>
                   <td className="rel-fit">{formatBytes(r.sizeBytes)}</td>
@@ -277,6 +278,12 @@ function scoreTip(r: SearchResult): string {
 function WhyDetails({ why }: { why: WhyInfo }) {
   return (
     <div className="rel-why">
+      {why.checks.length > 0 && (
+        <div className="rel-why-col">
+          <h4>{t('Why this release?')}</h4>
+          <ReleaseChecks checks={why.checks} />
+        </div>
+      )}
       {(why.score !== undefined || why.terms.length > 0 || why.fix !== 0) && (
         <div className="rel-why-col">
           <h4>{t('Why this score')}</h4>
@@ -315,6 +322,18 @@ function WhyDetails({ why }: { why: WhyInfo }) {
               {why.upgradeUntil > 0 && ` · ${t('Upgrades stop at: {n}', { n: signed(why.upgradeUntil) })}`}
             </p>
           )}
+        </div>
+      )}
+      {why.rank.length > 0 && (
+        <div className="rel-why-col">
+          <h4>{t('Where it ranks')}</h4>
+          <ul className="rel-why-reasons">
+            {why.rank.map((text, i) => (
+              <li key={i} className="rel-why-rank">
+                {st(text)}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {why.notBest.length > 0 && (

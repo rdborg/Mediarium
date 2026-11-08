@@ -73,6 +73,17 @@ A torrent with few or no seeders can sit in the download client for days. Each t
 
 Scripts: `GET /api/indexers` has `minSeeders`; `PUT /api/indexers/{id}` takes `minSeeders` (a whole number from 0 to 1000) and a search result has `belowMinSeeders` and `minSeeders` when it is under the minimum. In a settings file an indexer can have `minSeeders: 5`.
 
+## Where torrents go
+
+Torrents normally go to the first of these that is set up: your download client (qBittorrent and the like), then a debrid service, then the built-in client. Each torrent indexer card has a **Where torrents go** list to change that for that indexer alone: **The usual way** (how every indexer starts), **The download client**, **The debrid service** or **The built-in client**. A private tracker can send its torrents to qBittorrent, so they seed there and your ratio grows, while public indexers go to debrid. The list saves as soon as you pick another place.
+
+- **When the place isn't set up.** If you pick the debrid service and then remove its key, or pick the download client and it isn't set up, torrents from that indexer go the usual way again. Nothing fails because of it.
+- **Downloads already running.** A download keeps the place it started in. Changing the list only affects torrents grabbed after that.
+- **Debrid's cache and minimum seeders.** A torrent the debrid service has cached normally gets past the [minimum seeders](#minimum-seeders). For an indexer that sends its torrents somewhere else, it doesn't, since debrid won't fetch it.
+- **Torrents with no indexer.** A magnet link you paste, or a release whose indexer isn't known any more, goes the usual way.
+
+Scripts: `GET /api/indexers` has `torrentRoute` (`client`, `debrid`, `builtin` or empty); `PUT /api/indexers/{id}` takes it. In a settings file an indexer can have `torrentRoute: client`.
+
 ## Extra categories
 
 Mediarium searches an indexer in the standard categories: 2000 for movies, 5000 for TV, 3000 for music, 7000 and 7020 for books and 3030 for audiobooks. Some indexers file releases under numbers of their own as well, such as 105000 for TV or 7120 for German ebooks, and a search for the standard number never finds those. **Edit** on a Newznab or Torznab indexer has an **Extra categories** part with a box for movies, TV, music, books and audiobooks. Type the extra numbers you want, separated by commas, for example `105000, 105010`, and **Save changes**. From then on those numbers are asked for together with the standard ones whenever that kind of media is searched on that indexer, in manual searches and in the automatic ones. Other indexers are not affected, and leaving a box empty keeps the standard search.
@@ -100,9 +111,19 @@ The connection watch ([Notifications](./notifications.md#connection-watch)) does
 
 Scripts: `GET /api/indexers` adds `requestsPerDay` (what you set), `dailyLimit` (the limit in use), `limitLearned`, `requestsToday`, `limitNote`, `rssEveryMinutes` and `rssNote`; `PUT /api/indexers/{id}` takes `requestsPerDay`. In a settings file an indexer can have `requestsPerDay: 25`.
 
+## A running Prowlarr
+
+Mediarium reads the same site definitions Prowlarr's sites are written in, but some of Prowlarr's indexers (TorrentSyndikat, for one) exist only as code inside Prowlarr. If you run Prowlarr anyway, you can link it: **Prowlarr (optional)** on **Settings > Indexers & Search**, with Prowlarr's address and its API key (in Prowlarr under Settings > General). Mediarium checks the two first, then adds every indexer Prowlarr has as the feed Prowlarr serves for it (`http://prowlarr:9696/5`), so searches go through Prowlarr and every site it can do works here.
+
+- **Kept in step.** With **Keep in step every few hours** on (it is, once linked), Mediarium reads Prowlarr every six hours, and **Sync now** does it at once. An indexer added in Prowlarr appears here, one renamed or switched off follows, and one removed from Prowlarr is removed here. An indexer you had already added through Prowlarr's address (by hand or with the import) is taken over, not added twice.
+- **What stays yours.** The priority, minimum seeders, where torrents go, the seeding rules and extra categories you set on an indexer here stay through every sync. Change an indexer's name, address or on/off switch in Prowlarr instead; its card says **From Prowlarr**. Removing one here doesn't stick: the next sync adds it again, so switch it off in Prowlarr.
+- **Unlink** forgets the link and leaves the indexers as they are.
+
+Scripts: `GET`/`PUT /api/settings/prowlarr` (`url`, `apiKey`, `sync`, `remove`) and `POST /api/settings/prowlarr/sync`; `fromProwlarr` on an indexer in `GET /api/indexers`. The one-time import (Settings > Import from other apps) is still there if you want to leave Prowlarr behind (#134, mx4k).
+
 ## How each indexer is doing
 
-**Settings > System > Statistics** has an **Indexers, last 30 days** card (administrators only): for each indexer the number of searches, how many failed, the share that worked, how many releases it returned and how many of its releases were grabbed, by hand or by Mediarium. A search skipped because of a pause is not counted. The counters are kept for 90 days. Script: `GET /api/stats/indexers`.
+**Settings > System > Statistics** has an **Indexers, last 30 days** card (administrators only): for each indexer the number of searches, how many failed, the share that worked, how many releases it returned and how many of its releases were grabbed, by hand or by Mediarium, with their size, so you can see which paid indexer or VIP tracker does the work. A search skipped because of a pause is not counted. The counters are kept for 90 days. Script: `GET /api/stats/indexers` (`grabBytes` on each indexer).
 
 ## Grabbing from IRC announcements
 

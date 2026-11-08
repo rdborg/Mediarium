@@ -27,6 +27,7 @@ const (
 	releaseDatesStamp    = "2006-01-02"           // the day format of release dates
 	releaseCinema        = "cinema"               // calendar entry labels
 	releaseDigital       = "digital"
+	releaseBoth          = "both" // the cinema and digital dates are the same day
 )
 
 // releaseCountrySetting is the country chosen for release dates (Settings >
@@ -62,26 +63,27 @@ func (s *Server) withDigitalDates(entries []calendarEntryPayload) []calendarEntr
 	if len(movies) == 0 {
 		return entries
 	}
-	labelled := map[int64]bool{}
+	labelled := map[int64]string{}
 	var added []calendarEntryPayload
 	for _, m := range movies {
 		if m.Digital == m.ReleaseDate {
+			labelled[m.ID] = releaseBoth // in cinemas and at home on the same day: one entry
 			continue
 		}
-		labelled[m.ID] = true
+		labelled[m.ID] = releaseCinema
 		title, poster := s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 		added = append(added, calendarEntryPayload{
 			Kind: "movie", ID: m.ID, MovieID: m.ID, TMDBID: m.TMDBID, Title: title, ReleaseDate: m.Digital, Status: string(m.Status),
 			PosterURL: poster, Release: releaseDigital,
 		})
 	}
+	for i := range entries {
+		if entries[i].Kind == "movie" && entries[i].Release == "" {
+			entries[i].Release = labelled[entries[i].ID]
+		}
+	}
 	if len(added) == 0 {
 		return entries
-	}
-	for i := range entries {
-		if entries[i].Kind == "movie" && labelled[entries[i].ID] {
-			entries[i].Release = releaseCinema
-		}
 	}
 	s.attachArt(added)
 	entries = append(entries, added...)

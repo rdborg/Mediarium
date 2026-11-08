@@ -271,6 +271,11 @@ func TestSearchAllSkipsPausedIndexerAndRetriesAfterPause(t *testing.T) {
 	if s := stats[0]; s.Queries != 4 || s.Failures != 3 || s.Results != 1 {
 		t.Fatalf("stats = %+v, want 4 queries, 3 failures, 1 result", s)
 	}
+	// A grab of that release counts with its size (#167).
+	tr.NoteGrab(o.Results[0].DownloadURL, 5<<30)
+	if stats, _ = tr.Stats(clock.t.AddDate(0, 0, -1)); stats[0].Grabs != 1 || stats[0].GrabBytes != 5<<30 {
+		t.Fatalf("stats after a grab = %+v, want 1 grab of 5 GiB", stats[0])
+	}
 }
 
 func TestSearchAllCancelledSearchIsNotAFailure(t *testing.T) {

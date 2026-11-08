@@ -71,6 +71,9 @@ type searchResultPayload struct {
 	MinScore     int             `json:"minScore,omitempty"`
 	UpgradeUntil int             `json:"upgradeUntil,omitempty"`
 	Reasons      []releaseReason `json:"reasons,omitempty"`
+	// Checks lists what was checked on the release against the profile, each as
+	// a pass or the reason it failed (release_explain.go), for "Why this release?".
+	Checks []releaseCheck `json:"checks,omitempty"`
 	// Terms are the profile's preferred terms the release matched, each with
 	// its score; they add to the score next to the custom formats.
 	Terms []preferredHit `json:"terms,omitempty"`
@@ -130,19 +133,7 @@ func (s *Server) toSearchResultPayload(res indexers.Result) searchResultPayload 
 	if belowMinSeeders(res) {
 		payload.BelowMinSeeders, payload.MinSeeders = true, res.MinSeeders
 	}
-	fit := quality.FitLanguageOnly(release, s.preferredLanguage(), s.languageOnly())
-	payload.Language = fit.Label
-	if fit.Label == "" && fit.Rank < 3 {
-		payload.Language = "Not stated"
-	}
-	switch {
-	case !fit.Accepted:
-		payload.LanguageFit = "other"
-	case fit.Rank < 3:
-		payload.LanguageFit = "mixed"
-	case fit.Label != "":
-		payload.LanguageFit = "ok"
-	}
+	payload.setLanguage(quality.FitLanguageOnly(release, s.preferredLanguage(), s.languageOnly()))
 	// A Usenet post older than the retention is shown with the reason; the
 	// automatic searches leave it out.
 	if why := s.retentionRejection(res); why != "" {
@@ -437,6 +428,9 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Pick a movie from the search results to add.")
 		return
 	}
+	if !s.mayAskForAge(w, r, "movie", req.TMDBID) {
+		return
+	}
 	if !s.TMDB().HasAPIKey() {
 		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
 		return
@@ -467,6 +461,7 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, problem)
 		return
 	}
+	rootPath = s.animeMovieFolderFor(*tmdbMovie, rootPath)
 	userID, byline := requester(r)
 	created, err := s.MovieRepo.Add(library.Movie{
 		TMDBID: tmdbMovie.TMDBID, Title: tmdbMovie.Title, Year: tmdbMovie.Year(),
@@ -539,6 +534,9 @@ type discoverPayload struct {
 	// NameTag tells a search result from another of the same name in the
 	// results ("US", "UK" or the year); left out when no other has its name.
 	NameTag string `json:"nameTag,omitempty"`
+	// Scores are the IMDb, Rotten Tomatoes and Metacritic scores kept for it,
+	// with an OMDb key saved (outside_scores.go).
+	Scores *scoreView `json:"scores,omitempty"`
 }
 
 // isoDate passes a TMDB "YYYY-MM-DD" date through, or "" for anything else
@@ -553,20 +551,20 @@ func isoDate(d string) string {
 // movieDiscover builds the list item for a TMDB movie, resolving its genre
 // names (a cached lookup, see metadata.Client.GenreNames).
 func (s *Server) movieDiscover(ctx context.Context, m metadata.Movie) discoverPayload {
-	return discoverPayload{
+	return s.withScores(discoverPayload{
 		TMDBID: m.TMDBID, MediaType: "movie", Title: m.Title, Year: m.Year(), ReleaseDate: isoDate(m.ReleaseDate),
 		Overview: m.Overview, PosterURL: metadata.PosterURL(m.PosterPath), Genres: s.displayTMDB().MovieGenres(ctx, m),
 		Rating: metadata.RoundRating(m.VoteAverage), VoteCount: m.VoteCount,
-	}
+	})
 }
 
 // showDiscover is movieDiscover's TV counterpart.
 func (s *Server) showDiscover(ctx context.Context, sh metadata.Show) discoverPayload {
-	return discoverPayload{
+	return s.withScores(discoverPayload{
 		TMDBID: sh.TMDBID, MediaType: "tv", Title: sh.Name, Year: sh.Year(), ReleaseDate: isoDate(sh.FirstAirDate),
 		Overview: sh.Overview, PosterURL: metadata.PosterURL(sh.PosterPath), Genres: s.displayTMDB().ShowGenres(ctx, sh),
 		Rating: metadata.RoundRating(sh.VoteAverage), VoteCount: sh.VoteCount,
-	}
+	})
 }
 
 func (s *Server) handleTrending(w http.ResponseWriter, r *http.Request) {
@@ -673,4 +671,21 @@ func (s *Server) handleImportList(w http.ResponseWriter, r *http.Request) {
 		out = append(out, s.movieDiscover(r.Context(), *m))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// setLanguage fills in Language and LanguageFit from how the release suits
+// the wanted languages.
+func (p *searchResultPayload) setLanguage(fit quality.LanguageFit) {
+	p.Language, p.LanguageFit = fit.Label, ""
+	if fit.Label == "" && fit.Rank < 3 {
+		p.Language = "Not stated"
+	}
+	switch {
+	case !fit.Accepted:
+		p.LanguageFit = "other"
+	case fit.Rank < 3:
+		p.LanguageFit = "mixed"
+	case fit.Label != "":
+		p.LanguageFit = "ok"
+	}
 }

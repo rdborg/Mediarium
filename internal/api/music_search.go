@@ -127,13 +127,22 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := []musicReleasePayload{}
-	if len(instances) == 0 {
-		writeSearch(w, r, out, 0, nil)
-		return
-	}
 	profile, err := s.albumProfile(artist)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// Soulseek (slskd), when it is set up, is asked at the same time as the indexers.
+	soulseek := make(chan []musicReleasePayload, 1)
+	go func() {
+		found, err := s.soulseekAlbumReleases(r.Context(), artist, album, profile)
+		if err != nil && r.Context().Err() == nil {
+			slog.Info("soulseek: album search failed", "album", album.Title, "err", err)
+		}
+		soulseek <- found
+	}()
+	if len(instances) == 0 {
+		writeSearch(w, r, append(out, <-soulseek...), 0, nil)
 		return
 	}
 	blocked := s.searchSkipKeys()
@@ -166,6 +175,7 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, p)
 	}
+	out = append(out, <-soulseek...)
 	writeSearchAll(w, r, out, len(instances), outcomes, notAsked, instances)
 }
 
@@ -189,7 +199,7 @@ func (s *Server) handleAlbumGrab(w http.ResponseWriter, r *http.Request) {
 	if !s.checkGrabURL(w, r, &req.DownloadURL) {
 		return
 	}
-	queueID, err := s.grabAlbum(artist, album, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked)
+	queueID, err := s.grabAlbum(artist, album, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.musicProtocol(), grabPicked)
 	if err != nil {
 		writeGrabError(w, err, http.StatusInternalServerError)
 		return

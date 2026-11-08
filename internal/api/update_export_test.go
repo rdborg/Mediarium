@@ -70,3 +70,6 @@ func (s *Server) TestNoteSelfRestart() {
 }
 
 func (s *Server) TestUpdateDir() string { return s.updateDir() }
+
+// TestSetDBPath says where the database file is (tests open it themselves).
+func (s *Server) TestSetDBPath(path string) { s.cfg.DBPath = path }

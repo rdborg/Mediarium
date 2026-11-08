@@ -65,6 +65,7 @@ var tokenDefs = []tokenDef{
 	{"Season", TokenTV, "Episode", func(c NamingContext) string { return fmt.Sprintf("%d", c.Season) }},
 	{"Episode", TokenTV, "Episode", func(c NamingContext) string { return fmt.Sprintf("%d", c.Episode) }},
 	{"Episode Title", TokenTV, "Episode", func(c NamingContext) string { return c.EpisodeTitle }},
+	{"Absolute", TokenTV, "Episode", func(c NamingContext) string { return idText(c.Absolute) }},
 	{"Episode CleanTitle", TokenTV, "Episode", func(c NamingContext) string { return cleanTitle(c.EpisodeTitle) }},
 	{"Air-Date", TokenTV, "Episode", func(c NamingContext) string { return c.AirDate }},
 

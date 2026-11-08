@@ -139,6 +139,7 @@ func newClientEnv(t *testing.T) *clientEnv {
 	dir := t.TempDir()
 	cfg := config.Config{
 		ConfigDir:           filepath.Join(dir, "config"),
+		DBPath:              filepath.Join(dir, "config", "app.db"),
 		DownloadsDir:        filepath.Join(dir, "downloads"),
 		DownloadsIncomplete: filepath.Join(dir, "downloads", "incomplete"),
 		DownloadsComplete:   filepath.Join(dir, "downloads", "complete"),

@@ -28,7 +28,8 @@ type calendarEntryPayload struct {
 	// and time; without it, the episode stays on ReleaseDate.
 	AirAt string `json:"airAt,omitempty"`
 	// Release says which date of a movie this entry is, "cinema" or "digital",
-	// when the movie has both on different days; empty otherwise.
+	// when the movie has both on different days, or "both" when they are the
+	// same day; empty when no digital date is known.
 	Release   string `json:"release,omitempty"`
 	Status    string `json:"status"`
 	PosterURL string `json:"posterUrl,omitempty"` // the poster or cover the calendar shows next to the title

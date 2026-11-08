@@ -9,6 +9,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/backup"
 	"github.com/rdborg/mediarium/internal/download"
+	"github.com/rdborg/mediarium/internal/fsinfo"
 	"github.com/rdborg/mediarium/internal/logbuf"
 	"github.com/rdborg/mediarium/internal/selfupdate"
 	"github.com/rdborg/mediarium/internal/store"
@@ -18,7 +19,8 @@ import (
 var processStart = time.Now()
 
 type diagnosticsDB struct {
-	JournalMode       string `json:"journalMode"` // "wal", or "delete" when WAL could not be switched on
+	JournalMode       string `json:"journalMode"`     // "wal", or "delete" when WAL could not be switched on
+	Share             string `json:"share,omitempty"` // the kind of network share /config is on (NFS, SMB), when it is one
 	Problem           string `json:"problem,omitempty"`
 	SizeBytes         int64  `json:"sizeBytes"`
 	WALBytes          int64  `json:"walBytes"`
@@ -63,22 +65,25 @@ type diagnosticsUpdate struct {
 }
 
 type diagnosticsPayload struct {
-	Version       string               `json:"version"`
-	GoVersion     string               `json:"goVersion"`
-	OS            string               `json:"os"`
-	Arch          string               `json:"arch"`
-	Now           string               `json:"now"`
-	UptimeSeconds int64                `json:"uptimeSeconds"`
-	SafeMode      bool                 `json:"safeMode"`
-	Goroutines    int                  `json:"goroutines"`
-	MemoryBytes   uint64               `json:"memoryBytes"`
-	Database      diagnosticsDB        `json:"database"`
-	Update        diagnosticsUpdate    `json:"update"`
-	Downloads     *int                 `json:"downloadsRunning,omitempty"` // left out when the database did not answer in time
-	Usenet        []diagnosticsUsenet  `json:"usenet"`                     // news server logins used since the app started
-	Health        []diagnosticsHealth  `json:"health"`
-	Log           []string             `json:"log"`      // the last 500 log lines, secrets taken out
-	Problems      []diagnosticsProblem `json:"problems"` // the latest entries of the problem log (Logs and errors), secrets taken out
+	Version       string `json:"version"`
+	GoVersion     string `json:"goVersion"`
+	OS            string `json:"os"`
+	Arch          string `json:"arch"`
+	Now           string `json:"now"`
+	UptimeSeconds int64  `json:"uptimeSeconds"`
+	SafeMode      bool   `json:"safeMode"`
+	// DownloadsShare is the kind of network share the downloads folder is on
+	// (NFS, SMB), when it is one: downloads there are much slower to write.
+	DownloadsShare string               `json:"downloadsShare,omitempty"`
+	Goroutines     int                  `json:"goroutines"`
+	MemoryBytes    uint64               `json:"memoryBytes"`
+	Database       diagnosticsDB        `json:"database"`
+	Update         diagnosticsUpdate    `json:"update"`
+	Downloads      *int                 `json:"downloadsRunning,omitempty"` // left out when the database did not answer in time
+	Usenet         []diagnosticsUsenet  `json:"usenet"`                     // news server logins used since the app started
+	Health         []diagnosticsHealth  `json:"health"`
+	Log            []string             `json:"log"`      // the last 500 log lines, secrets taken out
+	Problems       []diagnosticsProblem `json:"problems"` // the latest entries of the problem log (Logs and errors), secrets taken out
 }
 
 // diagnosticsProblem is one row of the problem log in the support report.
@@ -128,6 +133,7 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 		WaitCount: st.WaitCount, WaitSeconds: st.WaitDuration.Round(time.Millisecond).String(),
 		MaxIdleClosed: st.MaxIdleClosed, MaxLifetimeClosed: st.MaxLifetimeClosed,
 	}
+	dbInfo.Share, _ = fsinfo.NetworkFilesystem(s.cfg.ConfigDir)
 	dbPath := filepath.Join(s.cfg.ConfigDir, backup.DBFile)
 	if fi, err := os.Stat(dbPath); err == nil {
 		dbInfo.SizeBytes = fi.Size()
@@ -142,6 +148,7 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 		SafeMode: s.cfg.PauseAutomation, Goroutines: runtime.NumGoroutine(), MemoryBytes: mem.Alloc,
 		Database: dbInfo, Usenet: []diagnosticsUsenet{}, Health: []diagnosticsHealth{}, Log: logbuf.Default.Lines(),
 	}
+	out.DownloadsShare, _ = fsinfo.NetworkFilesystem(s.downloadsIncompleteDir())
 	for _, st := range download.ServerStates() {
 		out.Usenet = append(out.Usenet, diagnosticsUsenet{Server: st.Host, InUse: st.InUse, Limit: st.Limit, Configured: st.Configured})
 	}

@@ -116,6 +116,8 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 		var searches map[int]library.PackSearch // the searches for a pack of each season, read when first needed
 		bySeason := map[int][]library.Episode{}
 		var order []int
+		var waiting *library.Episode // the next monitored episode that has not aired yet, for the history
+		wantsSomething := false
 		for _, ep := range eps {
 			if _, seen := bySeason[ep.Season]; !seen {
 				order = append(order, ep.Season)
@@ -137,7 +139,11 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 					// unless they are monitored; asking for specials does not.
 					monitored = ep.Monitored || (scope.force && scope.specials)
 				}
-				aired := ep.AirDate != "" && ep.AirDate <= today && !ep.AirsLater(time.Now())
+				aired := ep.AirDate != "" && (!holdUnreleasedOn() || (ep.AirDate <= today && !ep.AirsLater(time.Now())))
+				if !aired && monitored && ep.Status == library.StatusMissing && ep.AirDate != "" && season > 0 && (waiting == nil || ep.AirDate < waiting.AirDate) {
+					e := ep
+					waiting = &e
+				}
 				if ep.Status != library.StatusMissing || !aired || !monitored {
 					whole = false
 				}
@@ -166,11 +172,17 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 				}
 			}
 			if len(missing) > 0 || plan != nil {
+				wantsSomething = true
 				withNames()
 				// A season with nothing in it yet is fetched as a pack only for a show that
 				// takes packs; "episode by episode" means what it says.
 				wants = append(wants, tvWant{profile: profile, series: sr, season: season, episodes: missing, wholeSeason: whole && s.wantsSeasonPacks(sr), pack: plan})
 			}
+		}
+		// Nothing to fetch yet because the next episode has not aired: say so in
+		// the show's history, for episodes coming within two weeks.
+		if waiting != nil && !wantsSomething && !scope.force && waiting.AirDate <= time.Now().UTC().AddDate(0, 0, 14).Format("2006-01-02") {
+			s.noteHold(0, sr.ID, unairedHoldNote(*waiting))
 		}
 	}
 	return wants, upgrades, nil

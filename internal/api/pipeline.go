@@ -78,6 +78,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 		plain := plainerror.Message(stepErr)
 		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, plain)
 		noteDownloadFailure(queueID, movieTitle, fmt.Sprintf("/title/%d", tmdbID), stepErr)
+		s.doctorNoteFailure(queueID, stepErr)
 		blocklisted := isBadRelease(stepErr) && s.blocklistBadRelease(releaseTitle, protocol, movieID, 0, stepErr)
 		_ = s.MovieRepo.SetStatus(movieID, restoreStatus, "", "")
 		message := fmt.Sprintf("%s: %s", movieTitle, plain)
@@ -271,19 +272,34 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 	// Usenet releases go to an external downloader (SABnzbd, NZBGet) when the
 	// person chose that.
 	usenetViaClient := protocol != indexers.ProtocolTorrent && s.usenetClientOn()
-	if (protocol == indexers.ProtocolTorrent && s.downloadClientOn()) || usenetViaClient {
+	// A torrent goes where its indexer asks, or the usual way (torrent_route.go).
+	route := ""
+	if protocol == indexers.ProtocolTorrent {
+		item, err := s.QueueRepo.Get(queueID)
+		if err != nil {
+			return "", fmt.Errorf("read the download: %w", err)
+		}
+		route = s.itemTorrentRoute(item)
+	}
+	if route == indexers.RouteClient || usenetViaClient {
 		// An external client's folder only holds links to its files: it stays in
 		// the downloads folder, never in the temporary download folder.
 		if _, started := s.existingWorkDir(queueID); !started {
 			incompleteDir = s.defaultWorkDirFor(queueID)
 		}
 	}
-	if protocol == indexers.ProtocolTorrent && !s.downloadClientOn() && !s.debridOn() {
+	if route == indexers.RouteBuiltin {
 		// The built-in client files a torrent under its category's folder.
 		incompleteDir = s.assignTorrentDir(queueID)
 	}
 	if err := s.checkTempReady(incompleteDir); err != nil {
 		return "", err
+	}
+	if route != "" {
+		if err := os.MkdirAll(incompleteDir, 0o755); err != nil {
+			return "", fmt.Errorf("create download folder: %w", err)
+		}
+		writeTorrentRoute(incompleteDir, route)
 	}
 
 	// The same release for the same title (by name and size) is not fetched a
@@ -306,10 +322,10 @@ func (s *Server) prepareDownload(ctx context.Context, queueID int64, downloadURL
 	}
 	switch {
 	case reused:
-	case protocol == indexers.ProtocolTorrent && s.downloadClientOn():
+	case route == indexers.RouteClient:
 		viaClient = true
 		downloadErr = s.downloadViaClient(ctx, queueID, downloadURL, incompleteDir)
-	case protocol == indexers.ProtocolTorrent && s.debridOn():
+	case route == indexers.RouteDebrid:
 		downloadErr = s.downloadDebrid(ctx, queueID, downloadURL, incompleteDir)
 	case protocol == indexers.ProtocolTorrent:
 		// The built-in engines keep their own cap, whatever "Downloads at the

@@ -477,5 +477,40 @@ func (s *Server) handleAddArtistAlbum(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, toMusicAlbumPayload(added[0]))
 		return
 	}
-	writeError(w, http.StatusNotFound, "That release isn't one of this artist's on the music database.")
+	// Not one of the artist's own releases: a soundtrack or compilation they
+	// are on, found through one of its songs.
+	added, err := s.addAlbumByMBID(r.Context(), id, req.MBID)
+	switch {
+	case errors.Is(err, errAlbumExists):
+		writeError(w, http.StatusConflict, err.Error())
+	case err != nil:
+		musicBrainzError(w, err, "That release isn't on the music database.")
+	default:
+		writeJSON(w, http.StatusCreated, toMusicAlbumPayload(added))
+	}
 }
+
+// addAlbumByMBID adds one release group to an artist, monitored, looked up by
+// its id: a soundtrack or compilation the artist is on but that isn't one of
+// their own albums.
+func (s *Server) addAlbumByMBID(ctx context.Context, artistID int64, mbid string) (music.Album, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	g, err := s.MusicBrainz().GetReleaseGroup(ctx, mbid)
+	if err != nil {
+		return music.Album{}, err
+	}
+	added, err := s.MusicRepo.AddAlbums(artistID, []music.Album{{
+		MBID: g.ID, Title: g.Title, Type: albumType(g.PrimaryType), ReleaseDate: g.FirstReleaseDate, Monitored: true,
+	}})
+	if err != nil {
+		return music.Album{}, err
+	}
+	if len(added) == 0 {
+		return music.Album{}, errAlbumExists
+	}
+	return added[0], nil
+}
+
+// errAlbumExists: the release is already one of the artist's.
+var errAlbumExists = errors.New("That release is already in your library.")

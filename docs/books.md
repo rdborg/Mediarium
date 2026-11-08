@@ -117,6 +117,16 @@ Among the matches, the file type decides:
 
 A release that doesn't say its type comes after those that do. When two are equal, the indexer priority and then Usenet over torrents decide. Releases you blocklisted are skipped.
 
+### The language of a book
+
+The **languages you want** (Settings > Library > Quality, the same setting films and shows use) count for books too. Book release names rarely say their language, so Mediarium also looks at the category the indexer filed the release under: many indexers keep one per language, such as `7120` called "EBook (DE)" next to the usual `7020`. A category whose name says a language ("(DE)", "Deutsch", "French", "GER") makes the release that language; the standard book categories say nothing. Add such a category under **Extra categories** on the indexer's card so it is searched at all (see [indexers.md](./indexers.md#extra-categories)).
+
+- A release in a wanted language goes first in **Choose a release**, and the list shows each one's language.
+- A release clearly in another language is never taken by Mediarium itself; you can still pick it by hand.
+- A release whose name and category say nothing counts as English, as it does for films. With **Only take releases in these languages** on, it is then only taken when English is one of your languages.
+
+To read the category names, Mediarium asks each Newznab or Torznab indexer for its list of categories once a day, and only when a book release comes from a category that isn't a standard one. That one request counts against the indexer's daily limit (#128, mirisbowring).
+
 ## Where the files go
 
 Books are filed by author:

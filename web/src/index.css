@@ -1622,3 +1622,17 @@ textarea[aria-invalid='true']:focus {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent);
 }
+
+/* The command palette (Ctrl+K): near the top, so the list grows downwards. */
+.palette-backdrop { place-items: start center; padding-top: min(14vh, 120px); }
+.palette { width: min(560px, 100%); overflow: hidden; display: flex; flex-direction: column; max-height: min(70vh, 520px); }
+.palette-input { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+.palette-input input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 4px 0; font-size: 1rem; color: var(--text); box-shadow: none; outline: none; }
+.palette-input kbd { font-family: var(--font-mono); font-size: 0.72rem; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); }
+.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.palette-list li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--text-dim); white-space: nowrap; }
+.palette-list li.on { background: var(--surface-2); color: var(--text); }
+.palette-list li.on svg { color: var(--accent); }
+.palette-label { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.palette-hint { margin-left: auto; font-size: 0.8rem; color: var(--text-dim); }
+.palette-list li.palette-empty { cursor: default; }

@@ -16,6 +16,7 @@ func markBestMatch(payloads []searchResultPayload, found []indexers.Result, prof
 	var bestKey pickKey
 	for i := range payloads {
 		payloads[i].setPreferredHits(profile, found[i].Title)
+		payloads[i].Checks = explainChecks(payloads[i], found[i], profile)
 		if !bestCandidate(payloads[i], found[i], profile) {
 			continue
 		}
@@ -28,6 +29,7 @@ func markBestMatch(payloads []searchResultPayload, found []indexers.Result, prof
 		return
 	}
 	payloads[best].Best = true
+	setRankNotes(payloads, found, profile)
 	// Every other release the pick could have taken says why it did not.
 	for i := range payloads {
 		if i == best || !bestCandidate(payloads[i], found[i], profile) {

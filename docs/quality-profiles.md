@@ -157,6 +157,8 @@ Activity notes each title that stops being monitored this way.
 
 ### Season packs once a season has ended
 
+**Wait until a title is out before searching** (`search.hold_unreleased`, or `holdUnreleased`; on by default) keeps automatic searches away from a title that has not come out: a movie before its release date, an episode before it has aired, and a film that is only in cinemas until its digital or disc release. The title's history says what it is waiting for ("Waiting for S02E05 to air on 14 Nov" or "Waiting for the release on 20 Dec"), once, not at every run. Switched off, automatic searches also look for a movie before its date and for an episode with a future air date; use that only if your indexers post things early. A search by hand (Search now, Choose a release) always looks, whatever the setting says.
+
 While a season is still airing, its episodes are fetched one by one as they come out. **Prefer season packs once a season has ended** (`library.season_packs`, or `seasonPacks`; off at first) changes what happens after the finale. Once every episode of a season has aired, and the last one aired at least two days ago, the hunt looks for a season pack of that season before it goes back to single episodes. It does this when:
 
 - some of the season's monitored episodes are still missing, or
@@ -241,6 +243,27 @@ A film or show made or released in another country is often posted under its loc
 - The titles are read from TMDB when a movie or show is searched for the first time after you choose a language (or in the background, a few at a time), and again when a show is refreshed or after 30 days. If you change the audio languages they are picked again. With only English wanted, none are kept and nothing extra is searched.
 
 Over the API, `GET /api/movies/{id}/search` and `GET /api/series/{id}/search` give `matchedTitle` for a release named by one of the other titles.
+
+## Why this release?
+
+In **Choose a release** (the search list of a movie, show or season), the arrow next to a release, or **Show why** above the list, opens the details of each release. Under **Why this release?** they list, line by line, what was checked against the title's profile and whether it passed:
+
+- **Quality**: which quality the name reads as and whether the profile accepts it. A line also says when that quality reaches the cutoff, so nothing better is searched for once it is downloaded.
+- **The profile's word rules**, when it has any (must contain, must not contain).
+- **Language**, **size** (the profile's largest size, the built-in minimum and the size tables), **seeders** against the indexer's minimum, and the day it was posted. A release whose size the indexer does not give passes the size check.
+- Anything else that makes an automatic search leave it out: the blocklist, a Usenet post older than the retention, an upgrade that is no upgrade.
+
+Next to it, **Why this score** shows each custom format and preferred term with its points and the total, and **Where it ranks** says why the release stands above the next one an automatic search could take: the first thing in which the two differ (seeders, language, quality, score, indexer priority, protocol, or just being found first). **Why it was not the best match** says the same from the other side. These lines are worked out with the same code the automatic search uses to choose, so they cannot disagree with what it does. In the API they are the `checks` and `reasons` of each result of `GET /api/movies/{id}/search` and `GET /api/series/{id}/search`.
+
+## Try this profile
+
+**Settings > Library > Quality > Try this profile** runs a release name through a profile without searching for anything. Paste a name such as `Some.Movie.2020.1080p.WEB-DL.x265-GROUP`, pick a profile and whether it is for a movie or a show, and optionally a size in GB and one of your indexers (its minimum seeders and priority are then used). **Try it** shows:
+
+- how the name reads: quality, source, resolution, codec, audio, HDR, group, languages, year, season and episodes;
+- the score: each custom format and preferred term it matched, with its points, and the total;
+- the same checks as **Why this release?**, and the verdict: *Would be taken* or *Would be skipped*, with the reasons.
+
+It only reads your settings: nothing is searched, grabbed or saved. Use it to see what a new profile or custom format would do to a name you know, before it decides a real download. Administrators only; in the API it is `POST /api/quality-profiles/simulate` with `title`, `profileId`, `kind` (`movie` or `tv`) and optionally `sizeMB`, `indexer`, `protocol` and `seeders`.
 
 ## Quality order and groups
 

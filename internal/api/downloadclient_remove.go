@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/qbit"
 	"github.com/rdborg/mediarium/internal/queue"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -44,7 +45,7 @@ func (s *Server) clientRefFor(item queue.Item) (clientRef, bool) {
 	if item.Protocol != queue.ProtocolTorrent {
 		return s.usenetRefFor(item)
 	}
-	if !s.removeOnStopOn() || !s.downloadClientOn() {
+	if !s.removeOnStopOn() || !s.downloadClientOn() || s.itemTorrentRoute(item) != indexers.RouteClient {
 		return clientRef{}, false
 	}
 	switch item.Status {

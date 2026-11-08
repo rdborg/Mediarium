@@ -437,6 +437,34 @@ func syncDir(dir string) {
 	}
 }
 
+// Revert puts the program kept in app.previous back as the installed update.
+// The one installed now becomes app.previous, so going forward again is the
+// same step. It returns the version put back.
+func Revert(dir string) (string, error) {
+	version := readLine(filepath.Join(dir, FilePrevVer))
+	src, err := os.Open(filepath.Join(dir, FilePrevious))
+	if err != nil {
+		return "", fmt.Errorf("open the previous program: %w", err)
+	}
+	// A copy, because Install moves the program installed now onto app.previous.
+	tmp, err := os.CreateTemp(dir, tempReleaseGlb) // CleanTemp removes it if this stops halfway
+	if err != nil {
+		src.Close()
+		return "", fmt.Errorf("copy the previous program: %w", err)
+	}
+	h := sha256.New()
+	_, copyErr := io.Copy(io.MultiWriter(tmp, h), src)
+	if err := errors.Join(copyErr, tmp.Close(), src.Close()); err != nil {
+		os.Remove(tmp.Name())
+		return "", fmt.Errorf("copy the previous program: %w", err)
+	}
+	if err := Install(dir, tmp.Name(), version, hex.EncodeToString(h.Sum(nil))); err != nil {
+		os.Remove(tmp.Name())
+		return "", err
+	}
+	return version, nil
+}
+
 // Remove deletes everything installed, so the next start uses the image's own
 // program. It does not touch the running process.
 func Remove(dir string) error {

@@ -10,8 +10,8 @@ const TOP_KEY = 'mediarium-fold-top'
 const SIDE_KEY = 'mediarium-fold-side'
 const SEEN_KEY = 'mediarium-fold-seen' // this device has shown a strip once: it is a foldable in every posture
 
-export const FOLD_TOP_DEFAULT = 150 // width kept free beside the clock, signal and battery at the top
-export const FOLD_STRIP = 88 // width of the side strip that holds the buttons when the phone is held sideways
+export const FOLD_TOP_DEFAULT = 130 // width kept free beside the clock, signal and battery at the top
+export const FOLD_STRIP = 72 // width of the side strip that holds the buttons when the phone is held sideways
 export const FOLD_SIDE_DEFAULT = 130 // height kept free for them when they sit in a side strip
 
 function read(key: string): string {
@@ -93,12 +93,14 @@ export function readFacts(): DisplayFacts {
 // app on a tablet has a thin strip and a plain phone is much narrower than it is tall.
 // A foldable iPhone draws its clock and battery as a floating group and reports no
 // safe area for it, so an iPhone that wide counts without one (an iPad says "Macintosh").
+// The closed outer screen is about 466 x 678 pt and the open inner one 626 x 890 pt, so a short
+// side of 440 is the line (a plain phone is about 0.46 as wide as it is tall, these are 0.69).
 function looksFoldable(f: DisplayFacts): boolean {
   const short = Math.min(f.innerW, f.innerH)
   const long = Math.max(f.innerW, f.innerH)
   const strip = Math.max(f.insets.top, f.insets.right, f.insets.left) >= 30
   const iphone = /iPhone/.test(navigator.userAgent)
-  const shape = f.installed && short >= 480 && short / long >= 0.6
+  const shape = f.installed && short >= 440 && short / long >= 0.6
   // Held sideways the same phone can report no strip at all, so once it has shown
   // one in any posture it is remembered.
   if (shape && (strip || iphone)) write(SEEN_KEY, '1')
@@ -158,7 +160,24 @@ function nudge() {
       m.setAttribute('content', c + ',')
       window.requestAnimationFrame(() => m.setAttribute('content', c))
     }
+    // A second poke for a window that kept its old size: one pixel more height for a
+    // frame makes the page measure itself again.
+    const root = document.documentElement
+    root.style.minHeight = 'calc(100dvh + 1px)'
+    window.requestAnimationFrame(() => {
+      root.style.minHeight = ''
+      window.scrollTo(window.scrollX, window.scrollY)
+    })
   }, 350)
+}
+
+// After the phone is turned or folded the safe-area numbers and the window size settle a
+// moment later than the event, so the layout is worked out again a few times.
+const SETTLE_MS = [0, 150, 500, 1200, 2500]
+let settleTimers: number[] = []
+function settle(run: () => void) {
+  settleTimers.forEach((x) => window.clearTimeout(x))
+  settleTimers = SETTLE_MS.map((ms) => window.setTimeout(run, ms))
 }
 
 // startFold applies the layout now and again whenever the screen changes shape
@@ -170,6 +189,7 @@ export function startFold() {
   let wide = window.innerWidth >= window.innerHeight
   window.addEventListener('resize', () => {
     run()
+    settle(run)
     // turned, or the fold opened or closed (not just the keyboard coming up)
     const now = window.innerWidth >= window.innerHeight
     if (now !== wide) {
@@ -179,6 +199,13 @@ export function startFold() {
   })
   window.addEventListener('orientationchange', () => {
     run()
+    settle(run)
     nudge()
+  })
+  // the open or closed fold changes the visual viewport even when the window event is missed
+  window.visualViewport?.addEventListener('resize', () => settle(run))
+  window.addEventListener('pageshow', () => settle(run))
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') settle(run)
   })
 }

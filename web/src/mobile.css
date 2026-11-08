@@ -294,6 +294,10 @@
     font-size: 0.62rem; font-weight: 700; line-height: 17px; text-align: center; font-variant-numeric: tabular-nums;
     background: var(--c-activity); color: #06101f; box-shadow: 0 0 0 2px var(--bg);
   }
+  /* Held upright a phone has nothing at its sides. A foldable iPhone reports a side safe area of
+     about 84 pt there (it belongs to the sideways posture), which left the bar's first button
+     in the middle of the screen. */
+  @media (orientation: portrait) { .bottom-nav { padding-left: 4px; padding-right: 4px; } }
   /* the page, the music bar and Back to top keep clear of it */
   .content { padding-bottom: calc(var(--bn-h) + 16px); }
   .mp-dock { bottom: calc(var(--bn-h) + 8px); }

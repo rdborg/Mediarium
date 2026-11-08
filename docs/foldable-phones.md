@@ -9,7 +9,7 @@ On a phone that opens into a near-square screen, that strip leaves room to use. 
 - **Held upright:** the header (menu, search, theme and profile) sits in the top strip, next to the clock and battery icons, instead of below them.
 - **Held sideways:** the system icons sit at the right. The profile and theme buttons move into a strip down that side, under the icons, and the header keeps its room for the title and search. The tool buttons (players, help, report a problem, GitHub, support) move to the bottom of the menu on the left.
 
-It follows the phone as you turn it or open and close the fold.
+It follows the phone as you turn it or open and close the fold. The closed outer screen gets the same layout as the open one, and after a turn or a fold the page measures itself again for a few seconds, because the phone is slow to say how much room it left. If a black bar stays at the top or the right anyway, close the app and open it again.
 
 ## Settings
 

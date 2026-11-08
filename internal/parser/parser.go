@@ -50,12 +50,12 @@ type Release struct {
 	// YearLate is set when Year stands after the season or episode marker
 	// ("Show.S01E05.2015.WEB-DL"). That is as likely an air year as the show's
 	// own, so a check against the show's year should not rely on it.
-	YearLate   bool
-	Season     int   // 0 = not a TV release
-	SeasonTo   int   // last season of a pack of several (S01-S03 gives 3), else 0
+	YearLate bool
+	Season   int // 0 = not a TV release
+	SeasonTo int // last season of a pack of several (S01-S03 gives 3), else 0
 	// Complete is set when the name says it holds a whole series ("Complete.Series",
 	// "Complete.Collection", "All.Seasons"), with or without the seasons listed.
-	Complete bool
+	Complete   bool
 	Episode    int   // 0 = season pack / not episode-specific
 	Episodes   []int // populated for multi-episode releases (e.g. E01E02)
 	Resolution string

@@ -324,7 +324,7 @@ const (
 	KeyModulesLifecycle = "modules.lifecycle" // "1" switches the library lifecycle rules on (the Leaving soon shelf); unset or "0" leaves them off
 	KeyModulesArchiver  = "modules.archiver"  // "1" switches the Channel archiver on; unset or "0" leaves it off. It can only be switched on after the warning is ticked and the yt-dlp file answers
 	KeyArchiverConfig   = "archiver.config"   // the Channel archiver's settings (JSON: yt-dlp path, folder, format, limits, other websites, the ticked warning)
-	KeyCleanupRules     = "cleanup.rules"    // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
+	KeyCleanupRules     = "cleanup.rules"     // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
 
 	// Sign-in through a reverse proxy (Settings > Accounts). See docs/security.md.
 	KeyAuthProxyHeader    = "auth.proxy_header"    // the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key

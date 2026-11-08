@@ -268,7 +268,9 @@ function Shell() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMenuOpen(false)
-        menuButton.current?.focus({ preventScroll: true })
+        // On a phone the header's menu button is hidden; More in the bottom bar is the one that opened it.
+        const toggle = menuButton.current?.getClientRects().length ? menuButton.current : document.querySelector<HTMLElement>('.bottom-nav button[aria-controls="main-menu"]')
+        toggle?.focus({ preventScroll: true })
         return
       }
       if (e.key !== 'Tab') return

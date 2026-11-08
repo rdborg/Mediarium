@@ -322,3 +322,8 @@
 @keyframes sheet-up { from { transform: translateY(32%); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .modal-backdrop > .modal { animation: none; } }
 
+
+/* Install as an app (Settings > General): one line where there is room; on a phone a long sentence
+   (Russian, German) breaks into balanced lines instead of pushing the page sideways. */
+.install-line { margin: 0; color: var(--text-dim); white-space: nowrap; }
+@media (max-width: 700px) { .install-line { white-space: normal; text-wrap: balance; } }

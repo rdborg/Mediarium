@@ -25,10 +25,17 @@ export async function expectNoErrors(errors: string[]) {
 // and the guide's landing page lists its topics as cards instead of a side list.
 const narrow = (page: Page) => (page.viewportSize()?.width ?? 1280) <= 900
 
+// The button that opens and closes the menu drawer: the header's menu button on a
+// tablet, More in the bottom bar on a phone (the header button is hidden there).
+export function menuToggle(page: Page) {
+  if ((page.viewportSize()?.width ?? 1280) <= 700) return page.locator('.bottom-nav button[aria-controls="main-menu"]')
+  return page.locator('.menu-button')
+}
+
 // Opens the menu drawer; on a wide screen the menu is already there.
 export async function openNav(page: Page) {
   if (!narrow(page)) return
-  const button = page.locator('.menu-button')
+  const button = menuToggle(page)
   await expect(button).toBeVisible()
   if ((await button.getAttribute('aria-expanded')) === 'false') await button.click()
 }

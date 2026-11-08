@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openNav } from './helpers'
+import { menuToggle, openNav } from './helpers'
 
 // Nothing pushes the page wider than the screen, at any of the three sizes
 // (run with --project app, app-tablet or app-phone). Russian has the longest
@@ -106,7 +106,8 @@ for (const width of [1440, 750]) {
 test('the header buttons are at least 40px on a touch screen', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'phone only')
   await page.goto('/')
-  for (const button of [page.locator('.menu-button'), page.locator('button.avatar')]) {
+  // (on a phone the menu button is More in the bottom bar)
+  for (const button of [menuToggle(page), page.locator('button.avatar')]) {
     const box = await button.boundingBox()
     expect(box?.width).toBeGreaterThanOrEqual(40)
     expect(box?.height).toBeGreaterThanOrEqual(40)

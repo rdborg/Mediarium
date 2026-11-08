@@ -8,6 +8,15 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.2] - 2026-11-08
+
+### Security
+- The torrent library is updated to a version that fixes a flaw in how it reads bencoded data (GO-2026-6894), used when reading magnet links and torrent files.
+
+### Fixed
+- On a phone, pressing Escape after closing the menu left the keyboard focus nowhere. It goes back to the button that opened it.
+- Settings > General no longer scrolls sideways on a phone in German, French, Polish and Russian: the line under Install as an app wraps in balanced lines instead of running off the screen.
+
 ## [4.0.1] - 2026-11-08
 
 ### Fixed

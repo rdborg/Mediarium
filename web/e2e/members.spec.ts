@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
-import { expectNoErrors, watchErrors } from './helpers'
+import { expectNoErrors, menuToggle, watchErrors } from './helpers'
 
 // A member (made by the administrator through the API) must not be shown the
 // administrator's pages and tabs, and the phone menu must be out of reach
@@ -19,8 +19,8 @@ async function signInAsMember(page: Page) {
   await page.locator('input[autocomplete="username"]').fill(MEMBER.username)
   await page.locator('input[autocomplete="current-password"]').fill(MEMBER.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  // On a phone the menu is closed (hidden) until its button is pressed.
-  await expect(page.getByRole('navigation', { name: 'Main' }).or(page.locator('.menu-button')).first()).toBeVisible()
+  // On a tablet the menu is closed (hidden) until its button is pressed; on a phone the bottom bar is there.
+  await expect(page.locator(':is(nav#main-menu, .menu-button, .bottom-nav):visible').first()).toBeVisible()
 }
 
 test('a member sees no administrator tabs or pages', async ({ page, request }) => {
@@ -51,7 +51,7 @@ test('on a phone the closed menu is out of reach and Escape closes the open one'
 
   const nav = page.locator('nav#main-menu')
   await expect(nav).toBeHidden()
-  const button = page.locator('.menu-button')
+  const button = menuToggle(page)
   await expect(button).toHaveAttribute('aria-expanded', 'false')
 
   await button.click()

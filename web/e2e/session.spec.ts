@@ -18,6 +18,6 @@ test('a wrong password is refused, the right one signs in', async ({ page }) => 
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.locator('input[autocomplete="current-password"]')).toHaveCount(0)
   await openNav(page)
-  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible()
   await expectNoErrors(errors)
 })

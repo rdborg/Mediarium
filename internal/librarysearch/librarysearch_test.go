@@ -296,7 +296,7 @@ func TestSearchIsFastOnABigLibrary(t *testing.T) {
 		if err != nil || len(hits) == 0 {
 			t.Fatalf("%q: %v %d hits", q, err, len(hits))
 		}
-		if took > 150*time.Millisecond {
+		if took > slowSearch {
 			t.Errorf("%q took %v over %d titles", q, took, n)
 		}
 	}

@@ -2753,8 +2753,9 @@ tr.is-default > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .indexer-health.ok { color: var(--success, #34d399); }
 .indexer-health.bad { color: var(--danger); }
 .indexer-priority { display: flex; flex-direction: column; gap: 2px; margin-left: auto; font-size: 0.78rem; color: var(--text-dim); flex: none; }
-.indexer-minseed { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.78rem; color: var(--text-dim); }
+.indexer-minseed { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.78rem; color: var(--text-dim); }
 .indexer-minseed input { width: 72px; flex: none; padding: 4px 8px; text-align: center; }
+.indexer-minseed select { min-width: 0; max-width: 100%; }
 .indexer-extra { display: flex; flex-direction: column; gap: 6px; }
 .indexer-extra .indexer-extra-row label { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap; }
 .indexer-extra .indexer-extra-row input { width: 62%; flex: none; min-width: 0; }

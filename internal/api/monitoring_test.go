@@ -86,7 +86,8 @@ func TestStopMonitoringAMovieOnceDownloaded(t *testing.T) {
 	var m library.Movie
 	for time.Now().Before(deadline) {
 		m, _ = server.MovieRepo.Get(movie.ID)
-		if m.Status == library.StatusDownloaded {
+		// the film is marked downloaded a moment before it is un-monitored, so wait for both
+		if m.Status == library.StatusDownloaded && !m.Monitored {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)

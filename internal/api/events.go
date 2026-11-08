@@ -47,6 +47,16 @@ var eventLimits = struct {
 	keepAlive      time.Duration
 }{eventsPerUser, eventsPerIP, eventsKeepAlive}
 
+// eventLimitsMu guards eventLimits: a test puts the real values back while a request it
+// made is still winding down.
+var eventLimitsMu sync.RWMutex
+
+func currentEventLimits() (perUser, perIP int, keepAlive time.Duration) {
+	eventLimitsMu.RLock()
+	defer eventLimitsMu.RUnlock()
+	return eventLimits.perUser, eventLimits.perIP, eventLimits.keepAlive
+}
+
 // liveEvent is one thing sent to the open streams.
 type liveEvent struct {
 	Name string // the SSE event name: "activity", "resync"
@@ -74,7 +84,8 @@ type eventHub struct {
 func (h *eventHub) join(user, ip string) (*eventSub, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.closed || h.byUser[user] >= eventLimits.perUser || h.byIP[ip] >= eventLimits.perIP {
+	perUser, perIP, _ := currentEventLimits()
+	if h.closed || h.byUser[user] >= perUser || h.byIP[ip] >= perIP {
 		return nil, false
 	}
 	if h.subs == nil {
@@ -195,7 +206,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	if !send("retry: 5000\nevent: hello\ndata: {}\n\n") {
 		return
 	}
-	tick := time.NewTicker(eventLimits.keepAlive)
+	_, _, keepAlive := currentEventLimits()
+	tick := time.NewTicker(keepAlive)
 	defer tick.Stop()
 	for {
 		select {

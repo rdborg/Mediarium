@@ -69,6 +69,8 @@ button.link-button:hover { color: var(--accent); }
 
 /* Settings > System > Settings file: the review of a file before it is applied. */
 .cfg-nowrap { white-space: nowrap; }
+/* on a narrow screen the long names break in balanced lines instead of pushing the page sideways */
+@media (max-width: 520px) { .cfg-nowrap { white-space: normal; text-wrap: balance; } }
 .cfg-review { margin-top: 14px; }
 .cfg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .cfg-chip { white-space: nowrap; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); }

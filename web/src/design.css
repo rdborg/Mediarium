@@ -3485,7 +3485,7 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
 .rel-why-check.bad .rel-why-mark { color: var(--danger, #f85149); }
 .rel-why-check.info .rel-why-mark { color: var(--text-dim); }
 .rel-why-rank { color: var(--text); }
-.profile-sim-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 12px; }
+.profile-sim-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 12px; }
 .profile-sim .field > span { white-space: nowrap; }
 .profile-sim-result { margin-top: 16px; }
 .profile-sim-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; font-weight: 600; }

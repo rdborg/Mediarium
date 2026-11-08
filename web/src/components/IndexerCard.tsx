@@ -257,7 +257,7 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
       {i.protocol === 'torrent' && (
         <label className="indexer-minseed">
           <TipLabel text={t('Send the torrents from this indexer to one place, for example a private tracker to your download client so it seeds there, and public ones to debrid. If the place you pick is not set up, the usual way is used: the download client, then debrid, then the built-in client.')} learnMore="indexers#where-torrents-go">{t('Where torrents go')}</TipLabel>
-          <select value={i.torrentRoute ?? ''} onChange={(e) => void saveRoute(e.target.value as TorrentRoute)} style={{ width: 'auto' }}>
+          <select value={i.torrentRoute ?? ''} onChange={(e) => void saveRoute(e.target.value as TorrentRoute)} style={{ width: 'auto', maxWidth: '100%' }}>
             {(['', 'client', 'debrid', 'builtin'] as TorrentRoute[]).map((r) => (
               <option key={r} value={r}>{routeNames[r]}</option>
             ))}

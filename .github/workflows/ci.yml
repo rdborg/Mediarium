@@ -144,7 +144,7 @@ jobs:
       - name: Build the web app and the server
         run: |
           cd web && npm ci && npm run build && cd ..
-          go build -o "$RUNNER_TEMP/mediarium" ./cmd/app
+          go build -tags nodynamic -o "$RUNNER_TEMP/mediarium" ./cmd/app
       - name: Start Mediarium with an empty config folder
         run: |
           mkdir -p "$RUNNER_TEMP"/m/{config,movies,tv,downloads}

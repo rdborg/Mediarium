@@ -162,7 +162,7 @@ jobs:
 
           exe="mediarium"
 
-          go build -trimpath \
+          go build -trimpath -tags nodynamic \
             -ldflags "-s -w -X main.version=${VERSION} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID} -X main.defaultSimklClientID=${SIMKL_CLIENT_ID}" \
             -o "${out}/${exe}" ./cmd/app
 

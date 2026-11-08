@@ -8,6 +8,11 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-11-08
+
+### Fixed
+- The image with the Cloudflare helper (the `-full` tags) did not start, and the program was not a fully self-contained file any more: the new picture library looked for a system library at run time. It is built without that now, so every image and archive is one static file again. If you use `latest-full` or a `-full` tag, 4.0.1 is the first one of 4.0 for it; the standard image and the archives of 4.0.0 worked.
+
 ## [4.0.0] - 2026-11-08
 
 ### Upgrading

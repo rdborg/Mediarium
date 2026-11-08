@@ -43,7 +43,8 @@ COPY . .
 # frontend build before go:embed picks it up.
 COPY --from=frontend /src/web/dist ./web/dist
 
-# Static binary, no CGO, targets set by buildx for linux/amd64 + linux/arm64
+# Static binary, no CGO, targets set by buildx for linux/amd64 + linux/arm64. The nodynamic tag stops the
+# AVIF library from looking for a system libavif, which would make the binary need a libc.
 ARG TARGETOS
 ARG TARGETARCH
 # The version number comes from the VERSION file at the repository root
@@ -67,7 +68,7 @@ RUN set -e; \
     if [ -z "$v" ] || [ "$v" = "dev" ]; then v="$(tr -d ' \r\n' < VERSION)"; fi; \
     echo "Building Mediarium version $v"; \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w -X main.version=${v} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID} -X main.defaultSimklClientID=${SIMKL_CLIENT_ID}" -o /out/app ./cmd/app
+    go build -trimpath -tags nodynamic -ldflags="-s -w -X main.version=${v} -X main.defaultTMDBAPIKey=${TMDB_API_KEY} -X main.defaultOpenSubtitlesAPIKey=${OPENSUBTITLES_API_KEY} -X main.defaultTraktClientID=${TRAKT_CLIENT_ID} -X main.defaultSimklClientID=${SIMKL_CLIENT_ID}" -o /out/app ./cmd/app
 
 # ---- "Full" image: Mediarium with the Cloudflare helper built in ----
 # Build it with `--target full`. The plain build (no --target) ends at the

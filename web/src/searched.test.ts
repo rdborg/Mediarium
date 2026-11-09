@@ -89,3 +89,31 @@ test('a FlareSolverr that does not answer and a page that is gone have their own
   assert.equal(resultText(line('52BT', 'failed', { code: 'gone' })), 'Did not answer: the site says the page is gone')
   assert.equal(why(line('X', 'failed', { code: 'other' })), 'returned an error')
 })
+
+test('Soulseek has its own words and is named after the indexers in the summary', () => {
+  const soul = (status: Searched['status'], extra: Partial<Searched> = {}) => line('Soulseek (slskd)', status, { kind: 'soulseek', ...extra })
+  assert.equal(resultText(soul('found', { count: 3 })), '3 folders found')
+  assert.equal(resultText(soul('found', { count: 1 })), '1 folder found')
+  assert.equal(resultText(soul('empty')), 'Nothing found')
+  assert.equal(resultText(soul('skipped', { code: 'music_off', reason: 'Music is switched off.' })), 'Music is switched off.')
+  assert.equal(
+    resultText(soul('skipped', { code: 'not_set_up', reason: 'Soulseek is not set up yet: the downloads folder is missing.' })),
+    'Soulseek is not set up yet: the downloads folder is missing.',
+  )
+  assert.equal(resultText(soul('failed', { code: 'timeout', reason: 'it took too long' })), 'slskd did not answer: it took too long')
+  assert.equal(
+    resultText(soul('failed', { code: 'not_connected', reason: 'slskd is not connected to the Soulseek network (state: Disconnected).' })),
+    'slskd is not connected to the Soulseek network (state: Disconnected).',
+  )
+  assert.equal(summaryLine([line('IPTorrents', 'empty'), soul('empty')]), 'Searched 1 indexer and Soulseek: 2 had nothing for this title.')
+  assert.equal(summaryLine([line('A', 'empty'), line('B', 'empty'), soul('found', { count: 2 })]), 'Searched 2 indexers and Soulseek: 1 had releases, 2 had nothing for this title.')
+  assert.equal(summaryLine([soul('empty')]), 'Searched Soulseek: 1 had nothing for this title.')
+  assert.equal(summaryLine([line('A', 'empty'), soul('skipped', { code: 'not_set_up', reason: 'x' })]), 'Searched 1 indexer: 1 had nothing for this title, 1 skipped.')
+  assert.equal(summaryLine([line('A', 'empty'), soul('failed', { code: 'error', reason: 'x' })]), 'Searched 1 indexer and Soulseek: 1 had nothing for this title, 1 did not answer.')
+})
+
+test('the indexer filter leaves out the Soulseek line', () => {
+  const soul: Searched = line('Soulseek (slskd)', 'found', { kind: 'soulseek', count: 2 })
+  const choices = indexerChoices([{ indexerName: 'Soulseek · alice' }], [line('A', 'empty'), soul])
+  assert.deepEqual(choices.map((c) => c.value), ['A', 'Soulseek · alice'])
+})

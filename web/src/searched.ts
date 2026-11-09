@@ -27,7 +27,13 @@ export function summaryLine(searched: Searched[]): string {
   if (n('empty')) parts.push(t('{n} had nothing for this title', { n: n('empty') }))
   if (n('failed')) parts.push(t('{n} did not answer', { n: n('failed') }))
   if (n('skipped')) parts.push(t('{n} skipped', { n: n('skipped') }))
-  const head = plural(searched.length, 'Searched {n} indexer', 'Searched {n} indexers')
+  // Soulseek (slskd) is not an indexer: it is named after them when it was asked.
+  const indexers = searched.filter((x) => x.kind !== 'soulseek').length
+  const asked = searched.some((x) => x.kind === 'soulseek' && x.status !== 'skipped')
+  let head: string
+  if (!asked) head = plural(indexers, 'Searched {n} indexer', 'Searched {n} indexers')
+  else if (indexers === 0) head = t('Searched Soulseek')
+  else head = plural(indexers, 'Searched {n} indexer and Soulseek', 'Searched {n} indexers and Soulseek')
   return t('{head}: {parts}.', { head, parts: parts.join(', ') })
 }
 
@@ -64,6 +70,7 @@ export function why(s: Searched): string {
 // resultText is the Result column: "12 releases", "Nothing found", "Did not
 // answer: timed out", "Skipped: turned off".
 export function resultText(s: Searched): string {
+  if (s.kind === 'soulseek') return soulseekResult(s)
   switch (s.status) {
     case 'found':
       return plural(s.count, '{n} release', '{n} releases')
@@ -73,6 +80,23 @@ export function resultText(s: Searched): string {
       return t('Did not answer: {why}', { why: why(s) })
     default:
       return t('Skipped: {why}', { why: why(s) })
+  }
+}
+
+// soulseekResult is the Result column for Soulseek (slskd): "3 folders found",
+// "Nothing found", "slskd did not answer: it took too long", or the sentence
+// that says why it was not asked (not set up, music switched off).
+function soulseekResult(s: Searched): string {
+  switch (s.status) {
+    case 'found':
+      return plural(s.count, '{n} folder found', '{n} folders found')
+    case 'empty':
+      return t('Nothing found')
+    case 'failed':
+      // "not_connected" is a whole sentence already: slskd answered, but is not on Soulseek.
+      return s.code === 'not_connected' ? st(s.reason ?? '') : t('slskd did not answer: {why}', { why: st(s.reason ?? '') })
+    default:
+      return st(s.reason ?? '') || t('Not set up')
   }
 }
 
@@ -100,7 +124,7 @@ export function indexerChoices(releases: { indexerName: string }[], searched?: S
   for (const r of releases) counts.set(r.indexerName, (counts.get(r.indexerName) ?? 0) + 1)
   const out = new Map<string, IndexerChoice>()
   for (const s of searched ?? []) {
-    if (s.status === 'skipped') continue
+    if (s.status === 'skipped' || s.kind === 'soulseek') continue // Soulseek's folders are named by user
     out.set(s.name, { value: s.name, label: s.name, count: counts.get(s.name) ?? 0, failed: s.status === 'failed' })
   }
   for (const [name, count] of counts) if (!out.has(name)) out.set(name, { value: name, label: name, count, failed: false })

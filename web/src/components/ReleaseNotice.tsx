@@ -32,7 +32,7 @@ function SearchedSummary({ searched, className }: { searched: Searched[]; classN
               {searched.map((s) => (
                 <tr key={s.name} className={`searched-${s.status}`}>
                   <td>{s.name}</td>
-                  <td>{s.kind === 'usenet' ? t('Usenet') : s.kind === 'torrent' ? t('Torrent') : ''}</td>
+                  <td>{s.kind === 'usenet' ? t('Usenet') : s.kind === 'torrent' ? t('Torrent') : s.kind === 'soulseek' ? t('Soulseek') : ''}</td>
                   <td title={s.reason ? [st(s.reason), s.detail].filter(Boolean).join('\n') : undefined}>
                     {s.status === 'failed' && <Icon name="warning" size={14} className="searched-warn" />}
                     {resultText(s)}

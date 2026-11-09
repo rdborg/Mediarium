@@ -389,8 +389,7 @@ func TestDownloadClientSymlinks(t *testing.T) {
 }
 
 // Settings: Test, save, the password never comes back, validation in plain
-// words, and one place for torrents (a client turns the debrid service off
-// and the other way round).
+// words, and a client and a debrid service living side by side (#166).
 func TestDownloadClientSettings(t *testing.T) {
 	e := newClientEnv(t)
 	bad := postJSON[map[string]any](t, e.client, e.url+"/api/download-client/test", map[string]any{"kind": "qbittorrent", "url": e.qbURL, "username": "admin", "password": "wrong"}, http.StatusOK)
@@ -424,7 +423,7 @@ func TestDownloadClientSettings(t *testing.T) {
 		}
 	}
 
-	// A debrid service first; saving the client turns it off.
+	// A debrid service first; saving the client keeps it (#166).
 	postJSONMethod[map[string]any](t, e.client, http.MethodPut, e.url+"/api/debrid", map[string]any{"service": "torbox", "apiKey": "tb-key"}, http.StatusOK)
 	saved := e.save(t, map[string]any{"category": ""})
 	if saved["kind"] != "qbittorrent" || saved["hasPassword"] != true || saved["password"] != nil || saved["category"] != "" {
@@ -434,8 +433,8 @@ func TestDownloadClientSettings(t *testing.T) {
 	if bytes.Contains(raw, []byte("adminpass")) {
 		t.Fatal("the password must never be sent back")
 	}
-	if d := getJSON[map[string]any](t, e.client, e.url+"/api/debrid"); d["service"] != "" || d["hasKey"] != false {
-		t.Fatalf("debrid should be off now: %v", d)
+	if d := getJSON[map[string]any](t, e.client, e.url+"/api/debrid"); d["service"] != "torbox" || d["hasKey"] != true {
+		t.Fatalf("debrid should stay set up beside the client: %v", d)
 	}
 	// The saved password is used by Test when none is typed.
 	if r := postJSON[map[string]any](t, e.client, e.url+"/api/download-client/test", map[string]any{"kind": "qbittorrent", "url": e.qbURL, "username": "admin"}, http.StatusOK); r["ok"] != true {
@@ -446,10 +445,10 @@ func TestDownloadClientSettings(t *testing.T) {
 		t.Fatalf("built-in client should still be off: %v", s["torrentEnabled"])
 	}
 
-	// A debrid service again: the client goes off.
+	// A debrid service again: the client stays.
 	postJSONMethod[map[string]any](t, e.client, http.MethodPut, e.url+"/api/debrid", map[string]any{"service": "torbox", "apiKey": "tb-key"}, http.StatusOK)
-	if c := getJSON[map[string]any](t, e.client, e.url+"/api/download-client"); c["kind"] != "" {
-		t.Fatalf("the download client should be off now: %v", c)
+	if c := getJSON[map[string]any](t, e.client, e.url+"/api/download-client"); c["kind"] != "qbittorrent" {
+		t.Fatalf("the download client should stay set up beside debrid: %v", c)
 	}
 }
 

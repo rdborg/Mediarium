@@ -281,6 +281,20 @@ func writeSearchAll[T any](w http.ResponseWriter, r *http.Request, results []T, 
 	writeSearchIgnoring(w, r, results, sources, outcomes, skipped, all, ignoredReleases{})
 }
 
+// writeSearchWith is writeSearchAll that also adds lines to "searched" for
+// sources that are not indexers (Soulseek).
+func writeSearchWith[T any](w http.ResponseWriter, r *http.Request, results []T, sources int, outcomes []indexers.Outcome, skipped []string, all []indexers.Instance, extra []searchedIndexer) {
+	if results == nil {
+		results = []T{}
+	}
+	if r.URL.Query().Get("detail") != "1" {
+		writeJSON(w, http.StatusOK, results)
+		return
+	}
+	searched := append(searchedFrom(all, outcomes, indexerCounts(results), skipped), extra...)
+	writeJSON(w, http.StatusOK, searchAnswer[T]{Results: results, Sources: sources, Unanswered: unansweredFrom(outcomes), Warnings: limitWarnings(outcomes), Skipped: skipped, Searched: searched})
+}
+
 // writeSearchIgnoring is writeSearchAll that also says how many releases were
 // left out for not being the title asked for.
 func writeSearchIgnoring[T any](w http.ResponseWriter, r *http.Request, results []T, sources int, outcomes []indexers.Outcome, skipped []string, all []indexers.Instance, ignored ignoredReleases) {

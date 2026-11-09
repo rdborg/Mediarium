@@ -1961,8 +1961,10 @@ fieldset.group .card, fieldset.group table { max-width: 100%; }
 .chip-tier.cutoff { color: var(--c-music); border-color: color-mix(in srgb, var(--c-music) 55%, var(--border)); background: color-mix(in srgb, var(--c-music) 12%, transparent); }
 
 /* Music: keep the album panel inside the screen on phones */
-.album-panel .seg { display: flex; max-width: 100%; }
-.album-panel .seg button { flex: 1 1 0; min-width: 0; padding-inline: 8px; white-space: nowrap; }
+/* The tabs never shrink below their words (a shrunk button let "What happened" spill under the next one on a phone); the strip scrolls sideways if it ever has to. The :not() keeps these ahead of the pill-style .seg rules in projection.css. */
+.album-panel .seg:not(.kind-tabs) { display: flex; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.album-panel .seg::-webkit-scrollbar { display: none; }
+.album-panel .seg:not(.kind-tabs) button, .album-panel .seg:not(.kind-tabs) button + button { flex: 1 0 auto; min-width: max-content; padding-inline: 8px; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 .album-panel > * { min-width: 0; }
 @media (max-width: 560px) {
   .track-file .tf-text { display: none; }
@@ -1988,8 +1990,9 @@ fieldset.group .card, fieldset.group table { max-width: 100%; }
 .title-hero.kind-music .title-controls { border-top-color: color-mix(in srgb, var(--c-music) 30%, var(--border)); }
 .title-hero.kind-music .switch input:checked + .switch-track { background: var(--c-music); border-color: var(--c-music); }
 @media (max-width: 560px) {
-  .album-panel .seg { overflow-x: auto; }
-  .album-panel .seg button { font-size: 0.82rem; padding-inline: 6px; }
+  .album-panel .seg:not(.kind-tabs) { gap: 2px; }
+  .album-panel .seg:not(.kind-tabs) button, .album-panel .seg:not(.kind-tabs) button + button { font-size: clamp(0.66rem, 3.3vw, 0.82rem); padding-inline: 5px; }
+  .album-panel .seg:not(.kind-tabs) button.active::before { width: 5px; height: 5px; margin-right: 4px; }
 }
 
 /* ==== Settings sidebar: each group opens into its pages =================== */

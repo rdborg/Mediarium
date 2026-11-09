@@ -697,6 +697,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	play.HandleFunc("GET /api/music/tracks/{id}/play", s.handlePlayTrack)
 	member.HandleFunc("GET /api/music/artists/{id}/cover", s.handleArtistCover)
 	manage.HandleFunc("PUT /api/music/albums/{id}/monitored", s.handleSetAlbumMonitored)
+	manage.HandleFunc("PUT /api/music/tracks/{id}/monitored", s.handleSetTrackMonitored)
 	releases.HandleFunc("POST /api/music/albums/{id}/search", s.handleAlbumSearch)
 	manage.HandleFunc("POST /api/music/albums/{id}/search-now", s.handleAlbumSearchNow)
 	releases.HandleFunc("POST /api/music/albums/{id}/grab", s.handleAlbumGrab)

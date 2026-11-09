@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -187,24 +188,147 @@ func (f soulseekFolder) title(artist string) string {
 	return name + " [" + f.tag() + "]"
 }
 
-// soulseekAlbumReleases asks Soulseek for an album and turns each folder that
-// has its tracks into a release for Choose a release.
-func (s *Server) soulseekAlbumReleases(ctx context.Context, artist music.Artist, album music.Album, profile music.Profile) ([]musicReleasePayload, error) {
-	c, _, ok := s.soulseekClient()
-	if !ok {
-		return nil, nil
+// soulseekRowName is the name of Soulseek's line in the table of who a
+// search asked.
+const soulseekRowName = "Soulseek (slskd)"
+
+// missing names what is still empty in the Soulseek settings, in plain words.
+func (c soulseekConfig) missing() []string {
+	var out []string
+	if c.URL == "" {
+		out = append(out, "the slskd address")
 	}
+	if c.Key == "" {
+		out = append(out, "the API key")
+	}
+	if c.Folder == "" {
+		out = append(out, "the downloads folder")
+	}
+	return out
+}
+
+// soulseekFailure puts an error from slskd in a short code, a few plain words
+// and the technical text (never with the API key in it).
+func soulseekFailure(err error, key string) (code, reason, detail string) {
+	detail = err.Error()
+	if key != "" {
+		detail = strings.ReplaceAll(detail, key, "***")
+	}
+	if len(detail) > 200 {
+		detail = detail[:200] + "..."
+	}
+	var netErr net.Error
+	switch {
+	case errors.Is(err, slskd.ErrBadKey):
+		return "auth", "the API key was refused (it needs the readwrite role)", detail
+	case errors.Is(err, slskd.ErrBusy):
+		return "busy", "it is busy, try again in a moment", detail
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout", "it took too long", detail
+	case errors.As(err, &netErr):
+		return "unreachable", "it could not be reached at that address", detail
+	}
+	return "error", "it returned an error", detail
+}
+
+// soulseekRun is what one album search of Soulseek came to: the releases and
+// the line for the table of who was asked. Show is false when Soulseek is not
+// used at all (nothing of it is set up), so there is nothing to say.
+type soulseekRun struct {
+	Releases []musicReleasePayload
+	Line     searchedIndexer
+	Show     bool
+}
+
+// soulseekAlbumRun asks Soulseek for an album and always says what happened:
+// in the line it returns and in the log.
+func (s *Server) soulseekAlbumRun(ctx context.Context, artist music.Artist, album music.Album, profile music.Profile) soulseekRun {
+	cfg := s.soulseekConfig()
+	start := time.Now()
+	line := searchedIndexer{Name: soulseekRowName, Kind: "soulseek"}
+	skip := func(code, reason string) soulseekRun {
+		line.Status, line.Code, line.Reason = searchSkipped, code, reason
+		slog.Info("soulseek: album search skipped", "album", album.Title, "why", reason)
+		return soulseekRun{Line: line, Show: true}
+	}
+	if cfg == (soulseekConfig{}) {
+		slog.Debug("soulseek: album search skipped, Soulseek is not set up", "album", album.Title)
+		return soulseekRun{}
+	}
+	if !s.musicEnabled() {
+		return skip("music_off", "Music is switched off.")
+	}
+	if m := cfg.missing(); len(m) > 0 {
+		return skip("not_set_up", fmt.Sprintf("Soulseek is not set up yet: %s is missing.", strings.Join(m, " and ")))
+	}
+	c := slskd.New(cfg.URL, cfg.Key)
 	ctx, cancel := context.WithTimeout(ctx, soulseekSearchWait+15*time.Second)
 	defer cancel()
-	resps, err := c.Search(ctx, albumQuery(artist, album), soulseekSearchWait)
-	if err != nil {
-		return nil, err
+	fail := func(code, reason, detail string) soulseekRun {
+		line.Ms = time.Since(start).Milliseconds()
+		line.Status, line.Code, line.Reason, line.Detail = searchFailed, code, reason, detail
+		slog.Info("soulseek: album search failed", "album", album.Title, "why", reason, "err", detail, "took", time.Since(start).Round(time.Millisecond))
+		return soulseekRun{Line: line, Show: true}
 	}
+	// slskd can answer its web API without being logged in to Soulseek; a
+	// search then finds nothing. Older slskd without this call is just searched.
+	state := ""
+	if st, err := c.Server(ctx); err == nil {
+		state = st.State
+		if !st.Online() {
+			if state == "" {
+				state = "not connected"
+			}
+			return fail("not_connected", fmt.Sprintf("slskd is not connected to the Soulseek network (state: %s).", state), "")
+		}
+	} else if errors.Is(err, slskd.ErrBadKey) {
+		code, reason, detail := soulseekFailure(err, cfg.Key)
+		return fail(code, reason, detail)
+	}
+	query := albumQuery(artist, album)
+	resps, err := c.Search(ctx, query, soulseekSearchWait)
+	if err != nil {
+		code, reason, detail := soulseekFailure(err, cfg.Key)
+		return fail(code, reason, detail)
+	}
+	out, folders := s.soulseekReleases(resps, artist, album, profile)
+	line.Ms = time.Since(start).Milliseconds()
+	line.Count = len(out)
+	line.Status = searchEmpty
+	if len(out) > 0 {
+		line.Status = searchFound
+	}
+	slog.Info("soulseek: album search done", "album", album.Title, "query", query, "responses", len(resps), "folders", folders, "releases", len(out), "state", state, "took", time.Since(start).Round(time.Millisecond))
+	return soulseekRun{Releases: out, Line: line, Show: true}
+}
+
+// extra is the run's line for the table, when there is one to show.
+func (r soulseekRun) extra() []searchedIndexer {
+	if !r.Show {
+		return nil
+	}
+	return []searchedIndexer{r.Line}
+}
+
+// soulseekAlbumReleases is soulseekAlbumRun with an error for a search that
+// failed, as the releases alone.
+func (s *Server) soulseekAlbumReleases(ctx context.Context, artist music.Artist, album music.Album, profile music.Profile) ([]musicReleasePayload, error) {
+	run := s.soulseekAlbumRun(ctx, artist, album, profile)
+	if run.Line.Status == searchFailed {
+		return nil, errors.New(run.Line.Reason)
+	}
+	return run.Releases, nil
+}
+
+// soulseekReleases turns the answers to a search into releases, one for each
+// folder with the album's tracks. It also says how many folders had audio.
+func (s *Server) soulseekReleases(resps []slskd.Response, artist music.Artist, album music.Album, profile music.Profile) ([]musicReleasePayload, int) {
 	want := 0
 	if tracks, err := s.MusicRepo.ListTracks(album.ID); err == nil {
 		want = len(tracks)
 	}
 	folders := soulseekFolders(resps)
+	audio := len(folders)
 	complete := func(f soulseekFolder) bool { return want == 0 || len(f.files) >= want }
 	sort.SliceStable(folders, func(i, j int) bool {
 		a, b := folders[i], folders[j]
@@ -244,7 +368,7 @@ func (s *Server) soulseekAlbumReleases(ctx context.Context, artist music.Artist,
 		p.Rejections = append(p.Rejections, profile.Rejections(rel.Tier(), albumCurrentTier(album))...)
 		out = append(out, p)
 	}
-	return out, nil
+	return out, audio
 }
 
 // downloadSoulseek asks slskd for a release's files, waits for them, and
@@ -417,6 +541,9 @@ type soulseekPayload struct {
 	HasKey  bool   `json:"hasKey"`
 	Folder  string `json:"folder"`
 	Version string `json:"version,omitempty"` // slskd's, after a save that reached it
+	// Warning is set when the save worked but Soulseek will still be skipped:
+	// the downloads folder is empty, or slskd is not logged in to Soulseek.
+	Warning string `json:"warning,omitempty"`
 }
 
 func (s *Server) soulseekState() soulseekPayload {
@@ -465,11 +592,11 @@ func (s *Server) handlePutSoulseek(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Add slskd's API key (a read-write key from slskd's settings).")
 		return
 	}
-	if !filepath.IsAbs(folder) {
+	if folder != "" && !filepath.IsAbs(folder) {
 		writeError(w, http.StatusBadRequest, "Add the folder slskd downloads into, as a full path as Mediarium sees it (for example /data/slskd/downloads).")
 		return
 	}
-	if st, err := os.Stat(folder); err != nil || !st.IsDir() {
+	if st, err := os.Stat(folder); folder != "" && (err != nil || !st.IsDir()) {
 		writeError(w, http.StatusBadRequest, "Mediarium can't see that folder. Give Mediarium's container the same folder slskd downloads into, then enter the path it has inside Mediarium.")
 		return
 	}
@@ -487,12 +614,25 @@ func (s *Server) handlePutSoulseek(w http.ResponseWriter, r *http.Request) {
 	tx := &settingsSave{}
 	_ = tx.Set(settings.KeySoulseekURL, addr, false)
 	_ = tx.Set(settings.KeySoulseekAPIKey, key, true)
-	_ = tx.Set(settings.KeySoulseekFolder, filepath.Clean(folder), false)
+	if folder != "" {
+		folder = filepath.Clean(folder)
+	}
+	_ = tx.Set(settings.KeySoulseekFolder, folder, false)
 	if err := s.commitSettings(tx); err != nil {
 		writeError(w, http.StatusInternalServerError, "That couldn't be saved.")
 		return
 	}
 	out := s.soulseekState()
 	out.Version = version
+	switch status, err := slskd.New(addr, key).Server(ctx); {
+	case err == nil && !status.Online():
+		state := status.State
+		if state == "" {
+			state = "not connected"
+		}
+		out.Warning = fmt.Sprintf("slskd is not connected to the Soulseek network (state: %s). Soulseek finds nothing until it is.", state)
+	case folder == "":
+		out.Warning = "slskd answers, but Soulseek is skipped on albums until the slskd downloads folder is filled in."
+	}
 	writeJSON(w, http.StatusOK, out)
 }

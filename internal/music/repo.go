@@ -88,6 +88,10 @@ type Track struct {
 	Title    string
 	LengthMs int
 	FilePath string // "" until imported
+	// Monitored is whether the track is wanted. Every track is, unless the
+	// album was added for one song only (#143): then the others are not
+	// imported and do not count as missing.
+	Monitored bool
 }
 
 // Repo stores artists, albums, tracks and music profiles.
@@ -416,7 +420,7 @@ func (r *Repo) ReplaceTracks(albumID int64, tracks []Track) error {
 
 // ListTracks lists an album's tracks in order.
 func (r *Repo) ListTracks(albumID int64) ([]Track, error) {
-	rows, err := r.db.Query(`SELECT id, album_id, disc, position, title, length_ms, file_path FROM tracks WHERE album_id = ? ORDER BY disc, position`, albumID)
+	rows, err := r.db.Query(`SELECT id, album_id, disc, position, title, length_ms, file_path, monitored FROM tracks WHERE album_id = ? ORDER BY disc, position`, albumID)
 	if err != nil {
 		return nil, fmt.Errorf("list tracks of album %d: %w", albumID, err)
 	}
@@ -424,7 +428,7 @@ func (r *Repo) ListTracks(albumID int64) ([]Track, error) {
 	out := []Track{}
 	for rows.Next() {
 		var t Track
-		if err := rows.Scan(&t.ID, &t.AlbumID, &t.Disc, &t.Position, &t.Title, &t.LengthMs, &t.FilePath); err != nil {
+		if err := rows.Scan(&t.ID, &t.AlbumID, &t.Disc, &t.Position, &t.Title, &t.LengthMs, &t.FilePath, &t.Monitored); err != nil {
 			return nil, fmt.Errorf("scan track: %w", err)
 		}
 		out = append(out, t)
@@ -435,8 +439,8 @@ func (r *Repo) ListTracks(albumID int64) ([]Track, error) {
 // GetTrack returns one track, or sql.ErrNoRows when there is none.
 func (r *Repo) GetTrack(id int64) (Track, error) {
 	var t Track
-	err := r.db.QueryRow(`SELECT id, album_id, disc, position, title, length_ms, file_path FROM tracks WHERE id = ?`, id).
-		Scan(&t.ID, &t.AlbumID, &t.Disc, &t.Position, &t.Title, &t.LengthMs, &t.FilePath)
+	err := r.db.QueryRow(`SELECT id, album_id, disc, position, title, length_ms, file_path, monitored FROM tracks WHERE id = ?`, id).
+		Scan(&t.ID, &t.AlbumID, &t.Disc, &t.Position, &t.Title, &t.LengthMs, &t.FilePath, &t.Monitored)
 	if err != nil {
 		return Track{}, err
 	}
@@ -469,6 +473,98 @@ func (r *Repo) SetTrackFile(trackID int64, path string) error {
 		return fmt.Errorf("set file of track %d: %w", trackID, err)
 	}
 	return nil
+}
+
+// SetTrackMonitored switches one track between wanted and not wanted.
+func (r *Repo) SetTrackMonitored(trackID int64, monitored bool) error {
+	res, err := r.db.Exec(`UPDATE tracks SET monitored = ? WHERE id = ?`, monitored, trackID)
+	if err != nil {
+		return fmt.Errorf("set monitoring of track %d: %w", trackID, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("set monitoring of track %d: %w", trackID, sql.ErrNoRows)
+	}
+	return nil
+}
+
+// SetOnlySong records that an album was added for one song: its title as
+// picked in the search ("" clears it, every track wanted again).
+func (r *Repo) SetOnlySong(albumID int64, song string) error {
+	return r.execAlbum("set the wanted song of", albumID, `UPDATE albums SET only_song = ? WHERE id = ?`, strings.TrimSpace(song), albumID)
+}
+
+// OnlySong is the song an album was added for, "" when the whole album is wanted.
+func (r *Repo) OnlySong(albumID int64) (string, error) {
+	var song string
+	err := r.db.QueryRow(`SELECT only_song FROM albums WHERE id = ?`, albumID).Scan(&song)
+	if err != nil {
+		return "", fmt.Errorf("read the wanted song of album %d: %w", albumID, err)
+	}
+	return song, nil
+}
+
+// ApplyOnlySong marks the tracks of an album once its tracklist is known: the
+// ones named like the album's wanted song stay monitored, the others are not
+// wanted. It does nothing (everything stays wanted) when no song was picked
+// or none of the tracks has that name, and reports how many tracks are
+// wanted afterwards.
+func (r *Repo) ApplyOnlySong(albumID int64) (wanted int, err error) {
+	song, err := r.OnlySong(albumID)
+	if err != nil {
+		return 0, err
+	}
+	tracks, err := r.ListTracks(albumID)
+	if err != nil {
+		return 0, err
+	}
+	if song == "" {
+		return len(tracks), nil
+	}
+	hit := MatchingTracks(tracks, song)
+	if len(hit) == 0 {
+		return len(tracks), nil
+	}
+	tx, err := r.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("apply the wanted song of album %d: %w", albumID, err)
+	}
+	defer tx.Rollback()
+	for _, t := range tracks {
+		if _, err := tx.Exec(`UPDATE tracks SET monitored = ? WHERE id = ?`, hit[t.ID], t.ID); err != nil {
+			return 0, fmt.Errorf("apply the wanted song of album %d: %w", albumID, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("apply the wanted song of album %d: %w", albumID, err)
+	}
+	return len(hit), nil
+}
+
+// MatchingTracks returns the ids of the tracks whose title is the given song
+// (case, accents, punctuation and a bracketed "(Remastered)" or "(feat. ...)"
+// do not matter). When the song's title is on more than one track (the same
+// song twice on a deluxe album), all of them match.
+func MatchingTracks(tracks []Track, song string) map[int64]bool {
+	want := songKey(song)
+	out := map[int64]bool{}
+	if want == "" {
+		return out
+	}
+	for _, t := range tracks {
+		if songKey(t.Title) == want {
+			out[t.ID] = true
+		}
+	}
+	return out
+}
+
+// songKey is a song title reduced for comparing: no bracketed parts, no
+// accents, case or punctuation. A title that is only brackets is kept whole.
+func songKey(s string) string {
+	if k := NormalizeName(reBrackets.ReplaceAllString(s, " ")); k != "" {
+		return k
+	}
+	return NormalizeName(s)
 }
 
 // ---- Profiles ----

@@ -623,6 +623,7 @@ function AlbumPanel({ album, tab, onTab, onChanged, onFilesChanged }: { album: M
 }
 
 function TracksPanel({ album }: { album: MusicAlbum }) {
+  const toast = useToast()
   const player = useMusicPlayer()
   const artistName = useContext(ArtistName)
   const [full, setFull] = useState<MusicAlbum | null>(null)
@@ -644,16 +645,37 @@ function TracksPanel({ album }: { album: MusicAlbum }) {
   if (!full) return <div className="skeleton" style={{ height: 90 }} />
   const tracks = full.tracks ?? []
   const discs = new Set(tracks.map((tr) => tr.disc)).size
-  const have = tracks.filter((tr) => tr.hasFile).length
+  // A track the album was not added for ("Add only this song") is not wanted: it is not downloaded into the library and not missing.
+  const wanted = tracks.filter((tr) => tr.monitored !== false)
+  const notWanted = tracks.length - wanted.length
+  const have = wanted.filter((tr) => tr.hasFile).length
+  const wantTrack = (id: number, on: boolean) =>
+    api
+      .setTrackMonitored(id, on)
+      .then(load)
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)))
+  const wantAll = () =>
+    api
+      .setAlbumMonitored(album.id, full.monitored, '')
+      .then(load)
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)))
   return (
     <div>
       {full.path && <code className="filepath">{full.path}</code>}
+      {(notWanted > 0 || full.onlySong) && (
+        <p className="album-empty">
+          {full.onlySong ? t('Added for one song: “{song}”. The rest of the album is not kept.', { song: full.onlySong }) : t('Some tracks are not wanted.')}{' '}
+          <button className="btn-sm" onClick={() => void wantAll()}>
+            {t('Want the whole album')}
+          </button>
+        </p>
+      )}
       {tracks.length === 0 ? (
         <p className="album-empty">{t('The tracklist appears after the first search or download.')}</p>
       ) : (
         <>
           <h4 className="track-head">{t('Tracks on {album}', { album: album.title })}</h4>
-          <p className="album-empty">{plural(tracks.length, '{have} of {n} track in your library.', '{have} of {n} tracks in your library.', { have })}</p>
+          <p className="album-empty">{plural(wanted.length, '{have} of {n} track in your library.', '{have} of {n} tracks in your library.', { have })}</p>
           <table className="track-table">
             <tbody>
               {tracks.map((tr, i) => (
@@ -691,6 +713,10 @@ function TracksPanel({ album }: { album: MusicAlbum }) {
                       <span className="state-tag st-downloaded" title={t('In your library')}>
                         <Icon name="check" size={12} /> <span className="tf-text">{t('in library')}</span>
                       </span>
+                    ) : tr.monitored === false ? (
+                      <button className="state-tag st-added" title={t('Not wanted. Press to want this track.')} onClick={() => void wantTrack(tr.id, true)}>
+                        <Icon name="eye-off" size={12} /> <span className="tf-text">{t('not wanted')}</span>
+                      </button>
                     ) : full.monitored ? (
                       <span className="state-tag st-searching" title={t('Missing')}>
                         <Icon name="x" size={12} /> <span className="tf-text">{t('missing')}</span>

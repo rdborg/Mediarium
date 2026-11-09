@@ -247,7 +247,8 @@ type albumImport struct {
 	imported  int // tracks placed in the library
 	skipped   int // tracks whose file was already there (conflict policy)
 	unmatched int // audio files that fit no track
-	missing   int // tracks the release did not have
+	missing   int // wanted tracks the release did not have
+	unwanted  int // files of tracks that are not wanted, left out
 }
 
 func (a albumImport) summary() string {
@@ -260,6 +261,9 @@ func (a albumImport) summary() string {
 	}
 	if a.unmatched > 0 {
 		parts = append(parts, fmt.Sprintf("%s not imported", plural(a.unmatched, "extra file")))
+	}
+	if a.unwanted > 0 {
+		parts = append(parts, fmt.Sprintf("%s left out (not wanted)", plural(a.unwanted, "track")))
 	}
 	return strings.Join(parts, ", ") + " (" + string(a.tier) + ")"
 }
@@ -285,6 +289,13 @@ func (s *Server) ensureTracks(ctx context.Context, album music.Album) ([]music.T
 	}
 	if err := s.MusicRepo.SetAlbumRelease(album.ID, rel.ID); err != nil {
 		return nil, err
+	}
+	// An album added for one song: now that the tracks are known, only that
+	// one is wanted (when no track has the song's name, every track stays wanted).
+	if wanted, err := s.MusicRepo.ApplyOnlySong(album.ID); err != nil {
+		slog.Warn("music: apply the wanted song", "album", album.Title, "err", err)
+	} else if wanted < len(fresh) {
+		s.albumEvent(album.ID, "tracks", queue.LevelInfo, fmt.Sprintf("Added for one song: %d of %d tracks are wanted, the rest are not imported.", wanted, len(fresh)))
 	}
 	return s.MusicRepo.ListTracks(album.ID)
 }
@@ -331,6 +342,12 @@ func (s *Server) importAlbumFiles(ctx context.Context, artist music.Artist, albu
 	if len(matches) == 0 {
 		return albumImport{}, badRelease(fmt.Errorf("none of the %d audio files could be matched to the %d tracks of %q", len(files), len(tracks), album.Title))
 	}
+	// Tracks that are not wanted (an album added for one song) keep their
+	// place on the tracklist but their files stay in the download folder.
+	matches, unwanted := keepWantedMatches(matches, tracks)
+	if len(matches) == 0 {
+		return albumImport{}, badRelease(fmt.Errorf("this release has no file for the wanted track of %q", album.Title))
+	}
 
 	// The quality is what the files' headers say; only when they cannot be
 	// read does the release name (then the file extension) decide.
@@ -349,7 +366,7 @@ func (s *Server) importAlbumFiles(ctx context.Context, artist music.Artist, albu
 	folder := music.AlbumPath(root, artist.Name, album.Title, album.Year(), clean)
 	policy, isBetter := s.musicConflictPolicy(album, tier)
 
-	res := albumImport{folder: folder, tier: tier, unmatched: len(unmatched), missing: len(tracks) - len(matches)}
+	res := albumImport{folder: folder, tier: tier, unmatched: len(unmatched), missing: wantedTracks(tracks) - len(matches), unwanted: unwanted}
 	for _, m := range matches {
 		if ctx.Err() != nil {
 			return albumImport{}, ctx.Err()
@@ -395,6 +412,29 @@ func (s *Server) importAlbumFiles(ctx context.Context, artist music.Artist, albu
 		return albumImport{}, err
 	}
 	return res, nil
+}
+
+// keepWantedMatches drops the matches of tracks that are not wanted and says
+// how many it dropped.
+func keepWantedMatches(matches []music.Match, tracks []music.Track) ([]music.Match, int) {
+	kept := matches[:0:0]
+	for _, m := range matches {
+		if tracks[m.Slot].Monitored {
+			kept = append(kept, m)
+		}
+	}
+	return kept, len(matches) - len(kept)
+}
+
+// wantedTracks counts the tracks that are wanted.
+func wantedTracks(tracks []music.Track) int {
+	n := 0
+	for _, t := range tracks {
+		if t.Monitored {
+			n++
+		}
+	}
+	return n
 }
 
 // musicConflictPolicy decides what happens when a track's file name is

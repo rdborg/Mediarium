@@ -36,6 +36,8 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case p == "/application/version":
 		_, _ = w.Write([]byte(`"0.22.5"`))
+	case p == "/server":
+		_, _ = w.Write([]byte(`{"isConnected":true,"isLoggedIn":true,"state":"Connected, LoggedIn"}`))
 	case p == "/searches" && r.Method == http.MethodPost:
 		_, _ = w.Write([]byte(`{"id":"x","isComplete":false}`))
 	case strings.HasSuffix(p, "/responses"):
@@ -96,8 +98,23 @@ func TestClient(t *testing.T) {
 	if err != nil || len(res) != 1 || res[0].Username != "alice" || len(res[0].Files) != 1 || res[0].Files[0].BitDepth != 16 {
 		t.Fatalf("Search = %+v, %v", res, err)
 	}
+	if len(f.deleted) != 0 {
+		t.Errorf("the search should stay in slskd's Searches page for now: %v", f.deleted)
+	}
+	// An hour on, the next search tidies the old one away.
+	ownMu.Lock()
+	for i := range ownSearches {
+		ownSearches[i].at = time.Now().Add(-2 * time.Hour)
+	}
+	ownMu.Unlock()
+	if _, err := c.Search(ctx, "Artist Album", 10*time.Second); err != nil {
+		t.Fatal(err)
+	}
 	if len(f.deleted) != 1 {
-		t.Errorf("the search wasn't removed from slskd: %v", f.deleted)
+		t.Errorf("the old search wasn't removed from slskd: %v", f.deleted)
+	}
+	if st, err := c.Server(ctx); err != nil || !st.Online() || st.State != "Connected, LoggedIn" {
+		t.Errorf("Server = %+v, %v", st, err)
 	}
 
 	want := []Want{{Filename: res[0].Files[0].Filename, Size: res[0].Files[0].Size}}

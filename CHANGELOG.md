@@ -8,6 +8,19 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.3] - 2026-11-09
+
+### Added
+- One music search. The Music tab on the search page now has a single box, and its results are one list with artists, albums and songs mixed, best match first. Each card says what it is (Artist, Album or Song), and the buttons **All**, **Artists**, **Albums** and **Songs** above the list show just one kind. A line like "Gul Anuv Jain" (a song and its artist) finds the song, and a film name such as "Interstellar" puts the film's soundtrack on top. If one of the three searches cannot run, the other two still show, with a note. See [docs/music.md](docs/music.md#one-search-for-music). Thanks to SanketBaraiya (GitHub #143).
+- Add just one song. A song in the list has **Add only this song** and **Add the whole album**. Mediarium works in albums, so the whole album is added and downloaded, but only that song is wanted: the other tracks are not imported into your library and do not count as missing. The Tracks tab on the album says which tracks are not wanted, each can be switched on again with one click, and **Want the whole album** brings the rest back. Albums you already have, and every other album you add, are unchanged. Thanks to SanketBaraiya (GitHub #143).
+
+### Fixed
+- Music search ranks better. The words you type may be in any order, in either the title or the artist, a letter or two off, with other capitals or accents, and still find the right thing. An exact name comes before longer ones, studio albums and soundtracks before singles, compilations, live albums and bootlegs (unless you type "live"), and artists that merely look alike come last. The same words typed again give the same list, an older answer that arrives late no longer replaces a newer one, and a search that fails once is tried again before it gives up. Thanks to SanketBaraiya (GitHub #143).
+- A download client and a debrid service can now be set up at the same time. Saving the debrid service used to turn your download client off (and saving a client turned debrid off), so you could not send public trackers to debrid and private ones to your own qBittorrent. Each torrent indexer's **Where torrents go** choice now really sends its torrents to the download client or to debrid, and indexers left on the usual way still use the download client first. Thanks to jasonmackie76 (GitHub #166).
+- **Choose a release** on an album now always says what happened with Soulseek. The table behind "Searched ..." has a **Soulseek (slskd)** row: how many folders it found, that it found nothing, that Soulseek is not set up (and what is missing), that music is switched off, that slskd did not answer (with why), or that slskd is not connected to the Soulseek network (with its state). It also shows how long it took. Every Soulseek search, and every time it is skipped, now leaves a line in Settings > System > Logs. The search stays visible in slskd's Searches page for an hour instead of being deleted at once. Thanks to balkie31 (GitHub #143).
+- The Soulseek settings card tests more: **Save and test** now tells you when slskd answers but is not logged in to the Soulseek network, and when the downloads folder is empty (Soulseek is skipped on albums until it is filled in). The card shows a warning under the empty folder.
+- On a phone the tabs on an album (Tracks, Releases, What happened, Files) no longer break "What happened" in the middle of the word. They stay on one line, with a smaller font, and the strip scrolls sideways if it is ever too narrow.
+
 ## [4.0.2] - 2026-11-08
 
 ### Security

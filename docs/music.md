@@ -61,7 +61,37 @@ Search for the artist by name. A short description ("jazz", "UK rock band") tell
 
 ### Searching by album or song
 
-On the **Music** tab of the search page, **Artists**, **Albums** and **Songs** pick what you search by. **Albums** finds albums, EPs and singles by their title. **Songs** finds the albums a song is on, so a soundtrack can be found by a song from the film ("Cornfield Chase" finds *Interstellar*); each card says which song it has. **Add** on an album opens the same dialog as for an artist, with **Only this album** picked. A soundtrack or compilation that isn't one of the artist's own albums is added to that artist all the same, as a wanted album. Scripts: `GET /api/music/search?type=album` or `type=song` (#143, SanketBaraiya).
+On the **Music** tab of the search page there is one box. Type an artist, an album, a song or a mix such as "Gul Anuv Jain", and the answer is one list with artists, albums and songs together, best match first. Each card has a chip that says **Artist**, **Album** or **Song**. The buttons **All** (the default), **Artists**, **Albums** and **Songs** above the list show only one kind. A song is found by its own title ("Cornfield Chase" finds the song and its album *Interstellar*).
+
+#### One search for music
+
+How the list is ordered:
+
+- The words can be in any order and in the title or the artist, so "Gul Anuv Jain" finds the song *Gul* by Anuv Jain, and "jain anuv" finds the artist Anuv Jain. Capitals and accents do not matter, and a word a letter or two off ("Jian") still counts, a little less than the right spelling.
+- An exact name comes before a name that only starts with what you typed, and that before names with more words around it. "(Deluxe Edition)" and other brackets are not counted as extra words.
+- Studio albums come before EPs, and those before singles. Compilations, remixes, live albums and bootlegs are pushed down, unless you typed "live" yourself.
+- A film or show name leads to its soundtrack: "Interstellar" puts *Interstellar (Original Motion Picture Soundtrack)* above singles and bands that share the name.
+- A song that sits on several releases is one card, on its studio album (or its soundtrack). A song that is on many releases counts as better known.
+- The score the music database gives each match is part of the order too.
+
+The three searches run at the same time. If one of them cannot answer (the music database is slow or busy), the other two still show, with a note that some results may be missing. The same words typed again give the same list straight away, and when a search fails Mediarium tries it once more before it shows an error.
+
+**Add** on an artist or an album opens the same dialog as everywhere else (**Only this album** is picked for an album). A soundtrack or compilation that isn't one of the artist's own albums is added to that artist all the same, as a wanted album.
+
+#### Adding just one song
+
+A song card has two buttons: **Add the whole album** and **Add only this song**. Mediarium works in albums, so a song is added by adding its album, and the artist if you don't have them yet. With **Add only this song**:
+
+- The album is searched for and downloaded as a whole, like any album. Nothing about the search or the quality profile changes.
+- Only the song you picked is **wanted**. When the download is imported, the track with that name (capitals, accents and brackets such as "(Remastered)" or "(feat. ...)" don't matter) is put in your music folder and the other tracks are left out: they stay in the download folder and are cleaned up with it. The album is then **downloaded** and is not listed as missing anything.
+- If no track on the album has the song's name (the music database spells it differently), nothing is left out and the whole album is imported, so you are never left with nothing. The album's log says how many tracks are wanted.
+- If the release you pick has no file for that song, it is treated like any release that doesn't match the album: it is blocklisted and the next one is tried.
+- The **Tracks** tab of the album says "Added for one song" and shows **not wanted** on the other tracks. Press **not wanted** on a track to want it after all, or **Want the whole album** to bring all of them back, then use **Search for missing tracks** to download what is missing.
+- The song buttons are for an album you don't have yet. For an artist you already have, only that album and that song are added.
+
+Every album that is added in the usual way, and every album you already have, keeps all tracks wanted. A request from an account that has to ask carries the song along, and the request reads "Artist – Album (only “Song”)".
+
+Scripts: `GET /api/music/search?type=all&q=` answers `{items: [{kind, rank, name, mbid, title, artistName, artistMbid, type, releaseDate, coverUrl, inLibrary, artistId, albumId, song, soundtrack, ...}], note}` with `kind` artist, album or song (for a song, `title` is its album and `mbid` the album's id). `type=album` and `type=song` answer as before, and the search without `type` still answers the plain list of artists (#143, SanketBaraiya). `POST /api/music/artists` takes `song` with `albumMbid`; `POST /api/music/artists/{id}/albums` takes `song`; `PUT /api/music/albums/{id}/monitored` takes `song` (an empty one wants every track again); `PUT /api/music/tracks/{id}/monitored` switches one track.
 
 The Add dialog is the same everywhere you can add an artist (Discover and the header search), with these choices:
 
@@ -330,7 +360,7 @@ Album, artist and release information, cover art and the popular and new-release
 
 | Method | Path | Body / query | Answer |
 |---|---|---|---|
-| GET | `/api/music/search?q=` | | `[{mbid, name, sortName, disambiguation, type, country, score, artistId}]` (`artistId` 0 when not added) |
+| GET | `/api/music/search?q=` | | `[{mbid, name, sortName, disambiguation, type, country, score, artistId}]` (`artistId` 0 when not added); `&type=all` answers `{items, note}` with artists, albums and songs ranked together |
 | GET | `/api/music/discover?list=&type=&range=&genre=&yearFrom=&yearTo=&sort=&page=&pageSize=` | see "Discover" | `{page, totalPages, items: [{mbid, title, type, artistName, artistMbid, releaseDate, genres, coverUrl, inLibrary, artistId?, albumId?}], note?}` |
 | GET | `/api/music/discover/artists?range=&page=&pageSize=` | | `{page, totalPages, items: [{mbid, name, listenCount, inLibrary, artistId?, coverUrl?}], note?}` |
 | GET | `/api/music/covers/release-group/{mbid}` | | the front cover of a release group (JPEG or PNG), or a plain 404 |
@@ -379,4 +409,4 @@ Album, artist and release information, cover art and the popular and new-release
 | POST | `/api/music/listenbrainz/playing` | `{trackId}` | `{sent}` |
 | POST | `/api/music/listenbrainz/listen` | `{trackId, listenedAt}` | `{sent, submitted, pending}` |
 
-An artist is `{id, mbid, name, sortName, disambiguation, monitored, monitorNew, profileId, profileName, addedAt, addedBy, albumCount, monitoredCount, downloadedCount, coverUrl, imageUrl}` (and, on `GET /api/music/artists/{id}`, `filter: {types, hideSecondary, hideBootlegs, useLibrary}`); an album `{id, artistId, mbid, title, type, releaseDate, year, monitored, status, quality, path, coverUrl, coverArchiveUrl}`; a track `{id, disc, position, title, lengthMs, hasFile, filePath}`. A release in the interactive search carries what its name says (`artist, album, year, format, bitrate, bitDepth, source, discography, quality`) beside the usual `title, indexerName, protocol, downloadUrl, sizeBytes, publishDate, seeders, peers, blocklisted, rejections, acceptedBy`. `coverUrl` (and, on artists, `imageUrl`, the same address) point at the cover routes above. `coverArchiveUrl` is the address of the original picture at the cover-art service. Album downloads appear in `GET /api/queue` with `albumId` and the title "Artist – Album".
+An artist is `{id, mbid, name, sortName, disambiguation, monitored, monitorNew, profileId, profileName, addedAt, addedBy, albumCount, monitoredCount, downloadedCount, coverUrl, imageUrl}` (and, on `GET /api/music/artists/{id}`, `filter: {types, hideSecondary, hideBootlegs, useLibrary}`); an album `{id, artistId, mbid, title, type, releaseDate, year, monitored, status, quality, path, coverUrl, coverArchiveUrl}`; a track `{id, disc, position, title, lengthMs, hasFile, filePath, monitored}` (`monitored` is false for a track that is not wanted; `GET /api/music/albums/{id}` also has `onlySong`). A release in the interactive search carries what its name says (`artist, album, year, format, bitrate, bitDepth, source, discography, quality`) beside the usual `title, indexerName, protocol, downloadUrl, sizeBytes, publishDate, seeders, peers, blocklisted, rejections, acceptedBy`. `coverUrl` (and, on artists, `imageUrl`, the same address) point at the cover routes above. `coverArchiveUrl` is the address of the original picture at the cover-art service. Album downloads appear in `GET /api/queue` with `albumId` and the title "Artist – Album".

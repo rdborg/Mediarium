@@ -80,6 +80,9 @@ type musicAlbumPayload struct {
 	// Tracks is only set on GET /api/music/albums/{id} (empty until the
 	// tracklist has been fetched, which happens on the first grab or import).
 	Tracks []musicTrackPayload `json:"tracks,omitempty"`
+	// OnlySong is the song the album was added for ("Add only this song");
+	// empty when the whole album is wanted. Only set on GET /api/music/albums/{id}.
+	OnlySong string `json:"onlySong,omitempty"`
 }
 
 type musicTrackPayload struct {
@@ -90,6 +93,9 @@ type musicTrackPayload struct {
 	LengthMs int    `json:"lengthMs"`
 	HasFile  bool   `json:"hasFile"`
 	FilePath string `json:"filePath,omitempty"`
+	// Monitored is false for a track that is not wanted (the album was added
+	// for one song only): it is not imported and not counted as missing.
+	Monitored bool `json:"monitored"`
 }
 
 func toMusicAlbumPayload(a music.Album) musicAlbumPayload {
@@ -161,6 +167,9 @@ func (s *Server) handleMusicSearchArtists(w http.ResponseWriter, r *http.Request
 		return
 	}
 	switch r.URL.Query().Get("type") {
+	case "all":
+		s.musicSearchAll(w, r, q)
+		return
 	case "album", "song":
 		s.musicSearchAlbums(w, r, q, r.URL.Query().Get("type") == "song")
 		return
@@ -210,6 +219,9 @@ type addArtistRequest struct {
 	// AlbumMBID (with monitor "none") monitors just this album of the artist.
 	AlbumMBID  string `json:"albumMbid,omitempty"`
 	AlbumTitle string `json:"albumTitle,omitempty"` // for the request list only
+	// Song (with AlbumMBID) makes only that song of the album wanted: "Add
+	// only this song". The album is added and searched as a whole.
+	Song string `json:"song,omitempty"`
 }
 
 // handleAddArtist adds an artist from MusicBrainz with its albums, EPs and
@@ -281,11 +293,13 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 				}
 				albums[i].Monitored = true
 			}
+			s.wantOnlySong(a.ID, req.Song)
 		}
 		// A soundtrack or compilation found through one of its songs is not in
 		// the artist's own list of albums: it is added to the artist all the same.
 		if !found && mbidPattern.MatchString(want) {
 			if added, err := s.addAlbumByMBID(r.Context(), artist.ID, want); err == nil {
+				s.wantOnlySong(added.ID, req.Song)
 				albums = append(albums, added)
 			} else {
 				slog.Info("music: add the album picked with the artist", "album", want, "err", err)
@@ -470,8 +484,9 @@ func (s *Server) handleGetAlbum(w http.ResponseWriter, r *http.Request) {
 	out.ArtistName = artist.Name
 	out.Tracks = make([]musicTrackPayload, len(tracks))
 	for i, t := range tracks {
-		out.Tracks[i] = musicTrackPayload{ID: t.ID, Disc: t.Disc, Position: t.Position, Title: t.Title, LengthMs: t.LengthMs, HasFile: t.FilePath != "", FilePath: fileLabel(r, t.FilePath)}
+		out.Tracks[i] = musicTrackPayload{ID: t.ID, Disc: t.Disc, Position: t.Position, Title: t.Title, LengthMs: t.LengthMs, HasFile: t.FilePath != "", FilePath: fileLabel(r, t.FilePath), Monitored: t.Monitored}
 	}
+	out.OnlySong, _ = s.MusicRepo.OnlySong(album.ID)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -482,7 +497,12 @@ func (s *Server) handleSetAlbumMonitored(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	var req monitoredRequest
+	var req struct {
+		Monitored bool `json:"monitored"`
+		// Song, when sent, makes only that song of the album wanted ("Add
+		// only this song"); an empty one makes every track wanted again.
+		Song *string `json:"song"`
+	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Couldn't read that request. Reload the page and try again.")
 		return
@@ -495,6 +515,13 @@ func (s *Server) handleSetAlbumMonitored(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if req.Song != nil {
+		if strings.TrimSpace(*req.Song) == "" {
+			s.wantAllTracks(id)
+		} else {
+			s.wantOnlySong(id, *req.Song)
+		}
 	}
 	writeJSON(w, http.StatusOK, nil)
 }

@@ -821,8 +821,9 @@ func (req downloadClientRequest) check() string {
 	)
 }
 
-// PUT /api/download-client: save the download client. Saving one turns the
-// debrid service off: torrent releases go to one place only.
+// PUT /api/download-client: save the download client. A debrid service can
+// stay set up beside it: each torrent indexer picks where its torrents go
+// (torrent_route.go, #166).
 func (s *Server) handlePutDownloadClient(w http.ResponseWriter, r *http.Request) {
 	var req downloadClientRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -870,12 +871,6 @@ func (s *Server) handlePutDownloadClient(w http.ResponseWriter, r *http.Request)
 		save = append(save, kv{settings.KeyDownloadClientPassword, "", true})
 	}
 	save = append(save, kv{settings.KeyDownloadClientKind, req.Kind, false})
-	if req.Kind != "" {
-		if service, _ := s.debridConfig(); service != "" {
-			save = append(save, kv{settings.KeyDebridService, "", false}, kv{settings.KeyDebridAPIKey, "", true})
-			slog.Info("debrid service turned off: torrent releases now go to the download client")
-		}
-	}
 	for _, e := range save {
 		if err := s.Settings.Set(e.key, e.value, e.encrypt); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())

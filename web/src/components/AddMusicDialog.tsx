@@ -16,7 +16,8 @@ import { t, st } from '../i18n'
 // to an artist that is already in the library).
 export type AddMusicTarget =
   | { kind: 'artist'; mbid: string; name: string; type?: string; country?: string; disambiguation?: string }
-  | { kind: 'album'; item: MusicDiscoverItem }
+  // onlySong: "Add only this song", the album is added whole but only that track is wanted.
+  | { kind: 'album'; item: MusicDiscoverItem; onlySong?: string }
 
 type Choice = 'all' | 'future' | 'none' | 'album'
 
@@ -35,6 +36,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
   const { user } = useAuth()
   const toast = useToast()
   const item = target.kind === 'album' ? target.item : undefined
+  const onlySong = target.kind === 'album' ? target.onlySong : undefined
   const artistName = item ? item.artistName : target.kind === 'artist' ? target.name : ''
   const artistMbid = item ? item.artistMbid : target.kind === 'artist' ? target.mbid : ''
   // An artist that is already in the library only needs the album switched on.
@@ -81,6 +83,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
           searchNow: (choice === 'all' || !!albumOnly) && willSearch,
           albumMbid: albumOnly ? item.mbid : undefined,
           albumTitle: albumOnly ? item.title : undefined,
+          song: albumOnly ? onlySong : undefined,
         })
         if (isRequested(added)) {
           toast.success(st(added.message))
@@ -95,13 +98,13 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
         if (!found) found = (await api.getArtist(artistId)).albums?.find((a) => a.mbid === item.mbid)
         if (!found) {
           // A soundtrack or compilation the artist is on, but not one of their own albums.
-          found = await api.addArtistAlbum(artistId, item.mbid).catch(() => undefined)
+          found = await api.addArtistAlbum(artistId, item.mbid, onlySong).catch(() => undefined)
         }
         if (!found) {
           toast.info(t('{name} was added, but "{album}" is not in their list of albums.', { name: artistName, album: item.title }))
         } else {
           albumId = found.id
-          if (!found.monitored) await api.setAlbumMonitored(found.id, true)
+          if (!found.monitored || onlySong) await api.setAlbumMonitored(found.id, true, onlySong)
           if (willSearch) {
             try {
               await api.searchNowAlbum(found.id)
@@ -113,7 +116,11 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
       }
       if (albumId === undefined && choice === 'album' && found) albumId = found.id
       toast.success(
-        choice === 'album' && item
+        choice === 'album' && item && onlySong
+          ? willSearch
+            ? t('"{song}" added. Searching for its album now.', { song: onlySong })
+            : t('"{song}" added.', { song: onlySong })
+          : choice === 'album' && item
           ? willSearch
             ? t('"{album}" added. Searching for it now.', { album: item.title })
             : t('"{album}" added.', { album: item.title })
@@ -133,7 +140,8 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
     { id: 'all', title: t('Follow all albums'), blurb: t('Every album, EP and single, and new releases as they come out.') },
     { id: 'future', title: t('Only future albums'), blurb: t('Skips albums already out and picks up new releases.') },
     ...(item ? [] : [{ id: 'none' as const, title: t('Just add the artist'), blurb: t('Nothing is followed yet. Pick the albums you want on their page.') }]),
-    ...(item ? [{ id: 'album' as const, title: t('Only this album'), blurb: t('Just "{album}". Nothing else is downloaded.', { album: item.title }) }] : []),
+    ...(item && !onlySong ? [{ id: 'album' as const, title: t('Only this album'), blurb: t('Just "{album}". Nothing else is downloaded.', { album: item.title }) }] : []),
+    ...(item && onlySong ? [{ id: 'album' as const, title: t('Only this song'), blurb: t('"{album}" is downloaded, but only "{song}" is kept in your library.', { album: item.title, song: onlySong }) }] : []),
   ]
 
   return createPortal(
@@ -161,7 +169,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
                 <span className="badge" style={{ marginRight: 6 }}>
                   {TYPE_WORD[item.type] ?? t('Release')}
                 </span>
-                {item.title}
+                {onlySong ? `${onlySong} · ${item.title}` : item.title}
                 {item.releaseDate ? ` · ${item.releaseDate.slice(0, 4)}` : ''}
               </p>
             )}
@@ -174,7 +182,14 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
         <div className="modal-body grid-form">
           {existingArtist ? (
             <div className="notice">
-              <strong>{t('{name} is already in your library.', { name: artistName })}</strong> {willSearch ? t('This turns on just this album and starts looking for it.') : t('This turns on just this album.')}
+              <strong>{t('{name} is already in your library.', { name: artistName })}</strong>{' '}
+              {onlySong
+                ? willSearch
+                  ? t('This turns on just this song and starts looking for its album.')
+                  : t('This turns on just this song.')
+                : willSearch
+                  ? t('This turns on just this album and starts looking for it.')
+                  : t('This turns on just this album.')}
             </div>
           ) : (
             <div className="choice-grid add-music-choices" role="radiogroup" aria-label={t('What to follow')}>
@@ -208,7 +223,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
           <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
             <input type="checkbox" checked={searchNow && !cannotSearch && !noSearch} onChange={(e) => setSearchNow(e.target.checked)} disabled={cannotSearch || noSearch || busy} />
             <span className="has-tip">
-              {choice === 'album' ? t('Start searching for this album now') : t('Start searching for their albums now')}
+              {choice === 'album' ? (onlySong ? t('Start searching for this song now') : t('Start searching for this album now')) : t('Start searching for their albums now')}
               <InfoTip text={t('Looks for a release straight away. If you leave it unticked, the albums wait for the next automatic search or for you to press Search now. It is greyed out until you add an indexer.')} />
             </span>
           </label>
@@ -226,7 +241,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
             {t('Cancel')}
           </button>
           <button className="primary btn-with-icon" onClick={submit} disabled={busy}>
-            <Icon name="plus" size={16} /> {busy ? t('Adding…') : can(user, 'addDirect') || existingArtist ? (choice === 'album' ? t('Add album') : t('Add artist')) : t('Request artist')}
+            <Icon name="plus" size={16} /> {busy ? t('Adding…') : can(user, 'addDirect') || existingArtist ? (choice === 'album' ? (onlySong ? t('Add song') : t('Add album')) : t('Add artist')) : t('Request artist')}
           </button>
         </div>
       </div>

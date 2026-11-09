@@ -438,6 +438,7 @@ func (s *Server) handleAddArtistAlbum(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		MBID string `json:"mbid"`
+		Song string `json:"song"` // "Add only this song": just this track is wanted
 	}
 	if err := decodeJSON(r, &req); err != nil || !mbidPattern.MatchString(req.MBID) {
 		writeError(w, http.StatusBadRequest, "That release ID doesn't look right.")
@@ -474,6 +475,7 @@ func (s *Server) handleAddArtistAlbum(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "That release is already in your library.")
 			return
 		}
+		s.wantOnlySong(added[0].ID, req.Song)
 		writeJSON(w, http.StatusCreated, toMusicAlbumPayload(added[0]))
 		return
 	}

@@ -3,13 +3,16 @@ import { api } from '../api'
 import Icon from './Icon'
 import TipLabel from './TipLabel'
 import { useToast } from './Toast'
-import { t } from '../i18n'
+import { st, t } from '../i18n'
 
 interface SoulseekState {
   url: string
   hasKey: boolean
   folder: string
   version?: string
+  // The save worked, but Soulseek is still skipped (no downloads folder, or
+  // slskd is not logged in to Soulseek).
+  warning?: string
 }
 
 // Settings > Downloading > Download rules: Soulseek for music through your
@@ -23,6 +26,7 @@ export default function SoulseekCard() {
   const [folder, setFolder] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
 
   useEffect(() => {
     api
@@ -38,13 +42,17 @@ export default function SoulseekCard() {
   async function send(body: { url?: string; apiKey?: string; folder?: string; remove?: boolean }, done: (s: SoulseekState) => string) {
     setBusy(true)
     setError('')
+    setWarning('')
     try {
       const s = await api.putSoulseek(body)
       setState(s)
       setUrl(s.url)
       setFolder(s.folder)
       setKey('')
-      toast.success(done(s))
+      if (s.warning) {
+        setWarning(s.warning)
+        toast.error(st(s.warning))
+      } else toast.success(done(s))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -75,11 +83,14 @@ export default function SoulseekCard() {
           {t('slskd downloads folder')}
           <input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="/data/slskd/downloads" spellCheck={false} autoComplete="off" disabled={busy} />
           <small className="field-hint">{t('The folder slskd downloads into, as Mediarium sees it. Mount the same folder into both containers.')}</small>
+          {folder.trim() === '' && (url.trim() !== '' || state?.hasKey) && (
+            <small className="field-hint error-text">{t('Soulseek is skipped on albums until this folder is filled in.')}</small>
+          )}
         </label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             className="primary"
-            disabled={busy || url.trim() === '' || folder.trim() === '' || (!state?.hasKey && key.trim() === '')}
+            disabled={busy || url.trim() === '' || (!state?.hasKey && key.trim() === '')}
             onClick={() => void send({ url: url.trim(), apiKey: key.trim(), folder: folder.trim() }, (s) => t('slskd {version} connected.', { version: s.version ?? '' }))}
           >
             {busy ? t('Checking…') : t('Save')}
@@ -91,6 +102,7 @@ export default function SoulseekCard() {
           )}
         </div>
         {error && <p className="error-text">{error}</p>}
+        {warning && <p className="error-text">{st(warning)}</p>}
       </div>
     </fieldset>
   )

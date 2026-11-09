@@ -569,6 +569,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/music/tiers` | any account | lists the music quality tiers, worst to best, for building a profile. |
 | GET | `/api/music/tracks/{id}/gain` | signed in | GET /api/music/tracks/{id}/gain: the ReplayGain tags of a track's file, null for the ones it doesn't have. |
 | GET | `/api/music/tracks/{id}/lyrics` | signed in | GET /api/music/tracks/{id}/lyrics |
+| PUT | `/api/music/tracks/{id}/monitored` | any account | switches one track of an album between wanted and not wanted, with a body of {"monitored": true} or {"monitored": false}. |
 | GET | `/api/music/tracks/{id}/play` | any account | GET /api/music/tracks/{id}/play: one downloaded track, for the built-in player. |
 | GET | `/api/music/wanted` | any account |  |
 
@@ -980,4 +981,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-600 routes.
+601 routes.

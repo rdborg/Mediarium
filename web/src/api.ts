@@ -2872,6 +2872,8 @@ export interface MusicAlbum {
   coverUrl?: string
   coverArchiveUrl?: string
   tracks?: MusicTrack[]
+  // The song the album was added for ("Add only this song"); only on GET /music/albums/{id}.
+  onlySong?: string
 }
 
 // ---- Discover, music --------------------------------------------------
@@ -2891,6 +2893,23 @@ export interface MusicDiscoverItem {
   inLibrary: boolean
   artistId?: number
   albumId?: number
+}
+// One row of the one music search: an artist, an album or a song. Albums and
+// songs carry what a Discover album does (a song also names its album in title
+// and the song in `song`); `name` is what the row is called.
+export interface MusicHit extends MusicDiscoverItem {
+  kind: 'artist' | 'album' | 'song'
+  rank: number
+  name: string
+  country?: string
+  disambiguation?: string
+  soundtrack?: boolean
+  song?: string
+}
+export interface MusicSearchAnswer {
+  items: MusicHit[]
+  // Plain words when one of the three searches could not run.
+  note?: string
 }
 export interface MusicPreview extends MusicDiscoverItem {
   tracks: { disc: number; position: number; title: string; lengthMs?: number }[]
@@ -2925,6 +2944,8 @@ export interface MusicTrack {
   lengthMs: number
   hasFile: boolean
   filePath?: string
+  // false for a track that is not wanted (the album was added for one song only).
+  monitored?: boolean
 }
 
 export interface MusicArtist {
@@ -3979,6 +4000,8 @@ export const api = {
   // Music (only answers while the music module is on).
   musicSearch: (q: string, signal?: AbortSignal) => request<MusicArtistResult[]>(`/music/search?q=${encodeURIComponent(q)}`, { signal }),
   // Albums found by their title, or by a song on them (song is then set).
+  // Artists, albums and songs in one ranked list (the one music search box).
+  musicSearchAll: (q: string, signal?: AbortSignal) => request<MusicSearchAnswer>(`/music/search?type=all&q=${encodeURIComponent(q)}`, { signal }),
   musicSearchTitles: (q: string, by: 'album' | 'song', signal?: AbortSignal) => request<(MusicDiscoverItem & { song?: string })[]>(`/music/search?type=${by}&q=${encodeURIComponent(q)}`, { signal }),
   musicDiscover: (q: { list: MusicList; type?: MusicType; range?: MusicRange; page?: number; pageSize?: number; genre?: string; yearFrom?: string; yearTo?: string; sort?: string }) =>
     get<MusicDiscoverPage>(`/music/discover?${new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString()}`),
@@ -4036,8 +4059,8 @@ export const api = {
   answerFeatureOffer: (body: { id: string; choice: 'later' | 'never' | 'clear'; version: string }) => put<{ choices: Partial<Record<string, string>> }>('/feature-offers', body),
   getAnimeSettings: () => get<AnimeSettings>('/settings/anime'),
   putAnimeSettings: (body: { path?: string; moviesPath?: string; episodeFormat?: string; profileId?: number }) => put<AnimeSettings>('/settings/anime', body),
-  getSoulseek: () => get<{ url: string; hasKey: boolean; folder: string; version?: string }>('/settings/soulseek'),
-  putSoulseek: (body: { url?: string; apiKey?: string; folder?: string; remove?: boolean }) => put<{ url: string; hasKey: boolean; folder: string; version?: string }>('/settings/soulseek', body),
+  getSoulseek: () => get<{ url: string; hasKey: boolean; folder: string; version?: string; warning?: string }>('/settings/soulseek'),
+  putSoulseek: (body: { url?: string; apiKey?: string; folder?: string; remove?: boolean }) => put<{ url: string; hasKey: boolean; folder: string; version?: string; warning?: string }>('/settings/soulseek', body),
   getOMDb: () => get<{ set: boolean }>('/settings/omdb'),
   putOMDb: (body: { key?: string; remove?: boolean }) => put<{ set: boolean }>('/settings/omdb', body),
   titleScores: (kind: 'movie' | 'tv', tmdbId: number, imdbId: string) => get<{ set: boolean; scores: OutsideScores | null }>(`/scores/${kind}/${tmdbId}?imdb=${encodeURIComponent(imdbId)}`),
@@ -4072,15 +4095,17 @@ export const api = {
   searchNowBook: (id: number, format: BookFormat) => post<{ grabbed: number; message: string }>(`/books/${id}/search?format=${format}`),
   listArtists: () => request<MusicArtist[]>('/music/artists', { revalidate: true }),
   getArtist: (id: number) => get<MusicArtist>(`/music/artists/${id}`),
-  addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean; albumMbid?: string; albumTitle?: string }) => post<MusicArtist | Requested>('/music/artists', data),
+  addArtist: (data: { mbid: string; monitor?: MusicMonitor; profileId?: number; searchNow?: boolean; albumMbid?: string; albumTitle?: string; song?: string }) => post<MusicArtist | Requested>('/music/artists', data),
   updateArtist: (id: number, changes: { monitored?: boolean; profileId?: number; filter?: MusicFilter; useLibraryFilter?: boolean }) => put<MusicArtist>(`/music/artists/${id}`, changes),
   musicFilters: () => get<MusicFilterChoices>('/music/filters'),
   setMusicFilters: (filter: MusicFilter) => put<MusicFilterChoices>('/music/filters', filter),
   artistDiscography: (id: number) => get<MusicDiscography>(`/music/artists/${id}/discography`),
-  addArtistAlbum: (id: number, mbid: string) => post<MusicAlbum>(`/music/artists/${id}/albums`, { mbid }),
+  addArtistAlbum: (id: number, mbid: string, song?: string) => post<MusicAlbum>(`/music/artists/${id}/albums`, { mbid, song }),
   deleteArtist: (id: number, deleteFiles: boolean) => del<null>(`/music/artists/${id}?deleteFiles=${deleteFiles}`),
   getAlbum: (id: number) => get<MusicAlbum>(`/music/albums/${id}`),
-  setAlbumMonitored: (id: number, monitored: boolean) => put<null>(`/music/albums/${id}/monitored`, { monitored }),
+  // With a song, only that track of the album is wanted; with an empty one, every track is again.
+  setAlbumMonitored: (id: number, monitored: boolean, song?: string) => put<null>(`/music/albums/${id}/monitored`, song === undefined ? { monitored } : { monitored, song }),
+  setTrackMonitored: (id: number, monitored: boolean) => put<null>(`/music/tracks/${id}/monitored`, { monitored }),
   albumSearch: (id: number) => post<SearchAnswer<MusicRelease>>(`/music/albums/${id}/search?detail=1`),
   grabAlbum: (id: number, data: { releaseTitle: string; downloadUrl: string; sizeBytes: number; protocol?: 'usenet' | 'torrent' | 'soulseek' }) =>
     post<{ queueId: number }>(`/music/albums/${id}/grab`, data),

@@ -138,12 +138,17 @@ func (c *Client) SearchArtists(ctx context.Context, name string, limit int) ([]A
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
+	return c.searchArtistsQuery(ctx, luceneEscape(name), limit)
+}
+
+// searchArtistsQuery runs an artist search with a ready query.
+func (c *Client) searchArtistsQuery(ctx context.Context, query string, limit int) ([]Artist, error) {
 	var out struct {
 		Artists []Artist `json:"artists"`
 	}
-	q := url.Values{"query": {luceneEscape(name)}, "limit": {strconv.Itoa(limit)}}
+	q := url.Values{"query": {query}, "limit": {strconv.Itoa(limit)}}
 	if err := c.get(ctx, "/ws/2/artist", q, &out); err != nil {
-		return nil, fmt.Errorf("search artists %q: %w", name, err)
+		return nil, fmt.Errorf("search artists %q: %w", query, err)
 	}
 	if out.Artists == nil {
 		out.Artists = []Artist{}

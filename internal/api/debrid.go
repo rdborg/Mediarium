@@ -312,14 +312,6 @@ func (s *Server) handlePutDebrid(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if req.Service != "" && s.downloadClientOn() {
-		// Torrent releases go to one place only.
-		if err := s.Settings.Set(settings.KeyDownloadClientKind, "", false); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		slog.Info("download client turned off: torrent releases now go to the debrid service")
-	}
 	for key, v := range map[string]*bool{settings.KeyDebridPreferCached: req.PreferCached, settings.KeyDebridCachedLower: req.CachedLowerScore} {
 		if v == nil {
 			continue

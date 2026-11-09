@@ -133,16 +133,11 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Soulseek (slskd), when it is set up, is asked at the same time as the indexers.
-	soulseek := make(chan []musicReleasePayload, 1)
-	go func() {
-		found, err := s.soulseekAlbumReleases(r.Context(), artist, album, profile)
-		if err != nil && r.Context().Err() == nil {
-			slog.Info("soulseek: album search failed", "album", album.Title, "err", err)
-		}
-		soulseek <- found
-	}()
+	soulseek := make(chan soulseekRun, 1)
+	go func() { soulseek <- s.soulseekAlbumRun(r.Context(), artist, album, profile) }()
 	if len(instances) == 0 {
-		writeSearch(w, r, append(out, <-soulseek...), 0, nil)
+		run := <-soulseek
+		writeSearchWith(w, r, append(out, run.Releases...), 0, nil, nil, nil, run.extra())
 		return
 	}
 	blocked := s.searchSkipKeys()
@@ -175,8 +170,9 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, p)
 	}
-	out = append(out, <-soulseek...)
-	writeSearchAll(w, r, out, len(instances), outcomes, notAsked, instances)
+	run := <-soulseek
+	out = append(out, run.Releases...)
+	writeSearchWith(w, r, out, len(instances), outcomes, notAsked, instances, run.extra())
 }
 
 // handleAlbumGrab grabs one release for an album (from the interactive
@@ -504,14 +500,14 @@ func (s *Server) retryAlbum(albumID int64) {
 }
 
 // albumIncomplete reports whether a downloaded album has tracks without a
-// file (its tracklist is known and not every track has one).
+// file (its tracklist is known and not every wanted track has one).
 func (s *Server) albumIncomplete(albumID int64) bool {
 	tracks, err := s.MusicRepo.ListTracks(albumID)
 	if err != nil || len(tracks) == 0 {
 		return false
 	}
 	for _, t := range tracks {
-		if t.FilePath == "" {
+		if t.FilePath == "" && t.Monitored {
 			return true
 		}
 	}

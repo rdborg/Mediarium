@@ -126,6 +126,9 @@ func (s *Server) describeRequest(ctx context.Context, kind string, body []byte) 
 		title := a.Name
 		if t := strings.TrimSpace(req.AlbumTitle); t != "" && req.AlbumMBID != "" {
 			title += " – " + t
+			if song := strings.TrimSpace(req.Song); song != "" {
+				title += " (only “" + song + "”)"
+			}
 		}
 		return requestInfo{title: title}, nil
 	case "book":

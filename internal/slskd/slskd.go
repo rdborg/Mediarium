@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/netguard"
@@ -112,6 +113,25 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 	return strings.Trim(string(v), `"`), nil
 }
 
+// ServerStatus is slskd's own connection to the Soulseek network. slskd can
+// answer its web API while it is not connected or not logged in, and then a
+// search finds nothing.
+type ServerStatus struct {
+	IsConnected bool   `json:"isConnected"`
+	IsLoggedIn  bool   `json:"isLoggedIn"`
+	State       string `json:"state"` // for example "Connected, LoggedIn" or "Disconnected"
+}
+
+// Online reports whether slskd is connected and logged in to Soulseek.
+func (s ServerStatus) Online() bool { return s.IsConnected && s.IsLoggedIn }
+
+// Server asks slskd whether it is connected to the Soulseek network.
+func (c *Client) Server(ctx context.Context) (ServerStatus, error) {
+	var st ServerStatus
+	_, err := c.do(ctx, http.MethodGet, "/server", nil, &st)
+	return st, err
+}
+
 // File is one file a user shares, as a search found it.
 type File struct {
 	Filename   string `json:"filename"` // the full path on the user's side, with \ or /
@@ -146,11 +166,10 @@ func (c *Client) Search(ctx context.Context, text string, wait time.Duration) ([
 	if _, err := c.do(ctx, http.MethodPost, "/searches", body, nil); err != nil {
 		return nil, err
 	}
-	defer func() {
-		cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_, _ = c.do(cctx, http.MethodDelete, "/searches/"+id, nil, nil) // tidy up slskd's list
-	}()
+	// The search stays in slskd's Searches page, so a person can see that
+	// Mediarium asked; it is tidied up on a later search, an hour on.
+	c.tidyOld()
+	defer remember(c.base, id)
 	deadline := time.Now().Add(wait)
 	for {
 		var s search
@@ -171,6 +190,47 @@ func (c *Client) Search(ctx context.Context, text string, wait time.Duration) ([
 		return nil, err
 	}
 	return out, nil
+}
+
+// ownSearches are the searches Mediarium started, with slskd's address, so
+// they can be removed from slskd's list after a while.
+var (
+	ownMu       sync.Mutex
+	ownSearches []ownSearch
+)
+
+type ownSearch struct {
+	base, id string
+	at       time.Time
+}
+
+const keepSearchFor = time.Hour
+
+func remember(base, id string) {
+	ownMu.Lock()
+	defer ownMu.Unlock()
+	ownSearches = append(ownSearches, ownSearch{base, id, time.Now()})
+}
+
+// tidyOld deletes the searches this client's slskd was given more than an hour ago.
+func (c *Client) tidyOld() {
+	ownMu.Lock()
+	var old []ownSearch
+	keep := ownSearches[:0]
+	for _, o := range ownSearches {
+		if o.base == c.base && time.Since(o.at) > keepSearchFor {
+			old = append(old, o)
+		} else {
+			keep = append(keep, o)
+		}
+	}
+	ownSearches = keep
+	ownMu.Unlock()
+	for _, o := range old {
+		cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, _ = c.do(cctx, http.MethodDelete, "/searches/"+o.id, nil, nil)
+		cancel()
+	}
 }
 
 // Want is a file to download.

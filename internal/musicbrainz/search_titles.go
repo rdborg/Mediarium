@@ -19,6 +19,8 @@ type FoundAlbum struct {
 	ArtistName string
 	Song       string
 	Score      int
+	// Releases is how many releases carry the song (only for a song).
+	Releases int
 }
 
 func mainArtist(credits []struct {
@@ -47,12 +49,17 @@ func (c *Client) SearchAlbums(ctx context.Context, title string, limit int) ([]F
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
-	q := url.Values{"query": {"releasegroup:(" + luceneEscape(title) + ")"}, "limit": {strconv.Itoa(limit)}}
+	return c.searchReleaseGroups(ctx, "releasegroup:("+luceneEscape(title)+")", limit)
+}
+
+// searchReleaseGroups runs a release group search with a ready query.
+func (c *Client) searchReleaseGroups(ctx context.Context, query string, limit int) ([]FoundAlbum, error) {
+	q := url.Values{"query": {query}, "limit": {strconv.Itoa(limit)}}
 	var out struct {
 		Groups []TaggedReleaseGroup `json:"release-groups"`
 	}
 	if err := c.get(ctx, "/ws/2/release-group", q, &out); err != nil {
-		return nil, fmt.Errorf("search albums %q: %w", title, err)
+		return nil, fmt.Errorf("search albums %q: %w", query, err)
 	}
 	found := make([]FoundAlbum, 0, len(out.Groups))
 	for _, g := range out.Groups {
@@ -72,7 +79,12 @@ func (c *Client) SearchSongs(ctx context.Context, title string, limit int) ([]Fo
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
-	q := url.Values{"query": {"recording:(" + luceneEscape(title) + ")"}, "limit": {strconv.Itoa(limit)}}
+	return c.searchRecordings(ctx, "recording:("+luceneEscape(title)+")", limit)
+}
+
+// searchRecordings runs a song search with a ready query.
+func (c *Client) searchRecordings(ctx context.Context, query string, limit int) ([]FoundAlbum, error) {
+	q := url.Values{"query": {query}, "limit": {strconv.Itoa(limit)}}
 	var out struct {
 		Recordings []struct {
 			Title        string `json:"title"`
@@ -92,7 +104,7 @@ func (c *Client) SearchSongs(ctx context.Context, title string, limit int) ([]Fo
 		} `json:"recordings"`
 	}
 	if err := c.get(ctx, "/ws/2/recording", q, &out); err != nil {
-		return nil, fmt.Errorf("search songs %q: %w", title, err)
+		return nil, fmt.Errorf("search songs %q: %w", query, err)
 	}
 	seen := map[string]bool{}
 	found := []FoundAlbum{}
@@ -107,7 +119,7 @@ func (c *Client) SearchSongs(ctx context.Context, title string, limit int) ([]Fo
 			if g.FirstReleaseDate == "" {
 				g.FirstReleaseDate = rel.Date
 			}
-			found = append(found, FoundAlbum{ReleaseGroup: g, ArtistID: id, ArtistName: name, Song: rec.Title, Score: rec.Score})
+			found = append(found, FoundAlbum{ReleaseGroup: g, ArtistID: id, ArtistName: name, Song: rec.Title, Score: rec.Score, Releases: len(rec.Releases)})
 		}
 	}
 	return found, nil

@@ -75,7 +75,7 @@ Scripts: `GET /api/indexers` has `minSeeders`; `PUT /api/indexers/{id}` takes `m
 
 ## Where torrents go
 
-Torrents normally go to the first of these that is set up: your download client (qBittorrent and the like), then a debrid service, then the built-in client. Each torrent indexer card has a **Where torrents go** list to change that for that indexer alone: **The usual way** (how every indexer starts), **The download client**, **The debrid service** or **The built-in client**. A private tracker can send its torrents to qBittorrent, so they seed there and your ratio grows, while public indexers go to debrid. The list saves as soon as you pick another place.
+Torrents normally go to the first of these that is set up: your download client (qBittorrent and the like), then a debrid service, then the built-in client. Each torrent indexer card has a **Where torrents go** list to change that for that indexer alone: **The usual way** (how every indexer starts), **The download client**, **The debrid service** or **The built-in client**. A private tracker can send its torrents to qBittorrent, so they seed there and your ratio grows, while public indexers go to debrid. This works with a download client and a debrid service set up together: saving one no longer turns the other off. Without a choice on an indexer, the download client is used first. The list saves as soon as you pick another place.
 
 - **When the place isn't set up.** If you pick the debrid service and then remove its key, or pick the download client and it isn't set up, torrents from that indexer go the usual way again. Nothing fails because of it.
 - **Downloads already running.** A download keeps the place it started in. Changing the list only affects torrents grabbed after that.

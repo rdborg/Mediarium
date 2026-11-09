@@ -42,7 +42,7 @@ export default function DebridCard() {
       .catch(() => undefined)
   }, [])
   useEffect(load, [load])
-  // Saving a download client turns the debrid service off.
+  // Saving a download client no longer turns the debrid service off, but the card reloads anyway.
   useEffect(() => {
     window.addEventListener(TORRENT_ROUTE_EVENT, load)
     return () => window.removeEventListener(TORRENT_ROUTE_EVENT, load)

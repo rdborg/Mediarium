@@ -188,17 +188,22 @@ func isUnder(dir, file string) bool {
 func (s *Server) settleAlbum(album music.Album, path string, folderFound bool, tracks []music.Track, audioFiles int, rep *albumRescanReport) error {
 	var linked []string
 	rep.MissingTitles = []string{}
+	missing := 0 // wanted tracks without a file; a track that is not wanted is not missing
 	for _, t := range tracks {
 		if t.FilePath != "" {
 			linked = append(linked, t.FilePath)
 			continue
 		}
+		if !t.Monitored {
+			continue
+		}
+		missing++
 		if len(rep.MissingTitles) < maxMissingTitles {
 			rep.MissingTitles = append(rep.MissingTitles, t.Title)
 		}
 	}
 	rep.Matched, rep.Tracks = len(linked), len(tracks)
-	rep.Complete = len(tracks) > 0 && len(linked) == len(tracks)
+	rep.Complete = len(tracks) > 0 && missing == 0
 	rep.Files, rep.Folder = audioFiles, folderFound && audioFiles > 0
 	if rep.Files == 0 && len(linked) == 0 {
 		rep.Folder = false

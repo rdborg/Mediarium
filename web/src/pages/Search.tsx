@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type BookFound, type MusicArtistResult, type MusicDiscoverItem, type TitleResult } from '../api'
+import { api, type BookFound, type MusicDiscoverItem, type MusicHit, type TitleResult } from '../api'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import AddMusicDialog from '../components/AddMusicDialog'
 import { artistKind } from '../components/artistKind'
@@ -10,8 +10,9 @@ import PosterCard from '../components/PosterCard'
 import { capitalizeFirst } from '../components/SearchBox'
 import { describeState, resultState } from '../components/state'
 import { useModules } from '../ModulesContext'
-import { booksTabLabel, musicTabLabel, resultsLink, resultsParams, resultsTab, splitArtists, splitBooks } from '../searchTabs'
-import { t, tc } from '../i18n'
+import { booksTabLabel, musicTabLabel, resultsLink, resultsParams, resultsTab, splitBooks } from '../searchTabs'
+import { AnswerMemo, asAnswer, filterHits, Gate, MUSIC_FILTERS, searchKey, type MusicFilter } from '../musicSearch'
+import { st, t, tc } from '../i18n'
 import KindGlyph from '../components/KindGlyph'
 import '../search.css'
 
@@ -38,13 +39,17 @@ export default function Search() {
   const [bookError, setBookError] = useState('')
   const [addingBook, setAddingBook] = useState<BookFound | null>(null)
   const [booksAdded, setBooksAdded] = useState<Record<string, number>>({}) // added while on the page
-  const [artistHits, setArtistHits] = useState<MusicArtistResult[] | null>(null)
-  const [artistError, setArtistError] = useState('')
-  const [addingArtist, setAddingArtist] = useState<MusicArtistResult | null>(null)
-  // Music can be searched by artist, album or song (a soundtrack by a song from the film).
-  const [musicBy, setMusicBy] = useState<'artist' | 'album' | 'song'>('artist')
-  const [albumHits, setAlbumHits] = useState<(MusicDiscoverItem & { song?: string })[] | null>(null)
-  const [addingAlbum, setAddingAlbum] = useState<MusicDiscoverItem | null>(null)
+  // Music is one search: artists, albums and songs in one list, best first, with a filter for each kind.
+  const [musicHits, setMusicHits] = useState<MusicHit[] | null>(null)
+  const [musicError, setMusicError] = useState('')
+  const [musicNote, setMusicNote] = useState('')
+  const [musicSearching, setMusicSearching] = useState(false)
+  const [musicFilter, setMusicFilter] = useState<MusicFilter>('all')
+  const [addingArtist, setAddingArtist] = useState<MusicHit | null>(null)
+  const [addingAlbum, setAddingAlbum] = useState<{ item: MusicDiscoverItem; onlySong?: string } | null>(null)
+  const musicGate = useRef(new Gate()) // only the newest search may show its answer
+  const musicMemo = useRef(new AnswerMemo()) // the same words again give the same list
+  const shownFor = useRef('') // the search the list on screen belongs to
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => inputRef.current?.focus(), [])
@@ -116,51 +121,66 @@ export default function Search() {
     }
   }, [q, booksOn])
 
-  // Artists come from MusicBrainz, which allows about one lookup a second, so
-  // they are asked for a little later still. Like the search box, only when
-  // music is on.
+  // Music comes from MusicBrainz, which allows about one lookup a second, so it
+  // is asked for a little later still. Like the search box, only when music is on.
+  // Answers that come back out of order are dropped (the newest search wins), the
+  // same words give the same list again, and a failed search keeps the list of
+  // the same words that is on screen instead of emptying it.
   useEffect(() => {
     const term = q.trim()
+    const id = musicGate.current.next()
     if (!musicOn || term.length < 2) {
-      setArtistHits(null)
-      setAlbumHits(null)
-      setArtistError('')
+      setMusicHits(null)
+      setMusicError('')
+      setMusicNote('')
+      setMusicSearching(false)
+      shownFor.current = ''
+      return
+    }
+    const known = musicMemo.current.get(term)
+    if (known) {
+      setMusicHits(known.items)
+      setMusicError('')
+      setMusicNote('')
+      setMusicSearching(false)
+      shownFor.current = searchKey(term)
       return
     }
     const ctl = new AbortController()
-    const timer = setTimeout(() => {
-      if (musicBy !== 'artist') {
-        setAlbumHits(null)
-        api
-          .musicSearchTitles(term, musicBy, ctl.signal)
-          .then((r) => {
-            setAlbumHits(r)
-            setArtistError('')
-          })
-          .catch((e) => {
-            if (e instanceof DOMException && e.name === 'AbortError') return
-            setAlbumHits([])
-            setArtistError(e instanceof Error ? e.message : String(e))
-          })
-        return
-      }
+    let retryTimer: number | undefined
+    const run = (retry: boolean): Promise<void> =>
       api
-        .musicSearch(term, ctl.signal)
-        .then((r) => {
-          setArtistHits(r)
-          setArtistError('')
+        .musicSearchAll(term, ctl.signal)
+        .then((raw) => {
+          if (!musicGate.current.current(id)) return
+          const a = asAnswer(raw)
+          musicMemo.current.put(term, a)
+          setMusicHits(a.items)
+          setMusicNote(a.note ?? '')
+          setMusicError('')
+          setMusicSearching(false)
+          shownFor.current = searchKey(term)
         })
         .catch((e) => {
-          if (e instanceof DOMException && e.name === 'AbortError') return
-          setArtistHits([])
-          setArtistError(e instanceof Error ? e.message : String(e))
+          if (ctl.signal.aborted || !musicGate.current.current(id)) return
+          if (retry) {
+            retryTimer = window.setTimeout(() => void run(false), 1500)
+            return
+          }
+          setMusicHits((cur) => (cur && shownFor.current === searchKey(term) ? cur : []))
+          setMusicError(e instanceof Error ? e.message : String(e))
+          setMusicSearching(false)
         })
+    const timer = setTimeout(() => {
+      setMusicSearching(true)
+      void run(true)
     }, 600)
     return () => {
       clearTimeout(timer)
+      clearTimeout(retryTimer)
       ctl.abort()
     }
-  }, [q, musicOn, musicBy])
+  }, [q, musicOn])
 
   // A book added from a card on this page moves up to "In your library".
   useEffect(() => {
@@ -208,51 +228,87 @@ export default function Search() {
     </div>
   )
 
-  const artistGrid = (list: MusicArtistResult[]) => (
-    <div className="poster-grid">
-      {list.map((a) => (
-        <PosterCard
-          key={a.mbid}
-          to={a.artistId > 0 ? `/music/artist/${a.artistId}` : undefined}
-          title={a.name}
-          meta={[artistKind(a.type), a.disambiguation || a.country].filter(Boolean).join(' · ')}
-          kind="music"
-          state={a.artistId > 0 ? { ...describeState('downloaded'), label: t('In library') } : undefined}
-          actions={
-            a.artistId > 0
-              ? [{ icon: 'open', label: t('Open'), onClick: () => navigate(`/music/artist/${a.artistId}`) }]
-              : [{ icon: 'plus', label: t('Add'), onClick: () => setAddingArtist(a), primary: true }]
-          }
-        />
-      ))}
-    </div>
+  const kindChip = (kind: MusicHit['kind']): ReactNode => (
+    <span className="chip chip-plain">{kind === 'artist' ? t('Artist') : kind === 'album' ? t('Album') : t('Song')}</span>
   )
 
-  const albumGrid = (list: (MusicDiscoverItem & { song?: string })[]) => (
+  const musicGrid = (list: MusicHit[]) => (
     <div className="poster-grid">
-      {list.map((a) => (
-        <PosterCard
-          key={a.mbid}
-          to={a.albumId ? `/music/album/${a.albumId}` : undefined}
-          poster={a.coverUrl}
-          title={a.title}
-          meta={[a.artistName, a.releaseDate?.slice(0, 4) || null, a.song ? t('has “{song}”', { song: a.song }) : null].filter(Boolean).join(' · ')}
-          kind="music"
-          state={a.inLibrary ? { ...describeState('downloaded'), label: t('In library') } : undefined}
-          actions={
-            a.inLibrary && a.albumId
-              ? [{ icon: 'open', label: t('Open'), onClick: () => navigate(`/music/album/${a.albumId}`) }]
-              : [{ icon: 'plus', label: t('Add'), onClick: () => setAddingAlbum(a), primary: true }]
-          }
-        />
-      ))}
+      {list.map((h) => {
+        const year = h.releaseDate?.slice(0, 4) || null
+        if (h.kind === 'artist') {
+          return (
+            <PosterCard
+              key={`${h.kind}:${h.mbid}`}
+              to={h.artistId ? `/music/artist/${h.artistId}` : undefined}
+              title={h.name}
+              meta={
+                <>
+                  {kindChip('artist')} {[artistKind(h.type), h.disambiguation || h.country].filter(Boolean).join(' · ')}
+                </>
+              }
+              kind="music"
+              state={h.artistId ? { ...describeState('downloaded'), label: t('In library') } : undefined}
+              actions={
+                h.artistId
+                  ? [{ icon: 'open', label: t('Open'), onClick: () => navigate(`/music/artist/${h.artistId}`) }]
+                  : [{ icon: 'plus', label: t('Add'), onClick: () => setAddingArtist(h), primary: true }]
+              }
+            />
+          )
+        }
+        const song = h.kind === 'song' ? h.song : undefined
+        const owned = !!(h.inLibrary && h.albumId)
+        return (
+          <PosterCard
+            key={`${h.kind}:${h.mbid}:${song ?? ''}`}
+            to={owned ? `/music/album/${h.albumId}` : undefined}
+            poster={h.coverUrl}
+            title={h.name}
+            meta={
+              <>
+                {kindChip(h.kind)} {[h.artistName, song ? h.title : null, year, h.soundtrack ? t('Soundtrack') : null].filter(Boolean).join(' · ')}
+              </>
+            }
+            kind="music"
+            state={h.inLibrary ? { ...describeState('downloaded'), label: t('In library') } : undefined}
+            actions={
+              song
+                ? undefined
+                : owned
+                  ? [{ icon: 'open', label: t('Open'), onClick: () => navigate(`/music/album/${h.albumId}`) }]
+                  : [{ icon: 'plus', label: t('Add'), onClick: () => setAddingAlbum({ item: h }), primary: true }]
+            }
+            footer={
+              song ? (
+                owned ? (
+                  <div className="pcard-footer">
+                    <button className="btn-sm btn-with-icon" style={{ whiteSpace: 'nowrap' }} onClick={() => navigate(`/music/album/${h.albumId}`)}>
+                      <Icon name="open" size={15} /> {t('Open')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pcard-footer" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <button className="primary btn-sm btn-with-icon" style={{ whiteSpace: 'nowrap' }} onClick={() => setAddingAlbum({ item: h, onlySong: song })}>
+                      <Icon name="plus" size={15} /> {t('Add only this song')}
+                    </button>
+                    <button className="btn-sm btn-with-icon" style={{ whiteSpace: 'nowrap' }} onClick={() => setAddingAlbum({ item: h })}>
+                      <Icon name="plus" size={15} /> {t('Add the whole album')}
+                    </button>
+                  </div>
+                )
+              ) : undefined
+            }
+          />
+        )
+      })}
     </div>
   )
 
   const owned = results?.filter((r) => r.inLibrary) ?? []
   const fresh = results?.filter((r) => !r.inLibrary) ?? []
   const books = splitBooks(bookHits ?? [], booksAdded)
-  const artists = splitArtists(artistHits ?? [])
+  const shownHits = filterHits(musicHits ?? [], musicFilter)
   const onBooks = tab === 'books'
   const onMusic = tab === 'music'
   const onTitles = tab === 'titles'
@@ -276,7 +332,7 @@ export default function Search() {
         )}
         {musicOn && (
           <Link to={resultsLink('music', term)} className={onMusic ? 'active' : undefined} aria-current={onMusic ? 'page' : undefined}>
-            <Icon name="music" size={15} /> {musicTabLabel(artistHits === null ? null : artistHits.length)}
+            <Icon name="music" size={15} /> {musicTabLabel(musicHits === null ? null : musicHits.length)}
           </Link>
         )}
         <Link to="/search/releases">
@@ -291,7 +347,7 @@ export default function Search() {
           type="search"
           value={q}
           onChange={(e) => setQ(capitalizeFirst(e.target.value))}
-          placeholder={onBooks ? t('Type a book title or an author…') : onMusic ? (musicBy === 'album' ? t('Type an album title…') : musicBy === 'song' ? t('Type a song title…') : t('Type an artist or band name…')) : t('Type a movie or show name…')}
+          placeholder={onBooks ? t('Type a book title or an author…') : onMusic ? t('Type an artist, an album or a song…') : t('Type a movie or show name…')}
           aria-label={t('Search')}
         />
       </div>
@@ -341,56 +397,27 @@ export default function Search() {
       )}
 
       {onMusic && (
-        <div className="seg search-by" role="group" aria-label={t('Search music by')}>
-          {(['artist', 'album', 'song'] as const).map((by) => (
-            <button key={by} type="button" aria-pressed={musicBy === by} className={musicBy === by ? 'active' : ''} onClick={() => setMusicBy(by)}>
-              {by === 'artist' ? t('Artists') : by === 'album' ? t('Albums') : t('Songs')}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {onMusic && musicBy !== 'artist' && (
         <>
-          {artistError && <p className="error-text">{artistError}</p>}
-          {albumHits === null && term.length < 2 && <div className="search-hint">{musicBy === 'song' ? t('Type a song to find the albums it is on, a soundtrack too.') : t('Type an album title.')}</div>}
-          {albumHits === null && term.length >= 2 && <div className="search-hint">{t('Searching…')}</div>}
-          {albumHits !== null && albumHits.length === 0 && !artistError && <div className="search-hint">{t('Nothing found for “{q}”.', { q: term })}</div>}
-          {albumHits !== null && albumHits.length > 0 && albumGrid(albumHits)}
-        </>
-      )}
-
-      {onMusic && musicBy === 'artist' && (
-        <>
-          {artistError && <p className="error-text">{artistError}</p>}
-          {artistHits === null && term.length < 2 && (
+          <div className="seg search-by" role="group" aria-label={t('Show')}>
+            {MUSIC_FILTERS.map((f) => (
+              <button key={f} type="button" aria-pressed={musicFilter === f} className={musicFilter === f ? 'active' : ''} onClick={() => setMusicFilter(f)}>
+                {f === 'all' ? t('All') : f === 'artist' ? t('Artists') : f === 'album' ? t('Albums') : t('Songs')}
+              </button>
+            ))}
+          </div>
+          {musicError && <p className="error-text">{musicError}</p>}
+          {musicNote && <div className="search-hint">{st(musicNote)}</div>}
+          {musicHits === null && term.length < 2 && (
             <div className="search-hint">
               <span className="search-hint-shapes" aria-hidden="true">
                 <KindGlyph kind="music" size={30} variant="solid" />
               </span>
-              <p>{t('Start typing to search music. Anything already in your library shows where it stands.')}</p>
+              <p>{t('Start typing to search music: artists, albums and songs. Anything already in your library shows where it stands.')}</p>
             </div>
           )}
-          {artistHits === null && term.length >= 2 && <div className="search-hint">{t('Searching…')}</div>}
-          {artistHits !== null && artistHits.length === 0 && !artistError && <div className="search-hint">{t('Nothing found for “{q}”.', { q: term })}</div>}
-          {artists.owned.length > 0 && (
-            <section style={{ marginBottom: 28 }}>
-              <div className="rail-head">
-                <h2>{t('In your library')}</h2>
-                <span>{artists.owned.length}</span>
-              </div>
-              {artistGrid(artists.owned)}
-            </section>
-          )}
-          {artists.fresh.length > 0 && (
-            <section>
-              <div className="rail-head">
-                <h2>{t('Add new')}</h2>
-                <span>{artists.fresh.length}</span>
-              </div>
-              {artistGrid(artists.fresh)}
-            </section>
-          )}
+          {(musicHits === null || musicSearching) && term.length >= 2 && <div className="search-hint">{t('Searching…')}</div>}
+          {musicHits !== null && !musicSearching && shownHits.length === 0 && !musicError && <div className="search-hint">{t('Nothing found for “{q}”.', { q: term })}</div>}
+          {musicHits !== null && shownHits.length > 0 && musicGrid(shownHits)}
         </>
       )}
 
@@ -426,7 +453,7 @@ export default function Search() {
 
       {addingAlbum && (
         <AddMusicDialog
-          target={{ kind: 'album', item: addingAlbum }}
+          target={{ kind: 'album', item: addingAlbum.item, onlySong: addingAlbum.onlySong }}
           onClose={() => setAddingAlbum(null)}
           onAdded={(id, albumId) => {
             setAddingAlbum(null)

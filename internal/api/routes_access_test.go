@@ -177,6 +177,7 @@ var memberRoutes = []string{
 	"GET /api/music/albums/{id}/cover",
 	"GET /api/music/artists/{id}/cover",
 	"PUT /api/music/albums/{id}/monitored",
+	"PUT /api/music/tracks/{id}/monitored",
 	"POST /api/music/albums/{id}/search",
 	"POST /api/music/albums/{id}/search-now",
 	"POST /api/music/albums/{id}/grab",

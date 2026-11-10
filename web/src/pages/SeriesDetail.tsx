@@ -601,7 +601,7 @@ function SeriesPage() {
                 <span className="hint">{t("Specials aren't looked for until you tick them. Each one is searched on its own, by S00E number and by its title.")}</span>
               ) : (
                 <>
-                  {canReleases && <button onClick={() => runSearch({ season, label: t('Season {n} (packs)', { n: season }) })}>{t('Search season')}</button>}
+                  {canReleases && <button onClick={() => runSearch({ season, label: t('Season {n} (packs)', { n: season }) })}>{t('Choose a release')}</button>}
                   {canReleases && <InfoTip text={t('Lists the releases found for this whole season, season packs included, so you can pick one yourself.')} />}
                   {canManage && allEps.some(isMissing) && (
                     <button onClick={() => searchNow({ season })} disabled={searchingNow}>
@@ -680,7 +680,7 @@ function SeriesPage() {
                             disabled={unaired && e.status === 'missing'}
                             onClick={() => runSearch({ season, episode: e.episode, label: season === 0 ? t('Special: {title}', { title: e.title || `S00E${String(e.episode).padStart(2, '0')}` }) : `S${String(season).padStart(2, '0')}E${String(e.episode).padStart(2, '0')}` })}
                           >
-                            {t('Search')}
+                            {t('Choose a release')}
                           </button>
                         )}{' '}
                         {admin && e.status === 'downloaded' && e.filePath && (

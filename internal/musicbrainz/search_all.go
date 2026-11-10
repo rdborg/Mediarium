@@ -2,6 +2,7 @@ package musicbrainz
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -16,9 +17,15 @@ import (
 // looser one is skipped.
 const minStrictHits = 5
 
+// dottedLetters is an acronym written with dots, like S.T.A.Y. or R.E.M.
+var dottedLetters = regexp.MustCompile(`(?:\p{L}\.){2,}\p{L}?`)
+
 // queryWords are the words of a typed line that go into a search query:
-// letters and digits only, so nothing needs escaping.
+// letters and digits only, so nothing needs escaping. The music database
+// reads S.T.A.Y. as one word, so the dots of an acronym are dropped first
+// instead of leaving four one-letter words that match almost anything.
 func queryWords(s string) []string {
+	s = dottedLetters.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, ".", "") })
 	return strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 }
 

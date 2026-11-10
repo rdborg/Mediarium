@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
@@ -29,6 +31,69 @@ const maxMusicSearchesPerHunt = 25
 // albumQuery is what is searched for: "Artist Album".
 func albumQuery(artist music.Artist, album music.Album) string {
 	return artist.Name + " " + album.Title
+}
+
+// soulseekWords turns a name into the words Soulseek matches: letters and
+// digits only (so "AC/DC" is "AC DC" and "Don't" is "Don t"), no bracketed tail
+// such as "(Deluxe Edition)" or "[Remastered]".
+func soulseekWords(name string) string {
+	var b strings.Builder
+	depth := 0
+	for _, r := range name {
+		switch {
+		case r == '(' || r == '[':
+			depth++
+			b.WriteByte(' ')
+		case r == ')' || r == ']':
+			if depth > 0 {
+				depth--
+			}
+			b.WriteByte(' ')
+		case depth > 0:
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(r)
+		default:
+			b.WriteByte(' ')
+		}
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// soulseekQueries lists what to ask Soulseek for an album, from the most
+// exact to the widest: artist and title, then the title alone (a soundtrack
+// or a "Various Artists" album is shared under many artist names), then the
+// artist and the first words of a long title. Repeats are dropped.
+func soulseekQueries(artist music.Artist, album music.Album) []string {
+	name := soulseekWords(artist.Name)
+	if strings.EqualFold(name, "various artists") || strings.EqualFold(name, "various") {
+		name = ""
+	}
+	title := soulseekWords(album.Title)
+	if title == "" {
+		title = soulseekWords(strings.NewReplacer("(", " ", ")", " ", "[", " ", "]", " ").Replace(album.Title))
+	}
+	var out []string
+	add := func(q string) {
+		q = strings.TrimSpace(q)
+		if q == "" {
+			return
+		}
+		for _, have := range out {
+			if strings.EqualFold(have, q) {
+				return
+			}
+		}
+		out = append(out, q)
+	}
+	add(name + " " + title)
+	add(title)
+	if w := strings.Fields(title); len(w) > 3 {
+		add(name + " " + strings.Join(w[:3], " "))
+	}
+	if len(out) == 0 {
+		add(albumQuery(artist, album))
+	}
+	return out
 }
 
 // musicReleasePayload is one indexer result for an album.

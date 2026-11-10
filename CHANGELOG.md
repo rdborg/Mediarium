@@ -8,6 +8,18 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.4] - 2026-11-10
+
+### Changed
+- On a show page the per-season and per-episode buttons are now called **Choose a release**, like on movies and albums (they were called Search season and Search, and people did not find them).
+- Soulseek searches ask slskd for the cleaned words (no punctuation, no bracketed "Deluxe Edition" tail) and, when that finds nothing, ask again with fewer words, up to three tries. Before, `AC/DC` or a title with a bracket often found nothing in 2-3 seconds (#143, balkie31).
+
+### Fixed
+- Searching for a song written with dots, like S.T.A.Y., found unrelated songs. The dots of an acronym are now dropped before asking the music database (#143, SanketBaraiya).
+
+### Added
+- Usenet providers month by month. On **Settings > System > Statistics** a new card lists what each Usenet provider delivered in every calendar month (6, 12 or 24 months) with a total, so you can see whether a yearly plan or a block account is worth renewing. The counts are now kept for about two years instead of 90 days. Counting started with 4.0, so earlier months are empty. Script: `GET /api/stats/usenet-months` (#167, nexus4004).
+
 ## [4.0.3] - 2026-11-09
 
 ### Added

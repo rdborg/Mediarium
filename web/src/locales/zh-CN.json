@@ -8328,5 +8328,9 @@
   "{n} folders found": "找到 {n} 个文件夹",
   "Added for one song: {0} of {1} tracks are wanted, the rest are not imported.": "因一首歌而添加：想要 {1} 首曲目中的 {0} 首，其余不会导入。",
   "Part of the music search couldn't run right now, so some artists, albums or songs may be missing from this list.": "音乐搜索有一部分现在无法运行，所以这个列表里可能缺少一些艺人、专辑或歌曲。",
-  "Soulseek is not set up yet: {0} is missing.": "Soulseek 还没设置：缺少 {0}。"
+  "Soulseek is not set up yet: {0} is missing.": "Soulseek 还没设置：缺少 {0}。",
+  "Usenet providers, month by month": "Usenet 服务商，按月统计",
+  "Months shown": "显示的月数",
+  "Last {n} months": "最近 {n} 个月",
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "月份按 UTC 计算，保留约两年。统计从 4.0 版本开始，所以更早的月份是空的。"
 }

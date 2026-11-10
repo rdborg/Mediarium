@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, isAdmin, type IndexerStat, type ServerTraffic, type LibraryStats, type WatchStats, type WatchedStatTitle } from '../api'
+import { api, isAdmin, type IndexerStat, type ServerTraffic, type UsenetMonth, type LibraryStats, type WatchStats, type WatchedStatTitle } from '../api'
 import { useAuth } from '../AuthContext'
 import { formatBytes, timeAgo } from '../format'
 import KindGlyph from '../components/KindGlyph'
@@ -190,6 +190,7 @@ function IndexerStats() {
   return (
     <>
     {servers.length > 0 && <ServerTrafficStats days={data.days} servers={servers} />}
+    {servers.length > 0 && <UsenetMonthsStats servers={servers} />}
     {data.indexers.length > 0 && (
     <section className="card" style={{ marginTop: 16 }}>
       <h2><TipLabel help="indexers#how-each-indexer-is-doing">{plural(data.days, 'Indexers, last {n} day', 'Indexers, last {n} days')}</TipLabel></h2>
@@ -276,6 +277,57 @@ function ServerTrafficStats({ days, servers }: { days: number; servers: ServerTr
         </table>
       </div>
       <p className="field-hint">{t('What each server delivered to the built-in downloader, and the articles it did not have, which the next server was then asked for. Downloads that SABnzbd or NZBGet make are not counted here.')}</p>
+    </section>
+  )
+}
+
+// The same traffic month by month, for a provider that is paid by the year:
+// which months used how much, and the total over the whole range (#167).
+function UsenetMonthsStats({ servers }: { servers: ServerTraffic[] }) {
+  const [months, setMonths] = useState<UsenetMonth[] | null>(null)
+  const [count, setCount] = useState(12)
+  useEffect(() => {
+    api.usenetMonths(count).then((r) => setMonths(r.months)).catch(() => undefined)
+  }, [count])
+  if (!months) return null
+  const ids = servers.map((s) => s.id)
+  const cell = (m: UsenetMonth, id: number) => m.servers.find((x) => x.id === id)?.bytes ?? 0
+  const total = (id: number) => months.reduce((sum, m) => sum + cell(m, id), 0)
+  const label = (key: string) => new Date(`${key}-01T12:00:00Z`).toLocaleDateString(locale(), { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  return (
+    <section className="card" style={{ marginTop: 16 }}>
+      <h2 style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <TipLabel help="downloads#how-much-each-provider-delivered">{t('Usenet providers, month by month')}</TipLabel>
+        <select className="input" value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label={t('Months shown')} style={{ width: 'auto' }}>
+          {[6, 12, 24].map((n) => <option key={n} value={n}>{t('Last {n} months', { n })}</option>)}
+        </select>
+      </h2>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="indexer-stats" style={{ width: '100%' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left' }}>{t('Month')}</th>
+              {servers.map((s) => <th key={s.id} style={{ textAlign: 'right' }}>{s.name}</th>)}
+              {servers.length > 1 && <th style={{ textAlign: 'right' }}>{t('Total')}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {months.map((m) => (
+              <tr key={m.month}>
+                <td style={{ whiteSpace: 'nowrap' }}>{label(m.month)}</td>
+                {ids.map((id) => <td key={id} className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{cell(m, id) > 0 ? formatBytes(cell(m, id)) : '–'}</td>)}
+                {servers.length > 1 && <td className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{formatBytes(m.servers.reduce((a, x) => a + x.bytes, 0))}</td>}
+              </tr>
+            ))}
+            <tr>
+              <td><strong>{t('Total')}</strong></td>
+              {ids.map((id) => <td key={id} className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><strong>{formatBytes(total(id))}</strong></td>)}
+              {servers.length > 1 && <td className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><strong>{formatBytes(ids.reduce((a, id) => a + total(id), 0))}</strong></td>}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="field-hint">{t('Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.')}</p>
     </section>
   )
 }

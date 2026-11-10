@@ -70,3 +70,43 @@ func TestTrafficIsCountedPerServerAndSaved(t *testing.T) {
 		t.Errorf("old days were not pruned: %+v", pruned[0])
 	}
 }
+
+// The saved days add up per calendar month, oldest month first, and a month
+// before the asked-for one is left out (#167).
+func TestTrafficByMonthAddsUpDays(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "app.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	box, err := crypto.LoadOrCreateKey(filepath.Join(dir, "k.key"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewRepo(db, box)
+	sc, err := repo.Create(StoredClient{Name: "Fixture", Config: ClientConfig{Host: "news.example.test", Port: 563, Username: "u", Password: "p", Connections: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []struct {
+		day            string
+		bytes, art, ms int64
+	}{
+		{"2026-08-30", 100, 1, 0},
+		{"2026-09-02", 200, 2, 1},
+		{"2026-09-28", 300, 3, 0},
+		{"2026-10-15", 400, 4, 2},
+	} {
+		if _, err := db.Exec(`INSERT INTO usenet_server_stats (server_id, day, bytes, articles, missing) VALUES (?, ?, ?, ?, ?)`, sc.ID, d.day, d.bytes, d.art, d.ms); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := repo.TrafficByMonth(time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Month != "2026-09" || got[0].Bytes != 500 || got[0].Articles != 5 || got[0].Missing != 1 || got[1].Month != "2026-10" || got[1].Bytes != 400 {
+		t.Errorf("by month = %+v, want 2026-09 with 500 bytes then 2026-10 with 400", got)
+	}
+}

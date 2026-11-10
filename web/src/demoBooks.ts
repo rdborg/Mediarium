@@ -1,4 +1,4 @@
-// Demo mode for ebooks and audiobooks: public-domain classics with the same
+// Demo mode for ebooks and audiobooks: invented titles with the same
 // text-free artwork as the demo movies, so screenshots show no real covers.
 // Used by demo.ts; nothing here is saved anywhere.
 import type { Book, BookFound, BookProgress, BookTrack, BookWork } from './api'
@@ -30,35 +30,35 @@ interface Seed {
 }
 
 const SEEDS: Seed[] = [
-  { id: 1, key: 'OLD1W', title: 'Pride and Prejudice', author: 'Jane Austen', authorKey: 'OLD1A', year: 1813, ebook: 'downloaded', audio: 'downloaded', ebookFormat: 'epub', audioFormat: 'm4b' },
-  { id: 2, key: 'OLD2W', title: 'Moby-Dick', author: 'Herman Melville', authorKey: 'OLD2A', year: 1851, ebook: 'downloaded', audio: '', ebookFormat: 'epub' },
-  { id: 3, key: 'OLD3W', title: 'Frankenstein', author: 'Mary Shelley', authorKey: 'OLD3A', year: 1818, ebook: 'downloaded', audio: 'downloading', ebookFormat: 'epub' },
-  { id: 4, key: 'OLD4W', title: 'The Adventures of Sherlock Holmes', author: 'Arthur Conan Doyle', authorKey: 'OLD4A', year: 1892, ebook: '', audio: 'downloaded', audioFormat: 'mp3' },
-  { id: 5, key: 'OLD5W', title: 'Dracula', author: 'Bram Stoker', authorKey: 'OLD5A', year: 1897, ebook: 'missing', audio: 'missing' },
-  { id: 6, key: 'OLD6W', title: 'The Time Machine', author: 'H. G. Wells', authorKey: 'OLD6A', year: 1895, ebook: 'downloaded', audio: '', ebookFormat: 'azw3' },
-  { id: 7, key: 'OLD7W', title: 'Jane Eyre', author: 'Charlotte Brontë', authorKey: 'OLD7A', year: 1847, ebook: 'downloaded', audio: 'downloaded', ebookFormat: 'epub', audioFormat: 'm4b' },
-  { id: 8, key: 'OLD8W', title: 'Treasure Island', author: 'Robert Louis Stevenson', authorKey: 'OLD8A', year: 1883, ebook: '', audio: 'missing' },
-  { id: 9, key: 'OLD9W', title: 'Little Women', author: 'Louisa May Alcott', authorKey: 'OLD9A', year: 1868, ebook: 'downloaded', audio: '', ebookFormat: 'pdf' },
-  { id: 10, key: 'OLD10W', title: 'The War of the Worlds', author: 'H. G. Wells', authorKey: 'OLD6A', year: 1898, ebook: 'missing', audio: 'downloaded', audioFormat: 'mp3' },
+  { id: 1, key: 'OLD1W', title: 'The Salt Orchard', author: 'Maren Vollquist', authorKey: 'OLD1A', year: 2011, ebook: 'downloaded', audio: 'downloaded', ebookFormat: 'epub', audioFormat: 'm4b' },
+  { id: 2, key: 'OLD2W', title: 'The Long Tide Ledger', author: 'Tobias Renwick', authorKey: 'OLD2A', year: 2016, ebook: 'downloaded', audio: '', ebookFormat: 'epub' },
+  { id: 3, key: 'OLD3W', title: 'Lantern Season', author: 'Ilse Hartwell', authorKey: 'OLD3A', year: 2009, ebook: 'downloaded', audio: 'downloading', ebookFormat: 'epub' },
+  { id: 4, key: 'OLD4W', title: 'The Ninth Clockmaker', author: 'Corin Ashdown', authorKey: 'OLD4A', year: 2019, ebook: '', audio: 'downloaded', audioFormat: 'mp3' },
+  { id: 5, key: 'OLD5W', title: 'A Quiet House in Verrow', author: 'Nadia Pellerin', authorKey: 'OLD5A', year: 2021, ebook: 'missing', audio: 'missing' },
+  { id: 6, key: 'OLD6W', title: 'The Glass Almanac', author: 'Edmund Farrow', authorKey: 'OLD6A', year: 2013, ebook: 'downloaded', audio: '', ebookFormat: 'azw3' },
+  { id: 7, key: 'OLD7W', title: 'Ravens of Linden Street', author: 'Rosalind Tarn', authorKey: 'OLD7A', year: 2017, ebook: 'downloaded', audio: 'downloaded', ebookFormat: 'epub', audioFormat: 'm4b' },
+  { id: 8, key: 'OLD8W', title: 'The Map Beneath the Stairs', author: 'Garrick Lowell', authorKey: 'OLD8A', year: 2008, ebook: '', audio: 'missing' },
+  { id: 9, key: 'OLD9W', title: 'Four Winters on Marlow Lane', author: 'Hester Quill', authorKey: 'OLD9A', year: 2015, ebook: 'downloaded', audio: '', ebookFormat: 'pdf' },
+  { id: 10, key: 'OLD10W', title: 'The Sky Over Harrowgate', author: 'Edmund Farrow', authorKey: 'OLD6A', year: 2012, ebook: 'missing', audio: 'downloaded', audioFormat: 'mp3' },
 ]
 
 const POOL: Omit<Seed, 'id' | 'ebook' | 'audio'>[] = [
-  { key: 'OLP1W', title: 'Wuthering Heights', author: 'Emily Brontë', authorKey: 'OLP1A', year: 1847, hasEbook: true, hasAudio: true },
-  { key: 'OLP2W', title: 'Great Expectations', author: 'Charles Dickens', authorKey: 'OLP2A', year: 1861, hasEbook: true, hasAudio: true },
-  { key: 'OLP3W', title: 'The Picture of Dorian Gray', author: 'Oscar Wilde', authorKey: 'OLP3A', year: 1890, hasEbook: true, hasAudio: false },
-  { key: 'OLP4W', title: 'A Tale of Two Cities', author: 'Charles Dickens', authorKey: 'OLP2A', year: 1859, hasEbook: true, hasAudio: true },
-  { key: 'OLP5W', title: 'The Call of the Wild', author: 'Jack London', authorKey: 'OLP5A', year: 1903, hasEbook: false, hasAudio: true },
-  { key: 'OLP6W', title: 'Alice’s Adventures in Wonderland', author: 'Lewis Carroll', authorKey: 'OLP6A', year: 1865, hasEbook: true, hasAudio: true },
-  { key: 'OLP7W', title: 'The Invisible Man', author: 'H. G. Wells', authorKey: 'OLD6A', year: 1897, hasEbook: true, hasAudio: false },
-  { key: 'OLP8W', title: 'Twenty Thousand Leagues Under the Seas', author: 'Jules Verne', authorKey: 'OLP8A', year: 1870, hasEbook: true, hasAudio: true },
-  { key: 'OLP9W', title: 'Around the World in Eighty Days', author: 'Jules Verne', authorKey: 'OLP8A', year: 1872, hasEbook: false, hasAudio: true },
-  { key: 'OLP10W', title: 'The Hound of the Baskervilles', author: 'Arthur Conan Doyle', authorKey: 'OLD4A', year: 1902, hasEbook: true, hasAudio: true },
-  { key: 'OLP11W', title: 'Emma', author: 'Jane Austen', authorKey: 'OLD1A', year: 1815, hasEbook: true, hasAudio: true },
-  { key: 'OLP12W', title: 'Sense and Sensibility', author: 'Jane Austen', authorKey: 'OLD1A', year: 1811, hasEbook: true, hasAudio: false },
-  { key: 'OLP13W', title: 'Heart of Darkness', author: 'Joseph Conrad', authorKey: 'OLP13A', year: 1899, hasEbook: true, hasAudio: true },
-  { key: 'OLP14W', title: 'The Jungle Book', author: 'Rudyard Kipling', authorKey: 'OLP14A', year: 1894, hasEbook: false, hasAudio: true },
-  { key: 'OLP15W', title: 'Persuasion', author: 'Jane Austen', authorKey: 'OLD1A', year: 1817, hasEbook: true, hasAudio: true },
-  { key: 'OLP16W', title: 'Anne of Green Gables', author: 'L. M. Montgomery', authorKey: 'OLP16A', year: 1908, hasEbook: true, hasAudio: true },
+  { key: 'OLP1W', title: 'Cold Fields of Ashmoor', author: 'Odalys Brandt', authorKey: 'OLP1A', year: 2014, hasEbook: true, hasAudio: true },
+  { key: 'OLP2W', title: 'An Inheritance of Salt', author: 'Wendell Marsh', authorKey: 'OLP2A', year: 2018, hasEbook: true, hasAudio: true },
+  { key: 'OLP3W', title: 'The Portrait Dealer', author: 'Fenwick Dale', authorKey: 'OLP3A', year: 2020, hasEbook: true, hasAudio: false },
+  { key: 'OLP4W', title: 'Two Harbours', author: 'Wendell Marsh', authorKey: 'OLP2A', year: 2010, hasEbook: true, hasAudio: true },
+  { key: 'OLP5W', title: 'North of the Last Road', author: 'Jory Stanhope', authorKey: 'OLP5A', year: 2022, hasEbook: false, hasAudio: true },
+  { key: 'OLP6W', title: 'The Door in the Hedge Maze', author: 'Lucan Merrow', authorKey: 'OLP6A', year: 2007, hasEbook: true, hasAudio: true },
+  { key: 'OLP7W', title: 'The Unseen Cartographer', author: 'Edmund Farrow', authorKey: 'OLD6A', year: 2023, hasEbook: true, hasAudio: false },
+  { key: 'OLP8W', title: 'Nine Fathoms Down', author: 'Basil Kettering', authorKey: 'OLP8A', year: 2006, hasEbook: true, hasAudio: true },
+  { key: 'OLP9W', title: 'Eighty Stops to Anywhere', author: 'Basil Kettering', authorKey: 'OLP8A', year: 2005, hasEbook: false, hasAudio: true },
+  { key: 'OLP10W', title: 'The Moorland Clock', author: 'Corin Ashdown', authorKey: 'OLD4A', year: 2004, hasEbook: true, hasAudio: true },
+  { key: 'OLP11W', title: 'Tessaly Vane', author: 'Maren Vollquist', authorKey: 'OLD1A', year: 2003, hasEbook: true, hasAudio: true },
+  { key: 'OLP12W', title: 'Letters from the Lower Mill', author: 'Maren Vollquist', authorKey: 'OLD1A', year: 2002, hasEbook: true, hasAudio: false },
+  { key: 'OLP13W', title: 'Upriver at Dusk', author: 'Anselm Roake', authorKey: 'OLP13A', year: 2001, hasEbook: true, hasAudio: true },
+  { key: 'OLP14W', title: 'The Fox Who Kept Time', author: 'Perrin Oake', authorKey: 'OLP14A', year: 2000, hasEbook: false, hasAudio: true },
+  { key: 'OLP15W', title: 'The Second Summer', author: 'Maren Vollquist', authorKey: 'OLD1A', year: 1999, hasEbook: true, hasAudio: true },
+  { key: 'OLP16W', title: 'The Girl at Pine Hollow', author: 'Marguerite Soames', authorKey: 'OLP16A', year: 1998, hasEbook: true, hasAudio: true },
 ]
 
 const ago = (min: number) => new Date(Date.now() - min * 60000).toISOString()

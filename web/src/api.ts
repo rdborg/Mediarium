@@ -929,6 +929,12 @@ export interface ServerTraffic {
   missing: number // articles the server didn't have
 }
 
+// What each Usenet server delivered in one calendar month (Statistics).
+export interface UsenetMonth {
+  month: string // "2026-11"
+  servers: ServerTraffic[]
+}
+
 export interface IndexerDefinitionSetting {
   name: string
   label?: string
@@ -3961,6 +3967,7 @@ export const api = {
   cloudBackupList: () => get<CloudCopy[]>('/system/backups/cloud/list'),
   setIndexerPriority: (id: number, priority: number) => put<null>(`/indexers/${id}/priority`, { priority }),
   resumeIndexer: (id: number) => post<null>(`/indexers/${id}/resume`),
+  usenetMonths: (months = 12) => get<{ months: UsenetMonth[] }>(`/stats/usenet-months?months=${months}`),
   indexerStats: () => get<{ days: number; indexers: IndexerStat[]; servers?: ServerTraffic[] }>('/stats/indexers'),
   delayProfile: () => get<DelayProfile>('/search/delay'),
   putDelayProfile: (p: DelayProfile) => put<DelayProfile>('/search/delay', p),

@@ -134,6 +134,38 @@ func (r *Repo) TrafficSince(since time.Time) ([]ServerTraffic, error) {
 	return out, rows.Err()
 }
 
+// TrafficKeepDays is how long a server's daily traffic is kept: a little more
+// than two years, so a yearly plan can be looked at month by month (#167).
+const TrafficKeepDays = 800
+
+// MonthTraffic is what one server delivered in one calendar month (UTC).
+type MonthTraffic struct {
+	Month    string // "2026-11"
+	ServerID int64
+	Traffic
+}
+
+// TrafficByMonth adds the saved days up per month and server, from the month
+// of since onwards, oldest month first.
+func (r *Repo) TrafficByMonth(since time.Time) ([]MonthTraffic, error) {
+	rows, err := r.db.Query(`SELECT substr(s.day, 1, 7), s.server_id, SUM(s.bytes), SUM(s.articles), SUM(s.missing)
+		FROM usenet_server_stats s JOIN download_clients c ON c.id = s.server_id
+		WHERE s.day >= ? GROUP BY substr(s.day, 1, 7), s.server_id ORDER BY 1, 2`, since.UTC().Format("2006-01")+"-01")
+	if err != nil {
+		return nil, fmt.Errorf("read usenet server traffic by month: %w", err)
+	}
+	defer rows.Close()
+	var out []MonthTraffic
+	for rows.Next() {
+		var t MonthTraffic
+		if err := rows.Scan(&t.Month, &t.ServerID, &t.Bytes, &t.Articles, &t.Missing); err != nil {
+			return nil, fmt.Errorf("read usenet server traffic by month: %w", err)
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 // PruneTraffic forgets days older than keepDays.
 func (r *Repo) PruneTraffic(now time.Time, keepDays int) {
 	cut := now.UTC().AddDate(0, 0, -keepDays).Format("2006-01-02")

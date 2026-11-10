@@ -8,6 +8,13 @@
 <p align="center"><b>Your movies, TV, music and books, from search to library, in one app.</b></p>
 
 <p align="center">
+  <a href="https://github.com/rdborg/Mediarium/releases/latest"><img src="https://img.shields.io/github/v/release/rdborg/Mediarium?label=release&color=2dd4bf" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-AGPL--3.0-f5a524" alt="Licence: AGPL-3.0" /></a>
+  <img src="https://img.shields.io/badge/runs%20on-Docker%20(amd64%20%2B%20arm64)-38bdf8" alt="Runs on Docker, amd64 and arm64" />
+  <img src="https://img.shields.io/badge/languages-12-e879f9" alt="12 app languages" />
+</p>
+
+<p align="center">
   <a href="docs/INSTALL.md">Install</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="docs/FEATURES.md">Features</a> ·
@@ -26,20 +33,26 @@ It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Baza
 - **Movies and TV** (anime, daily shows and specials included), plus **music**, **ebooks** and **audiobooks** if you switch them on.
 - **Mediarium Books**, a built-in reader and audiobook player that opens as an app of its own and remembers your place on every device. It reads Kindle books too, jumps between audiobook chapters, and follows book series.
 - **Tags** such as Kids or 4K, which also show up as collections in Plex, Jellyfin and Emby.
-- **Discover and search** everything from one place, across all your indexers.
-- **Built-in downloaders** for Usenet and torrents, with repair and unpacking.
+- **Discover and search** everything from one place, across all your indexers. Music has one box for artists, albums and songs, and Soulseek can be added through your own slskd.
+- **Search for the complete series** on a show that has ended: season packs first, then one pack of the whole series.
+- **Ratings** from IMDb, Rotten Tomatoes and Metacritic on film and show pages, with your own free OMDb key.
+- **Built-in downloaders** for Usenet and torrents, with repair and unpacking. Each torrent indexer can send its torrents to your client, to debrid or to the built-in one.
+- **Works with your phone apps.** Mediarium can answer like SABnzbd and qBittorrent, so nzb360 and similar apps show speed, time left and the queue (off until you switch it on), and Radarr and Sonarr apps such as LunaSea and Ruddarr connect as before.
 - **Built-in VPN** for torrents (WireGuard), with no special container permissions.
 - **Quality profiles** with upgrades and fallbacks, automatic searching and retries.
 - **Family accounts with permissions and requests**: choose what each person can do, and anyone who can't add titles sends a request for you to approve.
 - **Subtitles** picked to match your exact file, with a timing fix when one is out of sync.
 - **What's been watched**, read from Plex, Jellyfin and Emby, with watch statistics and optional cleanup rules (all off until you switch them on).
+- **Twelve app languages**, including Simplified Chinese, and a layout that fits phones, foldable phones and tablets, with a bottom bar on a phone.
+- **Statistics** per Usenet provider and indexer, a **Long wanted** list for what is still missing long after release, a calendar with a month view, and import lists that can read an RSS feed.
+- **Signed releases** with a build attestation and a list of everything the program is built from (SBOM).
 - Notifications, media-server refresh (Plex, Jellyfin, Emby, Audiobookshelf, Kavita), download hours, backups, and your own script after each import.
 - **Move over from Radarr, Sonarr, Prowlarr, SABnzbd** and eight other apps without redoing your setup. They are only read, never changed.
 - Runs on **Synology, Unraid, QNAP, any Linux server** and 64-bit Raspberry Pi.
 
 **Privacy:** there are no ads, and Mediarium sends nothing about you or your library anywhere. It asks once whether you want to share a small anonymous message a day (a random ID, the version and rough device sizes) so the project can see which devices are popular: it is off until you say Yes, the numbers are public at [mediarium.app/stats](https://mediarium.app/stats/), and the code is open. [What exactly is sent](docs/usage-stats.md).
 
-Mediarium is new. Movies and TV work end to end, and so do music, ebooks and audiobooks once you switch them on. It's used daily, but expect some rough edges. [FEATURES.md](docs/FEATURES.md) says what works and what doesn't yet.
+Mediarium 4.0 is out. Movies and TV work end to end, and so do music, ebooks and audiobooks once you switch them on. It's used daily, but expect some rough edges. [FEATURES.md](docs/FEATURES.md) says what works and what doesn't yet.
 
 ## Screenshots
 
@@ -55,10 +68,14 @@ Mediarium is new. Movies and TV work end to end, and so do music, ebooks and aud
 | **Books**: trending and classic books, each marked eBook, Audiobook or both | **Mediarium Books**: your shelf, with the reader and the audiobook player |
 | ![The Media types page with cards for movies, TV shows, music, audiobooks and ebooks](docs/images/settings-modules.png) | ![The Quality page with the quality profiles table](docs/images/settings-quality.png) |
 | **Media types**: switch movies, TV, music, ebooks and audiobooks on or off | **Quality**: profiles and the fallback order |
+| ![One music search with an artist, albums and songs in one list](docs/images/music-search.png) | ![Statistics with the Usenet providers and a month by month table](docs/images/statistics.png) |
+| **Music search**: artists, albums and songs in one list, each marked with what it is | **Statistics**: what each Usenet provider delivered, month by month |
+| ![Other apps: connect Overseerr, nzb360 and other apps](docs/images/other-apps.png) | |
+| **Other apps**: let Overseerr, Homepage and phone apps such as nzb360 talk to Mediarium | |
 
 <p align="center"><img src="docs/images/phone-dashboard.png" alt="Mediarium on a phone" width="260" /></p>
 
-> **About these screenshots.** They were taken in demo mode, so every movie, show, artist, poster and cover in them is made up (the books are old public-domain classics). That's on purpose: the pictures don't use anyone else's titles or artwork. In your own copy, Mediarium shows the real posters, artwork and details for whatever you search for and add.
+> **About these screenshots.** They were taken in demo mode, so every movie, show, artist, book, poster and cover in them is made up. That's on purpose: the pictures don't use anyone else's titles or artwork. In your own copy, Mediarium shows the real posters, artwork and details for whatever you search for and add.
 
 ## Install with Docker
 

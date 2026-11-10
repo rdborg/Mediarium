@@ -8328,5 +8328,9 @@
   "{n} folders found": "{n} mappen gevonden",
   "Added for one song: {0} of {1} tracks are wanted, the rest are not imported.": "Toegevoegd voor één nummer: {0} van {1} tracks zijn gewenst, de rest wordt niet geïmporteerd.",
   "Part of the music search couldn't run right now, so some artists, albums or songs may be missing from this list.": "Een deel van de muziekzoekopdracht kon nu niet draaien, dus er ontbreken misschien artiesten, albums of nummers in deze lijst.",
-  "Soulseek is not set up yet: {0} is missing.": "Soulseek is nog niet ingesteld: {0} ontbreekt."
+  "Soulseek is not set up yet: {0} is missing.": "Soulseek is nog niet ingesteld: {0} ontbreekt.",
+  "Usenet providers, month by month": "Usenet-providers, maand voor maand",
+  "Months shown": "Getoonde maanden",
+  "Last {n} months": "Laatste {n} maanden",
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Maanden worden in UTC geteld en ongeveer twee jaar bewaard. Het tellen begon met versie 4.0, eerdere maanden zijn dus leeg."
 }

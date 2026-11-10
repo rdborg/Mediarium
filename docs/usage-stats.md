@@ -17,7 +17,7 @@ One message a day, at most. It is this and nothing else (the code is [`internal/
 | Field | What it holds |
 |---|---|
 | `id` | A random 32-character number made on this install when you say Yes. It is not made from anything about you or the machine. It lets one install count once. |
-| `version` | The Mediarium version, such as `3.0.0`. |
+| `version` | The Mediarium version, such as `4.0.3`. |
 | `arch`, `docker` | `amd64`, `arm64` or `other`, and whether it runs in a container. |
 | `cores`, `memory` | Bands, such as `3-4` cores and `4-8 GB` of memory, never exact figures. |
 | `age` | How long the install has existed, as a band such as `1-3 months`. |

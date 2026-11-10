@@ -8550,5 +8550,9 @@
   "Part of the music search couldn't run right now, so some artists, albums or songs may be missing from this list.": "Часть поиска музыки сейчас не сработала, поэтому в этом списке могут не хватать исполнителей, альбомов или песен.",
   "Soulseek is not set up yet: {0} is missing.": "Soulseek ещё не настроен: не хватает {0}.",
   "Searched {n} indexers and Soulseek|few": "Опрошено {n} индексатора и Soulseek",
-  "{n} folders found|few": "Найдено {n} папки"
+  "{n} folders found|few": "Найдено {n} папки",
+  "Usenet providers, month by month": "Провайдеры Usenet по месяцам",
+  "Months shown": "Показано месяцев",
+  "Last {n} months": "Последние месяцы: {n}",
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Месяцы считаются по UTC и хранятся около двух лет. Подсчёт начался с версии 4.0, поэтому более ранние месяцы пустые."
 }

@@ -2,7 +2,7 @@
 
 A plain comparison of what Mediarium does **today** against the apps it can replace or sit beside, written from the source code.
 
-- **Snapshot:** 2026-10-11, Mediarium 3.0.0 (database migrations up to `0170`; see the [changelog](../CHANGELOG.md)). Read every "No" as "not found when this was written". If it matters to you, look in `internal/` and `web/src/pages`.
+- **Snapshot:** 2026-10-11, Mediarium 3.0.0 (database migrations up to `0170`; see the [changelog](../CHANGELOG.md)). What came after it is in [section 6](#6-added-since-the-snapshot). Read every "No" as "not found when this was written". If it matters to you, look in `internal/` and `web/src/pages`.
 - **How each row was judged:** Yes = implemented and reachable in the UI or API. Partial = something real exists but it is narrower than the reference app. No = not found. The evidence is a package, file, endpoint or guide you can open.
 - **Reference apps** are described from general knowledge of those projects and may be out of date for their newest versions. Uncertain claims are worded loosely or left out.
 - Abbreviations: **Rad** Radarr, **Son** Sonarr, **Lid** Lidarr, **Pro** Prowlarr, **Sab** SABnzbd, **qB** qBittorrent, **Baz** Bazarr.
@@ -308,3 +308,21 @@ Each of these could become a module of its own. The projects named are for ideas
 - **Tags and folders:** tags keep titles apart on your media server (each tag becomes a collection); extra library folders keep them apart on disk. You can use either, or both.
 - **Optional extras are off until you turn them on:** subtitles, music, ebooks and audiobooks, delay profiles, size limits, NFO files, cleanup rules, what's been watched, single sign-on, directory sign-in, IRC announce and import lists all start switched off.
 - **Trailers:** the trailer behind a title page comes from YouTube, so YouTube sees the visit. An administrator can switch it off for everyone.
+
+## 6. Added since the snapshot
+
+The matrix above was written for 3.0. These came in 3.1 to 4.0.3, in the words of the [changelog](../CHANGELOG.md), which has the full list.
+
+- **Simplified Chinese** is the twelfth screen language ([languages.md](./languages.md)).
+- **Search for the complete series** on a show's page: season packs first, then one pack of the whole series.
+- **Phone apps for downloads:** Mediarium answers like SABnzbd and qBittorrent, off until you switch it on ([download-apps.md](./download-apps.md)).
+- **Phones, foldables and tablets:** a bottom bar on a phone, a layout for foldable and dual-screen phones ([foldable-phones.md](./foldable-phones.md)), and a list-and-detail Library on a tablet.
+- **Music:** one search for artists, albums and songs, adding just one song, and Soulseek through your own slskd ([music.md](./music.md)).
+- **Where torrents go**, chosen per torrent indexer; a download client and a debrid service can both be set up.
+- **Link Prowlarr**, and import lists that read an RSS or Atom feed.
+- **Statistics** per Usenet provider and indexer, and a **Long wanted** list.
+- **Ratings** from IMDb, Rotten Tomatoes and Metacritic with your own OMDb key; a **calendar month view** with a cinema and digital filter.
+- **Requests** for a single episode, removal requests, and an age limit per account ([accounts.md](./accounts.md)).
+- **Anime library**, **Library lifecycle** ([lifecycle.md](./lifecycle.md)) and the **Channel archiver** ([archiver.md](./archiver.md)), each off until you switch it on.
+- **Settings file** with a check first ([config-as-code.md](./config-as-code.md)), going back after an update, and passkeys.
+- **Signed releases:** a build attestation, cosign signatures and an SBOM ([RELEASING.md](./RELEASING.md)).

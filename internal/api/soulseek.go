@@ -36,7 +36,10 @@ import (
 
 const (
 	soulseekSearchWait = 30 * time.Second
-	soulseekPoll       = 5 * time.Second
+	// soulseekQueryWait is how long one ask to slskd may take; an empty answer
+	// is asked again in a wider form, so each try gets less than the whole.
+	soulseekQueryWait = 20 * time.Second
+	soulseekPoll      = 5 * time.Second
 	// soulseekQueuedFor is how long a download may wait in the other user's
 	// queue before another release is tried. Soulseek queues can be long.
 	soulseekQueuedFor = 6 * time.Hour
@@ -262,7 +265,7 @@ func (s *Server) soulseekAlbumRun(ctx context.Context, artist music.Artist, albu
 		return skip("not_set_up", fmt.Sprintf("Soulseek is not set up yet: %s is missing.", strings.Join(m, " and ")))
 	}
 	c := slskd.New(cfg.URL, cfg.Key)
-	ctx, cancel := context.WithTimeout(ctx, soulseekSearchWait+15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*soulseekQueryWait+15*time.Second)
 	defer cancel()
 	fail := func(code, reason, detail string) soulseekRun {
 		line.Ms = time.Since(start).Milliseconds()
@@ -285,13 +288,29 @@ func (s *Server) soulseekAlbumRun(ctx context.Context, artist music.Artist, albu
 		code, reason, detail := soulseekFailure(err, cfg.Key)
 		return fail(code, reason, detail)
 	}
-	query := albumQuery(artist, album)
-	resps, err := c.Search(ctx, query, soulseekSearchWait)
-	if err != nil {
-		code, reason, detail := soulseekFailure(err, cfg.Key)
-		return fail(code, reason, detail)
+	// Soulseek matches whole words, so the exact title with its punctuation or
+	// an "(Original Motion Picture Soundtrack)" tail finds nothing. The first
+	// try is the cleaned artist and title; a search that comes back empty is
+	// tried again with fewer words, up to three asks (#143, balkie31).
+	var (
+		query   string
+		resps   []slskd.Response
+		out     []musicReleasePayload
+		folders int
+	)
+	for i, q := range soulseekQueries(artist, album) {
+		query = q
+		var err error
+		resps, err = c.Search(ctx, q, soulseekQueryWait)
+		if err != nil {
+			code, reason, detail := soulseekFailure(err, cfg.Key)
+			return fail(code, reason, detail)
+		}
+		out, folders = s.soulseekReleases(resps, artist, album, profile)
+		if len(out) > 0 || i >= 2 {
+			break
+		}
 	}
-	out, folders := s.soulseekReleases(resps, artist, album, profile)
 	line.Ms = time.Since(start).Milliseconds()
 	line.Count = len(out)
 	line.Status = searchEmpty

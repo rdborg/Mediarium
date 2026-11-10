@@ -465,17 +465,17 @@ That downloads the newest image and restarts Mediarium with it. Your settings an
 
   | Tag | Moves when |
   |---|---|
-  | `ghcr.io/rdborg/mediarium:3.0.0` (`:3.0.0-full`) | never |
-  | `ghcr.io/rdborg/mediarium:3.0` (`:3.0-full`) | a bug-fix release of 3.0 comes out (3.0.1, 3.0.2...) |
+  | `ghcr.io/rdborg/mediarium:4.0.3` (`:4.0.3-full`) | never |
+  | `ghcr.io/rdborg/mediarium:4.0` (`:4.0-full`) | a bug-fix release of 4.0 comes out (4.0.4, 4.0.5...) |
   | `ghcr.io/rdborg/mediarium:latest` (`:latest-full`) | any new release |
 
-  A pre-release (for example `3.1.0-beta.1`) only gets its exact tag. What the numbers mean: [RELEASING.md](./RELEASING.md#what-the-version-numbers-mean).
+  A pre-release (for example `4.1.0-beta.1`) only gets its exact tag. What the numbers mean: [RELEASING.md](./RELEASING.md#what-the-version-numbers-mean).
 
 ### Knowing when there is a new version
 
 Once a day Mediarium asks GitHub for the newest release (the first time about two minutes after it starts, and again in an hour after a failed try). If yours is older, administrators see a card on the dashboard and in the **Updates** box under **Settings > General**. It shows what is new and the steps for your kind of install (Synology Container Manager, Unraid or Docker Compose, plus a note for the `-full` image; a program you run yourself gets its own steps). The card has **Hide until the next version**. If a [notification](./notifications.md) target has **New version** ticked, you also get one message per new version. A pre-release is only offered to someone already running one.
 
-- **What it sends:** one plain web request to `api.github.com` with the program name and version (`Mediarium/3.0.0`) and nothing else: no account, no library, no settings. GitHub sees your address, as any website does.
+- **What it sends:** one plain web request to `api.github.com` with the program name and version (`Mediarium/4.0.3`) and nothing else: no account, no library, no settings. GitHub sees your address, as any website does.
 - **Turning it off:** untick **Look for new versions once a day** in the Updates box (stored as `updates.check`). Then Mediarium never contacts GitHub by itself. **Check now** still works when you press it.
 - If GitHub cannot be reached or is limiting requests, the card says "Couldn't check just now." with the reason (for example that GitHub is limiting requests, or that the address could not be found), and Mediarium tries again later. A failed check (other than one held back by GitHub's limit) is also listed under Settings > System > Logs and errors. Nothing else is affected.
 

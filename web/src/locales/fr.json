@@ -8328,5 +8328,9 @@
   "{n} folders found": "{n} dossiers trouvés",
   "Added for one song: {0} of {1} tracks are wanted, the rest are not imported.": "Ajouté pour un seul titre : {0} piste(s) sur {1} souhaitée(s), les autres ne sont pas importées.",
   "Part of the music search couldn't run right now, so some artists, albums or songs may be missing from this list.": "Une partie de la recherche de musique n'a pas pu s'exécuter pour le moment, donc il peut manquer des artistes, albums ou titres dans cette liste.",
-  "Soulseek is not set up yet: {0} is missing.": "Soulseek n'est pas encore configuré : {0} manque."
+  "Soulseek is not set up yet: {0} is missing.": "Soulseek n'est pas encore configuré : {0} manque.",
+  "Usenet providers, month by month": "Fournisseurs Usenet, mois par mois",
+  "Months shown": "Mois affichés",
+  "Last {n} months": "{n} derniers mois",
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Les mois sont comptés en UTC et gardés environ deux ans. Le comptage a commencé avec la version 4.0, les mois précédents sont donc vides."
 }

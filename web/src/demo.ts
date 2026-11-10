@@ -13,6 +13,7 @@ import type {
   Episode,
   Movie,
   MovieDetail,
+  MusicHit,
   PersonCredit,
   PersonPage,
   QueueItem,
@@ -108,7 +109,7 @@ const demoIndexers = Array.from({ length: 15 }, (_, n) => {
   const torrent = n % 3 === 1
   return {
     id: 100 + n,
-    name: ['NZBgeek', 'DrunkenSlug', 'NZBFinder', 'Tabula Rasa', 'altHUB', 'NinjaCentral', 'Abnzb', 'OZnzb', 'The Pirate Bay', '1337x', 'TorrentGalaxy', 'YTS', 'Nyaa', 'EZTV', 'LimeTorrents'][n],
+    name: ['Harbour NZB', 'Slate Index', 'Copperline', 'Fathom', 'Northgate', 'Lanternfeed', 'Brightwater', 'Foxglove', 'Marlow Index', 'Tidepool', 'Quillfeed', 'Redwood', 'Saltmarsh', 'Orchard NZB', 'Stonebridge'][n],
     definitionId: '',
     baseUrl: torrent ? `https://torznab.example.org/api/v2.0/indexers/site-${n}/results/torznab/` : `https://api.indexer-${n}.example.com`,
     protocol: torrent ? ('torrent' as const) : ('usenet' as const),
@@ -238,11 +239,11 @@ const calendar: CalendarEntry[] = [
   { kind: 'episode', id: 4, seriesId: 101, season: 3, episode: 1, title: 'The Clean Floor', subtitle: 'S03E01 · Season premiere', releaseDate: day(5), status: 'missing', posterUrl: poster(101) },
   { kind: 'album', id: 21, albumId: 22, artistId: 2, title: 'Mira Calloway — Slow Weather', subtitle: 'Album', releaseDate: day(5), status: 'missing', posterUrl: poster(221) },
   { kind: 'episode', id: 10, seriesId: 106, season: 3, episode: 2, title: 'Glass Orchard', subtitle: 'S03E02 · Root Cellar', releaseDate: day(5), status: 'missing', posterUrl: poster(106) },
-  { kind: 'book', id: 31, bookId: 8, title: 'Robert Louis Stevenson — Treasure Island', subtitle: 'Audiobook', releaseDate: day(5), status: 'missing' },
+  { kind: 'book', id: 31, bookId: 8, title: 'Garrick Lowell — The Map Beneath the Stairs', subtitle: 'Audiobook', releaseDate: day(5), status: 'missing' },
   { kind: 'movie', id: 5, movieId: 9, tmdbId: 9009, title: 'Night Warden', releaseDate: day(6), status: 'missing', posterUrl: poster(9) },
   { kind: 'episode', id: 6, seriesId: 105, season: 4, episode: 2, title: 'Paper Ghosts', subtitle: 'S04E02 · Cold Desk', releaseDate: day(8), status: 'missing' },
   { kind: 'episode', id: 7, seriesId: 106, season: 3, episode: 1, title: 'Glass Orchard', subtitle: 'S03E01 · New chapter', releaseDate: day(12), status: 'missing', posterUrl: poster(106) },
-  { kind: 'book', id: 32, bookId: 5, title: 'Bram Stoker — Dracula', subtitle: 'Ebook and audiobook', releaseDate: day(15), status: 'missing' },
+  { kind: 'book', id: 32, bookId: 5, title: 'Nadia Pellerin — A Quiet House in Verrow', subtitle: 'Ebook and audiobook', releaseDate: day(15), status: 'missing' },
   { kind: 'episode', id: 11, seriesId: 102, season: 3, episode: 8, title: 'Salt & Static', subtitle: 'S03E08 · Back of House', releaseDate: day(-1), status: 'downloading', posterUrl: poster(102) },
   { kind: 'movie', id: 8, movieId: 8, tmdbId: 9008, title: 'The Quiet Signal', releaseDate: day(-2), status: 'downloaded', posterUrl: poster(8) },
   { kind: 'episode', id: 9, seriesId: 103, season: 2, episode: 1, title: 'The Cartographer’s Daughter', subtitle: 'S02E01 · Return', releaseDate: day(-4), status: 'downloaded', posterUrl: poster(103) },
@@ -321,15 +322,15 @@ function seriesDetail(id: number): SeriesDetail | null {
 }
 
 const DEMO_CAST = [
-  { id: 9001, name: 'Actor One', character: 'Lead' },
-  { id: 9002, name: 'Actor Two', character: 'Support' },
-  { id: 9003, name: 'Actor Three', character: 'Villain' },
-  { id: 9004, name: 'Actor Four', character: 'Friend' },
+  { id: 9001, name: 'Ines Marlow', character: 'Lead' },
+  { id: 9002, name: 'Davin Okoro', character: 'Support' },
+  { id: 9003, name: 'Petra Lindqvist', character: 'Villain' },
+  { id: 9004, name: 'Tomas Ellery', character: 'Friend' },
 ]
 
 // A made-up person with an acting career and a few titles directed.
 const demoPerson = (id: number): PersonPage => {
-  const name = DEMO_CAST.find((c) => c.id === id)?.name ?? (id === 9101 ? 'Director One' : id === 9102 ? 'Creator One' : 'Actor One')
+  const name = DEMO_CAST.find((c) => c.id === id)?.name ?? (id === 9101 ? 'Noor Hadley' : id === 9102 ? 'Wren Castellane' : 'Ines Marlow')
   const movies = discoverPool(id % 5, false).map((m, i): PersonCredit => ({ ...m, roles: i % 3 === 2 ? ['directing'] : ['acting'], character: i % 3 === 2 ? undefined : 'Lead' }))
   const shows = discoverPool(id % 5, true).slice(0, 4).map((m): PersonCredit => ({ ...m, roles: ['acting'], character: 'Guest' }))
   return {
@@ -367,7 +368,7 @@ const titleDetail = (m: Movie): MovieDetail => {
     releaseDates: m.id % 2 === 0 ? { cinema: day(3), digital: day(24), region: 'US' } : { cinema: `${m.year}-03-01`, digital: `${m.year}-06-10`, region: 'US' },
     language: 'en',
     cast: DEMO_CAST,
-    crew: [{ id: 9101, name: 'Director One', job: 'Director' }],
+    crew: [{ id: 9101, name: 'Noor Hadley', job: 'Director' }],
     trailers: [{ name: 'Official Trailer', site: 'YouTube', key: 'demo', url: 'https://www.youtube.com/results?search_query=' + encodeURIComponent(m.title + ' official trailer'), official: true }],
   } as MovieDetail
 }
@@ -393,7 +394,7 @@ const tvDetail = (tmdbId: number): TVDetail | null => {
     networks: ['Sample Network'],
     releaseStatus: 'Returning Series',
     cast: DEMO_CAST.slice(0, 2),
-    crew: [{ id: 9102, name: 'Creator One', job: 'Creator' }],
+    crew: [{ id: 9102, name: 'Wren Castellane', job: 'Creator' }],
     trailers: [{ name: 'Official Trailer', site: 'YouTube', key: 'demo', url: 'https://www.youtube.com/results?search_query=' + encodeURIComponent(seed.title + ' official trailer'), official: true }],
   }
 }
@@ -630,9 +631,17 @@ export function installDemo() {
       case /^\/api\/library\/import\/batches\/\d+$/.test(p):
         return json(demoBatch)
       case p === '/api/music/search':
-        return json([])
+        return json(u.searchParams.get('type') === 'all' ? { items: demoMusicHits(u.searchParams.get('q') ?? '') } : [])
       case p === '/api/indexers':
         return json(demoIndexers)
+      case p === '/api/stats/library':
+        return json(demoLibraryStats())
+      case p === '/api/stats/history':
+        return json({ days: demoStatsHistory(Number(u.searchParams.get('days') ?? 0) || 90) })
+      case p === '/api/stats/indexers':
+        return json(demoIndexerStats())
+      case p === '/api/stats/usenet-months':
+        return json({ months: demoUsenetMonths(Number(u.searchParams.get('months') ?? 12)) })
       default:
         return real(input, init)
     }
@@ -644,6 +653,94 @@ const DEMO_ARTISTS = ['Marrow & Lane', 'Mira Calloway', 'Northern Static Club', 
 const DEMO_RELEASES = DEMO_ARTISTS.flatMap((artist, i) => [
   { mbid: `demo-rel-${i}-a`, title: ['Night Ferry', 'Copper Lines', 'Slow Weather', 'Harbour Lights', 'Blue Hours', 'Fieldwork', 'Long Light', 'Undertow'][i], type: 'album', artistName: artist, artistMbid: `demo-artist-${i}`, releaseDate: `2026-0${(i % 9) + 1}-1${i % 9}`, genres: [['indie', 'folk', 'electronic', 'soul', 'jazz', 'rock', 'pop', 'ambient'][i]], inLibrary: i === 1 },
 ])
+
+// The one music search in demo mode: made-up artists, albums and songs whose
+// words all appear in what was typed, best match first.
+const DEMO_SONGS = ['Paper Lanterns', 'Late Bus']
+function demoMusicHits(q: string): MusicHit[] {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  if (q.trim().length < 2) return []
+  const score = (text: string) => words.filter((w) => text.toLowerCase().includes(w)).length
+  const match = (text: string) => score(text) > 0
+  const hits: MusicHit[] = []
+  DEMO_ARTISTS.forEach((artist, i) => {
+    const rel = DEMO_RELEASES[i]
+    const base = { mbid: rel.mbid, title: rel.title, type: 'album', artistName: artist, artistMbid: rel.artistMbid, releaseDate: rel.releaseDate, genres: rel.genres, coverUrl: poster(310 + i), inLibrary: false }
+    if (match(artist)) hits.push({ ...base, kind: 'artist', rank: 100 + score(artist) * 10, name: artist, mbid: rel.artistMbid, country: 'GB' })
+    if (match(`${rel.title} ${artist}`)) hits.push({ ...base, kind: 'album', rank: 90 + score(`${rel.title} ${artist}`) * 10 - i, name: rel.title })
+    DEMO_SONGS.forEach((song, j) => {
+      if (match(`${song} ${artist}`)) hits.push({ ...base, kind: 'song', rank: 70 + score(`${song} ${artist}`) * 10 - i - j, name: song, song })
+    })
+  })
+  return hits.sort((a, b) => b.rank - a.rank)
+}
+
+// Statistics in demo mode: made-up Usenet providers and indexers, and a
+// library with a believable spread of qualities.
+const DEMO_SERVERS = [
+  { id: 1, name: 'Northwind Usenet', host: 'news.northwind.example', enabled: true },
+  { id: 2, name: 'Brightfeed', host: 'news.brightfeed.example', enabled: true },
+  { id: 3, name: 'Block account', host: 'block.example.net', enabled: true },
+]
+function demoLibraryStats() {
+  const now = new Date()
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
+    return { month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, completed: 18 + ((i * 7) % 15), failed: (i * 3) % 4, bytes: (210 + i * 37) * 1e9 }
+  })
+  return {
+    movies: 14, moviesHave: 9, shows: 6, episodes: 129, episodesHave: 79, albums: 18, albumsHave: 11,
+    movieBytes: 412e9, episodeBytes: 1.1e12,
+    quality: [
+      { label: '2160p', count: 21, bytes: 520e9 },
+      { label: '1080p', count: 52, bytes: 690e9 },
+      { label: '720p', count: 12, bytes: 61e9 },
+      { label: 'Other', count: 3, bytes: 9e9 },
+    ],
+    months, usenetShare: 74,
+    totals: { grabs: 214, completed: 203, failed: 11, bytes: 1.34e12 },
+    historyKeptDays: 90,
+  }
+}
+function demoStatsHistory(n: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (n - 1 - i))
+    return {
+      day: d.toISOString().slice(0, 10), movies: 8 + Math.floor(i / 12), moviesHave: 5 + Math.floor(i / 14), shows: 4 + Math.floor(i / 30), episodesHave: 30 + i,
+      albumsHave: 4 + Math.floor(i / 8), libraryBytes: (0.9e12 + i * 9e9), completed: 2 + ((i * 5) % 7), failed: i % 11 === 0 ? 1 : 0, downloadBytes: (20 + ((i * 13) % 60)) * 1e9,
+    }
+  })
+}
+function demoIndexerStats() {
+  const stat = (id: number, name: string, protocol: 'usenet' | 'torrent', queries: number, failures: number, results: number, grabs: number, grabBytes: number) => ({
+    id, name, protocol, enabled: true, queries, failures, results, grabs, grabBytes, successRate: queries ? 1 - failures / queries : -1,
+  })
+  return {
+    days: 30,
+    indexers: [
+      stat(100, 'Harbour NZB', 'usenet', 412, 3, 5100, 61, 710e9),
+      stat(102, 'Copperline', 'usenet', 388, 9, 3900, 44, 520e9),
+      stat(103, 'Fathom', 'usenet', 301, 0, 2200, 23, 240e9),
+      stat(101, 'Slate Index', 'torrent', 270, 21, 2800, 17, 160e9),
+      stat(104, 'Northgate', 'torrent', 150, 6, 900, 4, 31e9),
+    ],
+    servers: DEMO_SERVERS.map((sv, i) => ({ ...sv, bytes: [1.8e12, 0.9e12, 0.22e12][i], articles: [4.1e7, 2.2e7, 5.1e6][i], missing: [180000, 96000, 1200][i] })),
+  }
+}
+function demoUsenetMonths(count: number) {
+  const now = new Date()
+  const n = [6, 12, 24].includes(count) ? count : 12
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (n - 1) + i, 1)
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const k = 1 + ((i * 5) % 7) / 10
+    return {
+      month,
+      servers: DEMO_SERVERS.map((sv, j) => ({ ...sv, bytes: Math.round([160e9, 90e9, j === 2 && i % 4 !== 0 ? 0 : 40e9][j] * k), articles: Math.round([3.6e6, 2e6, 9e5][j] * k), missing: Math.round([14000, 8000, 300][j] * k) })),
+    }
+  })
+}
 
 // The music card on the dashboard, counted from the made-up artists.
 function demoMusicCounts() {

@@ -124,7 +124,7 @@ Connections close when a download finishes, fails or is cancelled, and when you 
 
 ### How much each provider delivered
 
-**Settings > System > Statistics** has a **Usenet providers, last 30 days** card (administrators only): for each news server, how much it delivered, how many articles, and how many it didn't have (those were asked for on the next server). It helps to see whether a block account or a second plan is worth keeping. Only the built-in downloader counts; SABnzbd and NZBGet don't say which server served what. The counts are saved every minute and kept for 90 days, and a server that is removed takes its counts with it. Script: `servers` in `GET /api/stats/indexers` (#167, nexus4004).
+**Settings > System > Statistics** has a **Usenet providers, last 30 days** card (administrators only): for each news server, how much it delivered, how many articles, and how many it didn't have (those were asked for on the next server). It helps to see whether a block account or a second plan is worth keeping. Only the built-in downloader counts; SABnzbd and NZBGet don't say which server served what. The counts are saved every minute and kept for about two years, and a server that is removed takes its counts with it. Under it, **Usenet providers, month by month** adds the days up per calendar month (UTC) for the last 6, 12 or 24 months, with a total, which helps when a provider is paid by the year. Months before 4.0 are empty. Script: `GET /api/stats/usenet-months?months=12`. Script: `servers` in `GET /api/stats/indexers` (#167, nexus4004).
 
 ## What is checked when you save
 

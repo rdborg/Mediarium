@@ -340,7 +340,7 @@ When TMDB drops or renumbers an episode (two parts merged, a placeholder removed
 
 A show's specials (TMDB's season 0: behind-the-scenes episodes, Christmas specials, OVAs) are listed on its page as **Specials**, below the other seasons. They start **unmonitored** and don't count towards how much of the show you have until you ask for them. Switching a whole show on or off, or searching the whole show, leaves them alone. Shows already in your library pick up their specials at the next refresh.
 
-To get a special, tick its box: from then on it's looked for like any other episode. **Search** on a special looks for it straight away, ticked or not. Specials are looked for one at a time, never as a pack, and in two ways:
+To get a special, tick its box: from then on it's looked for like any other episode. **Choose a release** on a special looks for it straight away, ticked or not. Specials are looked for one at a time, never as a pack, and in two ways:
 
 - **By number**, `Show S00E05`, the way most TV releases name them.
 - **By title**, `Show The Winter Visitor`, because many are posted under their own name with no number at all. A release counts as the special when every telling word of the special's title comes after the show's name (the show's own words and little words like "the" or "special" don't count). A one-word title has to be at least six letters long, so a release isn't taken for a special by chance. When two specials fit equally well, the one whose whole title appears in order wins; otherwise the release is left alone. A dated release counts when exactly one special aired that day.

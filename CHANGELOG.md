@@ -8,6 +8,18 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.5] - 2026-11-11
+
+### Added
+- **Choose a release for the whole series** on a show page with more than one season: lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself instead of leaving it to the automatic search (#176, SanketBaraiya).
+- The **Add** dialog for an album has a **Songs on this album** list, so you can see the tracks before you add it (#143, SanketBaraiya).
+- The release list for an album has a **Quality** filter (FLAC, MP3 320 ...), like the Indexer filter (#143, SanketBaraiya).
+
+### Fixed
+- Soulseek searches ended after a few hundredths of a second and found next to nothing. Mediarium told slskd to search for 10 milliseconds instead of 10 seconds. Searches now run for the time Mediarium waits (about 20 seconds each) (#143, balkie31).
+- A download failed at the first missing article when the NZB's post subjects did not put the file names in quotes (for example `Name.part1.rar (1/0)`). Mediarium then did not see the PAR2 files in the release, so it believed nothing could be repaired. It now reads the file name from such subjects too. Programs and scripts named that way are now also caught by the check for unsafe releases (#178, mirisbowring).
+- Deleting a season's or an episode's files no longer leaves a folder full of `.nfo` files behind. When a season or show folder holds nothing but metadata, artwork or subtitle files after its last video is gone (season.nfo, tvshow.nfo, an episode .nfo named a little differently from its video), those files and the empty folders are removed too. A folder with a video, a text note or another season is left alone (#180, SanketBaraiya).
+
 ## [4.0.4] - 2026-11-10
 
 ### Changed

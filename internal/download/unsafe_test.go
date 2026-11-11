@@ -81,7 +81,8 @@ func TestUnsafeInNZB(t *testing.T) {
 		{"upper case", []string{`"READ ME.BAT" yEnc (1/1)`}, true, []string{"READ ME.BAT"}, 1},
 		{"many are counted", []string{`"a.exe" yEnc (1/1)`, `"b.exe" yEnc (1/1)`, `"c.exe" yEnc (1/1)`, `"d.exe" yEnc (1/1)`, `"e.exe" yEnc (1/1)`}, true, []string{"a.exe", "b.exe", "c.exe", "and 2 more"}, 5},
 		{"random names show nothing yet", []string{`"wFvDJHhDrbESDBLq" yEnc (1/50)`}, false, nil, 0},
-		{"subject without quotes has no name to judge", []string{`Movie.2024.exe yEnc (1/50)`}, false, nil, 0},
+		{"subject without quotes still shows the name", []string{`Movie.2024.exe yEnc (1/50)`}, true, []string{"Movie.2024.exe"}, 1},
+		{"subject without a file name has none to judge", []string{`just some words yEnc (1/50)`}, false, nil, 0},
 		{"reordering mark cannot hide the ending", []string{"\"evil‮gpj.exe\" yEnc (1/1)"}, true, nil, 1},
 	}
 	for _, tt := range tests {

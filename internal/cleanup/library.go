@@ -177,3 +177,54 @@ func PruneEmptyFolders(root, dir string) {
 		cur = filepath.Dir(cur)
 	}
 }
+
+// leftoverExts are the files a media app writes beside a title that mean
+// nothing without the video: metadata, artwork and subtitles. Anything else
+// (a text note, a sample, a folder) is left alone.
+var leftoverExts = map[string]bool{
+	".nfo": true, ".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".tbn": true,
+	".srt": true, ".ass": true, ".ssa": true, ".sub": true, ".idx": true, ".vtt": true, ".sup": true, ".smi": true,
+}
+
+// ClearLeftovers is for after a title's last video was deleted: a folder that
+// now holds nothing but metadata, artwork or subtitle files (season.nfo,
+// tvshow.nfo, an episode .nfo named a little differently from its video) loses
+// them and is removed, then the same is tried one folder up, until a folder
+// holds something else or the root is reached. The root itself is never
+// removed and nothing outside it is touched (#180).
+func ClearLeftovers(root, dir string) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return
+	}
+	cur, err := filepath.Abs(dir)
+	if err != nil {
+		return
+	}
+	for within(absRoot, cur) == nil && cur != absRoot {
+		info, err := os.Lstat(cur)
+		if err != nil || !info.IsDir() {
+			return
+		}
+		entries, err := os.ReadDir(cur)
+		if err != nil {
+			return
+		}
+		var files []string
+		for _, e := range entries {
+			if e.IsDir() || !e.Type().IsRegular() || !leftoverExts[strings.ToLower(filepath.Ext(e.Name()))] {
+				return
+			}
+			files = append(files, filepath.Join(cur, e.Name()))
+		}
+		for _, f := range files {
+			if err := os.Remove(f); err != nil {
+				return
+			}
+		}
+		if os.Remove(cur) != nil {
+			return
+		}
+		cur = filepath.Dir(cur)
+	}
+}

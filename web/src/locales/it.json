@@ -8332,5 +8332,12 @@
   "Usenet providers, month by month": "Provider Usenet, mese per mese",
   "Months shown": "Mesi mostrati",
   "Last {n} months": "Ultimi {n} mesi",
-  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "I mesi sono contati in UTC e conservati per circa due anni. Il conteggio è iniziato con la versione 4.0, quindi i mesi precedenti sono vuoti."
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "I mesi sono contati in UTC e conservati per circa due anni. Il conteggio è iniziato con la versione 4.0, quindi i mesi precedenti sono vuoti.",
+  "Songs on this album": "Brani di questo album",
+  "The song list could not be loaded right now.": "Impossibile caricare l’elenco dei brani in questo momento.",
+  "The music database has no song list for this album.": "Il database musicale non ha un elenco dei brani per questo album.",
+  "Unknown": "Sconosciuto",
+  "Complete series (packs)": "Serie completa (pacchetti)",
+  "Choose a release for the whole series": "Scegli una release per l’intera serie",
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Elenca i pacchetti con più stagioni o con l’intera serie (Complete Series, S01-S09), così puoi sceglierne uno tu stesso."
 }

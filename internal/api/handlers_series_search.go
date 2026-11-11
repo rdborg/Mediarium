@@ -177,12 +177,14 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	season, _ := strconv.Atoi(r.URL.Query().Get("season"))
 	episode, _ := strconv.Atoi(r.URL.Query().Get("episode"))
-	specials := season == 0 && r.URL.Query().Get("season") == "0"
+	// complete=1 lists the packs that hold several seasons or the whole series.
+	complete := r.URL.Query().Get("complete") == "1"
+	specials := !complete && season == 0 && r.URL.Query().Get("season") == "0"
 	if specials && episode <= 0 {
 		writeError(w, http.StatusBadRequest, "Choose a special to search for: specials are searched one at a time.")
 		return
 	}
-	if season < 0 || (season == 0 && !specials) {
+	if !complete && (season < 0 || (season == 0 && !specials)) {
 		writeError(w, http.StatusBadRequest, "Choose a season to search.")
 		return
 	}
@@ -221,6 +223,16 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	var outcomes []indexers.Outcome
 	if custom != "" {
 		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, custom, tvCategory)
+	} else if complete {
+		last := 0
+		if eps, err := s.MovieRepo.ListEpisodes(series.ID); err == nil {
+			for _, ep := range eps {
+				last = max(last, ep.Season)
+			}
+		}
+		for _, q := range wholeSeriesQueries(series.Title, last) {
+			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
+		}
 	} else {
 		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
 		for _, q := range s.extraTVQueries(series, season, episode) {
@@ -243,7 +255,12 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	var found []indexers.Result
 	for _, res := range merged {
 		parsed := res.Parsed()
-		if custom == "" && (!matchesShowForRel(parsed, series, season) || !coversTarget(mapped(mapper, parsed), season, episode)) {
+		if complete && custom == "" {
+			// Only packs of more than one season, or of the whole series, belong in this list.
+			if _, _, ok := parsed.SeasonSpan(); !ok || !matchesShowRel(parsed, series) || untaggedForOtherShow(parsed, series) {
+				continue
+			}
+		} else if custom == "" && (!matchesShowForRel(parsed, series, season) || !coversTarget(mapped(mapper, parsed), season, episode)) {
 			continue
 		}
 		payload := s.toSearchResultPayload(res)

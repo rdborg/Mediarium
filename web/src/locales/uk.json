@@ -8554,5 +8554,12 @@
   "Usenet providers, month by month": "Провайдери Usenet по місяцях",
   "Months shown": "Показано місяців",
   "Last {n} months": "Останні місяці: {n}",
-  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Місяці рахуються за UTC і зберігаються близько двох років. Підрахунок почався з версії 4.0, тому раніші місяці порожні."
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Місяці рахуються за UTC і зберігаються близько двох років. Підрахунок почався з версії 4.0, тому раніші місяці порожні.",
+  "Songs on this album": "Треки цього альбому",
+  "The song list could not be loaded right now.": "Список треків зараз не вдалося завантажити.",
+  "The music database has no song list for this album.": "У музичній базі немає списку треків для цього альбому.",
+  "Unknown": "Невідомо",
+  "Complete series (packs)": "Весь серіал (паки)",
+  "Choose a release for the whole series": "Вибрати реліз для всього серіалу",
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Показує паки з кількома сезонами або з усім серіалом (Complete Series, S01-S09), щоб ви вибрали потрібний самі."
 }

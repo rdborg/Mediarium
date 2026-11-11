@@ -8332,5 +8332,12 @@
   "Usenet providers, month by month": "Usenet-providers, maand voor maand",
   "Months shown": "Getoonde maanden",
   "Last {n} months": "Laatste {n} maanden",
-  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Maanden worden in UTC geteld en ongeveer twee jaar bewaard. Het tellen begon met versie 4.0, eerdere maanden zijn dus leeg."
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "Maanden worden in UTC geteld en ongeveer twee jaar bewaard. Het tellen begon met versie 4.0, eerdere maanden zijn dus leeg.",
+  "Songs on this album": "Nummers op dit album",
+  "The song list could not be loaded right now.": "De nummerlijst kon nu niet worden geladen.",
+  "The music database has no song list for this album.": "De muziekdatabase heeft geen nummerlijst voor dit album.",
+  "Unknown": "Onbekend",
+  "Complete series (packs)": "Complete serie (pakketten)",
+  "Choose a release for the whole series": "Kies een release voor de hele serie",
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Toont de pakketten met meerdere seizoenen of de hele serie (Complete Series, S01-S09), zodat je er zelf een kunt kiezen."
 }

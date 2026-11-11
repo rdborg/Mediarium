@@ -22,6 +22,7 @@ export default function ReleaseTable({
   onClose,
   showPackBadge = false,
   qualityLabel,
+  qualityGroup,
   searched,
 }: {
   results: SearchResult[]
@@ -32,6 +33,8 @@ export default function ReleaseTable({
   showPackBadge?: boolean
   // What to show in the Quality column when a release has no resolution (music).
   qualityLabel?: (r: SearchResult) => string | undefined
+  // What the Quality filter groups by when releases have no resolution (music: FLAC, MP3 320 ...). Without it the filter uses the resolution.
+  qualityGroup?: (r: SearchResult) => string | undefined
   // What each indexer did: the indexer filter then lists all of them.
   searched?: Searched[]
 }) {
@@ -45,8 +48,19 @@ export default function ReleaseTable({
   const [showWhy, setShowWhy] = useState(loadShowWhy)
   const [opened, setOpened] = useState<Record<string, boolean>>({})
   const indexers = useMemo(() => indexerChoices(results, searched), [results, searched])
-  const qualities = useMemo(() => qualitiesIn(results), [results])
-  const shown = useMemo(() => sortReleases(defaultOrder(filterReleases(results, { text: words, indexer, quality })), sort?.key ?? null, sort?.dir ?? 1), [results, words, indexer, quality, sort])
+  const groupOf = (r: SearchResult) => (qualityGroup ? qualityGroup(r) || 'other' : '')
+  const qualities = useMemo(() => {
+    if (!qualityGroup) return qualitiesIn(results)
+    const counts = new Map<string, number>()
+    for (const r of results) counts.set(groupOf(r), (counts.get(groupOf(r)) ?? 0) + 1)
+    return [...counts.keys()].sort((a, b) => (a === 'other' ? 1 : b === 'other' ? -1 : (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, qualityGroup])
+  const shown = useMemo(() => {
+    const base = qualityGroup ? filterReleases(results, { text: words, indexer, quality: '' }).filter((r) => !quality || groupOf(r) === quality) : filterReleases(results, { text: words, indexer, quality })
+    return sortReleases(defaultOrder(base), sort?.key ?? null, sort?.dir ?? 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, words, indexer, quality, sort, qualityGroup])
   const filtering = words !== '' || indexer !== '' || quality !== ''
   // Two releases can share one link (the same torrent listed twice), and React mixes up rows that share a key: a row the filter removed could stay on screen.
   const rowKeys = useMemo(() => {
@@ -76,7 +90,7 @@ export default function ReleaseTable({
       </button>
     </th>
   )
-  const qualityName = (q: string) => (q === 'other' ? t('No resolution') : q)
+  const qualityName = (q: string) => (q === 'other' ? (qualityGroup ? t('Unknown') : t('No resolution')) : q)
   const anyWhy = useMemo(() => results.some((r) => whyOf(r) !== null), [results])
   const columns = 7 + (showLanguage ? 1 : 0) + (showScore ? 1 : 0)
   function toggleAll() {

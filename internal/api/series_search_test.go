@@ -169,3 +169,31 @@ func TestSearchGrabTVAddsSeriesOnTheFlyAndImports(t *testing.T) {
 		t.Fatalf("expected the imported episode file: %v", err)
 	}
 }
+
+// The whole-series list shows packs that hold several seasons, and nothing
+// else: not a single season, not an episode, not another show.
+func TestSeriesCompleteListShowsOnlyMultiSeasonPacks(t *testing.T) {
+	env := newTVEnv(t, map[string]nntpArticle{"x@example": {fileName: "x.mkv", content: []byte("x")}})
+	srv := newTVIndexerWith(t, []string{
+		"Fixture.Show.COMPLETE.SERIES.1080p.BluRay.x264-GRP",
+		"Fixture.Show.S01-S02.1080p.BluRay.x264-GRP",
+		"Fixture.Show.S01.1080p.BluRay.x264-GRP",
+		"Fixture.Show.S01E02.1080p.WEB-DL.x264-GRP",
+		"Other.Show.S01-S04.1080p.BluRay.x264-GRP",
+	})
+	postJSON[map[string]any](t, env.client, env.httpSrv.URL+"/api/indexers", map[string]any{
+		"name": "TV Indexer", "definitionId": "fixture", "baseUrl": srv.URL, "apiKey": "k",
+	}, http.StatusCreated)
+
+	list := getJSON[[]map[string]any](t, env.client, fmt.Sprintf("%s/api/series/%d/search?season=1&complete=1", env.httpSrv.URL, env.seriesID))
+	got := resultTitles(list)
+	want := []string{"Fixture.Show.COMPLETE.SERIES.1080p.BluRay.x264-GRP", "Fixture.Show.S01-S02.1080p.BluRay.x264-GRP"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	for _, title := range want {
+		if !got[title] {
+			t.Fatalf("missing %q in %v", title, got)
+		}
+	}
+}

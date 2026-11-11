@@ -162,7 +162,14 @@ type search struct {
 // finished collecting answers (wait at most, then the answers so far).
 func (c *Client) Search(ctx context.Context, text string, wait time.Duration) ([]Response, error) {
 	id := newID()
-	body := map[string]any{"id": id, "searchText": text, "searchTimeout": 10, "responseLimit": 200, "fileLimit": 20000, "filterResponses": true, "minimumResponseFileCount": 1}
+	// slskd counts searchTimeout in milliseconds, so the old value of 10 let
+	// the search end after 10 ms with next to nothing found. Give it the time
+	// the caller is willing to wait, less a little for fetching the answers.
+	timeoutMs := int(wait.Milliseconds()) - 2000
+	if timeoutMs < 5000 {
+		timeoutMs = 5000
+	}
+	body := map[string]any{"id": id, "searchText": text, "searchTimeout": timeoutMs, "responseLimit": 200, "fileLimit": 20000, "filterResponses": true, "minimumResponseFileCount": 1}
 	if _, err := c.do(ctx, http.MethodPost, "/searches", body, nil); err != nil {
 		return nil, err
 	}

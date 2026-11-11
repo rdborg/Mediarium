@@ -57,6 +57,8 @@ import { episodeFilesToReplace, replaceQuestion } from '../replaceFile'
 interface SearchTarget {
   season: number
   episode?: number
+  // The list of packs that hold several seasons or the whole series.
+  complete?: boolean
   label: string
 }
 
@@ -161,7 +163,7 @@ function SeriesPage() {
     setError('')
     setMessage('')
     try {
-      const a = await api.seriesSearch(seriesId, st.season, st.episode, q)
+      const a = await api.seriesSearch(seriesId, st.season, st.episode, q, st.complete)
       if (mine !== searchId.current) return
       setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched })
       setResults(a.results)
@@ -459,6 +461,12 @@ function SeriesPage() {
               </button>
             )}
             {canManage && offersCompleteSearch(series.showStatus, seasons.filter(([s]) => s > 0).length) && <InfoTip text={t('Looks for a season pack of every monitored season that has missing episodes. When a season has no pack of its own, it looks for one pack of the whole series (such as Complete Series or S01-S09) that covers them all and fits your quality profile.')} />}
+            {canReleases && seasons.filter(([s]) => s > 0).length > 1 && (
+              <button className="btn-with-icon" onClick={() => runSearch({ season: seasons.find(([s]) => s > 0)?.[0] ?? 1, complete: true, label: t('Complete series (packs)') })}>
+                <Icon name="list" size={16} /> {t('Choose a release for the whole series')}
+              </button>
+            )}
+            {canReleases && seasons.filter(([s]) => s > 0).length > 1 && <InfoTip text={t('Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.')} />}
             {!viewer && (
               <button className="btn-with-icon" onClick={refresh} disabled={refreshing}>
                 <Icon name="refresh" size={16} /> {refreshing ? t('Refreshing…') : t('Refresh episodes')}

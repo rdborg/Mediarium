@@ -3494,3 +3494,13 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
 .profile-sim-result { margin-top: 16px; }
 .profile-sim-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; font-weight: 600; }
 .profile-sim .rel-why { position: static; width: auto; }
+
+/* The song list inside the Add music dialog. */
+.add-songs { grid-column: 1 / -1; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+.add-songs summary { cursor: pointer; font-weight: 600; }
+.add-songs-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.add-songs-list li { display: flex; gap: 10px; padding: 3px 0; white-space: nowrap; }
+.add-songs-list .num { width: 3ch; color: var(--text-dim); font-variant-numeric: tabular-nums; text-align: right; flex: none; }
+.add-songs-list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.add-songs-list .len { color: var(--text-dim); font-variant-numeric: tabular-nums; flex: none; }
+.add-songs-list li.is-picked .name { color: var(--accent); font-weight: 600; }

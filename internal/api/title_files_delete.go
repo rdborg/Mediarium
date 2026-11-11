@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/rdborg/mediarium/internal/cleanup"
 	"github.com/rdborg/mediarium/internal/library"
 )
 
@@ -155,6 +156,9 @@ func (s *Server) deleteEpisodeFiles(series library.Series, eps []library.Episode
 			answer.Episodes++
 		}
 		_ = s.QueueRepo.LogSeriesActivity(series.ID, "removed", fmt.Sprintf("%s: the file %s was deleted%s. Its episodes are wanted again.", label, filepath.Base(f), binNote(trashed)))
+		// What is left of a season or show folder that holds no video any more
+		// (its .nfo and artwork files) goes too, so no empty folder stays behind.
+		cleanup.ClearLeftovers(s.fileRoot(root, f), filepath.Dir(f))
 	}
 	return answer, nil
 }

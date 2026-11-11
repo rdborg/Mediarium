@@ -4168,8 +4168,8 @@ export const api = {
   deleteSeries: (id: number, deleteFiles = false) => del<null>(`/series/${id}?deleteFiles=${deleteFiles}`),
   titleCopies: (kind: 'movie' | 'series', id: number) => get<TitleCopies>(`/${kind === 'movie' ? 'movies' : 'series'}/${id}/copies`),
   addTitleCopy: (kind: 'movie' | 'series', id: number, profileId: number) => post<TitleCopy>(`/${kind === 'movie' ? 'movies' : 'series'}/${id}/copies`, { profileId }),
-  seriesSearch: (id: number, season: number, episode?: number, q?: string) =>
-    get<SearchAnswer<SearchResult>>(`/series/${id}/search?detail=1&season=${season}${episode ? `&episode=${episode}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+  seriesSearch: (id: number, season: number, episode?: number, q?: string, complete?: boolean) =>
+    get<SearchAnswer<SearchResult>>(`/series/${id}/search?detail=1&season=${season}${episode ? `&episode=${episode}` : ''}${complete ? '&complete=1' : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
   grabSeries: (id: number, data: { releaseTitle: string; downloadUrl: string; sizeBytes: number; protocol?: SearchResult['protocol']; season?: number; episode?: number; replaceQueueId?: number; replace?: boolean }) =>
     post<{ queueId: number }>(`/series/${id}/grab`, data),
 

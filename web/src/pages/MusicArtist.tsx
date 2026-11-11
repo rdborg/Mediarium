@@ -783,7 +783,7 @@ function ReleasesPanel({ album, onChanged }: { album: MusicAlbum; onChanged: () 
       </p>
       <ReleaseNotice className="album-empty" sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} results={results.length} />
       <div className="table-scroll">
-        <ReleaseTable results={results} searched={answered.searched} grabbing={grabbing} onGrab={grab} qualityLabel={releaseQuality} />
+        <ReleaseTable results={results} searched={answered.searched} grabbing={grabbing} onGrab={grab} qualityLabel={releaseQuality} qualityGroup={(r) => (r as MusicRelease).quality} />
       </div>
     </div>
   )

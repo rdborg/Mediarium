@@ -39,7 +39,7 @@ With the module on, music shows up next to movies and TV. Basic users can browse
 - **Artist page** (`/music/artist/{id}`): the artist with a summary (releases, downloaded, missing, the quality profile in use, monitored) and their **Albums**, **EPs** and **Singles** as cards. Each card shows the cover, year, quality, what it's doing (Waiting for a release, Downloading with a progress bar, Downloaded, Not monitored) and:
   - an eye button to monitor or stop monitoring the album,
   - **Search now** (or **Look for better** once downloaded),
-  - **Choose a release**, the list of releases found, with the quality and the reason automation would skip a release, or a "fallback" label when only a fallback profile accepts it. Grabbing is always allowed,
+  - **Choose a release**, the list of releases found (filter it by indexer or by quality, such as FLAC or MP3 320), with the quality and the reason automation would skip a release, or a "fallback" label when only a fallback profile accepts it. Grabbing is always allowed,
   - **Details**, which opens the album across the page: **Tracks** (each track with "in library" or "missing"), **Releases**, **What happened** (the album's own activity log, newest first) and **Files** (everything in the album's folder, see below).
 
   The page refreshes every few seconds while it's open. **Search for N missing albums** searches every monitored album that's missing. Administrators can **Remove** the artist (the "Also delete everything on disk" option is unticked, and shows how many files and how much space the albums take) and change two things right in the summary: **Follow this artist** (whether releases that come out later are picked up, see "Following an artist") and the artist's **Quality profile** (Default, or one of the music profiles). Basic users see both as labels. The cover on the page is the artist's picture (the cover of their first album that has one). When there's none, a music note takes its place.
@@ -76,7 +76,7 @@ How the list is ordered:
 
 The three searches run at the same time. If one of them cannot answer (the music database is slow or busy), the other two still show, with a note that some results may be missing. The same words typed again give the same list straight away, and when a search fails Mediarium tries it once more before it shows an error.
 
-**Add** on an artist or an album opens the same dialog as everywhere else (**Only this album** is picked for an album). A soundtrack or compilation that isn't one of the artist's own albums is added to that artist all the same, as a wanted album.
+**Add** on an artist or an album opens the same dialog as everywhere else (**Only this album** is picked for an album). For an album, **Songs on this album** in that dialog opens the track list, so you can see what you are adding. A soundtrack or compilation that isn't one of the artist's own albums is added to that artist all the same, as a wanted album.
 
 #### Adding just one song
 

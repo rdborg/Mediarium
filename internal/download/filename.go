@@ -20,7 +20,36 @@ func articleFilename(subject string, fileIndex int) string {
 	if m := quotedFilenameRe.FindStringSubmatch(subject); m != nil {
 		return m[1]
 	}
+	if name := unquotedFilename(subject); name != "" {
+		return name
+	}
 	return fmt.Sprintf("file_%d.bin", fileIndex)
+}
+
+var (
+	subjectTailRe   = regexp.MustCompile(`(?i)\s*(yenc\s*)?(\(\d+/\d+\)\s*)?(yenc\s*)?(\d+\s*bytes\s*)?$`)
+	subjectHeadRe   = regexp.MustCompile(`^\s*(\[\d+/\d+\]|\(\d+/\d+\))?\s*(-\s*)?`)
+	plainFilenameRe = regexp.MustCompile(`^[^\s"/\<>|?*]+\.[A-Za-z0-9]{2,5}$`)
+)
+
+// unquotedFilename handles posts whose subject carries the name without
+// quotes, such as `Name.part1.rar (1/0)` or `[01/12] - Name.par2 yEnc (1/3)`.
+// It only answers when what is left after the part counters is one word that
+// ends in a file extension, so an ordinary sentence is never taken for a name.
+func unquotedFilename(subject string) string {
+	s := subjectHeadRe.ReplaceAllString(subject, "")
+	for i := 0; i < 3; i++ {
+		t := subjectTailRe.ReplaceAllString(s, "")
+		if t == s {
+			break
+		}
+		s = t
+	}
+	s = strings.TrimSpace(s)
+	if plainFilenameRe.MatchString(s) {
+		return s
+	}
+	return ""
 }
 
 var illegalFilenameChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)

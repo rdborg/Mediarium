@@ -93,6 +93,8 @@ A show with many seasons doesn't have to be searched all at once. **Find missing
 
 A show that has finished, like The Office or The Mentalist, is often easiest to get as packs. **Search for the complete series** at the top of the show page does that in one click. A running show with more than one season has the button too.
 
+If you want to pick the pack yourself, **Choose a release for the whole series** (next to it, for a show with more than one season) lists the releases that hold several seasons or the whole show, such as *Complete Series* or *S01-S09*. A pack of one season, an episode and releases of other shows are left out. Grabbing one starts it like any release you pick by hand.
+
 It works in two steps:
 
 1. It looks for a season pack of every monitored season that still has missing episodes. A season where something is downloading already is left alone, and so are the specials.

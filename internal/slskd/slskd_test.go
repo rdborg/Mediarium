@@ -23,6 +23,8 @@ type fake struct {
 	looks    int
 	queued   []Want
 	deleted  []string
+	// searchTimeout is what the last search asked for; slskd counts it in milliseconds.
+	searchTimeout int
 }
 
 func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +41,11 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/server":
 		_, _ = w.Write([]byte(`{"isConnected":true,"isLoggedIn":true,"state":"Connected, LoggedIn"}`))
 	case p == "/searches" && r.Method == http.MethodPost:
+		var b struct {
+			SearchTimeout int `json:"searchTimeout"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&b)
+		f.searchTimeout = b.SearchTimeout
 		_, _ = w.Write([]byte(`{"id":"x","isComplete":false}`))
 	case strings.HasSuffix(p, "/responses"):
 		_, _ = w.Write([]byte(`[{"username":"alice","hasFreeUploadSlot":true,"queueLength":0,"uploadSpeed":900000,"files":[
@@ -97,6 +104,10 @@ func TestClient(t *testing.T) {
 	res, err := c.Search(ctx, "Artist Album", 10*time.Second)
 	if err != nil || len(res) != 1 || res[0].Username != "alice" || len(res[0].Files) != 1 || res[0].Files[0].BitDepth != 16 {
 		t.Fatalf("Search = %+v, %v", res, err)
+	}
+	// slskd reads searchTimeout in milliseconds: 10 would end the search at once.
+	if f.searchTimeout < 5000 || f.searchTimeout > 10000 {
+		t.Errorf("searchTimeout = %d, want about 8000 for a 10 s wait", f.searchTimeout)
 	}
 	if len(f.deleted) != 0 {
 		t.Errorf("the search should stay in slskd's Searches page for now: %v", f.deleted)

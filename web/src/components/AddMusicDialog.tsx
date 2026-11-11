@@ -48,6 +48,9 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
   const [indexers, setIndexers] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // The songs on the album, read when the list is opened.
+  const [songs, setSongs] = useState<{ disc: number; position: number; title: string; lengthMs?: number }[] | null>(null)
+  const [songsFailed, setSongsFailed] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   useFocusTrap(box)
 
@@ -60,6 +63,14 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, busy])
+
+  function loadSongs(open: boolean) {
+    if (!open || songs !== null || !item) return
+    api
+      .musicPreview(item.mbid)
+      .then((p) => setSongs(p.tracks))
+      .catch(() => setSongsFailed(true))
+  }
 
   const defaultProfile = profiles.find((p) => p.default)
   const cannotSearch = indexers === 0
@@ -180,6 +191,25 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
         </div>
 
         <div className="modal-body grid-form">
+          {item && (
+            <details className="add-songs" onToggle={(e) => loadSongs(e.currentTarget.open)}>
+              <summary>{t('Songs on this album')}</summary>
+              {songsFailed && <p className="hint">{t('The song list could not be loaded right now.')}</p>}
+              {!songsFailed && songs === null && <p className="hint">{t('Loading…')}</p>}
+              {songs !== null && songs.length === 0 && <p className="hint">{t('The music database has no song list for this album.')}</p>}
+              {songs !== null && songs.length > 0 && (
+                <ol className="add-songs-list">
+                  {songs.map((s) => (
+                    <li key={`${s.disc}-${s.position}`} className={onlySong && s.title.toLowerCase() === onlySong.toLowerCase() ? 'is-picked' : undefined}>
+                      <span className="num">{songs.some((x) => x.disc > 1) ? `${s.disc}.${s.position}` : s.position}</span>
+                      <span className="name">{s.title}</span>
+                      <span className="len">{s.lengthMs ? `${Math.floor(Math.round(s.lengthMs / 1000) / 60)}:${String(Math.round(s.lengthMs / 1000) % 60).padStart(2, '0')}` : ''}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </details>
+          )}
           {existingArtist ? (
             <div className="notice">
               <strong>{t('{name} is already in your library.', { name: artistName })}</strong>{' '}

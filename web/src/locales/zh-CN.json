@@ -8332,5 +8332,12 @@
   "Usenet providers, month by month": "Usenet 服务商，按月统计",
   "Months shown": "显示的月数",
   "Last {n} months": "最近 {n} 个月",
-  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "月份按 UTC 计算，保留约两年。统计从 4.0 版本开始，所以更早的月份是空的。"
+  "Months are counted in UTC and are kept for about two years. Counting started with version 4.0, so earlier months are empty.": "月份按 UTC 计算，保留约两年。统计从 4.0 版本开始，所以更早的月份是空的。",
+  "Songs on this album": "这张专辑的歌曲",
+  "The song list could not be loaded right now.": "暂时无法加载歌曲列表。",
+  "The music database has no song list for this album.": "音乐数据库没有这张专辑的歌曲列表。",
+  "Unknown": "未知",
+  "Complete series (packs)": "完整剧集（合集包）",
+  "Choose a release for the whole series": "为整部剧选择发布版本",
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "列出包含多个季或整部剧的合集包（Complete Series、S01-S09），方便你自己挑选。"
 }

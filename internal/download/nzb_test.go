@@ -62,3 +62,19 @@ func TestArticleFilename(t *testing.T) {
 		t.Fatalf("expected fallback filename, got %q", got)
 	}
 }
+
+func TestArticleFilenameUnquoted(t *testing.T) {
+	for _, tc := range []struct{ subject, want string }{
+		{"Name-2019-GRP.par2 (1/0)", "Name-2019-GRP.par2"},
+		{"Name-2019-GRP.part1.rar (1/0)", "Name-2019-GRP.part1.rar"},
+		{"[01/12] - Name.vol03+04.par2 yEnc (1/3)", "Name.vol03+04.par2"},
+		{"Name.mkv yEnc (2/40)", "Name.mkv"},
+		{"no quotes here (1/2)", "file_7.bin"},
+		{"a sentence ending in a file.mkv (1/2)", "file_7.bin"},
+		{"", "file_7.bin"},
+	} {
+		if got := articleFilename(tc.subject, 7); got != tc.want {
+			t.Errorf("%q: got %q, want %q", tc.subject, got, tc.want)
+		}
+	}
+}

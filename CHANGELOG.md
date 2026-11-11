@@ -15,6 +15,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 - The **Add** dialog for an album has a **Songs on this album** list, so you can see the tracks before you add it (#143, SanketBaraiya).
 - The release list for an album has a **Quality** filter (FLAC, MP3 320 ...), like the Indexer filter (#143, SanketBaraiya).
 
+### Security
+- Built with Go 1.26.11, which fixes a crash in the web server of the Go standard library (GO-2026-6859, a race when a request body is limited in size).
+
 ### Fixed
 - Soulseek searches ended after a few hundredths of a second and found next to nothing. Mediarium asked slskd to search for 10 milliseconds instead of 10 seconds. Searches now run for the time Mediarium waits (about 20 seconds each) (#143, balkie31).
 - A download failed at the first missing article when the NZB's post subjects did not put the file names in quotes (for example `Name.part1.rar (1/0)`). Mediarium then did not see the PAR2 files in the release, so it believed nothing could be repaired. It now reads the file name from such subjects too. Programs and scripts named that way are now also caught by the check for unsafe releases (#178, mirisbowring).

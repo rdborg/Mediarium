@@ -1,6 +1,6 @@
 module github.com/rdborg/mediarium
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/anacrolix/dht/v2 v2.23.1-0.20260525063928-ec3a9bd99456

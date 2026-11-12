@@ -234,7 +234,7 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
 		}
 	} else {
-		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
+		outcomes = indexers.SearchAll(withSeriesIDs(indexers.AsManual(r.Context()), series, season, episode), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
 		for _, q := range s.extraTVQueries(series, season, episode) {
 			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
 		}

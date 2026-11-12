@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"strconv"
 
+	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/libimport"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/parser"
@@ -264,4 +266,14 @@ func allDistinct(tags []string) bool {
 		seen[t] = true
 	}
 	return true
+}
+
+// withSeriesIDs lets the indexers that take a show's id be asked by id too
+// ("The Girlfriend S01" finds the wrong show, tt32267726 season 1 does not).
+// Only a season or an episode is asked for this way, not the specials.
+func withSeriesIDs(ctx context.Context, series library.Series, season, episode int) context.Context {
+	if season <= 0 {
+		return ctx
+	}
+	return indexers.WithIDs(ctx, indexers.IDs{IMDB: series.IMDBID, TVDB: series.TVDBID, Season: season, Episode: episode})
 }

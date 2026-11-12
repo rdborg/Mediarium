@@ -8,6 +8,14 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.6] - 2026-11-12
+
+### Added
+- A Newznab or Torznab indexer that takes a show's IMDb or TheTVDB id is now asked by id as well as by name, for a season or an episode. A search for "The Girlfriend S01" used to find other shows with a similar name and miss the real season pack; asked by id it finds it. Indexers that do not list the id are searched the way they were. The answers of both searches are merged (#181, VanCityGuy).
+
+### Fixed
+- A show that came back as a new version of an older one (Scrubs 2026 and Scrubs 2001) kept downloading the old show's episodes, because a release name without a year looks the same for both. The automatic search now skips a release the indexer lists as posted before the episode first aired (#158, Hoopes80).
+
 ## [4.0.5] - 2026-11-11
 
 ### Added

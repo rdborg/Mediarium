@@ -287,6 +287,14 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 				if client.ExtraRequests > 0 {
 					inst.Tracker.CountRequest(inst.ID, client.ExtraRequests)
 				}
+				// An indexer that takes the show's or film's id is asked by id too.
+				if err == nil {
+					byID, n := client.SearchByID(reqCtx, categories)
+					if n > 0 {
+						inst.Tracker.CountRequest(inst.ID, n)
+					}
+					results = mergeByLink(results, byID)
+				}
 			}
 			for j := range results {
 				results[j].Protocol = inst.Protocol

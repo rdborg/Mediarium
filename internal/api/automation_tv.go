@@ -188,6 +188,29 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 	return wants, upgrades, nil
 }
 
+// dropPostedBeforeAiring removes the releases an indexer lists as posted
+// before the episode first aired (more than two days before, to allow for time
+// zones and early leaks). Such a release cannot be this episode: it is the same
+// season and episode number of an older show with the same name (a reboot such
+// as Scrubs 2026 against Scrubs 2001), which has no year in the release name to
+// tell them apart. A release without a post date, or an episode without an air
+// date, is kept.
+func dropPostedBeforeAiring(results []indexers.Result, airDate string) []indexers.Result {
+	aired, err := time.Parse("2006-01-02", airDate)
+	if err != nil {
+		return results
+	}
+	cutoff := aired.AddDate(0, 0, -2)
+	out := results[:0:0]
+	for _, r := range results {
+		if !r.PublishDate.IsZero() && r.PublishDate.Before(cutoff) {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
 // pickTVResult returns the best release for a season pack (episode == 0) or
 // a single episode of series. With current == nil (nothing on disk) it tries
 // the profile and then, only when nothing is acceptable to it, each of its
@@ -352,7 +375,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 			if rotating && raw != nil { // nil: out of searches, nothing was asked
 				s.huntAt.noteEpisode(ep.ID, time.Now())
 			}
-			best := pickTVResult(refine(w.series, w.season, ep.Episode, nil, raw), w.series, w.season, ep.Episode, w.profile, nil, s.releaseMapper(w.series))
+			best := pickTVResult(dropPostedBeforeAiring(refine(w.series, w.season, ep.Episode, nil, raw), ep.AirDate), w.series, w.season, ep.Episode, w.profile, nil, s.releaseMapper(w.series))
 			if best == nil {
 				continue
 			}
@@ -375,7 +398,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 			continue // the season pack that was queued for it will do the upgrading
 		}
 		current := upgradeBase{Tier: quality.Tier(u.episode.Quality), Release: u.episode.ReleaseTitle}
-		best := pickTVResult(limited(u.series, u.episode.Season, u.episode.Episode, &current), u.series, u.episode.Season, u.episode.Episode, u.profile, &current, s.releaseMapper(u.series))
+		best := pickTVResult(dropPostedBeforeAiring(limited(u.series, u.episode.Season, u.episode.Episode, &current), u.episode.AirDate), u.series, u.episode.Season, u.episode.Episode, u.profile, &current, s.releaseMapper(u.series))
 		if best == nil {
 			continue
 		}
@@ -426,7 +449,7 @@ func (s *Server) targetedTVSearcher(ctx context.Context, instances []indexers.In
 		}
 		budget--
 		series = s.seriesWithAltTitles(ctx, series)
-		outcomes := indexers.SearchAll(ctx, instances, tvSearchQuery(series.Title, season, episode), tvCategory)
+		outcomes := indexers.SearchAll(withSeriesIDs(ctx, series, season, episode), instances, tvSearchQuery(series.Title, season, episode), tvCategory)
 		// The other numberings (an anime's absolute number, a daily show's date)
 		// and the other titles are only tried when nothing for this season or
 		// episode turned up yet (a person's own search tries them all).

@@ -376,8 +376,11 @@ func (s *Server) fillGoogleGap(ctx context.Context, info *books.WorkInfo) {
 }
 
 // googleWork is a volume's details from the recent search, or one short lookup.
+// A search hit with a title but no blurb is not enough: the list often omits
+// the description, and the volume itself still has it.
 func (s *Server) googleWork(ctx context.Context, id string) (books.WorkInfo, error) {
-	if v, ok := s.gbooks.vol(id); ok && v.title != "" {
+	v, has := s.gbooks.vol(id)
+	if has && v.title != "" && strings.TrimSpace(v.blurb) != "" {
 		f := books.Found{Key: books.GoogleKey(id), Title: v.title, Author: v.author, Year: v.year, GoogleID: id, GoogleCover: v.cover, GoogleBlurb: v.blurb}
 		return books.WorkInfo{Found: f, Description: v.blurb, Subjects: []string{}}, nil
 	}
@@ -385,7 +388,14 @@ func (s *Server) googleWork(ctx context.Context, id string) (books.WorkInfo, err
 	defer cancel()
 	info, err := s.googleBooks(s.savedGoogleBooksKey()).Book(ctx, id)
 	if err != nil {
+		if has && v.title != "" {
+			f := books.Found{Key: books.GoogleKey(id), Title: v.title, Author: v.author, Year: v.year, GoogleID: id, GoogleCover: v.cover, GoogleBlurb: v.blurb}
+			return books.WorkInfo{Found: f, Description: v.blurb, Subjects: []string{}}, nil
+		}
 		return books.WorkInfo{}, err
+	}
+	if info.GoogleCover == "" && has && v.cover != "" {
+		info.GoogleCover = v.cover
 	}
 	s.gbooks.remember(info.Found, googleRemember)
 	return info, nil

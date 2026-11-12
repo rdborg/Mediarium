@@ -8,6 +8,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Fixed
+- A Google Books cover was the blank "image not available" picture when Google only had a small thumbnail. Mediarium asked for a larger size, and Google answers that with a blank page when it has no larger scan. The thumbnail Google actually returned is kept. A book page whose search result had no description now asks for that one volume, which is where the description often is. A replaced cover is served from a new address, so a browser that saved the blank picture does not keep showing it for a month.
+
 ## [4.0.6] - 2026-11-12
 
 ### Added

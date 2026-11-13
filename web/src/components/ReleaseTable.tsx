@@ -252,7 +252,7 @@ export default function ReleaseTable({
                   </td>
                   <td className="rel-fit">{formatBytes(r.sizeBytes)}</td>
                   <td className="rel-fit" title={r.publishDate && publishedAt(r) ? new Date(publishedAt(r)).toLocaleString(locale()) : undefined}>{ageOf(r) || '—'}</td>
-                  <td className={`rel-fit${r.belowMinSeeders ? ' rel-dim' : ''}`}>{r.protocol === 'torrent' ? `${r.seeders ?? 0} / ${r.peers ?? 0}` : '—'}</td>
+                  <td className={`rel-fit${r.belowMinSeeders ? ' rel-dim' : ''}`}>{r.protocol === 'torrent' ? `${r.seeders ?? 0} / ${r.peers ?? 0}` : r.protocol === 'soulseek' ? peerLine(r) : '—'}</td>
                   <td className="rel-fit">
                     <button className="primary" disabled={grabbing !== null} onClick={() => onGrab(r)}>
                       {grabbing === r.downloadUrl ? t('Grabbing…') : t('Grab')}
@@ -278,6 +278,14 @@ export default function ReleaseTable({
 }
 
 // scoreTip lists the parts of a release's score for the tooltip of its cell.
+// peerLine is what the seeders column says for a Soulseek release: whether the
+// user has a free slot or how many files wait before yours, and their speed.
+function peerLine(r: SearchResult): string {
+  const parts = [r.peerFree ? t('Free slot') : t('{n} in queue', { n: r.peerQueue ?? 0 })]
+  if (r.peerSpeed && r.peerSpeed > 0) parts.push(`${formatBytes(r.peerSpeed)}/s`)
+  return parts.join(' · ')
+}
+
 function scoreTip(r: SearchResult): string {
   const lines = [
     ...(r.formats ?? []).map((f) => `${f.name} ${signed(f.score)}`),

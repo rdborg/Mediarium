@@ -202,11 +202,16 @@ func (g *GoogleBooks) Book(ctx context.Context, id string) (WorkInfo, error) {
 	if !ok || hit.ID != id {
 		return WorkInfo{}, ErrNotFound
 	}
+	// A volume page can carry the blurb only as the search extract. The list
+	// often omits both, so the work page asks for the volume when it has none.
+	if hit.Description == "" && v.SearchInfo != nil {
+		hit.Description = plainDescription(v.SearchInfo.TextSnippet)
+	}
 	f, ok := hit.Found()
 	if !ok {
 		return WorkInfo{}, ErrNotFound
 	}
-	return WorkInfo{Found: f, Description: plainDescription(v.VolumeInfo.Description), Subjects: []string{}}, nil
+	return WorkInfo{Found: f, Description: hit.Description, Subjects: []string{}}, nil
 }
 
 // ImageURL is the picture address Google Books has for a volume, or ErrNotFound.
@@ -355,8 +360,9 @@ func (g *GoogleBooks) fetch(ctx context.Context, path string, query url.Values) 
 }
 
 type googleVolume struct {
-	ID         string           `json:"id"`
-	VolumeInfo googleVolumeInfo `json:"volumeInfo"`
+	ID         string            `json:"id"`
+	VolumeInfo googleVolumeInfo  `json:"volumeInfo"`
+	SearchInfo *googleSearchInfo `json:"searchInfo"`
 }
 
 type googleVolumeInfo struct {
@@ -383,6 +389,12 @@ type googleImageLinks struct {
 type googleIdentifier struct {
 	Type       string `json:"type"`
 	Identifier string `json:"identifier"`
+}
+
+// googleSearchInfo is the short extract Google sometimes sends beside the
+// volume, when volumeInfo.description itself is empty.
+type googleSearchInfo struct {
+	TextSnippet string `json:"textSnippet"`
 }
 
 func (v googleVolume) hit() (GoogleHit, bool) {
@@ -454,11 +466,9 @@ func googleCover(links *googleImageLinks) string {
 		if parsed.Scheme == "http" && (host == "books.google.com" || strings.HasSuffix(host, ".google.com") || strings.HasSuffix(host, ".googleusercontent.com")) {
 			parsed.Scheme = "https"
 		}
-		if parsed.Query().Get("zoom") == "1" {
-			q := parsed.Query()
-			q.Set("zoom", "3")
-			parsed.RawQuery = q.Encode()
-		}
+		// Leave zoom as Google sent it. zoom=1 is the thumbnail that exists for
+		// almost every book. Asking for zoom=3 when Google has no larger scan
+		// returns a blank "image not available" picture, which we would then keep.
 		out := strings.ReplaceAll(parsed.String(), "&edge=curl", "")
 		out = strings.ReplaceAll(out, "?edge=curl&", "?")
 		out = strings.ReplaceAll(out, "?edge=curl", "")

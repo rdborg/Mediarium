@@ -8339,5 +8339,8 @@
   "Unknown": "未知",
   "Complete series (packs)": "完整剧集（合集包）",
   "Choose a release for the whole series": "为整部剧选择发布版本",
-  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "列出包含多个季或整部剧的合集包（Complete Series、S01-S09），方便你自己挑选。"
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "列出包含多个季或整部剧的合集包（Complete Series、S01-S09），方便你自己挑选。",
+  "Keeping a Google Books cover and description that were dropped, written as a pull request": "保留被丢掉的 Google Books 封面和简介，以 pull request 形式提交",
+  "Free slot": "有空闲名额",
+  "{n} in queue": "队列中 {n} 个"
 }

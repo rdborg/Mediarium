@@ -8339,5 +8339,8 @@
   "Unknown": "Onbekend",
   "Complete series (packs)": "Complete serie (pakketten)",
   "Choose a release for the whole series": "Kies een release voor de hele serie",
-  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Toont de pakketten met meerdere seizoenen of de hele serie (Complete Series, S01-S09), zodat je er zelf een kunt kiezen."
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Toont de pakketten met meerdere seizoenen of de hele serie (Complete Series, S01-S09), zodat je er zelf een kunt kiezen.",
+  "Keeping a Google Books cover and description that were dropped, written as a pull request": "Een Google Books-omslag en -beschrijving behouden die verloren gingen, geschreven als pull request",
+  "Free slot": "Vrije plek",
+  "{n} in queue": "{n} in de wachtrij"
 }

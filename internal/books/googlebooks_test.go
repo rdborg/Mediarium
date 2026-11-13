@@ -99,6 +99,38 @@ func TestGoogleBooksNoKeyStillAsks(t *testing.T) {
 	}
 }
 
+func TestGoogleCoverKeepsTheThumbnailZoom(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"items":[{"id":"elmovolume1","volumeInfo":{"title":"L'elmo di Scipio","authors":["Angelo Soro"],"publishedDate":"2025","imageLinks":{"thumbnail":"http://books.google.com/books/content?id=elmovolume1&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"}}}]}`))
+	}))
+	defer srv.Close()
+	g := NewGoogleBooks("", "test")
+	g.Base = srv.URL
+	hits, err := g.Search(context.Background(), "elmo", "it", 5)
+	if err != nil || len(hits) != 1 {
+		t.Fatalf("hits: %+v err=%v", hits, err)
+	}
+	u := hits[0].CoverURL
+	if !strings.HasPrefix(u, "https://") || !strings.Contains(u, "zoom=1") || strings.Contains(u, "zoom=3") || strings.Contains(u, "edge=curl") {
+		t.Fatalf("cover url: %s", u)
+	}
+}
+
+func TestGoogleBookUsesTheSnippetWhenTheVolumeHasNoDescription(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"elmovolume1","volumeInfo":{"title":"L'elmo di Scipio","authors":["Angelo Soro"],"publishedDate":"2025"},"searchInfo":{"textSnippet":"Cagliari, 1980. Una giornata."}}`))
+	}))
+	defer srv.Close()
+	g := NewGoogleBooks("", "test")
+	g.Base = srv.URL
+	info, err := g.Book(context.Background(), "elmovolume1")
+	if err != nil || info.Description != "Cagliari, 1980. Una giornata." {
+		t.Fatalf("info=%+v err=%v", info, err)
+	}
+}
+
 func TestMergeGoogleFillsGapsAndAppendsTheRest(t *testing.T) {
 	open := []Found{{Key: "OL1W", Title: "Senza copertina", Author: "Qualcuno", Year: 2001}}
 	goog := []Found{

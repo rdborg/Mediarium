@@ -37,7 +37,7 @@ func (s *Server) bookResults(found []books.Found) []bookSearchResult {
 		if f.CoverID <= 0 && f.CoverImage == "" && f.GoogleID != "" && f.GoogleCover != "" {
 			gbCovers = append(gbCovers, f.GoogleID)
 		}
-		res := bookSearchResult{Found: f, CoverURL: f.CoverAddress("M")}
+		res := bookSearchResult{Found: f, CoverURL: s.freshCover(f.CoverAddress("M"))}
 		b, ok, err := s.BookRepo.GetByKey(f.Key)
 		if err != nil {
 			slog.Info("books: library lookup failed", "key", f.Key, "err", err)
@@ -208,7 +208,7 @@ func (s *Server) handleBookWork(w http.ResponseWriter, r *http.Request) {
 	if info.GoogleCover != "" {
 		s.warmGoogleCovers([]string{info.GoogleID})
 	}
-	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
+	out := workPayload{WorkInfo: info, CoverURL: s.freshCover(info.CoverAddress("L"))}
 	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
 		out.LibraryID = b.ID
 	}
@@ -269,7 +269,7 @@ func (s *Server) handleGoogleWork(w http.ResponseWriter, r *http.Request, id str
 		writeUpstreamError(w, "look the book up on Google Books", err)
 		return
 	}
-	out := workPayload{WorkInfo: info, CoverURL: info.CoverAddress("L")}
+	out := workPayload{WorkInfo: info, CoverURL: s.freshCover(info.CoverAddress("L"))}
 	if b, ok, _ := s.BookRepo.GetByKey(info.Key); ok {
 		out.LibraryID = b.ID
 	} else if library, err := s.BookRepo.List(); err == nil {

@@ -39,7 +39,6 @@ const (
 	// soulseekQueryWait is how long one ask to slskd may take; an empty answer
 	// is asked again in a wider form, so each try gets less than the whole.
 	soulseekQueryWait = 20 * time.Second
-	soulseekPoll      = 5 * time.Second
 	// soulseekQueuedFor is how long a download may wait in the other user's
 	// queue before another release is tried. Soulseek queues can be long.
 	soulseekQueuedFor = 6 * time.Hour
@@ -47,7 +46,13 @@ const (
 	soulseekStalledFor = 30 * time.Minute
 	soulseekMaxResults = 25
 	soulseekURLPrefix  = "slsk:"
+	// soulseekFileRetries is how many times a file that failed is asked for again
+	// from the same user before the release is given up on.
+	soulseekFileRetries = 2
 )
+
+// soulseekPoll is how often slskd is asked how the files are doing.
+var soulseekPoll = 5 * time.Second
 
 type soulseekConfig struct {
 	URL, Key, Folder string
@@ -377,6 +382,7 @@ func (s *Server) soulseekReleases(resps []slskd.Response, artist music.Artist, a
 			Title: title, IndexerName: "Soulseek · " + f.user, Protocol: string(indexers.ProtocolSoulseek), DownloadURL: s.offered.ref(encodeSoulseek(grab)),
 			SizeBytes: f.size(), Artist: rel.Artist, Album: rel.Album, Year: rel.Year, Format: string(rel.Format), Bitrate: rel.Bitrate, BitDepth: rel.BitDepth,
 			Quality: string(rel.Tier()), AcceptedBy: musicAcceptedBy(profile, rel.Tier()),
+			PeerSpeed: f.speed, PeerQueue: f.queue, PeerFree: f.free,
 		}
 		if !complete(f) {
 			p.Rejections = append(p.Rejections, fmt.Sprintf("It has %d of the album's %d tracks.", len(f.files), want))
@@ -439,6 +445,7 @@ func (s *Server) downloadSoulseek(ctx context.Context, queueID int64, downloadUR
 	}
 	started := time.Now()
 	lastMove, lastBytes := time.Now(), int64(-1)
+	retries := map[string]int{}
 	for {
 		list, err := c.Downloads(ctx, g.User)
 		if err != nil {
@@ -449,21 +456,34 @@ func (s *Server) downloadSoulseek(ctx context.Context, queueID int64, downloadUR
 		} else {
 			var got int64
 			done, failed, moving := 0, 0, false
-			seen := map[string]slskd.Transfer{}
-			for _, t := range list {
-				if _, ok := wanted[t.Filename]; ok {
-					seen[t.Filename] = t // the newest try of a file wins
-				}
-			}
-			for _, t := range seen {
+			var again []slskd.Want
+			for name, t := range soulseekTries(list, wanted) {
 				got += min(t.BytesTransferred, t.Size)
 				switch {
 				case t.State.Succeeded():
 					done++
 				case t.State.Done():
-					failed++
+					// One song that failed is asked for again, not the whole
+					// release swapped for another one.
+					if retries[name] < soulseekFileRetries {
+						retries[name]++
+						again = append(again, slskd.Want{Filename: name, Size: wanted[name]})
+					} else {
+						failed++
+					}
 				case t.State&slskd.StateInProgress != 0:
 					moving = true
+				}
+			}
+			if len(again) > 0 {
+				if err := c.Enqueue(ctx, g.User, again); err != nil {
+					if errors.Is(err, slskd.ErrUserOffline) {
+						return "", badRelease(fmt.Errorf("the Soulseek user %s went offline", g.User))
+					}
+					slog.Warn("soulseek: ask again for the files that failed", "queueId", queueID, "err", err)
+				} else {
+					s.queueEvent(queueID, "download", queue.LevelInfo, fmt.Sprintf("%d file(s) from %s failed, asked slskd for them again", len(again), g.User))
+					lastMove = time.Now()
 				}
 			}
 			_ = s.QueueRepo.SetProgress(queueID, float64(got)*100/float64(max(total, 1)))
@@ -489,6 +509,32 @@ func (s *Server) downloadSoulseek(ctx context.Context, queueID int64, downloadUR
 		case <-time.After(soulseekPoll):
 		}
 	}
+}
+
+// soulseekTries picks, for each wanted file, the try that tells how it is
+// doing: a finished one wins, then one that is still going, then the last
+// failure. slskd keeps every try of a file, so a file asked for again shows up
+// more than once.
+func soulseekTries(list []slskd.Transfer, wanted map[string]int64) map[string]slskd.Transfer {
+	rank := func(t slskd.Transfer) int {
+		switch {
+		case t.State.Succeeded():
+			return 2
+		case !t.State.Done():
+			return 1
+		}
+		return 0
+	}
+	seen := map[string]slskd.Transfer{}
+	for _, t := range list {
+		if _, ok := wanted[t.Filename]; !ok {
+			continue
+		}
+		if old, ok := seen[t.Filename]; !ok || rank(t) >= rank(old) {
+			seen[t.Filename] = t
+		}
+	}
+	return seen
 }
 
 // soulseekView finds the finished files in slskd's downloads folder (by name

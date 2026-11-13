@@ -8561,5 +8561,8 @@
   "Unknown": "Неизвестно",
   "Complete series (packs)": "Весь сериал (паки)",
   "Choose a release for the whole series": "Выбрать релиз для всего сериала",
-  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Показывает паки с несколькими сезонами или со всем сериалом (Complete Series, S01-S09), чтобы вы выбрали нужный сами."
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Показывает паки с несколькими сезонами или со всем сериалом (Complete Series, S01-S09), чтобы вы выбрали нужный сами.",
+  "Keeping a Google Books cover and description that were dropped, written as a pull request": "Сохранение обложки и описания из Google Books, которые терялись, написано как pull request",
+  "Free slot": "Есть свободный слот",
+  "{n} in queue": "{n} в очереди"
 }

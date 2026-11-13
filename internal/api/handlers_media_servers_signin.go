@@ -243,6 +243,9 @@ func (s *Server) loadPlexPin(w http.ResponseWriter, r *http.Request) (*plexPinSe
 
 // handlePollPlexSignIn reports whether the Plex PIN was approved yet; once it is, it lists the account's servers (never their tokens).
 func (s *Server) handlePollPlexSignIn(w http.ResponseWriter, r *http.Request) {
+	if !requireSession(w, r) { // finishing a sign-in saves a server: not for an API key
+		return
+	}
 	sess, ok := s.loadPlexPin(w, r)
 	if !ok {
 		return
@@ -381,6 +384,9 @@ func (s *Server) handleStartQuickConnect(w http.ResponseWriter, r *http.Request)
 
 // handlePollQuickConnect reports whether the Quick Connect code was approved; once it is, the Jellyfin server is saved with the access token it gave and returned as server.
 func (s *Server) handlePollQuickConnect(w http.ResponseWriter, r *http.Request) {
+	if !requireSession(w, r) { // finishing a sign-in saves a server: not for an API key
+		return
+	}
 	id := r.PathValue("id")
 	pending := s.signIns().quick
 	sess, ok := pending.Get(id)

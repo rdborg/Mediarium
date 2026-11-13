@@ -8,6 +8,17 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.0.7] - 2026-11-13
+
+### Added
+- The release list for an album shows, for each Soulseek user, whether they have a free upload slot or how many files wait in their queue, and their upload speed, so you can pick a quick one (#182).
+
+### Fixed
+- Finishing a Plex or Jellyfin/Emby Quick Connect sign-in needs a signed-in session now, not an API key (a read-only key could finish one an admin had started).
+- A Google Books cover was the blank "image not available" picture when Google only had a small thumbnail. Mediarium asked for a larger size, and Google answers that with a blank page when it has no larger scan. The thumbnail Google actually returned is kept. A book page whose search result had no description now asks for that one volume, which is where the description often is. A replaced cover is served from a new address, so a browser that saved the blank picture does not keep showing it for a month. Written by memnos on GitHub as a pull request (#183).
+- A Soulseek download where one song fails is no longer dropped for another release: that song is asked for again from the same user, up to twice, and only then is the release given up on (#143).
+- Activity showed "Season 1" for a pack that holds several seasons or the whole show. It now reads "Seasons 1-9" or "Complete series", taken from the release name (#176, SanketBaraiya).
+
 ## [4.0.6] - 2026-11-12
 
 ### Added

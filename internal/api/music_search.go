@@ -106,6 +106,11 @@ type musicReleasePayload struct {
 	PublishDate string `json:"publishDate,omitempty"`
 	Seeders     int    `json:"seeders,omitempty"`
 	Peers       int    `json:"peers,omitempty"`
+	// Soulseek only: the user's upload speed (bytes a second), how many files wait
+	// in their queue, and whether a slot is free now.
+	PeerSpeed int64 `json:"peerSpeed,omitempty"`
+	PeerQueue int64 `json:"peerQueue,omitempty"`
+	PeerFree  bool  `json:"peerFree,omitempty"`
 	// BelowMinSeeders marks a torrent with fewer seeders than its indexer's minimum
 	// (MinSeeders): automatic searches skip it, a grab by hand is allowed.
 	BelowMinSeeders bool `json:"belowMinSeeders,omitempty"`

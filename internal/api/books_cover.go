@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,23 @@ var bookCoverFile = regexp.MustCompile(`^(\d{1,9})-([SML])\.jpg$`)
 
 // bookCoverMaxAge is how long a browser keeps a book cover.
 const bookCoverMaxAge = 30 * 24 * time.Hour
+
+// freshCover adds the cached file's time to a Google Books cover address.
+// The browser keeps that address for a month and will not ask again, so a
+// cover that was replaced (the blank picture Google returns for a zoom it
+// does not have) stays on screen until the address itself changes.
+func (s *Server) freshCover(url string) string {
+	file := strings.TrimPrefix(url, "/api/book-covers/")
+	id, ok := books.ParseGoogleCover(file)
+	if !ok {
+		return url
+	}
+	st, err := os.Stat(filepath.Join(s.bookCoverDir(), "gb-"+id+".img"))
+	if err != nil || st.Size() == 0 {
+		return url
+	}
+	return url + "?v=" + strconv.FormatInt(st.ModTime().Unix(), 10)
+}
 
 var bookCoverLocks coverLocks // one download per cover at a time
 

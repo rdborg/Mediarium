@@ -1172,6 +1172,11 @@ export interface SearchResult {
   group?: string
   seeders?: number
   peers?: number
+  // Soulseek: the user's upload speed in bytes a second, the files waiting in
+  // their queue, and whether a slot is free now.
+  peerSpeed?: number
+  peerQueue?: number
+  peerFree?: boolean
   // The debrid service already has this torrent, so it starts at once. Only
   // set when it is known (TorBox, Premiumize).
   cached?: boolean

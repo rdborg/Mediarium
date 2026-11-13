@@ -152,6 +152,13 @@ func TestSoulseekAlbumRunSaysWhatHappened(t *testing.T) {
 			if !strings.Contains(logs.String(), tt.wantLog) {
 				t.Errorf("the log should have %q:\n%s", tt.wantLog, logs.String())
 			}
+			if tt.wantState == searchFound {
+				for _, r := range run.Releases {
+					if r.PeerSpeed <= 0 || (!r.PeerFree && r.PeerQueue <= 0) {
+						t.Errorf("release %q should say the user's speed and queue: speed %d queue %d free %v", r.Title, r.PeerSpeed, r.PeerQueue, r.PeerFree)
+					}
+				}
+			}
 			if tt.wantState == searchFound && !strings.Contains(logs.String(), "query=") {
 				t.Errorf("the search log has no query:\n%s", logs.String())
 			}

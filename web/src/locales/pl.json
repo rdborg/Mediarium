@@ -8561,5 +8561,8 @@
   "Unknown": "Nieznane",
   "Complete series (packs)": "Cały serial (paczki)",
   "Choose a release for the whole series": "Wybierz wydanie dla całego serialu",
-  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Pokazuje paczki z kilkoma sezonami lub z całym serialem (Complete Series, S01-S09), żebyś mógł wybrać jedną samodzielnie."
+  "Lists the packs that hold several seasons or the whole show (Complete Series, S01-S09), so you can pick one yourself.": "Pokazuje paczki z kilkoma sezonami lub z całym serialem (Complete Series, S01-S09), żebyś mógł wybrać jedną samodzielnie.",
+  "Keeping a Google Books cover and description that were dropped, written as a pull request": "Zachowanie okładki i opisu z Google Books, które znikały, napisane jako pull request",
+  "Free slot": "Wolny slot",
+  "{n} in queue": "{n} w kolejce"
 }

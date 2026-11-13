@@ -38,6 +38,11 @@ func TestGoogleBooksSearchShowsCoversAndCanBeAdded(t *testing.T) {
 		}
 		if strings.HasPrefix(r.URL.Path, "/volumes/") {
 			id := strings.TrimPrefix(r.URL.Path, "/volumes/")
+			if id == "elmovolume1" {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(`{"id":"elmovolume1","volumeInfo":{"title":"Elmo","authors":["Angelo Soro"],"publishedDate":"2025","description":"La trama di Scipio.","language":"it","imageLinks":{"thumbnail":"` + gbURL(r) + `/cover.jpg?zoom=1"}}}`))
+				return
+			}
 			if id != "oldervolume1" {
 				t.Errorf("volume looked up that search did not return: %s", id)
 				http.NotFound(w, r)
@@ -57,7 +62,8 @@ func TestGoogleBooksSearchShowsCoversAndCanBeAdded(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"items":[
 			{"id":"oldervolume1","volumeInfo":{"title":"Older","authors":["Ilaria Tuti"],"publishedDate":"1990","description":"<p>Una nota.</p>","language":"it","canonicalVolumeLink":"https://books.google.com/books?id=oldervolume1","imageLinks":{"thumbnail":"` + gbURL(r) + `/cover.jpg"},"industryIdentifiers":[{"type":"ISBN_13","identifier":"9780000000001"}]}},
-			{"id":"newervolume1","volumeInfo":{"title":"Newer","authors":["Ilaria Tuti"],"publishedDate":"2024","language":"it","infoLink":"https://books.google.com/books?id=newervolume1"}}
+			{"id":"newervolume1","volumeInfo":{"title":"Newer","authors":["Ilaria Tuti"],"publishedDate":"2024","language":"it","infoLink":"https://books.google.com/books?id=newervolume1"}},
+			{"id":"elmovolume1","volumeInfo":{"title":"Elmo","authors":["Angelo Soro"],"publishedDate":"2025","language":"it","imageLinks":{"thumbnail":"` + gbURL(r) + `/cover.jpg?zoom=1"}}}
 		]}`))
 	}))
 	t.Cleanup(gb.Close)
@@ -90,7 +96,11 @@ func TestGoogleBooksSearchShowsCoversAndCanBeAdded(t *testing.T) {
 			plain = row
 		}
 	}
-	if older == nil || older["key"] != "gb-oldervolume1" || older["googleId"] != "oldervolume1" || older["coverUrl"] != "/api/book-covers/gb-oldervolume1.jpg" {
+	var olderCover string
+	if older != nil {
+		olderCover, _ = older["coverUrl"].(string)
+	}
+	if older == nil || older["key"] != "gb-oldervolume1" || older["googleId"] != "oldervolume1" || !strings.HasPrefix(olderCover, "/api/book-covers/gb-oldervolume1.jpg") {
 		t.Fatalf("google book with a cover: %v", older)
 	}
 	if newer == nil || newer["key"] != "gb-newervolume1" || newer["coverUrl"] != nil {
@@ -111,8 +121,13 @@ func TestGoogleBooksSearchShowsCoversAndCanBeAdded(t *testing.T) {
 	}
 
 	work := getJSON[map[string]any](t, client, base+"/api/book-works/gb-oldervolume1")
-	if work["title"] != "Older" || work["description"] != "Una nota." || work["coverUrl"] != "/api/book-covers/gb-oldervolume1.jpg" || work["subjects"] == nil {
+	workCover, _ := work["coverUrl"].(string)
+	if work["title"] != "Older" || work["description"] != "Una nota." || !strings.HasPrefix(workCover, "/api/book-covers/gb-oldervolume1.jpg") || work["subjects"] == nil {
 		t.Fatalf("work page: %v", work)
+	}
+	elmo := getJSON[map[string]any](t, client, base+"/api/book-works/gb-elmovolume1")
+	if elmo["title"] != "Elmo" || elmo["description"] != "La trama di Scipio." {
+		t.Fatalf("work page asked the volume for a missing description: %v", elmo)
 	}
 
 	added := postJSON[map[string]any](t, client, base+"/api/books", map[string]any{

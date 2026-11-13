@@ -6,6 +6,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/library"
+	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -152,7 +153,7 @@ func (n *queueNamer) describe(it queue.Item) (title, subtitle, poster string) {
 			case it.Episode > 0:
 				subtitle = fmt.Sprintf("S%02dE%02d", it.Season, it.Episode)
 			case it.Season > 0:
-				subtitle = fmt.Sprintf("Season %d", it.Season)
+				subtitle = packSubtitle(it)
 			}
 			if sr.CopyOf != 0 {
 				subtitle = strings.TrimSuffix("Second copy · "+subtitle, " · ")
@@ -170,4 +171,18 @@ func (n *queueNamer) describe(it queue.Item) (title, subtitle, poster string) {
 		}
 	}
 	return title, subtitle, poster
+}
+
+// packSubtitle names a season-level download. A pack that holds several seasons
+// or the whole show is stored against its first season, so the release name
+// decides: "Seasons 1-9" or "Complete series" instead of "Season 1".
+func packSubtitle(it queue.Item) string {
+	rel := parser.Parse(it.ReleaseTitle)
+	switch {
+	case rel.SeasonTo > it.Season:
+		return fmt.Sprintf("Seasons %d-%d", it.Season, rel.SeasonTo)
+	case rel.Complete:
+		return "Complete series"
+	}
+	return fmt.Sprintf("Season %d", it.Season)
 }

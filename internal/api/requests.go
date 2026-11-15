@@ -18,6 +18,7 @@ import (
 	"github.com/rdborg/mediarium/internal/auth"
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/requests"
 )
 
@@ -366,7 +367,7 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 			who = u
 		}
 	}
-	ctx := context.WithValue(auth.WithUser(r.Context(), who), approvingKey{}, true)
+	ctx := withOrigin(context.WithValue(auth.WithUser(r.Context(), who), approvingKey{}, true), origin.Origin{Kind: origin.Request})
 	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte(req.Payload))).WithContext(ctx)
 	inner.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()

@@ -192,13 +192,34 @@ func (s *Server) fetchSeriesDetails(ctx context.Context, item library.ImportItem
 	}
 	// A show that already has its other numberings (TheXEM, the anime lists)
 	// helps place files named by TheTVDB's seasons.
+	episodes := toLibraryEpisodes(infos)
 	if sr, gerr := s.MovieRepo.GetSeries(item.TitleID); gerr == nil {
 		if num := s.numberingFor(sr); !num.Empty() {
 			details.SceneMap = num.MapScene
 			details.TVDBMap = num.MapTVDB
 		}
+		// A show set to TheTVDB's episode order is imported against that
+		// list; without it the movie database's numbers would be laid over
+		// the show's. The show's own episodes are put in order first, as a
+		// refresh does.
+		if sr.EpisodeOrder == library.EpisodeOrderTVDB {
+			ordered, oerr := s.tvdbOrderedEpisodes(ctx, sr, detail.ExternalIDs.TVDBID, episodes)
+			if oerr != nil {
+				return oerr
+			}
+			old, lerr := s.MovieRepo.ListEpisodes(sr.ID)
+			if lerr != nil {
+				return lerr
+			}
+			plan := library.PlanEpisodeOrder(old, ordered)
+			if aerr := s.MovieRepo.ApplyEpisodeOrder(sr.ID, plan); aerr != nil {
+				return aerr
+			}
+			episodes = plan.Final
+		} else if sr.SeriesType == library.SeriesStandard && detail.ExternalIDs.TVDBID > 0 && s.tvdbKeyClient() != nil {
+			details.OfferTVDBOrder = true
+		}
 	}
-	episodes := toLibraryEpisodes(infos)
 	// A show whose files are named by the day they aired is a daily one.
 	details.Daily = library.LooksDaily(item.Files, details.GuessedType == library.SeriesDaily)
 	// A daily show's files named by the day they aired go on that day's episode.
@@ -218,6 +239,8 @@ func (s *Server) fetchSeriesDetails(ctx context.Context, item library.ImportItem
 func describeImportFailure(err error) (note string, permanent, hard bool) {
 	var status *metadata.StatusError
 	switch {
+	case errors.Is(err, errNoTVDBOrder):
+		return "TheTVDB's episode list for this show couldn't be read. Check the TheTVDB key in Settings, or set the show back to the movie database's order. It tries again soon.", false, false
 	case errors.Is(err, metadata.ErrNoAPIKey):
 		return "There's no movie database key yet. Add one in Settings and it tries again.", false, true
 	case errors.Is(err, metadata.ErrInvalidKey):

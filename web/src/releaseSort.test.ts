@@ -1,7 +1,7 @@
 // Run with: npm test (uses node's built-in test runner, no extra packages).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { ageOf, defaultOrder, filterReleases, indexersIn, qualitiesIn, resolutionOf, scoreOf, sortReleases, sortSubtitles, subtitleFit, subtitleRating, subtitleSite, type SortableRelease } from './releaseSort.ts'
+import { ageOf, defaultOrder, filterReleases, indexersIn, isFreeleech, qualitiesIn, resolutionOf, scoreOf, sortReleases, sortSubtitles, subtitleFit, subtitleRating, subtitleSite, type SortableRelease } from './releaseSort.ts'
 
 const base = { protocol: 'usenet', sizeBytes: 0 }
 const list: SortableRelease[] = [
@@ -32,6 +32,17 @@ test('the list starts with the best match, then the highest score, then the orde
   assert.deepEqual(defaultOrder(scored).map((x) => x.title), ['e', 'b', 'd', 'a', 'c'])
   // A list that is not scored and has no marked release is left alone.
   assert.equal(defaultOrder(list), list)
+})
+
+test('the freeleech filter keeps only releases the tracker counts as free', () => {
+  const r = (title: string, discount?: number): SortableRelease => ({ ...base, title, indexerName: 'A', discount })
+  const mixed = [r('a', 100), r('b', 50), r('c'), r('d', 0), r('e', 100)]
+  assert.deepEqual(filterReleases(mixed, { text: '', indexer: '', quality: '', freeleech: true }).map((x) => x.title), ['a', 'e'])
+  assert.equal(filterReleases(mixed, { text: '', indexer: '', quality: '', freeleech: false }).length, 5)
+  assert.equal(filterReleases(mixed, { text: '', indexer: '', quality: '' }).length, 5)
+  assert.deepEqual(filterReleases(mixed, { text: 'e', indexer: '', quality: '', freeleech: true }).map((x) => x.title), ['e'])
+  assert.equal(isFreeleech({ discount: 99 }), false)
+  assert.equal(isFreeleech({}), false)
 })
 
 test('filters combine: indexer, quality and words in the title', () => {

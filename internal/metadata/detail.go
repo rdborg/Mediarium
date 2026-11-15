@@ -403,6 +403,9 @@ type ShowFull struct {
 	Networks         []struct {
 		Name string `json:"name"`
 	} `json:"networks"`
+	ProductionCompanies []struct {
+		Name string `json:"name"`
+	} `json:"production_companies"`
 	CreatedBy []struct {
 		ID          int    `json:"id"`
 		Name        string `json:"name"`
@@ -497,6 +500,17 @@ func (d *ShowFull) NetworkNames() []string {
 	for _, n := range d.Networks {
 		if n.Name != "" {
 			out = append(out, n.Name)
+		}
+	}
+	return out
+}
+
+// Studios are the production companies' names.
+func (d *ShowFull) Studios() []string {
+	out := []string{}
+	for _, c := range d.ProductionCompanies {
+		if c.Name != "" {
+			out = append(out, c.Name)
 		}
 	}
 	return out

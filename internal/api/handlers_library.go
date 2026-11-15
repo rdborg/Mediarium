@@ -13,6 +13,7 @@ import (
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/trakt"
@@ -35,7 +36,14 @@ type searchResultPayload struct {
 	Group       string `json:"group,omitempty"`
 	Seeders     int    `json:"seeders,omitempty"`
 	Peers       int    `json:"peers,omitempty"`
-	InfoHash    string `json:"infoHash,omitempty"` // torrents, when the indexer reports it
+	// Discount is the percent of the download the tracker does not count
+	// against the user's ratio: 100 is freeleech. Left out when there is none.
+	Discount int    `json:"discount,omitempty"`
+	InfoHash string `json:"infoHash,omitempty"` // torrents, when the indexer reports it
+	// InfoURL is the release's page on its indexer, for the link in the list.
+	// Only a plain http or https page that carries no key or login (see
+	// indexers.SafeInfoURL); left out when there is none.
+	InfoURL string `json:"infoUrl,omitempty"`
 	// Cached is true when the debrid service in use already has this torrent,
 	// so it starts at once. Left out when it has not or it is not known
 	// (debrid_cache.go).
@@ -121,7 +129,9 @@ func (s *Server) toSearchResultPayload(res indexers.Result) searchResultPayload 
 		Group:       release.Group,
 		Seeders:     res.Seeders,
 		Peers:       res.Peers,
+		Discount:    res.Discount,
 		InfoHash:    res.InfoHash,
+		InfoURL:     indexers.SafeInfoURL(res.InfoURL, res.DownloadURL),
 		Cached:      res.Cached,
 		hash:        releaseHash(res),
 		Season:      release.Season,
@@ -168,7 +178,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	out := make([]searchResultPayload, len(merged))
 	for i, res := range merged {
 		out[i] = s.toSearchResultPayload(res)
-		out[i].Blocklisted = blocked[blocklist.Key(res.Title)]
+		out[i].Blocklisted = blocklist.Blocked(blocked, res.Title, blocklist.Scope{})
 	}
 	s.markCachedPayloads(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
@@ -190,6 +200,9 @@ type moviePayload struct {
 	Genres    []string `json:"genres"`  // TMDB genre names; empty until fetched
 	Tags      []string `json:"tags"`    // the person's own tags ("Kids", "4K")
 	AddedBy   *userRef `json:"addedBy"` // null when unknown
+	// Origin is how the movie came into the library (a person, a list, a library
+	// scan...); left out for one added before that was recorded.
+	Origin *originView `json:"origin,omitempty"`
 	// For sorting the Library: the release date ("2024-03-01", "" when
 	// unknown) and the size of the file on disk (0 when there is none).
 	ReleaseDate string `json:"releaseDate,omitempty"`
@@ -230,7 +243,7 @@ func toMoviePayload(m library.Movie, who func(int64) *userRef) moviePayload {
 	return moviePayload{
 		ID: m.ID, TMDBID: m.TMDBID, Title: m.Title, Year: m.Year, Overview: m.Overview,
 		PosterURL: metadata.PosterURL(m.PosterPath), Status: string(m.Status), Quality: m.Quality, FilePath: m.FilePath, ProfileID: m.ProfileID, Monitored: m.Monitored, Sources: m.SourcePref,
-		Genres: genres, Tags: []string{}, AddedBy: who(m.AddedBy),
+		Genres: genres, Tags: []string{}, AddedBy: who(m.AddedBy), Origin: originOut(m.Origin, who(m.AddedBy)),
 		NoUpgrade: m.NoUpgrade, DetailsState: m.DetailsState, DetailsNote: m.DetailsNote, ReleaseDate: m.ReleaseDate,
 		CopyOf: m.CopyOf, RootPath: m.RootPath,
 	}
@@ -467,7 +480,7 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		TMDBID: tmdbMovie.TMDBID, Title: tmdbMovie.Title, Year: tmdbMovie.Year(),
 		Overview: tmdbMovie.Overview, PosterPath: tmdbMovie.PosterPath, Monitored: monitored, ReleaseDate: tmdbMovie.ReleaseDate,
 		NoUpgrade: boolOr(req.NoUpgrade, true), AddedBy: userID, Genres: s.TMDB().MovieGenres(r.Context(), *tmdbMovie),
-		RootPath: rootPath,
+		RootPath: rootPath, Origin: addOrigin(r),
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -487,7 +500,11 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	_ = s.QueueRepo.LogActivity(created.ID, "added", created.Title+" added to library"+byline)
 	go s.rememberDisplayFace("movie", created.TMDBID, created.Title, created.PosterPath, created.Overview)
 	if req.SearchNow {
-		go s.searchMovieInBackground(created.ID)
+		by := userOrigin(r, origin.Search)
+		go func() {
+			defer s.hintGrabs(false, created.ID, by)()
+			s.searchMovieInBackground(created.ID)
+		}()
 	}
 	added := toMoviePayload(created, s.accountNames())
 	added.RootPath = folderShown(r, s.movieFolders(), created.RootPath)

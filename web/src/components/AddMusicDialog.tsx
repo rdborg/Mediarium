@@ -10,6 +10,7 @@ import ViewerNotice from './ViewerNotice'
 import { MusicFallback } from './PosterCard'
 import { useToast } from './Toast'
 import { useFocusTrap } from '../useFocusTrap'
+import { addStart } from '../addDefaults'
 import { t, st } from '../i18n'
 
 // What was picked on Discover: a whole artist, or one album (which may belong
@@ -45,6 +46,8 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
   const [profiles, setProfiles] = useState<MusicProfile[]>([])
   const [profileId, setProfileId] = useState(0)
   const [searchNow, setSearchNow] = useState(true)
+  // Settings sets the starting state; a choice made before it loads wins.
+  const edited = useRef({ choice: false, searchNow: false })
   const [indexers, setIndexers] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -56,6 +59,15 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
 
   useEffect(() => {
     api.musicProfiles().then(setProfiles).catch(() => undefined)
+    api
+      .listProfiles()
+      .then((r) => {
+        const start = addStart(r)
+        // Only an artist has a monitoring choice to start from; an album is added to be wanted.
+        if (!item && !edited.current.choice && !start.monitored) setChoice('none')
+        if (!edited.current.searchNow) setSearchNow(start.searchNow)
+      })
+      .catch(() => undefined)
     api.dashboard().then((d) => setIndexers(d.setup.indexers)).catch(() => undefined)
   }, [])
   useEffect(() => {
@@ -224,7 +236,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
           ) : (
             <div className="choice-grid add-music-choices" role="radiogroup" aria-label={t('What to follow')}>
               {options.map((o) => (
-                <button key={o.id} type="button" role="radio" aria-checked={choice === o.id} className={`choice-card${choice === o.id ? ' active' : ''}`} onClick={() => setChoice(o.id)} disabled={busy}>
+                <button key={o.id} type="button" role="radio" aria-checked={choice === o.id} className={`choice-card${choice === o.id ? ' active' : ''}`} onClick={() => { edited.current.choice = true; setChoice(o.id) }} disabled={busy}>
                   <span className="choice-dot" aria-hidden="true" />
                   <strong>{o.title}</strong>
                   <small>{o.blurb}</small>
@@ -251,7 +263,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
           )}
 
           <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
-            <input type="checkbox" checked={searchNow && !cannotSearch && !noSearch} onChange={(e) => setSearchNow(e.target.checked)} disabled={cannotSearch || noSearch || busy} />
+            <input type="checkbox" checked={searchNow && !cannotSearch && !noSearch} onChange={(e) => { edited.current.searchNow = true; setSearchNow(e.target.checked) }} disabled={cannotSearch || noSearch || busy} />
             <span className="has-tip">
               {choice === 'album' ? (onlySong ? t('Start searching for this song now') : t('Start searching for this album now')) : t('Start searching for their albums now')}
               <InfoTip text={t('Looks for a release straight away. If you leave it unticked, the albums wait for the next automatic search or for you to press Search now. It is greyed out until you add an indexer.')} />

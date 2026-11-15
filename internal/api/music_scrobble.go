@@ -203,8 +203,8 @@ func (s *Server) listenFor(trackID, at int64) (listenbrainz.Listen, error) {
 		return listenbrainz.Listen{}, err
 	}
 	l := listenbrainz.Listen{ArtistName: artist.Name, TrackName: t.Title, ReleaseName: album.Title, ListenedAt: at,
-		DurationMs: t.LengthMs, TrackNumber: t.Position, ReleaseGroupMBID: album.MBID}
-	if artist.MBID != "" {
+		DurationMs: t.LengthMs, TrackNumber: t.Position, ReleaseGroupMBID: manualBlank(album.MBID, album.MBID)}
+	if artist.MBID != "" && !artist.Manual() {
 		l.ArtistMBIDs = []string{artist.MBID}
 	}
 	return l, nil

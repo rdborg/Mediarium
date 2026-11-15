@@ -216,7 +216,7 @@ func (s *Server) artistTopTrackIDs(ctx context.Context, artistID int64) ([]int64
 	used := map[int64]bool{}
 	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if top, err := s.discoverClient().TopRecordings(cctx, artist.MBID); err == nil {
+	if top, err := s.manualTopRecordings(cctx, artist); err == nil {
 		byTitle := map[string][]music.Track{}
 		for _, t := range have {
 			k := music.NormalizeName(t.Title)

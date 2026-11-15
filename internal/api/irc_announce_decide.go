@@ -13,6 +13,7 @@ import (
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/quality"
 )
@@ -23,7 +24,20 @@ import (
 // language, blocklist, upgrade and "already downloading" rules), so a release
 // announced on IRC is treated exactly like the same release found by an RSS
 // sync. It only ever acts on titles that are already in the library.
-type ircDecider struct{ s *Server }
+type ircDecider struct {
+	s *Server
+	// by is who the downloads it starts are credited to: an import list whose
+	// feed is being read. Empty means the IRC announce channels.
+	by origin.Origin
+}
+
+// origin is what a download this decider starts is credited to.
+func (d ircDecider) origin() origin.Origin {
+	if d.by.Known() {
+		return d.by
+	}
+	return origin.Origin{Kind: origin.Auto, Name: origin.JobAnnounce}
+}
 
 // ircWantedTTL is how long the list of titles is kept between announcements.
 // A busy tracker announces many releases a minute; reading the whole library
@@ -214,10 +228,10 @@ func (d ircDecider) decideMovie(ctx context.Context, res indexers.Result, movies
 		}
 		profile := s.profileForMovie(profiles, m)
 		sources := s.sourcesFor(m.SourcePref)
-		cands := filterSources(dropBlocked([]indexers.Result{res}, blocked), sources)
+		cands := filterSources(dropBlocked([]indexers.Result{res}, blocked, blocklist.Scope{MovieID: m.ID}), sources)
 		if len(cands) == 0 {
 			switch {
-			case blocked[blocklist.Key(res.Title)]:
+			case blocklist.Blocked(blocked, res.Title, blocklist.Scope{MovieID: m.ID}):
 				why = "That release is on the blocklist."
 			default:
 				why = onlyOtherSource(movieLabel(m), res)
@@ -269,7 +283,7 @@ func (d ircDecider) decideMovie(ctx context.Context, res indexers.Result, movies
 		}
 		m := m
 		return d.finish(o, movieLabel(m), func(url string) error {
-			if _, err := s.grabMovie(m, res.Title, url, res.SizeBytes, res.Protocol, grabAutomatic); err != nil {
+			if _, err := s.grabMovieBy(m, res.Title, url, res.SizeBytes, res.Protocol, grabAutomatic, d.origin()); err != nil {
 				return err
 			}
 			if m.Status == library.StatusMissing {
@@ -298,11 +312,11 @@ func (d ircDecider) decideTV(ctx context.Context, rel parser.Release, res indexe
 			why = fmt.Sprintf("Matches %s, which isn't monitored.", sr.Title)
 			continue
 		}
-		cands := filterSources(dropBlocked([]indexers.Result{res}, blocked), s.sourcesFor(sr.SourcePref))
+		cands := filterSources(dropBlocked([]indexers.Result{res}, blocked, blocklist.Scope{SeriesID: sr.ID}), s.sourcesFor(sr.SourcePref))
 		if len(cands) == 0 {
 			if blocked[nzbLinkHoldKey(res.DownloadURL, res.Title)] {
 				why = "That release is held back for a few hours because its indexer sent a web page instead of the NZB file."
-			} else if blocked[blocklist.Key(res.Title)] {
+			} else if blocklist.Blocked(blocked, res.Title, blocklist.Scope{SeriesID: sr.ID}) {
 				why = "That release is on the blocklist."
 			} else {
 				why = onlyOtherSource(sr.Title, res)
@@ -379,7 +393,7 @@ func (d ircDecider) decideTV(ctx context.Context, rel parser.Release, res indexe
 			item = fmt.Sprintf("%s season %d", sr.Title, season)
 		}
 		return d.finish(o, item, func(url string) error {
-			if _, err := s.grabTV(sr, season, episode, res.Title, url, res.SizeBytes, res.Protocol, grabAutomatic); err != nil {
+			if _, err := s.grabTVBy(sr, season, episode, res.Title, url, res.SizeBytes, res.Protocol, grabAutomatic, d.origin()); err != nil {
 				return err
 			}
 			s.noteFallbackGrab(0, sr.ID, sr.Title, profile, res.Title)

@@ -28,3 +28,45 @@ func TestLeftOutNote(t *testing.T) {
 		}
 	}
 }
+
+// The hint to switch a show to TheTVDB's episode order shows only when files
+// were left out, a TheTVDB key is saved and the show still follows the movie
+// database, and never for files named by their number from the first episode.
+func TestTVDBOrderNote(t *testing.T) {
+	cases := []struct {
+		name              string
+		unknown           int
+		byAbsolute, offer bool
+		want              bool
+	}{
+		{"files left out, key saved", 5, false, true, true},
+		{"one file left out", 1, false, true, true},
+		{"nothing left out", 0, false, true, false},
+		{"no key saved or already TheTVDB's order", 5, false, false, false},
+		{"named from the start of the show", 5, true, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tvdbOrderNote(tc.unknown, tc.byAbsolute, tc.offer)
+			if (got != "") != tc.want {
+				t.Fatalf("tvdbOrderNote = %q, want a note: %v", got, tc.want)
+			}
+			if got != "" && !strings.Contains(got, "TheTVDB order") {
+				t.Errorf("the note should name the choice: %q", got)
+			}
+		})
+	}
+}
+
+func TestImportNoteKeepsTheOrderHintOnItsOwnLine(t *testing.T) {
+	left := leftOutNote(3, false, true, false)
+	hint := tvdbOrderNote(3, false, true)
+	got := importNote(0, 0, left, []string{"/tv/Show/S04E03-E04.mkv"}, hint)
+	lines := strings.Split(got, "\n")
+	if len(lines) != 3 || lines[0] != left || lines[1] != "Files left out: S04E03-E04.mkv." || lines[2] != hint {
+		t.Errorf("note lines = %q", lines)
+	}
+	if got := importNote(0, 0, "", nil, hint); got != "" {
+		t.Errorf("a hint without files left out must not show: %q", got)
+	}
+}

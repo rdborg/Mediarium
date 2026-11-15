@@ -9,9 +9,11 @@ import (
 	"strconv"
 
 	"github.com/rdborg/mediarium/internal/auth"
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/queue"
@@ -88,7 +90,7 @@ func (s *Server) handleGrab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	queueID, err := s.grabMovieOpts(movie, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked, grabOpts{byHand: req.Replace})
+	queueID, err := s.grabMovieOpts(movie, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked, grabOpts{byHand: req.Replace, by: userOrigin(r, origin.Manual)})
 	if err != nil {
 		writeGrabError(w, err, http.StatusInternalServerError)
 		return
@@ -159,7 +161,7 @@ func (s *Server) handleSearchGrab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queueID, err := s.grabMovieOpts(movie, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked, grabOpts{byHand: req.Replace})
+	queueID, err := s.grabMovieOpts(movie, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked, grabOpts{byHand: req.Replace, by: userOrigin(r, origin.Manual)})
 	if err != nil {
 		writeGrabError(w, err, http.StatusInternalServerError)
 		return
@@ -200,6 +202,16 @@ type grabOpts struct {
 	// byHand says a person picked the release and agreed to it replacing the
 	// file the title has (see grabRequest.Replace).
 	byHand bool
+	// by is who asked for the download: the person for a release they picked or
+	// a search they started, or the list or job for an automatic one. Empty
+	// means "the scheduled search" for an automatic grab.
+	by origin.Origin
+}
+
+// grabMovieBy is grabMovie for a grab whose origin is known: the person or
+// the job (an RSS check, an IRC announce, a list) that asked for it.
+func (s *Server) grabMovieBy(movie library.Movie, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind, by origin.Origin) (int64, error) {
+	return s.grabMovieOpts(movie, releaseTitle, downloadURL, sizeBytes, protocol, kind, grabOpts{by: by})
 }
 
 // grabMovieOpts is grabMovieReplacing with the extras in one place.
@@ -223,7 +235,7 @@ func (s *Server) grabMovieOpts(movie library.Movie, releaseTitle, downloadURL st
 		}
 	}
 	if kind.refusesDuplicates() {
-		if err := s.grabRefused(kind, releaseTitle, downloadURL); err != nil {
+		if err := s.grabRefused(kind, releaseTitle, downloadURL, blocklist.Scope{MovieID: movie.ID}); err != nil {
 			s.grabMu.Unlock()
 			return 0, err
 		}
@@ -243,6 +255,7 @@ func (s *Server) grabMovieOpts(movie library.Movie, releaseTitle, downloadURL st
 	}
 	queueID, err := s.QueueRepo.Enqueue(queue.Item{
 		MovieID: movie.ID, ReleaseTitle: releaseTitle, NZBURL: downloadURL, SizeBytes: sizeBytes, Protocol: queue.Protocol(protocol), Priority: kind.priority(), ReplacesFile: o.replaces, ReplaceByHand: o.byHand && kind == grabPicked,
+		Origin: s.grabOrigin(kind, o.by, false, movie.ID, ""),
 	})
 	if err == nil {
 		// From here the movie is taken, as an episode or an album is, even while
@@ -301,7 +314,7 @@ func (s *Server) findOrAddMovie(match metadata.Movie, userID int64) (library.Mov
 	}
 	return s.MovieRepo.Add(library.Movie{
 		TMDBID: match.TMDBID, Title: match.Title, Year: match.Year(), Overview: match.Overview,
-		PosterPath: match.PosterPath, Monitored: true, ReleaseDate: match.ReleaseDate, NoUpgrade: true, AddedBy: userID,
+		PosterPath: match.PosterPath, Monitored: true, ReleaseDate: match.ReleaseDate, NoUpgrade: true, AddedBy: userID, Origin: origin.Origin{Kind: origin.Manual},
 		RootPath: s.animeMovieFolderFor(match, s.newMovieFolder()),
 	})
 }

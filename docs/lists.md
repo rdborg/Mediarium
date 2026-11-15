@@ -78,6 +78,18 @@ Any RSS or Atom feed: an indexer's own RSS feed, a tracker's, or a site that pos
 
 The Plex watchlists accounts have connected (**Settings > Account & Access > Linked services > Plex watchlist**) show in the same view, each with **Check now**. They work as before: every 20 minutes, new titles are added, or asked for when the account has to ask. They are managed by the account that connected them.
 
+## What a list has done: its History
+
+Under each list, **History** opens a summary of what that list has brought in, so you can tell which lists are worth keeping:
+
+- **Titles added**, and how many of them **have a file now**. A list that adds a lot that never gets downloaded is not doing much for you.
+- **Downloads it started**: the releases an RSS feed list grabbed, and the searches that ran for what a list just added. Downloads you cleared from the history are no longer counted.
+- **Last added**: when it last brought something in.
+- What it **skipped**, by reason: already in the library, on the list when it was first read, on your Not interested list, below the minimum rating or year, not found on TMDB, or couldn't be added.
+- A list of the titles it added, newest first (up to 300), each with the date and whether it has a file. A title you removed from the library afterwards says so.
+
+The titles are kept when you press **Start this list over**; the skipped counts start again, because they come from what the list remembers. Lists that ran before this existed show what they remembered as added. The same information is also in each title's **Added by** line (see [The Library page](library.md#who-added-a-title)).
+
 ## When a list fails
 
 The result under the list says why, in words. The usual ones:
@@ -97,6 +109,7 @@ The list is tried again at its next read.
 Everything below is for administrators.
 
 - `GET /api/import-lists` returns `{"lists": [...], "sources": [...], "plexWatchlists": [...]}`. A list never returns its file or its key: `hasCsv` and `hasKey` say they are set.
+- `GET /api/import-lists/{id}/history` answers `{listId, name, added, withFiles, downloads, lastAddedAt, outcomes, titles, more}`. `outcomes` counts what the list remembers by outcome (`added`, `in-library`, `existing`, `excluded`, `filtered`, `no-match`, `failed`); `titles` is the newest 300 titles it added, each with `title`, `year`, `kind`, `tmdbId`, `at`, `libraryId` (left out when the title is gone) and `hasFile`.
 - `POST /api/import-lists` and `PUT /api/import-lists/{id}` take `name`, `source` (`trakt-list`, `trakt-watchlist`, `trakt-chart`, `tmdb-list`, `tmdb-chart`, `imdb`, `mdblist`, `simkl`, `letterboxd`), `media` (`movie`, `tv`, `both`), `config` (`url`, `chart`, `count`, `genre`, `language`, `csv`, `status` for Simkl: `plantowatch`, `watching`, `completed`, `hold` or `dropped`), `key` (MDBList; empty keeps the saved one), `enabled`, `intervalHours` (1 to 168), `profileId` (0 = default), `movieRoot`, `tvRoot`, `monitored`, `searchNow`, `tags`, `minRating`, `minYear`, `maxPerRun` (1 to 100) and `startFresh`. A new list is read at once.
 - `PUT /api/import-lists/{id}/enabled`, `DELETE /api/import-lists/{id}`, `POST /api/import-lists/{id}/run` (answers `202`; the list shows `running` while it is read), `POST /api/import-lists/{id}/forget`, `POST /api/import-lists/preview` (the same body as create, plus an optional `id`) and `POST /api/import-lists/plex/{userId}/run`.
 - The Simkl account (administrators): `GET /api/settings/simkl` returns `{"connected", "unreadable", "hasClientId"}` and never the token. `POST /api/settings/simkl/pin` starts the sign-in and returns the `code`, the address to enter it at (`url`, and `fullUrl` with the code filled in when Simkl gives one), the `flow` (`device` or `pin`), `expiresIn` and `interval` in seconds. `GET /api/settings/simkl/pin/{code}` answers `{"done": false, "interval"}` while the code waits (`interval` is how many seconds to wait before asking again; it grows when Simkl asks to slow down), `{"done": true, "name", "status": {...}}` once it was entered and `410` when it expired, was declined on Simkl or was never handed out. `POST /api/settings/simkl/test` returns `{"ok", "message"}` with the Simkl account's name. `DELETE /api/settings/simkl` disconnects. The Client ID is the `simklClientId` setting.

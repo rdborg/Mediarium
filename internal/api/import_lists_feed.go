@@ -7,6 +7,7 @@ import (
 	"github.com/rdborg/mediarium/internal/announce"
 	"github.com/rdborg/mediarium/internal/importlists"
 	"github.com/rdborg/mediarium/internal/indexers"
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // RSS feed lists (#160, mirisbowring). The titles a feed names are added like
@@ -47,7 +48,7 @@ func feedListItems(entries []importlists.FeedEntry, media string) []importlists.
 // grabFromFeed offers the feed's releases to the automatic download check. It
 // returns how many were sent to the download line.
 func (s *Server) grabFromFeed(ctx context.Context, l importList, entries []importlists.FeedEntry) int {
-	d := ircDecider{s}
+	d := ircDecider{s: s, by: origin.Origin{Kind: origin.List, Name: l.Name}}
 	grabbed, checked := 0, 0
 	for _, e := range entries {
 		if ctx.Err() != nil || checked >= maxFeedGrabChecks {

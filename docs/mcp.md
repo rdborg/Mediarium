@@ -8,6 +8,7 @@ Mediarium can talk to chat programs and voice assistants that support MCP, the M
 - "Show the latest requests from Sam."
 - "Move Tide Pool to the 4K profile."
 - "Add the show with TVDB id 123."
+- "Find a show like Lupin, add it, and download the first season once I say so." (needs [Let assistants pick releases and start downloads](#let-an-assistant-start-downloads) switched on)
 
 Questions are answered straight away. Anything that changes something is shown first and only happens after you say yes.
 
@@ -154,11 +155,31 @@ Sizes are in GB of 1024 MB, the way file managers show them. The release group c
 
 Each of these needs `confirm: true`. Called without it, the tool changes nothing and answers with what it would do, and tells the assistant to ask you. Only when you agree does the assistant call it again with `confirm` set. The changes run through the same code as the web pages, so the same checks apply (a title that is already in the library is refused, a profile that doesn't exist is refused, and so on).
 
+### Let an assistant start downloads
+
+Picking one specific release and downloading it is a separate permission, and it is **off** until you switch it on. On **Settings > Connections > Other apps**, under **Let AI assistants connect (MCP)**, switch on **Let assistants pick releases and start downloads**. Like the main MCP switch it can only be turned on from the web page while you are signed in, never with an API key. With it off, the two tools below don't even show up in the assistant's list, and calling them anyway is refused.
+
+| Tool | What it does |
+|---|---|
+| `find_releases` | Searches your indexers for releases of a title that is in the library (a movie, or a season, an episode or the packs of a show) and lists the best matches with size, quality, group and anything that speaks against them. Each one gets a short `release_id`. Nothing is downloaded. The download address stays inside Mediarium and is never given to the assistant. |
+| `grab_release` | Downloads one of those releases. It takes two calls (see below). |
+
+Both need a key that is not read-only (or a sign-in that was allowed to make changes), next to the switch.
+
+How the two calls work:
+
+1. The assistant calls `grab_release` with only the `release_id`. Nothing happens. Mediarium answers with what would be downloaded (release name, size, which title) and a `confirm_token`.
+2. The assistant tells you and asks. Only if you say yes does it call `grab_release` again with the same `release_id` and the `confirm_token`. Now the release goes into the download queue, through the same code as pressing **Download** on a release in the web app.
+
+The token works **once**, only for that release and that account, and runs out after 5 minutes. A made-up, used, expired or mixed-up token downloads nothing and is used up by trying it. A newer preview of the same release replaces the older token. A release id is kept for 30 minutes, then the assistant has to search again. If you switch the setting off between the two calls, the second one is refused. Tokens and release ids live in memory only, so a restart of Mediarium clears them.
+
+A whole request such as "find a show like Lupin and download it" then goes: the assistant suggests titles, you pick one, `add_series` previews and adds it (after your yes), `find_releases` lists releases, `grab_release` previews one, and the download starts after your second yes.
+
 Besides the tools, Mediarium offers two resources (a library summary and the health items) and three ready-made prompts (a health check, a look at failed downloads, and a release group check). Programs that show prompts list them.
 
 ## Good to know
 
-- **The yes is the assistant's to give.** Mediarium can't see whether you really said yes in the chat; it only sees `confirm: true` in the call. An assistant that is told to, or tricked into it by text it reads, could send it without asking. If you don't fully trust a program, give it a **read-only key**: it then only sees the question tools and can't change anything.
+- **The yes is the assistant's to give.** Mediarium can't see whether you really said yes in the chat; it only sees `confirm: true` in the call, or the `confirm_token` of a download. The token makes it a deliberate second step (a program that never asks can't start a download by accident or by one stray call), but it can't prove that a person agreed. Keep **Let assistants pick releases and start downloads** off unless you trust the program. An assistant that is told to, or tricked into it by text it reads, could send it without asking. If you don't fully trust a program, give it a **read-only key**: it then only sees the question tools and can't change anything.
 - **Use HTTPS when you can.** Keys and tokens travel in a header and the sign-in sends the browser back with a one-time code. Over plain `http` on your home network that is fine for many people; across the internet put Mediarium behind HTTPS (a reverse proxy).
 - **Tokens are revocable.** Each connected app can be disconnected on the Other apps page, and it stops at once. Mediarium keeps only a hash of every token, so a copy of its database doesn't give them away. A refresh token that is used a second time is treated as stolen and ends the whole connection. The one-time code is valid for 60 seconds.
 - **A registered client's name is what the registering program called itself.** The Allow page therefore also shows the address the browser goes to afterwards. If the name and the address don't fit together, press Deny.

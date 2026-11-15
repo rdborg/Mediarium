@@ -48,6 +48,9 @@ export default function TheTVDBCard() {
       <p style={{ color: 'var(--text-dim)' }}>
         {t('Shows come from TMDB. A few TMDB pages are missing seasons or episodes that TheTVDB has, Formula 1 for one. With your own TheTVDB key, Mediarium fills those in when it refreshes a show, but only where both count the episodes the same way. TMDB stays the source for everything else.')}
       </p>
+      <p style={{ color: 'var(--text-dim)' }}>
+        {t("A single show can also follow TheTVDB's episode order, which counts a double-length episode as two, the way many file names do. Choose it on the show's page under Episode order. That needs only the key; filling in shows can stay off.")}
+      </p>
       <ol style={{ margin: '8px 0 14px', paddingLeft: 20 }}>
         <li style={{ marginBottom: 4 }}>
           {tx('Sign in (or make a free account) at {link}.', {

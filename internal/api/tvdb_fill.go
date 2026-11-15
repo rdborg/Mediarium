@@ -43,6 +43,16 @@ func (s *Server) tvdbClient() *thetvdb.Client {
 	if on, _ := s.Settings.GetBool(settings.KeyTVDBFill); !on {
 		return nil
 	}
+	return s.tvdbKeyClient()
+}
+
+// tvdbKeyClient is the TheTVDB client for the saved key whether or not
+// filling in shows is on (a show set to TheTVDB's episode order needs only
+// the key), or nil when no key is saved.
+func (s *Server) tvdbKeyClient() *thetvdb.Client {
+	if s.Settings == nil {
+		return nil
+	}
 	key, _ := s.Settings.Get(settings.KeyTVDBAPIKey)
 	if strings.TrimSpace(key) == "" {
 		return nil
@@ -83,6 +93,41 @@ func (s *Server) withTVDBEpisodes(ctx context.Context, sr library.Series, tvdbID
 		slog.Info("thetvdb: filled in episodes TMDB is missing", "show", sr.Title, "added", added)
 	}
 	return out
+}
+
+// errNoTVDBOrder is why a show in TheTVDB's order can't be read right now: no
+// key, no TheTVDB id for the show, or TheTVDB didn't answer.
+var errNoTVDBOrder = errors.New("TheTVDB's episode list for this show couldn't be read")
+
+// tvdbOrderedEpisodes is the show's episode list in TheTVDB's aired order
+// (see library.OrderedEpisodes), built from TMDB's list tmdb. It fails, so the
+// caller leaves the show's episodes as they are, when no TheTVDB key is saved,
+// TheTVDB's id for the show is unknown, or TheTVDB gives no regular episodes.
+func (s *Server) tvdbOrderedEpisodes(ctx context.Context, sr library.Series, tvdbID int, tmdb []library.Episode) ([]library.Episode, error) {
+	if tvdbID <= 0 {
+		tvdbID = sr.TVDBID
+	}
+	c := s.tvdbKeyClient()
+	if c == nil || tvdbID <= 0 {
+		return nil, errNoTVDBOrder
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	tv, err := c.Episodes(ctx, tvdbID)
+	if err != nil {
+		slog.Warn("thetvdb: couldn't read a show's episodes", "show", sr.Title, "err", err)
+		return nil, errNoTVDBOrder
+	}
+	var list []library.Episode
+	for _, e := range tv {
+		if e.Season > 0 {
+			list = append(list, library.Episode{Season: e.Season, Episode: e.Number, Title: e.Name, Overview: e.Overview, AirDate: e.Aired})
+		}
+	}
+	if len(list) == 0 {
+		return nil, errNoTVDBOrder
+	}
+	return library.OrderedEpisodes(tmdb, list), nil
 }
 
 // fillFromTVDB is the rule above. It returns TMDB's list with TheTVDB's extra

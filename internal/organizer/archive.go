@@ -694,7 +694,12 @@ func (e *Extractor) run7z(ctx context.Context, limit int, args ...string) (out [
 	buf := &cappedBuffer{max: limit}
 	cmd.Stdout, cmd.Stderr = buf, buf
 	err = cmd.Run()
-	return buf.Bytes(), !buf.dropped, err
+	out = buf.Bytes()
+	if err != nil && buf.dropped {
+		// The reason a run failed is printed last; keep it with the start.
+		out = append(append(append([]byte{}, out...), 0x0a), buf.tail...)
+	}
+	return out, !buf.dropped, err
 }
 
 // sevenZipError turns a failed 7z run into the error the caller reports.
@@ -714,7 +719,31 @@ func (e *Extractor) sevenZipError(ctx context.Context, name string, out []byte, 
 		}
 		return fmt.Errorf("extract %s: %w", name, ErrPasswordProtected)
 	}
-	return fmt.Errorf("extract %s: %w: %s", name, err, truncateOutput(out))
+	return fmt.Errorf("extract %s: %w: %s", name, err, sevenZipReason(out))
+}
+
+// sevenZipReason picks the lines of a failed 7z run that say why: the ones it
+// marks ERROR, or failed to allocate, read or write. 7z prints a banner first,
+// so cutting the output at its start would hide them (#189). With no such line
+// the end of the output is used.
+func sevenZipReason(out []byte) string {
+	var reasons []string
+	for _, line := range strings.Split(string(out), string(rune(10))) {
+		line = strings.TrimSpace(line)
+		l := strings.ToLower(line)
+		if strings.HasPrefix(l, "error") || strings.Contains(l, "can't allocate") || strings.Contains(l, "crc failed") ||
+			strings.Contains(l, "data error") || strings.Contains(l, "unexpected end") || strings.Contains(l, "no space") ||
+			strings.Contains(l, "cannot ") || strings.Contains(l, "can not ") || strings.Contains(l, "is not supported") {
+			reasons = append(reasons, line)
+		}
+	}
+	if len(reasons) > 0 {
+		return truncateOutput([]byte(strings.Join(reasons, "; ")))
+	}
+	if len(out) > 500 {
+		out = out[len(out)-500:]
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // cappedBuffer keeps the first max bytes written and drops the rest, noting
@@ -723,9 +752,15 @@ type cappedBuffer struct {
 	buf     bytes.Buffer
 	max     int
 	dropped bool
+	tail    []byte // the last few KB written, kept even when buf is full
 }
 
 func (c *cappedBuffer) Write(p []byte) (int, error) {
+	const tailMax = 8 << 10
+	c.tail = append(c.tail, p...)
+	if len(c.tail) > tailMax {
+		c.tail = append([]byte{}, c.tail[len(c.tail)-tailMax:]...)
+	}
 	room := max(c.max-c.buf.Len(), 0)
 	if len(p) > room {
 		c.dropped = true

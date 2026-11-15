@@ -163,10 +163,23 @@ func (s *Server) downloadDebrid(ctx context.Context, queueID int64, downloadURL,
 	hc := debridHTTP()
 	for _, f := range files {
 		base := done
-		err := debrid.Fetch(ctx, hc, f, incompleteDir, func(n int64) {
+		err := debrid.FetchResume(ctx, hc, f, incompleteDir, func(n int64) {
 			if total > 0 {
 				report(50 + 50*float64(base+n)/float64(total))
 			}
+		}, debrid.FetchOptions{
+			// A link is good for a few hours, so a big file can outlive it.
+			// Ask for a new one and carry on from what is already on disk.
+			Refresh: func(ctx context.Context) (string, error) {
+				return debrid.FreshLink(ctx, svc, id, f)
+			},
+			Note: func(kept int64) {
+				msg := "The link to " + filepath.Base(f.Name) + " ran out, asked " + label + " for a new one and started that file again"
+				if kept > 0 {
+					msg = "The link ran out, asked " + label + " for a new one and carried on from " + humanBytes(kept)
+				}
+				s.queueEvent(queueID, "download", queue.LevelInfo, msg)
+			},
 		})
 		if err != nil {
 			if ctx.Err() != nil {

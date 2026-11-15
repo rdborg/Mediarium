@@ -33,6 +33,7 @@ import { etaText, nextSample, type RateSample } from '../transferRate'
 import { locale, plural, t, tx, st } from '../i18n'
 import { useUrlState } from '../useUrlState'
 import { keptDataText, keptFileLine } from '../keptFile'
+import { originText } from '../origin'
 import '../activity.css'
 
 type Tab = 'queue' | 'clients' | 'history' | 'requests' | 'reports' | 'blocklist' | 'bin'
@@ -150,6 +151,19 @@ const itemLink = (q: QueueItem) => (q.bookId ? `/book/${q.bookId}` : q.albumId ?
 // What a button press is doing right now, so only that button says so.
 type Doing = 'pause' | 'resume' | 'stop' | 'other'
 
+// Whether a download is for a title (a movie, series, album or book) a blocklist
+// entry can be limited to.
+const hasTitle = (q: QueueItem) => !!(q.movieId || q.seriesId || q.albumId || q.bookId)
+
+// The choice in the blocklist question: on means only for the title the
+// download is for.
+const blocklistChoice = (failed: boolean) => ({
+  label: t('Only block it for this title'),
+  hint: t('Another movie or show with a similar name can still use this release. Turn it off for a broken file nobody should download.'),
+  // A download that failed is most likely a broken file, which is blocked everywhere.
+  defaultChecked: !failed,
+})
+
 interface RowProps {
   q: QueueItem
   admin: boolean
@@ -157,6 +171,7 @@ interface RowProps {
   act: (item: QueueItem, fn: () => Promise<unknown>, done: string, doing?: Doing) => Promise<void>
   stop: (item: QueueItem) => Promise<void>
   remove: (item: QueueItem) => Promise<void>
+  blocklistIt: (item: QueueItem) => Promise<void>
   // Picking several downloads at once (administrators): whether this one is
   // picked, and the way to change that. Left out where picking isn't offered.
   picked?: boolean
@@ -306,7 +321,7 @@ function QueueDetails({ q, admin }: { q: QueueItem; admin: boolean }) {
   )
 }
 
-function QueueRow({ q, admin, busy, act, stop, remove, picked, onPick }: RowProps) {
+function QueueRow({ q, admin, busy, act, stop, remove, blocklistIt, picked, onPick }: RowProps) {
   const me = useAuth().user
   const transfer = useTransferRate(q)
   const link = itemLink(q)
@@ -341,6 +356,7 @@ function QueueRow({ q, admin, busy, act, stop, remove, picked, onPick }: RowProp
           )}
         </div>
         <div className="qrelease">{q.releaseTitle}</div>
+        {originText(q.origin) && <div className="qrelease qorigin">{originText(q.origin)}</div>}
         {(q.resolution || q.source || q.codec || q.language) && (
           <div className="qspecs">
             {[q.resolution, q.source, q.codec].filter(Boolean).map((x) => (
@@ -458,7 +474,7 @@ function QueueRow({ q, admin, busy, act, stop, remove, picked, onPick }: RowProp
           </button>
         )}
         {q.status === 'failed' && admin && (
-          <button className="btn-sm btn-with-icon" disabled={working} title={t('Never use this release again and look for another one')} onClick={() => void act(q, () => api.blocklistQueueItem(q.id), t('Blocklisted. Looking for another release.'))}>
+          <button className="btn-sm btn-with-icon" disabled={working} title={t('Never use this release again and look for another one')} onClick={() => void blocklistIt(q)}>
             <Icon name="ban" size={15} /> {t('Blocklist & search again')}
           </button>
         )}
@@ -651,6 +667,25 @@ export default function Queue() {
     [act, confirm],
   )
 
+  // Blocklisting asks first when the release is for a title: only for that
+  // title (on by default, the release may just be the wrong film) or everywhere
+  // (for a file that is broken whoever asks for it).
+  const blocklistIt = useCallback(
+    async (item: QueueItem) => {
+      const r = await confirm({
+        title: t('Blocklist this release?'),
+        body: <p>{t('They are never grabbed again, and Mediarium looks for another release for each title.')}</p>,
+        confirmLabel: t('Blocklist release'),
+        danger: true,
+        option: hasTitle(item) ? blocklistChoice(!!item.error) : undefined,
+      })
+      if (!r) return
+      const scope = hasTitle(item) && r.checked ? 'item' : undefined
+      await act(item, () => api.blocklistQueueItem(item.id, scope), t('Blocklisted. Looking for another release.'))
+    },
+    [act, confirm],
+  )
+
   const remove = useCallback(
     async (item: QueueItem) => {
       let del = false
@@ -755,14 +790,17 @@ export default function Queue() {
       .map((q) => q.id)
     if (ids.length === 0 || pickBusy) return
     let deleteFiles = false
+    let scope: 'item' | undefined
     if (action === 'blocklist') {
       const r = await confirm({
         title: plural(ids.length, 'Blocklist this release?', 'Blocklist these {n} releases?'),
         body: <p>{t('They are never grabbed again, and Mediarium looks for another release for each title.')}</p>,
         confirmLabel: t('Blocklist releases'),
         danger: true,
+        option: pickable.some((q) => livePicked.has(q.id) && hasTitle(q)) ? blocklistChoice(pickable.filter((q) => livePicked.has(q.id) && hasTitle(q)).every((q) => !!q.error)) : undefined,
       })
       if (!r) return
+      if (r.checked) scope = 'item'
     }
     if (action === 'stop' || action === 'remove') {
       const anyFiles = pickable.some((q) => livePicked.has(q.id) && (q.keptFiles || q.progressPct > 0))
@@ -789,7 +827,7 @@ export default function Queue() {
       let done = 0
       const failed: { id: number; error: string }[] = []
       for (const batch of batches) {
-        const r = await api.bulkQueue(batch, action, deleteFiles)
+        const r = await api.bulkQueue(batch, action, deleteFiles, scope)
         done += r.done ?? 0
         failed.push(...(r.failed ?? []))
       }
@@ -814,6 +852,7 @@ export default function Queue() {
         act={act}
         stop={stop}
         remove={remove}
+        blocklistIt={blocklistIt}
         picked={pickable ? livePicked.has(q.id) : undefined}
         onPick={pickable ? pick : undefined}
       />
@@ -1175,6 +1214,7 @@ export default function Queue() {
                 <thead>
                   <tr>
                     <th>{t('Release')}</th>
+                    <th>{t('Blocked for')}</th>
                     <th>{t('Why')}</th>
                     <th />
                   </tr>
@@ -1183,8 +1223,33 @@ export default function Queue() {
                   {blocklist.map((b) => (
                     <tr key={b.id}>
                       <td className="mono-cell">{b.releaseTitle}</td>
+                      <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        {b.scope === 'item' ? t('Only for {title}', { title: b.itemTitle ?? '' }) : t('Everywhere')}
+                      </td>
                       <td style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{st(b.reason)}</td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {(b.scope === 'item' || b.itemId) && (
+                          <button
+                            className="btn-sm"
+                            style={{ marginRight: 8 }}
+                            disabled={tidying}
+                            title={b.scope === 'item' ? t('Block this release for every title again') : t('Only block this release for {title}', { title: b.itemTitle ?? '' })}
+                            onClick={async () => {
+                              setTidying(true)
+                              try {
+                                await api.setBlocklistScope(b.id, b.scope === 'item' ? 'all' : 'item')
+                                toast.success(b.scope === 'item' ? t('Now blocked everywhere.') : t('Now only blocked for this title.'))
+                                void load()
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : String(e))
+                              } finally {
+                                setTidying(false)
+                              }
+                            }}
+                          >
+                            {b.scope === 'item' ? t('Block everywhere') : t('Only this title')}
+                          </button>
+                        )}
                         <button
                           className="btn-sm"
                           disabled={tidying}

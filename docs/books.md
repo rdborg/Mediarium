@@ -18,6 +18,12 @@ Open **Library**, then the **Ebooks** or **Audiobooks** tab, and press **Add**. 
 - Mediarium starts looking for it straight away. After that, the automatic search tries again on its usual schedule for every book still missing.
 - A book that is already in your library shows **In your library** instead of **Add**.
 
+### Adding a book by hand
+
+When none of the book databases has a book, or they keep finding the wrong one, press **Can't find it? Add it by hand** under the results on the Books tab of Search (it needs the permission to add titles yourself). Choose **Book or audiobook**, type the title, and optionally the author, the year, a description, an ISBN or an ID of your own, and a cover picture, then tick **Ebook**, **Audiobook** or both. It is added to the library, searched for, downloaded and imported like any other book.
+
+A book added by hand is never looked up again. Mediarium does not compare it with Open Library, Hardcover, Google Books, a series or Audnexus afterwards, so the title, author, year, description and cover stay as you typed them. Its page leaves out the Open Library link and the series list. The same title and author as a book already in the library, or the same ID, is refused. For scripts: `POST /api/books/manual` with `{title, author?, year?, description?, externalId?, ebook, audiobook, searchNow?}` answers the new book; its `olKey` is `manual:` followed by your ID (or a random one). A cover goes up afterwards with `POST /api/books/{id}/cover`.
+
 ## Importing the books you already have
 
 Administrators see an **Import** button on the Ebooks and Audiobooks tabs. Press **Start import** and Mediarium reads that folder, looks each book up on Open Library, and adds what it recognises to your library as downloaded, **where it is**. Nothing is moved, renamed or changed. For an audiobook that Open Library does not have, Mediarium asks Audible (through Audnexus) before giving up, and adds the book with the narrator, length, series and release date Audible has. Such a book has no "More about this book" link, because there is no Open Library page for it.

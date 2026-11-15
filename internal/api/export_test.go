@@ -292,3 +292,12 @@ func (s *Server) TestSetAnimeServices(xemURL, listsURL, anilistURL string) {
 	svc.AniList.SetURL(anilistURL)
 	s.anime.svc = svc
 }
+
+// TestMCPAdvanceClock moves the clock the MCP download tokens and release ids
+// run on, so a test can let them run out without waiting.
+func (s *Server) TestMCPAdvanceClock(d time.Duration) {
+	s.mcp.dl.mu.Lock()
+	defer s.mcp.dl.mu.Unlock()
+	base := s.mcp.dl.clock()
+	s.mcp.dl.now = func() time.Time { return base.Add(d) }
+}

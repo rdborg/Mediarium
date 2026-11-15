@@ -8,9 +8,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/organizer"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/quality"
@@ -42,7 +44,7 @@ func resolveTVTarget(releaseTitle string, hintSeason, hintEpisode int) (season i
 // grabTVRelease enqueues a TV release for series and starts its pipeline in
 // the background — the TV counterpart of grabRelease.
 func (s *Server) grabTVRelease(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol) (int64, error) {
-	return s.grabTV(series, hintSeason, hintEpisode, releaseTitle, downloadURL, sizeBytes, protocol, grabPicked)
+	return s.grabTVOpts(series, hintSeason, hintEpisode, releaseTitle, downloadURL, sizeBytes, protocol, grabPicked, false, origin.Origin{})
 }
 
 // grabTV is grabTVRelease with auto set for automation's grabs. The
@@ -52,12 +54,19 @@ func (s *Server) grabTVRelease(series library.Series, hintSeason, hintEpisode in
 // them again separately; an automatic grab is refused with
 // errAlreadyGrabbed when any of them is already being downloaded.
 func (s *Server) grabTV(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind) (int64, error) {
-	return s.grabTVOpts(series, hintSeason, hintEpisode, releaseTitle, downloadURL, sizeBytes, protocol, kind, false)
+	return s.grabTVOpts(series, hintSeason, hintEpisode, releaseTitle, downloadURL, sizeBytes, protocol, kind, false, origin.Origin{})
+}
+
+// grabTVBy is grabTV for a grab whose origin is known: the person or the job
+// (an RSS check, an IRC announce, a list) that asked for it.
+func (s *Server) grabTVBy(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind, by origin.Origin) (int64, error) {
+	return s.grabTVOpts(series, hintSeason, hintEpisode, releaseTitle, downloadURL, sizeBytes, protocol, kind, false, by)
 }
 
 // grabTVOpts is grabTV for a release a person picked by hand and agreed to
 // replace the files of the episodes it covers (byHand, see grabRequest.Replace).
-func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind, byHand bool) (int64, error) {
+// by is who asked for it (see grabOrigin).
+func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind, byHand bool, by origin.Origin) (int64, error) {
 	if protocol == indexers.ProtocolTorrent && !s.torrentReleasesOn() {
 		return 0, errTorrentsDisabled
 	}
@@ -99,7 +108,7 @@ func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, 
 			return 0, err
 		}
 	}
-	if err := s.grabRefused(kind, releaseTitle, downloadURL); err != nil {
+	if err := s.grabRefused(kind, releaseTitle, downloadURL, blocklist.Scope{SeriesID: series.ID}); err != nil {
 		s.grabMu.Unlock()
 		return 0, err
 	}
@@ -115,6 +124,7 @@ func (s *Server) grabTVOpts(series library.Series, hintSeason, hintEpisode int, 
 	queueID, err := s.QueueRepo.Enqueue(queue.Item{
 		SeriesID: series.ID, Season: season, Episode: firstEpisode,
 		ReleaseTitle: releaseTitle, NZBURL: downloadURL, SizeBytes: sizeBytes, Protocol: queue.Protocol(protocol), Priority: kind.priority(), ReplaceByHand: byHand && kind == grabPicked,
+		Origin: s.grabOrigin(kind, by, true, series.ID, ""),
 	})
 	if err != nil {
 		// Nothing was queued: hand the episodes back.

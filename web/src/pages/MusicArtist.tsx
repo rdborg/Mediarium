@@ -26,6 +26,7 @@ import { removeOption } from '../diskUsage'
 import ReleaseNotice from '../components/ReleaseNotice'
 import type { Unanswered } from '../releaseHint'
 import type { Searched } from '../searched'
+import CustomSearch from '../components/CustomSearch'
 import { useDocumentTitle } from '../documentTitle'
 import { plural, t, st } from '../i18n'
 import '../music.css'
@@ -741,21 +742,29 @@ function ReleasesPanel({ album, onChanged }: { album: MusicAlbum; onChanged: () 
   const toast = useToast()
   const { grabError } = useTorrentsSwitch()
   const [results, setResults] = useState<MusicRelease[] | null>(null)
-  const [answered, setAnswered] = useState<{ sources: number; unanswered: Unanswered[]; warnings?: string[]; searched?: Searched[] }>({ sources: 0, unanswered: [] })
+  const [answered, setAnswered] = useState<{ sources: number; unanswered: Unanswered[]; warnings?: string[]; searched?: Searched[]; filtered?: { reason: string; count: number }[] }>({ sources: 0, unanswered: [] })
   const [error, setError] = useState('')
   const [grabbing, setGrabbing] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
 
-  const search = useCallback(() => {
-    setResults(null)
-    setError('')
-    api
-      .albumSearch(album.id)
-      .then((a) => {
-        setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched })
-        setResults(a.results)
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-  }, [album.id])
+  // q is what was typed in the search box; the list stays on screen until its answer comes.
+  const run = useCallback(
+    (q?: string) => {
+      if (q === undefined) setResults(null)
+      setError('')
+      setSearching(true)
+      api
+        .albumSearch(album.id, q)
+        .then((a) => {
+          setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched, filtered: a.filtered })
+          setResults(a.results)
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+        .finally(() => setSearching(false))
+    },
+    [album.id],
+  )
+  const search = useCallback(() => run(), [run])
   useEffect(search, [search])
 
   async function grab(r: SearchResult) {
@@ -774,14 +783,20 @@ function ReleasesPanel({ album, onChanged }: { album: MusicAlbum; onChanged: () 
   if (error) return <p className="error-text">{error}</p>
   if (results === null) return <div className="skeleton" style={{ height: 120 }} />
   if (results.length === 0) {
-    return <ReleaseNotice className="album-empty" sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} results={0} />
+    return (
+      <div className="album-releases">
+        <CustomSearch busy={searching} onSearch={(q) => run(q || undefined)} />
+        <ReleaseNotice className="album-empty" sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} filtered={answered.filtered} results={0} />
+      </div>
+    )
   }
   return (
     <div className="album-releases">
+      <CustomSearch busy={searching} onSearch={(q) => run(q || undefined)} />
       <p className="album-empty">
         {plural(results.length, '{n} release found. Releases Mediarium would skip are marked with the reason, and you can still pick any of them.', '{n} releases found. Releases Mediarium would skip are marked with the reason, and you can still pick any of them.')}
       </p>
-      <ReleaseNotice className="album-empty" sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} results={results.length} />
+      <ReleaseNotice className="album-empty" sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} filtered={answered.filtered} results={results.length} />
       <div className="table-scroll">
         <ReleaseTable results={results} searched={answered.searched} grabbing={grabbing} onGrab={grab} qualityLabel={releaseQuality} qualityGroup={(r) => (r as MusicRelease).quality} />
       </div>

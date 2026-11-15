@@ -41,6 +41,8 @@ type DiscoverQuery struct {
 	// Runtime is one of the Runtime* buckets; empty is any. For shows it
 	// counts the length of an episode.
 	Runtime string
+	// Hide leaves out titles that are on the chosen streaming services.
+	Hide Hiding
 }
 
 // Runtime buckets accepted by DiscoverQuery.Runtime.
@@ -151,6 +153,7 @@ func (q DiscoverQuery) params(dateField, yearParam string, votesFloor int) url.V
 	case RuntimeLong:
 		v.Set("with_runtime.gte", "121")
 	}
+	q.Hide.apply(v)
 	switch q.Sort {
 	case SortRating:
 		v.Set("sort_by", "vote_average.desc")
@@ -286,18 +289,31 @@ func (c *Client) today() string {
 // most popular first. dateField is "primary_release_date" or
 // "first_air_date"; primary release dates are worldwide, so the list does
 // not depend on a region.
-func (c *Client) upcomingParams(dateField string, page int) url.Values {
-	return url.Values{
+func (c *Client) upcomingParams(dateField string, page int, hide Hiding) url.Values {
+	v := url.Values{
 		"include_adult":    {"false"},
 		dateField + ".gte": {c.today()},
 		"sort_by":          {"popularity.desc"},
 		"page":             {strconv.Itoa(ClampPage(page))},
 	}
+	hide.apply(v)
+	return v
 }
 
 // MovieList fetches one page (TMDB serves 20 per page, up to page 500) of
 // the trending, popular or upcoming movies.
 func (c *Client) MovieList(ctx context.Context, list string, page int) (*MoviePage, error) {
+	return c.MovieListHiding(ctx, list, page, Hiding{})
+}
+
+// MovieListHiding is MovieList without the titles that are on the streaming
+// services in hide. TMDB's trending and popular lists cannot be filtered, so
+// with something to hide they become a browse by popularity, which is close
+// to the same list; the upcoming list is a browse already.
+func (c *Client) MovieListHiding(ctx context.Context, list string, page int, hide Hiding) (*MoviePage, error) {
+	if hide.Active() && ValidList(list) && list != ListUpcoming {
+		return c.DiscoverMovies(ctx, DiscoverQuery{Page: page, Hide: hide})
+	}
 	paged := url.Values{"page": {strconv.Itoa(ClampPage(page))}}
 	switch list {
 	case ListTrending:
@@ -305,7 +321,7 @@ func (c *Client) MovieList(ctx context.Context, list string, page int) (*MoviePa
 	case ListPopular:
 		return c.moviePage(ctx, "/movie/popular", paged)
 	case ListUpcoming:
-		return c.moviePage(ctx, "/discover/movie", c.upcomingParams("primary_release_date", page))
+		return c.moviePage(ctx, "/discover/movie", c.upcomingParams("primary_release_date", page, hide))
 	}
 	return nil, fmt.Errorf("unknown discover list %q", list)
 }
@@ -313,6 +329,15 @@ func (c *Client) MovieList(ctx context.Context, list string, page int) (*MoviePa
 // TVList is MovieList for shows; "upcoming" means shows whose first episode
 // has not aired yet.
 func (c *Client) TVList(ctx context.Context, list string, page int) (*ShowPage, error) {
+	return c.TVListHiding(ctx, list, page, Hiding{})
+}
+
+// TVListHiding is TVList without the shows that are on the streaming services
+// in hide; see MovieListHiding.
+func (c *Client) TVListHiding(ctx context.Context, list string, page int, hide Hiding) (*ShowPage, error) {
+	if hide.Active() && ValidList(list) && list != ListUpcoming {
+		return c.DiscoverTV(ctx, DiscoverQuery{Page: page, Hide: hide})
+	}
 	paged := url.Values{"page": {strconv.Itoa(ClampPage(page))}}
 	switch list {
 	case ListTrending:
@@ -320,7 +345,7 @@ func (c *Client) TVList(ctx context.Context, list string, page int) (*ShowPage, 
 	case ListPopular:
 		return c.showPage(ctx, "/tv/popular", paged)
 	case ListUpcoming:
-		return c.showPage(ctx, "/discover/tv", c.upcomingParams("first_air_date", page))
+		return c.showPage(ctx, "/discover/tv", c.upcomingParams("first_air_date", page, hide))
 	}
 	return nil, fmt.Errorf("unknown discover list %q", list)
 }

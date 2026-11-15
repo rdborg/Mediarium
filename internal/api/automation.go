@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/automation"
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -256,13 +258,13 @@ func (s *Server) huntMovie(ctx context.Context, m library.Movie, instances []ind
 		var enough func([]indexers.Outcome) bool
 		if !force {
 			enough = func(o []indexers.Outcome) bool {
-				return pickBestResult(filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(o)), blocked), m), sources), profile, m.Year) != nil
+				return pickBestResult(filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(o)), blocked, blocklist.Scope{MovieID: m.ID}), m), sources), profile, m.Year) != nil
 			}
 		}
 		outcomes := s.searchMovieTitles(ctx, instances, m, enough)
 		// A title search also returns other films with similar words; only
 		// releases of this movie may be grabbed.
-		best := pickBestResult(s.limitMovieResults(ctx, m, profile, !force, filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked), m), sources)), profile, m.Year)
+		best := pickBestResult(s.limitMovieResults(ctx, m, profile, !force, filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked, blocklist.Scope{MovieID: m.ID}), m), sources)), profile, m.Year)
 		s.noteMovieSearch(ctx, noteMode(force), m, outcomes, blocked, sources, profile, best, "")
 		if best == nil {
 			return false
@@ -282,11 +284,11 @@ func (s *Server) huntMovie(ctx context.Context, m library.Movie, instances []ind
 		var enough func([]indexers.Outcome) bool
 		if !force {
 			enough = func(o []indexers.Outcome) bool {
-				return pickUpgradeResult(filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(o)), blocked), m), sources), profile, currentTier, m.ReleaseTitle, m.Year) != nil
+				return pickUpgradeResult(filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(o)), blocked, blocklist.Scope{MovieID: m.ID}), m), sources), profile, currentTier, m.ReleaseTitle, m.Year) != nil
 			}
 		}
 		outcomes := s.searchMovieTitles(ctx, instances, m, enough)
-		best := pickUpgradeResult(s.limitMovieResults(ctx, m, profile, !force, filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked), m), sources)), profile, currentTier, m.ReleaseTitle, m.Year)
+		best := pickUpgradeResult(s.limitMovieResults(ctx, m, profile, !force, filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked, blocklist.Scope{MovieID: m.ID}), m), sources)), profile, currentTier, m.ReleaseTitle, m.Year)
 		s.noteMovieSearch(ctx, noteMode(force), m, outcomes, blocked, sources, profile, best, currentTier)
 		if best == nil {
 			return false
@@ -365,14 +367,15 @@ func (s *Server) rssSync(ctx context.Context) {
 	}
 
 	outcomes := indexers.SearchAll(ctx, instances, "", movieCategory)
-	results := dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), s.searchSkipKeys())
+	blocked := s.searchSkipKeys()
+	results := dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked, blocklist.Scope{})
 
 	for _, m := range missing {
-		best := pickBestResult(s.limitMovieResults(ctx, m, s.profileForMovie(profiles, m), true, filterSources(matchingResults(results, m), s.sourcesFor(m.SourcePref))), s.profileForMovie(profiles, m), m.Year)
+		best := pickBestResult(s.limitMovieResults(ctx, m, s.profileForMovie(profiles, m), true, filterSources(dropBlocked(matchingResults(results, m), blocked, blocklist.Scope{MovieID: m.ID}), s.sourcesFor(m.SourcePref))), s.profileForMovie(profiles, m), m.Year)
 		if best == nil {
 			continue
 		}
-		if _, err := s.grabMovie(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, grabAutomatic); err != nil {
+		if _, err := s.grabMovieBy(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, grabAutomatic, origin.Origin{Kind: origin.Auto, Name: origin.JobRSS}); err != nil {
 			log.Printf("automation: rss-sync: grab %q for %q: %v", best.Title, m.Title, err)
 			continue
 		}
@@ -384,11 +387,11 @@ func (s *Server) rssSync(ctx context.Context) {
 	}
 	for _, m := range upgradeCandidates {
 		currentTier := quality.Tier(m.Quality)
-		best := pickUpgradeResult(s.limitMovieResults(ctx, m, s.profileForMovie(profiles, m), true, filterSources(matchingResults(results, m), s.sourcesFor(m.SourcePref))), s.profileForMovie(profiles, m), currentTier, m.ReleaseTitle, m.Year)
+		best := pickUpgradeResult(s.limitMovieResults(ctx, m, s.profileForMovie(profiles, m), true, filterSources(dropBlocked(matchingResults(results, m), blocked, blocklist.Scope{MovieID: m.ID}), s.sourcesFor(m.SourcePref))), s.profileForMovie(profiles, m), currentTier, m.ReleaseTitle, m.Year)
 		if best == nil {
 			continue
 		}
-		if _, err := s.grabMovie(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, grabAutomatic); err != nil {
+		if _, err := s.grabMovieBy(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, grabAutomatic, origin.Origin{Kind: origin.Auto, Name: origin.JobRSS}); err != nil {
 			log.Printf("automation: rss-sync: upgrade grab %q for %q: %v", best.Title, m.Title, err)
 			continue
 		}

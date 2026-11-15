@@ -16,6 +16,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/auth"
 	"github.com/rdborg/mediarium/internal/mediaservers"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/plainerror"
 )
 
@@ -477,7 +478,7 @@ func (s *Server) addFromWatchlist(ctx context.Context, p *mediaservers.PlexTV, r
 		return "failed"
 	}
 	body, _ := json.Marshal(payload)
-	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body)).WithContext(auth.WithUser(ctx, user))
+	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body)).WithContext(withOrigin(auth.WithUser(ctx, user), origin.Origin{Kind: origin.Watchlist}))
 	inner.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler(rec, inner)

@@ -22,16 +22,21 @@ import (
 type IDs struct {
 	IMDB    string // "tt1234567"
 	TVDB    int
+	TMDB    int // TheMovieDB id of a film
 	Season  int
 	Episode int
-	Movie   bool // a film (t=movie) rather than a show (t=tvsearch)
+	// LookupIMDB finds a film's IMDb id when it is not known yet. It is only
+	// called once an indexer says it takes that id, so no lookup is made for
+	// indexers that cannot use it.
+	LookupIMDB func(ctx context.Context) string
+	Movie      bool // a film (t=movie) rather than a show (t=tvsearch)
 }
 
 type idsKey struct{}
 
 // WithIDs adds the ids of the search to the context.
 func WithIDs(ctx context.Context, ids IDs) context.Context {
-	if ids.IMDB == "" && ids.TVDB == 0 {
+	if ids.IMDB == "" && ids.TVDB == 0 && !(ids.Movie && ids.TMDB != 0) {
 		return ctx
 	}
 	return context.WithValue(ctx, idsKey{}, ids)
@@ -136,6 +141,9 @@ func idQuery(caps idCaps, ids IDs, categories []int) (url.Values, bool) {
 		q.Set("imdbid", ids.IMDB)
 	case ids.TVDB != 0 && !ids.Movie && params["tvdbid"]:
 		q.Set("tvdbid", strconv.Itoa(ids.TVDB))
+	case ids.TMDB != 0 && ids.Movie && params["tmdbid"]:
+		// An indexer that does not take the IMDb id may still take TMDB's.
+		q.Set("tmdbid", strconv.Itoa(ids.TMDB))
 	default:
 		return nil, false
 	}
@@ -170,6 +178,9 @@ func (c *NewznabClient) SearchByID(ctx context.Context, categories []int) (resul
 	caps, fetched := c.idCapsFor(ctx)
 	if fetched {
 		requests++
+	}
+	if ids.Movie && ids.IMDB == "" && ids.LookupIMDB != nil && caps.movie["imdbid"] {
+		ids.IMDB = ids.LookupIMDB(ctx)
 	}
 	q, ok := idQuery(caps, ids, categories)
 	if !ok {

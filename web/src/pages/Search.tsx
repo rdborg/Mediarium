@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type BookFound, type MusicDiscoverItem, type MusicHit, type TitleResult } from '../api'
+import { api, can, type BookFound, type MusicDiscoverItem, type MusicHit, type TitleResult } from '../api'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
+import AddByHandDialog from '../components/AddByHandDialog'
 import AddMusicDialog from '../components/AddMusicDialog'
+import { useAuth } from '../AuthContext'
+import type { ByHandKind } from '../addByHand'
 import { artistKind } from '../components/artistKind'
 import { BookAddDialog, BookCard } from '../components/BookDiscover'
 import Icon from '../components/Icon'
@@ -26,6 +29,8 @@ export default function Search() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const { on } = useModules()
+  const me = useAuth().user
+  const [byHand, setByHand] = useState<ByHandKind | null>(null) // the add-by-hand dialog, when open
   const titlesOn = on('movies') || on('tv')
   const booksOn = on('ebooks') || on('audiobooks')
   const musicOn = on('music')
@@ -313,6 +318,15 @@ export default function Search() {
   const onMusic = tab === 'music'
   const onTitles = tab === 'titles'
   const term = q.trim()
+  // Under the results: for a book or an album the databases don't have, or keep getting wrong.
+  const byHandButton = (kind: ByHandKind) =>
+    can(me, 'addDirect') && (
+      <p className="search-by-hand">
+        <button type="button" className="btn-sm btn-with-icon" onClick={() => setByHand(kind)}>
+          <Icon name="plus" size={14} /> {t("Can't find it? Add it by hand")}
+        </button>
+      </p>
+    )
 
   return (
     <div className="search-page">
@@ -393,6 +407,7 @@ export default function Search() {
             </section>
           )}
           <BookAddDialog target={addingBook} onClose={() => setAddingBook(null)} />
+          {byHandButton('book')}
         </>
       )}
 
@@ -418,6 +433,7 @@ export default function Search() {
           {(musicHits === null || musicSearching) && term.length >= 2 && <div className="search-hint">{t('Searching…')}</div>}
           {musicHits !== null && !musicSearching && shownHits.length === 0 && !musicError && <div className="search-hint">{t('Nothing found for “{q}”.', { q: term })}</div>}
           {musicHits !== null && shownHits.length > 0 && musicGrid(shownHits)}
+          {byHandButton('music')}
         </>
       )}
 
@@ -451,6 +467,7 @@ export default function Search() {
         </section>
       )}
 
+      {byHand && <AddByHandDialog initialKind={byHand} initialTitle={term} onClose={() => setByHand(null)} />}
       {addingAlbum && (
         <AddMusicDialog
           target={{ kind: 'album', item: addingAlbum.item, onlySong: addingAlbum.onlySong }}

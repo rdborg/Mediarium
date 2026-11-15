@@ -73,7 +73,7 @@ func TestSearchVerdictMessages(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := judgeSearch(tc.results, blocked, tc.sources, tc.profile, year(2026), tc.upgradeFrom, "")
+			v := judgeSearch(tc.results, blocked, blocklist.Scope{}, tc.sources, tc.profile, year(2026), tc.upgradeFrom, "")
 			got, level := v.message("Searched", "")
 			if got != tc.want || level != tc.level {
 				t.Fatalf("got %q (%s)\nwant %q (%s)", got, level, tc.want, tc.level)

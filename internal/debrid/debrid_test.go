@@ -315,6 +315,13 @@ func TestTorBoxFlow(t *testing.T) {
 	if err != nil || len(files) != 2 || files[0].Name != "Show/ep1.mkv" || files[1].URL != "https://cdn.example/2" {
 		t.Fatalf("files: %+v %v", files, err)
 	}
+	// A link that ran out is replaced by asking for just that one file again.
+	if l, err := FreshLink(context.Background(), tb, id, files[1]); err != nil || l != "https://cdn.example/2" {
+		t.Fatalf("fresh link: %q %v", l, err)
+	}
+	if _, err := FreshLink(context.Background(), tb, id, File{Name: "Show/gone.mkv"}); err == nil {
+		t.Fatal("a file that is no longer on the account got a link")
+	}
 	if err := tb.Remove(context.Background(), id); err != nil || !deleted {
 		t.Fatalf("remove: %v %v", err, deleted)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/rdborg/mediarium/internal/importlists"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/simkl"
 	"github.com/rdborg/mediarium/internal/trakt"
@@ -423,6 +424,24 @@ func (s *Server) recordSeen(listID int64, ref, kind string, tmdbID int, title st
 	}
 }
 
+// logListAdded keeps a line in the list's history for a title it added (see
+// handleListHistory). It is kept when the list is told to start over.
+func (s *Server) logListAdded(listID int64, kind string, tmdbID int, title string, year int, libraryID int64) {
+	if libraryID > 0 { // the library's own name for it, when the list gave none
+		if kind == "tv" {
+			if sr, err := s.MovieRepo.GetSeries(libraryID); err == nil {
+				title, year = sr.Title, sr.Year
+			}
+		} else if m, err := s.MovieRepo.Get(libraryID); err == nil {
+			title, year = m.Title, m.Year
+		}
+	}
+	_, err := s.db.Exec(`INSERT INTO import_list_log (list_id, kind, tmdb_id, title, year) VALUES (?, ?, ?, ?, ?)`, listID, kind, tmdbID, title, year)
+	if err != nil {
+		slog.Warn("import list: couldn't keep the history line", "list", listID, "err", err)
+	}
+}
+
 // listRunResult counts what one read of a list did.
 type listRunResult struct {
 	found, added, inLibrary, excluded, filtered, noMatch, earlier int
@@ -497,7 +516,7 @@ func (s *Server) runImportList(ctx context.Context, id int64) {
 	}
 	var res listRunResult
 	err = s.processImportList(ctx, l, &res)
-	s.searchListAdditions(res)
+	s.searchListAdditions(l, res)
 	if err == nil && l.Source == listRSS && l.Config.Grab {
 		res.grabbed = s.grabFromFeed(ctx, l, res.feed)
 	}
@@ -643,6 +662,7 @@ func (s *Server) processImportList(ctx context.Context, l importList, res *listR
 		switch outcome {
 		case "added":
 			s.recordSeen(l.ID, ref, kind, tmdbID, it.Title, year, rating, "added")
+			s.logListAdded(l.ID, kind, tmdbID, it.Title, year, libraryID)
 			res.added++
 			if l.SearchNow && l.Monitored && libraryID > 0 {
 				if kind == "tv" {
@@ -800,7 +820,7 @@ func (s *Server) titleDetails(ctx context.Context, kind string, tmdbID int, rati
 // automatic downloads, waits for the delay profile, skips a movie that is not
 // out yet and leaves indexers that are paused alone. Whatever it does not get
 // to is found by the next scheduled search.
-func (s *Server) searchListAdditions(res listRunResult) {
+func (s *Server) searchListAdditions(l importList, res listRunResult) {
 	if len(res.searchMovies) == 0 && len(res.searchSeries) == 0 {
 		return
 	}
@@ -819,13 +839,16 @@ func (s *Server) searchListAdditions(res listRunResult) {
 			return
 		}
 		blocked := s.searchSkipKeys()
+		by := origin.Origin{Kind: origin.List, Name: l.Name}
 		for _, id := range res.searchMovies {
 			if !s.autoGrabRoom() {
 				holdBack("import-list")
 				return
 			}
 			if m, err := s.MovieRepo.Get(id); err == nil && s.moviesEnabled() {
+				done := s.hintGrabs(false, id, by)
 				s.huntMovie(ctx, m, instances, profiles, blocked, false)
+				done()
 			}
 		}
 		for _, id := range res.searchSeries {
@@ -834,7 +857,9 @@ func (s *Server) searchListAdditions(res listRunResult) {
 				return
 			}
 			if s.tvEnabled() {
+				done := s.hintGrabs(true, id, by)
 				s.autoGrabTV(s.targetedTVSearcher(ctx, instances, maxTVSearchesPerHunt, false), "import-list", profiles, tvScope{seriesID: id})
+				done()
 			}
 		}
 	})
@@ -871,7 +896,7 @@ func (s *Server) addListTitle(ctx context.Context, l importList, user *auth.User
 		payload = map[string]any{"tmdbId": tmdbID, "profileId": l.ProfileID, "monitored": l.Monitored, "searchNow": searchNow, "rootPath": l.MovieRoot}
 	}
 	body, _ := json.Marshal(payload)
-	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body)).WithContext(auth.WithUser(ctx, user))
+	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body)).WithContext(withOrigin(auth.WithUser(ctx, user), origin.Origin{Kind: origin.List, Name: l.Name}))
 	inner.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler(rec, inner)

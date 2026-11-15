@@ -84,6 +84,8 @@ The keys the app stores in its settings table. You normally change these from th
 | `info.language` | the language titles, plots, genres and posters are read in, as a TMDB tag like "de-DE" (en-US when unset); with naming.folders_in_info_language on, new movie and show folders and file names use that language's title too |
 | `info.release_country` | the country release dates are read for, as a code like "IN"; unset = the country of the info language |
 | `legal.acknowledged_at` |  |
+| `library.add_monitored` | "0" starts the add dialog with monitoring off; unset or "1" leaves it on (each title can still be changed when it is added) |
+| `library.add_search_now` | "0" starts the add dialog with "start searching now" off; unset or "1" leaves it on |
 | `library.anime_episode_format` | with the anime module on, the file name format of anime episodes (tokens as for episodes, plus {Absolute:000}); unset = the TV episode format |
 | `library.anime_movies_path` | with the anime module on, the folder new anime films (animated, in Japanese) go to; unset = where other movies go |
 | `library.anime_path` | with the anime module on, the folder new anime shows go to; unset = the TV folder |
@@ -124,6 +126,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `lifecycle.rules` | the library lifecycle rules (JSON: days per rule, graceDays, keepTags, actForReal); nothing is removed unless actForReal is true |
 | `lifecycle.status` | the last lifecycle run (JSON; set by the app, not user-editable) |
 | `log.debug` | "1" writes the extra detail (debug lines) to the log, taking effect at once and after a restart; unset or "0" keeps the log to normal detail |
+| `mcp.downloads` | "1" lets an AI assistant that is connected over MCP search for releases and start the download of one, after a second confirming call; unset or "0" keeps those two tools away. Only a signed-in browser session can switch it on, not an API key |
 | `mcp.enabled` | "1" lets AI assistants connect to the MCP address (POST /mcp) with an administrator's API key; unset or "0" keeps it off. Only a signed-in browser session can switch it on, not an API key |
 | `mediaservers.client_id` | set by the app, not user-editable |
 | `metadata.omdb_api_key` | the person's own OMDb key, for IMDb, Rotten Tomatoes and Metacritic scores (encrypted); unset = off |

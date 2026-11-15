@@ -301,6 +301,14 @@ func (s *Server) localCover(album music.Album) (string, bool) {
 // archive has no cover for the release group (remembered for a day), and
 // another error when the archive could not be reached (not remembered).
 func (s *Server) cachedCover(ctx context.Context, album music.Album) (string, error) {
+	if album.Manual() {
+		// Added by hand: the archive has nothing under its id. The picture the
+		// person gave (if any) is all there is.
+		if p := s.manualCoverPath(album.ID); fileExists(p) {
+			return p, nil
+		}
+		return "", musicbrainz.ErrNotFound
+	}
 	return s.cachedReleaseGroupCover(ctx, album.MBID)
 }
 

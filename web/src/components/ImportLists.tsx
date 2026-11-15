@@ -19,6 +19,7 @@ import { laterChoices } from '../newTitleFolder'
 import { sortProfiles } from './qualityBlurb'
 import { useConfirm } from './ConfirmProvider'
 import Icon from './Icon'
+import ListHistory from './ImportListHistory'
 import { MediaServerMark } from './mediaServerBrand'
 import Switch from './Switch'
 import { TagChips, TagInput } from './Tags'
@@ -122,6 +123,7 @@ export default function ImportLists() {
   const [editing, setEditing] = useState<{ id?: number; draft: ImportListInput; hasKey: boolean; hasCsv: boolean } | null>(null)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(0)
+  const [history, setHistory] = useState(0) // the list whose History is open
 
   const load = useCallback(() => {
     api
@@ -296,6 +298,9 @@ export default function ImportLists() {
               .filter(Boolean)
               .join(' · ')}
           </p>
+          <button className="link-btn il-forget" aria-expanded={history === l.id} onClick={() => setHistory(history === l.id ? 0 : l.id)}>
+            {history === l.id ? t('Hide history') : t('History')}
+          </button>
           {l.lastRunAt && (
             <button
               className="link-btn il-forget"
@@ -312,6 +317,7 @@ export default function ImportLists() {
               {t('Start this list over')}
             </button>
           )}
+          {history === l.id && <ListHistory id={l.id} />}
         </section>
       ))}
 

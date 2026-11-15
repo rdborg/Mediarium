@@ -187,8 +187,9 @@ type Server struct {
 	usenetSlots  slotGate           // how many built-in Usenet downloads run at once (builtin_slots.go)
 	torrentSlots slotGate           // the same for built-in torrents
 
-	grabMu sync.Mutex     // makes "is this already being downloaded?" and "queue it" one step (see grab_claim.go)
-	bg     sync.WaitGroup // download pipelines and automatic retries still running (see grab_claim.go)
+	grabHints sync.Map       // who is behind the searches running for a title (see hintGrabs)
+	grabMu    sync.Mutex     // makes "is this already being downloaded?" and "queue it" one step (see grab_claim.go)
+	bg        sync.WaitGroup // download pipelines and automatic retries still running (see grab_claim.go)
 
 	unpacking    unpackTracker     // how far the running unpacks have come, for the Activity page (unpack_progress.go)
 	pipelines    pipelineRegistry  // running download pipelines, so removing a title can cancel its downloads
@@ -348,7 +349,7 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 		return nil, fmt.Errorf("init music profiles: %w", err)
 	}
 	s.AnnounceRepo = announce.NewRepo(db, box)
-	s.Announce = announce.NewManager(s.AnnounceRepo, ircDecider{s}, slog.Default())
+	s.Announce = announce.NewManager(s.AnnounceRepo, ircDecider{s: s}, slog.Default())
 	s.torrents.noPortMapping = !s.torrentPortMapping()
 	s.torrents.allowLocal = s.torrentAllowLocal()
 	s.torrents.discover = s.vpnUDPDiscovery()
@@ -622,6 +623,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	manage.HandleFunc("PUT /api/series/{id}/monitored", s.handleSetSeriesMonitored)
 	manage.HandleFunc("POST /api/series/{id}/monitor-mode", s.handleSetSeriesMonitorMode)
 	manage.HandleFunc("PUT /api/series/{id}/type", s.handleSetSeriesType)
+	manage.HandleFunc("PUT /api/series/{id}/episode-order", s.handleSetEpisodeOrder)
 	member.HandleFunc("GET /api/series/{id}/numbering", s.handleSeriesNumbering)
 	member.HandleFunc("GET /api/series/{id}/numbering/custom", s.handleGetCustomNumbering)
 	manage.HandleFunc("PUT /api/series/{id}/numbering/custom", s.handlePutCustomNumbering)
@@ -632,6 +634,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	// Books: ebooks and audiobooks (404 while both are off).
 	member.HandleFunc("GET /api/books", revalidated(s.handleListBooks))
 	member.Need(auth.PermBooks).HandleFunc("POST /api/books", s.handleAddBook)
+	member.Need(auth.PermBooks).HandleFunc("POST /api/books/manual", s.handleAddBookManual)
 	member.HandleFunc("GET /api/books/search", s.handleBookSearch)
 	member.HandleFunc("GET /api/books/search/google", s.handleSearchGoogleBooks)
 	member.Need(auth.PermBooks).HandleFunc("POST /api/books/search/google", s.handleAdoptGoogleBook)
@@ -687,10 +690,12 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/music/covers/release-group/{mbid}", s.handleReleaseGroupCover)
 	member.HandleFunc("GET /api/music/artists", revalidated(s.handleListArtists))
 	member.Need(auth.PermMusic).HandleFunc("POST /api/music/artists", s.handleAddArtist)
+	member.Need(auth.PermMusic).HandleFunc("POST /api/music/manual", s.handleAddMusicManual)
 	member.HandleFunc("GET /api/music/artists/{id}", s.handleGetArtist)
 	member.HandleFunc("GET /api/music/artists/{id}/discography", s.handleArtistDiscography)
 	member.HandleFunc("GET /api/music/filters", s.handleGetMusicFilters)
 	manage.HandleFunc("POST /api/music/artists/{id}/albums", s.handleAddArtistAlbum)
+	manage.HandleFunc("POST /api/music/albums/{id}/cover", s.handleUploadAlbumCover)
 	member.HandleFunc("GET /api/music/albums/{id}", s.handleGetAlbum)
 	member.HandleFunc("GET /api/music/albums/{id}/files", s.handleAlbumFiles)
 	member.HandleFunc("GET /api/music/albums/{id}/cover", s.handleAlbumCover)
@@ -934,6 +939,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("POST /api/queue/pause-all", s.handlePauseAllQueue)
 	admin.HandleFunc("POST /api/queue/resume-all", s.handleResumeAllQueue)
 	admin.HandleFunc("GET /api/blocklist", s.handleListBlocklist)
+	admin.HandleFunc("PUT /api/blocklist/{id}/scope", s.handleSetBlocklistScope)
 	admin.HandleFunc("DELETE /api/blocklist/{id}", s.handleRemoveBlocklistEntry)
 	admin.HandleFunc("DELETE /api/blocklist", s.handleClearBlocklist)
 
@@ -1064,6 +1070,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("PUT /api/import-lists/{id}/enabled", s.handleSetImportListEnabled)
 	admin.HandleFunc("POST /api/import-lists/{id}/run", s.handleRunImportList)
 	admin.HandleFunc("POST /api/import-lists/{id}/forget", s.handleForgetImportList)
+	admin.HandleFunc("GET /api/import-lists/{id}/history", s.handleListHistory)
 	admin.HandleFunc("POST /api/import-lists/plex/{userId}/run", s.handleRunPlexWatchlist)
 	admin.HandleFunc("GET /api/watched/settings", s.handleGetWatchedSettings)
 	admin.HandleFunc("PUT /api/watched/settings", s.handlePutWatchedSettings)

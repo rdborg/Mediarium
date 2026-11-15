@@ -45,9 +45,20 @@ export default function OtherAppsSettings() {
 
   // The MCP address for AI assistants: off until an administrator switches it on.
   const [mcp, setMcp] = useState<boolean | null>(null)
+  const [mcpDownloads, setMcpDownloads] = useState(false)
   useEffect(() => {
-    api.mcpSettings().then((m) => setMcp(m.enabled)).catch(() => setMcp(false))
+    api.mcpSettings().then((m) => { setMcp(m.enabled); setMcpDownloads(m.downloads) }).catch(() => setMcp(false))
   }, [])
+
+  async function switchMcpDownloads(next: boolean) {
+    try {
+      const m = await api.putMcpDownloads(next)
+      setMcpDownloads(m.downloads)
+      toast.success(m.downloads ? t('AI assistants can now pick a release and start a download, after you confirm.') : t('AI assistants can no longer start downloads.'))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   async function switchMcp(next: boolean) {
     try {
@@ -177,6 +188,15 @@ export default function OtherAppsSettings() {
                   {t("Questions are answered straight away. Adding titles or changing a profile is shown first and only happens after you confirm in the chat. A read-only key can only ask questions.")}
                 </dd>
               </dl>
+            )}
+            {mcp && (
+              <Switch
+                checked={mcpDownloads}
+                onChange={(v) => void switchMcpDownloads(v)}
+                label={t('Let assistants pick releases and start downloads')}
+                showState
+                description={t('Off to begin with. When on, an assistant can look through the releases of a title in your library and start one downloading, but only after you say yes in the chat. A read-only key can never do it. Adding a title and searching for it work without this switch.')}
+              />
             )}
             {mcp && <McpAppsCard />}
             <p>

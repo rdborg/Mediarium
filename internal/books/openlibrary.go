@@ -229,7 +229,7 @@ type Work struct {
 // GetWork returns a book's details by its work key.
 func (c *Client) GetWork(ctx context.Context, key string) (Work, error) {
 	key = strings.TrimPrefix(strings.TrimSpace(key), "/works/")
-	if key == "" || strings.ContainsAny(key, "/?#") {
+	if key == "" || strings.ContainsAny(key, "/?#") || IsManualKey(key) {
 		return Work{}, ErrNotFound
 	}
 	var res struct {

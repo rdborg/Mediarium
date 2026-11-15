@@ -16,6 +16,9 @@ export interface Searched {
   reason?: string
   // The technical text behind a reason that was written for the person.
   detail?: string
+  // What this indexer was asked: the words, the categories sent with them and
+  // how many releases came back for them.
+  queries?: { query: string; categories?: number[]; count: number; failed?: boolean }[]
 }
 
 // summaryLine is the one short line: "Searched 8 indexers: 2 had releases, 5 had

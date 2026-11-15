@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/queue"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -46,13 +47,13 @@ func TestNZBLinkHold(t *testing.T) {
 
 	// Searches leave it out; the copy on the other indexer stays.
 	results := []indexers.Result{{Title: title, DownloadURL: link}, {Title: title, DownloadURL: other}}
-	if got := dropBlocked(results, s.searchSkipKeys()); len(got) != 1 || got[0].DownloadURL != other {
+	if got := dropBlocked(results, s.searchSkipKeys(), blocklist.Scope{}); len(got) != 1 || got[0].DownloadURL != other {
 		t.Fatalf("dropBlocked kept %+v", got)
 	}
-	if err := s.grabRefused(grabAutomatic, title, link); !errors.Is(err, errNZBLinkHeld) || !errors.Is(err, errBlocklisted) {
+	if err := s.grabRefused(grabAutomatic, title, link, blocklist.Scope{}); !errors.Is(err, errNZBLinkHeld) || !errors.Is(err, errBlocklisted) {
 		t.Fatalf("an automatic grab is refused: %v", err)
 	}
-	if err := s.grabRefused(grabPicked, title, link); err != nil {
+	if err := s.grabRefused(grabPicked, title, link, blocklist.Scope{}); err != nil {
 		t.Fatalf("a release a person picks is never held back: %v", err)
 	}
 

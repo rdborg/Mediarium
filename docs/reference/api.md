@@ -98,6 +98,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | DELETE | `/api/blocklist` | admin |  |
 | GET | `/api/blocklist` | admin | lists the blocklist, newest first. |
 | DELETE | `/api/blocklist/{id}` | admin |  |
+| PUT | `/api/blocklist/{id}/scope` | admin | switches an entry between "all" (every title) and "item" (only the title it was made for). |
 
 ## book-authors
 
@@ -140,6 +141,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/books/import` | admin | starts reading the books folders (administrators). |
 | POST | `/api/books/import/match` | admin | attaches a book picked by hand to one of the files the last import did not find (administrators, like the import itself). |
 | POST | `/api/books/import/retry` | admin | looks again only at the books the last import did not find (or could not save), without reading the folders again: for the ones Open Library or Audnexus did ... |
+| POST | `/api/books/manual` | any account | is POST /api/books/manual: a book, an audiobook or both, typed in by hand. |
 | GET | `/api/books/progress` | any account | GET /api/books/progress: where the person is in every book. |
 | GET | `/api/books/search` | any account | looks books up on Open Library, and on Hardcover when a token is saved. |
 | GET | `/api/books/search/google` | any account | lists Google Books results in Google's order, in the movie and show info language. |
@@ -327,6 +329,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/import-lists/{id}` | admin | PUT /api/import-lists/{id} |
 | PUT | `/api/import-lists/{id}/enabled` | admin | PUT /api/import-lists/{id}/enabled {"enabled": true}: the switch on the list. |
 | POST | `/api/import-lists/{id}/forget` | admin | POST /api/import-lists/{id}/forget: the list starts over, treating every title on it as new. |
+| GET | `/api/import-lists/{id}/history` | admin | GET /api/import-lists/{id}/history |
 | POST | `/api/import-lists/{id}/run` | admin | POST /api/import-lists/{id}/run: read the list now. |
 
 ## indexer-definitions
@@ -516,6 +519,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 |---|---|---|---|
 | GET | `/api/music/albums/{id}` | any account | returns one album with its tracklist and which tracks have a file. |
 | GET | `/api/music/albums/{id}/cover` | any account | serves an album's cover image (any account): the cover file in the album's folder, else the front cover from the Cover Art Archive, fetched once and kept. |
+| POST | `/api/music/albums/{id}/cover` | any account | is POST /api/music/albums/{id}/cover (multipart, field "file"): the picture for an album added by hand. |
 | GET | `/api/music/albums/{id}/events` | any account | lists an album's own activity log, newest first (at most 200 events): searches and why nothing was taken, grabs, download steps, imports and failures. |
 | DELETE | `/api/music/albums/{id}/files` | admin | deletes one file from an album's folder (administrators): ?path= is the file's path in the listing, relative to the album's folder. |
 | GET | `/api/music/albums/{id}/files` | any account | lists the files in an album's folder on disk (any account): tracks carry their track id, and cover art, logs and cue sheets are listed too. |
@@ -550,6 +554,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/music/listenbrainz` | any account | PUT /api/music/listenbrainz {token?, enabled?} |
 | POST | `/api/music/listenbrainz/listen` | signed in | POST /api/music/listenbrainz/listen {trackId, listenedAt}: a play that has counted. |
 | POST | `/api/music/listenbrainz/playing` | signed in | POST /api/music/listenbrainz/playing {trackId} |
+| POST | `/api/music/manual` | any account | is POST /api/music/manual: an album typed in by hand. |
 | GET | `/api/music/player-settings` | any account | GET /api/music/player-settings |
 | PUT | `/api/music/player-settings` | admin | PUT /api/music/player-settings {lyricsOnline} |
 | GET | `/api/music/playlists` | any account | GET /api/music/playlists |
@@ -720,6 +725,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/series/{id}/copies` | any account | GET /api/series/{id}/copies |
 | POST | `/api/series/{id}/copies` | admin | POST /api/series/{id}/copies {"profileId": 4} adds a second copy of a show, with the same episodes monitored, and starts looking for them. |
 | GET | `/api/series/{id}/disk-usage` | admin |  |
+| PUT | `/api/series/{id}/episode-order` | any account | PUT /api/series/{id}/episode-order {"order": "tmdb" \| "tvdb"}  Which list the show's regular seasons follow (#184). |
 | GET | `/api/series/{id}/events` | any account | lists a show's own activity log (all its episodes), newest first (at most 200 events). |
 | GET | `/api/series/{id}/files` | any account | lists the files in a show's folder on disk, season folders included; episode files carry their episode id. |
 | PUT | `/api/series/{id}/folder` | any account | is the same for a show. |
@@ -982,4 +988,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-602 routes.
+608 routes.

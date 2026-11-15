@@ -9,6 +9,7 @@ import { sortProfiles } from './qualityBlurb'
 import { describeState } from './state'
 import Switch from './Switch'
 import { useToast } from './Toast'
+import { addStart } from '../addDefaults'
 
 // On a movie's page: the collection (series of films) it belongs to, the films
 // in it and which are in the library, and, for administrators, "Add the whole
@@ -143,6 +144,9 @@ function AddAll({ info, missing, onClose, onDone }: { info: CollectionInfo; miss
       .then((r) => {
         setProfiles(sortProfiles(r.profiles))
         setDefaultProfileId(r.defaultId)
+        const start = addStart(r)
+        setMonitored(start.monitored)
+        setSearchNow(start.searchNow)
       })
       .catch(() => undefined)
     api

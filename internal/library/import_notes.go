@@ -9,7 +9,7 @@ import (
 // TheTVDB's season numbers or by their titles, so the person knows why those
 // episodes sit where they do, then what was left out and which files. Each is a sentence of its own on its own
 // line, so the screen can show both in the reader's language.
-func importNote(bySeason, byTitle int, leftOut string, leftFiles []string) string {
+func importNote(bySeason, byTitle int, leftOut string, leftFiles []string, orderHint string) string {
 	var lines []string
 	switch {
 	case bySeason == 1:
@@ -27,6 +27,9 @@ func importNote(bySeason, byTitle int, leftOut string, leftFiles []string) strin
 		lines = append(lines, leftOut)
 		if names := leftFilesNote(leftFiles); names != "" {
 			lines = append(lines, names)
+		}
+		if orderHint != "" {
+			lines = append(lines, orderHint)
 		}
 	}
 	return strings.Join(lines, "\n")
@@ -55,6 +58,18 @@ func leftFilesNote(paths []string) string {
 		return fmt.Sprintf("Files left out: %s and %d more.", strings.Join(names[:most], ", "), len(names)-most)
 	}
 	return fmt.Sprintf("Files left out: %s.", strings.Join(names, ", "))
+}
+
+// tvdbOrderNote is the sentence that tells a person whose show left files out
+// that the show can follow TheTVDB's episode order, which counts a double
+// episode as two. offer is true when a TheTVDB key is saved and the show still
+// follows the movie database's order. Files named by their number from the
+// start of the show (anime) are a different matter, so they get no hint.
+func tvdbOrderNote(unknown int, byAbsolute, offer bool) string {
+	if unknown <= 0 || byAbsolute || !offer {
+		return ""
+	}
+	return "If these files are numbered the way TheTVDB counts the show's episodes, set this show's Episode order to TheTVDB order and import the folder again."
 }
 
 // leftOutNote is the import report's note for a show whose files named

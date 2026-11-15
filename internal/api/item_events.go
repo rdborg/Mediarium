@@ -214,16 +214,16 @@ func qualityReason(profile quality.Profile, title string) string {
 // order automation applies its checks: blocklist, downloader choice, match
 // (keep), then quality through the profile chain. With upgradeFrom set only
 // the item's own profile counts and a release must be an upgrade.
-func judgeSearch(results []indexers.Result, blocked map[string]bool, sources string, profile quality.Profile,
+func judgeSearch(results []indexers.Result, blocked map[string]bool, sc blocklist.Scope, sources string, profile quality.Profile,
 	keep func(indexers.Result) (bool, string), upgradeFrom quality.Tier, upgradeRelease string) searchVerdict {
-	return judgeSearchLimited(results, blocked, sources, profile, keep, upgradeFrom, upgradeRelease, nil)
+	return judgeSearchLimited(results, blocked, sc, sources, profile, keep, upgradeFrom, upgradeRelease, nil)
 }
 
 // judgeSearchLimited is judgeSearch with one more check after the quality
 // one: limit gives the reason a release that fits the profile is still not
 // taken (outside the size limits, held back by the delay profile), "" when
 // nothing stops it. A nil limit allows everything.
-func judgeSearchLimited(results []indexers.Result, blocked map[string]bool, sources string, profile quality.Profile,
+func judgeSearchLimited(results []indexers.Result, blocked map[string]bool, sc blocklist.Scope, sources string, profile quality.Profile,
 	keep func(indexers.Result) (bool, string), upgradeFrom quality.Tier, upgradeRelease string, limit func(indexers.Result) string) searchVerdict {
 	v := searchVerdict{total: len(results)}
 	// accept counts a release as acceptable unless a limit still stops it.
@@ -239,7 +239,7 @@ func judgeSearchLimited(results []indexers.Result, blocked map[string]bool, sour
 	}
 	for _, res := range results {
 		switch {
-		case blocked[blocklist.Key(res.Title)]:
+		case blocklist.Blocked(blocked, res.Title, sc):
 			v.reject("blocklisted")
 			continue
 		case sources != sourcesBoth && sources != "" && res.Protocol != indexers.Protocol(sources):
@@ -334,7 +334,7 @@ func (s *Server) noteMovieSearch(ctx context.Context, mode limitMode, m library.
 		}
 		return ""
 	}
-	v := judgeSearchLimited(fresh, blocked, sources, profile, keep, upgradeFrom, m.ReleaseTitle, limit)
+	v := judgeSearchLimited(fresh, blocked, blocklist.Scope{MovieID: m.ID}, sources, profile, keep, upgradeFrom, m.ReleaseTitle, limit)
 	v.addExpired(expired, s.retentionDays())
 	v.addThin(thin)
 	v.failedIndexers = failedIndexers(outcomes)
@@ -392,7 +392,7 @@ func (s *Server) noteTVSearch(ctx context.Context, force bool, series library.Se
 		}
 		return ""
 	}
-	v := judgeSearchLimited(fresh, s.searchSkipKeys(), s.sourcesFor(series.SourcePref), profile, keep, "", "", limit)
+	v := judgeSearchLimited(fresh, s.searchSkipKeys(), blocklist.Scope{SeriesID: series.ID}, s.sourcesFor(series.SourcePref), profile, keep, "", "", limit)
 	v.addExpired(expired, s.retentionDays())
 	v.addThin(thin)
 	v.failedIndexers = failedIndexers(outcomes)

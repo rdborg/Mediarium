@@ -52,7 +52,18 @@ func TestDebridGrabDownloadImport(t *testing.T) {
 	mux.HandleFunc("POST /unrestrict/link", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"filename":"The.Fixture.Movie.1999.1080p.WEB-DL.x264-FIXTURE.mkv","filesize":%d,"download":%q}`, len(movieContent), base+"/files/movie.mkv")
 	})
+	// The first link has already run out when it is used: the service is asked
+	// for a new one and the download carries on.
+	fileHits := 0
 	mux.HandleFunc("GET /files/movie.mkv", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		fileHits++
+		expired := fileHits == 1
+		mu.Unlock()
+		if expired {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 		_, _ = w.Write(movieContent)
 	})
 	mux.HandleFunc("DELETE /torrents/delete/T1", func(w http.ResponseWriter, r *http.Request) {
@@ -158,5 +169,8 @@ func TestDebridGrabDownloadImport(t *testing.T) {
 	defer mu.Unlock()
 	if !deleted {
 		t.Error("the finished torrent should be removed from the service")
+	}
+	if fileHits != 2 {
+		t.Errorf("the file was fetched %d times, want 2 (an expired link, then a fresh one)", fileHits)
 	}
 }

@@ -399,6 +399,7 @@ type releaseBuilder struct {
 	title, link, magnet, details, infohash string
 	size, seeders, leechers                int64
 	haveSeeders, haveLeechers              bool
+	discount                               int // percent of the download the tracker does not count (100 = freeleech)
 	date                                   time.Time
 	cats                                   []int
 }
@@ -503,6 +504,9 @@ func (s *cgSession) applyField(rb *releaseBuilder, name, val string, mods []stri
 	case "leechers":
 		rb.leechers, rb.haveLeechers = sane(parseCount(val)), true
 		return strconv.FormatInt(rb.leechers, 10), nil
+	case "downloadvolumefactor":
+		rb.discount = discountFromFactor(val)
+		return val, nil
 	case "grabs", "files":
 		return strconv.FormatInt(parseCount(val), 10), nil
 	case "date":
@@ -593,6 +597,7 @@ func (s *cgSession) finish(rb *releaseBuilder) (*Result, error) {
 		Seeders:      int(rb.seeders),
 		SeedersKnown: rb.haveSeeders,
 		Peers:        int(rb.seeders + rb.leechers),
+		Discount:     rb.discount,
 		InfoHash:     strings.ToLower(rb.infohash),
 	}
 	if link != "" {

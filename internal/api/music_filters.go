@@ -348,6 +348,12 @@ func (s *Server) handleArtistDiscography(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if artist.Manual() {
+		// Added by hand: there is no page on MusicBrainz to compare with.
+		f, own := s.artistMusicFilter(id)
+		writeJSON(w, http.StatusOK, musicDiscography{Filter: musicFilterPayload{Filter: f, UseLibrary: !own}, Hidden: []musicHiddenGroup{}, Library: []musicHiddenAlbum{}, Counts: map[string]int{}})
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	groups, err := s.MusicBrainz().ArtistReleaseGroups(ctx, artist.MBID, nil, true)
@@ -451,6 +457,10 @@ func (s *Server) handleAddArtistAlbum(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if artist.Manual() {
+		writeError(w, http.StatusBadRequest, "This artist was added by hand, so there are no releases on the music database to add. Add the album by hand instead.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)

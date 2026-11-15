@@ -25,6 +25,8 @@ export interface SortableRelease {
   resolution?: string
   source?: string
   seeders?: number
+  // Percent of the download the tracker does not count (100 = freeleech).
+  discount?: number
   formatScore?: number
   // The whole score the pick uses (formats + preferred terms + fix bonus);
   // lists from before it existed only have formatScore.
@@ -122,7 +124,12 @@ export interface ReleaseFilter {
   text: string
   indexer: string // '' for any
   quality: string // '' for any, 'other' for no resolution, else '1080p' and so on
+  freeleech?: boolean // only releases the tracker counts as free to download
 }
+
+// isFreeleech is true for a release the tracker does not count against the
+// ratio at all.
+export const isFreeleech = (r: { discount?: number }): boolean => (r.discount ?? 0) >= 100
 
 export const qualityOf = (r: { resolution?: string }): string => (resolutionOf(r) > 0 ? `${resolutionOf(r)}p` : 'other')
 
@@ -131,6 +138,7 @@ export function filterReleases<T extends SortableRelease>(list: T[], f: ReleaseF
   return list.filter((r) => {
     if (f.indexer && r.indexerName !== f.indexer) return false
     if (f.quality && qualityOf(r) !== f.quality) return false
+    if (f.freeleech && !isFreeleech(r)) return false
     const title = r.title.toLowerCase()
     return words.every((w) => title.includes(w))
   })

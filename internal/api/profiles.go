@@ -241,6 +241,10 @@ type profileListPayload struct {
 	// DefaultSources is the downloader choice a title follows when it has none of its own,
 	// so members can read it without the administrator-only settings.
 	DefaultSources string `json:"defaultSources"`
+	// AddMonitored and AddSearchNow are the starting state of the add dialog's
+	// "Monitor" and "Start searching now" choices, readable by every member.
+	AddMonitored bool `json:"addMonitored"`
+	AddSearchNow bool `json:"addSearchNow"`
 }
 
 func toProfilePayload(p quality.Profile, inUse int) profilePayload {
@@ -353,7 +357,7 @@ func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	out := profileListPayload{Profiles: []profilePayload{}, Tiers: []string{}, DefaultID: s.defaultProfileID(), DefaultTVID: s.defaultTVProfileID(), DefaultSources: s.defaultSources()}
+	out := profileListPayload{Profiles: []profilePayload{}, Tiers: []string{}, DefaultID: s.defaultProfileID(), DefaultTVID: s.defaultTVProfileID(), DefaultSources: s.defaultSources(), AddMonitored: s.addMonitoredDefault(), AddSearchNow: s.addSearchNowDefault()}
 	for _, p := range list {
 		out.Profiles = append(out.Profiles, toProfilePayload(p, usage[p.ID]))
 	}

@@ -57,6 +57,8 @@ type musicArtistPayload struct {
 	// Albums is only set on GET /api/music/artists/{id} and the add answer.
 	Albums []musicAlbumPayload `json:"albums,omitempty"`
 	// Filter is what the artist page lists and following adds (the artist's own choice or the library's).
+	// Manual is set for an artist added by hand: not on MusicBrainz, never looked up again.
+	Manual bool `json:"manual,omitempty"`
 	// Only set on GET /api/music/artists/{id}.
 	Filter *musicFilterPayload `json:"filter,omitempty"`
 }
@@ -75,8 +77,9 @@ type musicAlbumPayload struct {
 	Status          string `json:"status"` // missing, downloading or downloaded
 	Quality         string `json:"quality,omitempty"`
 	Path            string `json:"path,omitempty"`
-	CoverURL        string `json:"coverUrl"`        // the cover on this server: GET /api/music/albums/{id}/cover
-	CoverArchiveURL string `json:"coverArchiveUrl"` // the same cover at the Cover Art Archive
+	CoverURL        string `json:"coverUrl"`         // the cover on this server: GET /api/music/albums/{id}/cover
+	CoverArchiveURL string `json:"coverArchiveUrl"`  // the same cover at the Cover Art Archive
+	Manual          bool   `json:"manual,omitempty"` // added by hand: not on MusicBrainz, never looked up again
 	// Tracks is only set on GET /api/music/albums/{id} (empty until the
 	// tracklist has been fetched, which happens on the first grab or import).
 	Tracks []musicTrackPayload `json:"tracks,omitempty"`
@@ -102,7 +105,7 @@ func toMusicAlbumPayload(a music.Album) musicAlbumPayload {
 	return musicAlbumPayload{
 		ID: a.ID, ArtistID: a.ArtistID, MBID: a.MBID, Title: a.Title, Type: a.Type, ReleaseDate: a.ReleaseDate,
 		Year: a.Year(), Monitored: a.Monitored, Status: string(a.Status), Quality: a.Quality, Path: a.Path,
-		CoverURL: albumCoverURL(a.ID), CoverArchiveURL: musicbrainz.CoverArtURL(a.MBID),
+		CoverURL: albumCoverURL(a.ID), CoverArchiveURL: manualBlank(a.MBID, musicbrainz.CoverArtURL(a.MBID)), Manual: a.Manual(),
 	}
 }
 
@@ -111,7 +114,7 @@ func (s *Server) toMusicArtistPayload(a music.Artist, profiles []music.Profile, 
 	return musicArtistPayload{
 		ID: a.ID, MBID: a.MBID, Name: a.Name, SortName: a.SortName, Disambiguation: a.Disambiguation,
 		Monitored: a.Monitored, MonitorNew: a.MonitorNew, ProfileID: a.ProfileID, ProfileName: p.Name,
-		AddedAt: a.AddedAt, AddedBy: who(a.AddedBy), CoverURL: artistCoverURL(a.ID), ImageURL: artistCoverURL(a.ID),
+		AddedAt: a.AddedAt, AddedBy: who(a.AddedBy), CoverURL: artistCoverURL(a.ID), ImageURL: artistCoverURL(a.ID), Manual: a.Manual(),
 	}
 }
 
@@ -726,7 +729,7 @@ func (s *Server) wantedAlbums(upgrades bool) ([]wantedAlbum, error) {
 			return nil, nil
 		}
 		switch {
-		case !upgrades && al.Status == music.StatusMissing && albumReleased(al.ReleaseDate, today):
+		case !upgrades && al.Status == music.StatusMissing && (albumReleased(al.ReleaseDate, today) || al.Manual()):
 		case upgrades && al.Status == music.StatusDownloaded && profile.WantsUpgrade(music.Tier(al.Quality)):
 		default:
 			continue

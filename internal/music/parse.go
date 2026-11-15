@@ -84,7 +84,7 @@ func ParseRelease(title string) Release {
 		r.Artist = cleanName(artist)
 		r.Album = cutAlbum(rest)
 		r.Year = yearFrom(rest, r.Album)
-	case !strings.Contains(title, " ") && strings.Count(title, "-") >= 1:
+	case !strings.Contains(title, " ") && strings.Count(title, "-") >= 1, spacedScene(title):
 		parseScene(title, &r)
 	default:
 		// No separator at all: all we can say is the album-ish text.
@@ -95,6 +95,24 @@ func ParseRelease(title string) Release {
 		r.Year = pureYear(lead)
 	}
 	return r
+}
+
+// spacedScene reports whether a title with spaces in it is still a scene name:
+// dashes with no space beside them are the only separators between the fields
+// ("Artist-Album Name-16BIT-44-KHZ-WEB-FLAC-2024-GRP"), and at least one field
+// after the album is release metadata. A name like "Blink-182 Enema of the
+// State 1999 FLAC" has no such fields, so it is not cut at its hyphen.
+func spacedScene(title string) bool {
+	if strings.Contains(title, " - ") || strings.Count(title, "-") < 2 {
+		return false
+	}
+	fields := strings.Split(title, "-")
+	for _, f := range fields[2:] {
+		if f = strings.TrimSpace(f); f != "" && isMeta(f) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseScene reads "Artist-Album-TAG-TAG-YEAR-GROUP": underscores or dots

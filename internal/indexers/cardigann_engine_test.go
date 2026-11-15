@@ -396,6 +396,10 @@ func TestCardigannJSONSearch(t *testing.T) {
 	if res[1].SizeBytes != 524288000 || res[1].Categories[0] != 5000 {
 		t.Errorf("second result %+v", res[1])
 	}
+	// the definition's downloadvolumefactor field: 0 is freeleech, 1 is no discount
+	if res[0].Discount != 100 || res[1].Discount != 0 {
+		t.Errorf("discounts = %d and %d, want 100 and 0", res[0].Discount, res[1].Discount)
+	}
 }
 
 // --- rate limiting ---

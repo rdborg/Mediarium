@@ -19,9 +19,9 @@
 }
 
 /* ---- Add a download by hand (a dialog, outside .activity-page) ------- */
-.add-download .row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.add-download .row-fields, .add-by-hand .row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .add-download select[size] { width: 100%; }
-@media (max-width: 520px) { .add-download .row-fields { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .add-download .row-fields, .add-by-hand .row-fields { grid-template-columns: 1fr; } }
 
 /* ---- Board ------------------------------------------------------------ */
 /* Each box sits in a cell so its "i" can sit in the corner without being inside the link. */

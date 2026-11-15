@@ -82,7 +82,8 @@ type rpcResponse struct {
 // mcpState is what the MCP server keeps between requests.
 type mcpState struct {
 	once    sync.Once
-	table   *routeTable // every signed-in route; tools call the web app's own handlers through it
+	table   *routeTable  // every signed-in route; tools call the web app's own handlers through it
+	dl      mcpDownloads // releases offered to an assistant and the codes that confirm a grab (mcp_download.go)
 	mu      sync.Mutex
 	limiter map[int64]*timerate.Limiter
 }
@@ -99,6 +100,10 @@ func (s *Server) mcpRoutes() *routeTable {
 }
 
 func (s *Server) mcpEnabled() bool { return s.settingOn(settings.KeyMCPEnabled, false) }
+
+// mcpDownloadsOn is the switch for the two tools that pick a release and start
+// its download (mcp_download.go). Off until an administrator turns it on.
+func (s *Server) mcpDownloadsOn() bool { return s.settingOn(settings.KeyMCPDownloads, false) }
 
 // allowMCP is the per-account request limit.
 func (s *Server) allowMCP(userID int64) bool {
@@ -338,17 +343,24 @@ func (c *mcpCtx) dispatchMethod(req rpcRequest) (any, *rpcError) {
 // mcpInstructions is what the assistant is told about the server when it connects.
 const mcpInstructions = "Mediarium manages a media library: movies, TV, music and books. " +
 	"Use the read tools to answer questions. The tools that change something need confirm set to true; " +
-	"call them first without it, tell the person what would change, and only repeat the call with confirm true once they have said yes."
+	"call them first without it, tell the person what would change, and only repeat the call with confirm true once they have said yes. " +
+	"To download a specific release (when an administrator has allowed it), use find_releases, then grab_release: its first call answers with a confirm_token; " +
+	"tell the person what would be downloaded, and only after they say yes call it again with that token."
 
 // ---- Settings: the switch ----
 
 type mcpSettingsPayload struct {
-	Enabled bool   `json:"enabled"`
-	Path    string `json:"path"` // the address, after the host (and URL base)
+	Enabled   bool   `json:"enabled"`
+	Downloads bool   `json:"downloads"` // assistants may pick a release and start its download (after a confirming second call)
+	Path      string `json:"path"`      // the address, after the host (and URL base)
+}
+
+func (s *Server) mcpSettingsNow() mcpSettingsPayload {
+	return mcpSettingsPayload{Enabled: s.mcpEnabled(), Downloads: s.mcpDownloadsOn(), Path: "/mcp"}
 }
 
 func (s *Server) handleGetMCP(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, mcpSettingsPayload{Enabled: s.mcpEnabled(), Path: "/mcp"})
+	writeJSON(w, http.StatusOK, s.mcpSettingsNow())
 }
 
 // handlePutMCP switches the MCP address on or off. Switching it on can only be
@@ -356,24 +368,34 @@ func (s *Server) handleGetMCP(w http.ResponseWriter, r *http.Request) {
 // must not be able to open the door it would then use.
 func (s *Server) handlePutMCP(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Enabled *bool `json:"enabled"`
+		Enabled   *bool `json:"enabled"`
+		Downloads *bool `json:"downloads"`
 	}
-	if err := decodeJSON(r, &req); err != nil || req.Enabled == nil {
+	if err := decodeJSON(r, &req); err != nil || (req.Enabled == nil && req.Downloads == nil) {
 		writeError(w, http.StatusBadRequest, "Couldn't read that request. Reload the page and try again.")
 		return
 	}
-	if *req.Enabled && !requireSession(w, r) {
+	if ((req.Enabled != nil && *req.Enabled) || (req.Downloads != nil && *req.Downloads)) && !requireSession(w, r) {
 		return
 	}
-	if err := setBool(s.Settings, settings.KeyMCPEnabled, *req.Enabled); err != nil {
-		slog.Error("mcp: could not save the setting", "err", err)
-		writeError(w, http.StatusInternalServerError, "Couldn't save that. Try again.")
-		return
+	for _, sw := range []struct {
+		name string
+		key  string
+		val  *bool
+	}{{"mcp", settings.KeyMCPEnabled, req.Enabled}, {"mcp downloads", settings.KeyMCPDownloads, req.Downloads}} {
+		if sw.val == nil {
+			continue
+		}
+		if err := setBool(s.Settings, sw.key, *sw.val); err != nil {
+			slog.Error("mcp: could not save the setting", "setting", sw.key, "err", err)
+			writeError(w, http.StatusInternalServerError, "Couldn't save that. Try again.")
+			return
+		}
+		state := "off"
+		if *sw.val {
+			state = "on"
+		}
+		slog.Warn(sw.name+": switched "+state, "by", actorName(r), "from", s.clientIP(r))
 	}
-	state := "off"
-	if *req.Enabled {
-		state = "on"
-	}
-	slog.Warn("mcp: switched "+state, "by", actorName(r), "from", s.clientIP(r))
-	writeJSON(w, http.StatusOK, mcpSettingsPayload{Enabled: s.mcpEnabled(), Path: "/mcp"})
+	writeJSON(w, http.StatusOK, s.mcpSettingsNow())
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/quality"
 )
 
@@ -361,7 +362,7 @@ func (s *Server) arrAddMovie(w http.ResponseWriter, r *http.Request) {
 	created, err := s.MovieRepo.Add(library.Movie{
 		TMDBID: tm.TMDBID, Title: tm.Title, Year: tm.Year(), Overview: tm.Overview, PosterPath: tm.PosterPath,
 		Monitored: monitored, ReleaseDate: tm.ReleaseDate, NoUpgrade: true, AddedBy: userID,
-		Genres: s.TMDB().MovieGenres(r.Context(), *tm), RootPath: rootPath,
+		Genres: s.TMDB().MovieGenres(r.Context(), *tm), RootPath: rootPath, Origin: origin.Origin{Kind: origin.API},
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

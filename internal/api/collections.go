@@ -13,6 +13,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // Collections: a series of films on TMDB (a trilogy, a franchise). A movie
@@ -207,7 +208,7 @@ func (s *Server) addCollectionMovie(ctx context.Context, tmdbID, collectionID in
 		TMDBID: tm.TMDBID, Title: tm.Title, Year: tm.Year(),
 		Overview: tm.Overview, PosterPath: tm.PosterPath, Monitored: o.Monitored, ReleaseDate: tm.ReleaseDate,
 		NoUpgrade: true, AddedBy: o.AddedBy, Genres: s.TMDB().MovieGenres(ctx, *tm),
-		RootPath: rootPath,
+		RootPath: rootPath, Origin: origin.Origin{Kind: origin.Manual},
 	})
 	if err != nil {
 		return library.Movie{}, err

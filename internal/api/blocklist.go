@@ -42,14 +42,16 @@ func isBadRelease(err error) bool {
 }
 
 // dropBlocked removes blocklisted releases from search results, and those
-// held back for now when blocked comes from searchSkipKeys.
-func dropBlocked(results []indexers.Result, blocked map[string]bool) []indexers.Result {
+// held back for now when blocked comes from searchSkipKeys. sc is the title the
+// search is for: a release blocklisted for that title alone is dropped too. A
+// search for no one title (sc is zero) drops only what is blocked everywhere.
+func dropBlocked(results []indexers.Result, blocked map[string]bool, sc blocklist.Scope) []indexers.Result {
 	if len(blocked) == 0 {
 		return results
 	}
 	out := make([]indexers.Result, 0, len(results))
 	for _, r := range results {
-		if !searchSkips(r, blocked) {
+		if !searchSkips(r, blocked, sc) {
 			out = append(out, r)
 		}
 	}
@@ -159,6 +161,59 @@ type blocklistPayload struct {
 	Protocol     string `json:"protocol"`
 	Reason       string `json:"reason"`
 	CreatedAt    string `json:"createdAt,omitempty"`
+	// Scope is "all" (the release is blocked for every title) or "item" (for
+	// the one title named by the fields below only).
+	Scope string `json:"scope"`
+	// ItemKind (movie, series, album or book), ItemID and ItemTitle name the
+	// title the entry was made for, when there is one. For an entry for
+	// everywhere it is where the release failed.
+	ItemKind  string `json:"itemKind,omitempty"`
+	ItemID    int64  `json:"itemId,omitempty"`
+	ItemTitle string `json:"itemTitle,omitempty"`
+}
+
+// parseBlocklistScope reads the scope a request names: "item" is for one title,
+// "all" or nothing is everywhere.
+func parseBlocklistScope(scope string) (itemOnly, ok bool) {
+	switch scope {
+	case "", blocklist.ScopeAll:
+		return false, true
+	case blocklist.ScopeItem:
+		return true, true
+	}
+	return false, false
+}
+
+// onlyForThisTitle is the note added to an Activity line for a release that is
+// blocklisted for one title only.
+func onlyForThisTitle(itemOnly bool) string {
+	if itemOnly {
+		return " (only for this title)"
+	}
+	return ""
+}
+
+// blocklistTitle names the title an entry is tied to.
+func (s *Server) blocklistTitle(e blocklist.Entry) (kind string, id int64, title string) {
+	switch {
+	case e.MovieID != 0:
+		if m, err := s.MovieRepo.Get(e.MovieID); err == nil {
+			return "movie", e.MovieID, m.Title
+		}
+	case e.SeriesID != 0:
+		if sr, err := s.MovieRepo.GetSeries(e.SeriesID); err == nil {
+			return "series", e.SeriesID, sr.Title
+		}
+	case e.AlbumID != 0:
+		if al, err := s.MusicRepo.GetAlbum(e.AlbumID); err == nil {
+			return "album", e.AlbumID, al.Title
+		}
+	case e.BookID != 0:
+		if b, err := s.BookRepo.Get(e.BookID); err == nil {
+			return "book", e.BookID, b.Title
+		}
+	}
+	return "", 0, ""
 }
 
 // handleListBlocklist lists the blocklist, newest first. With no query it is
@@ -187,7 +242,11 @@ func (s *Server) handleListBlocklist(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []blocklistPayload{}
 	for _, e := range entries {
-		p := blocklistPayload{ID: e.ID, ReleaseTitle: e.ReleaseTitle, Protocol: e.Protocol, Reason: e.Reason}
+		p := blocklistPayload{ID: e.ID, ReleaseTitle: e.ReleaseTitle, Protocol: e.Protocol, Reason: e.Reason, Scope: blocklist.ScopeAll}
+		if e.ItemOnly {
+			p.Scope = blocklist.ScopeItem
+		}
+		p.ItemKind, p.ItemID, p.ItemTitle = s.blocklistTitle(e)
 		if !e.CreatedAt.IsZero() {
 			p.CreatedAt = e.CreatedAt.Format(time.RFC3339)
 		}
@@ -214,6 +273,38 @@ func (s *Server) handleRemoveBlocklistEntry(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, nil)
+}
+
+// handleSetBlocklistScope switches an entry between "all" (every title) and
+// "item" (only the title it was made for).
+func (s *Server) handleSetBlocklistScope(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "That isn't a valid blocklist ID.")
+		return
+	}
+	var req struct {
+		Scope string `json:"scope"`
+	}
+	if err := decodeJSON(r, &req); err != nil || req.Scope == "" {
+		writeError(w, http.StatusBadRequest, "Send the scope as \"item\" or \"all\".")
+		return
+	}
+	itemOnly, ok := parseBlocklistScope(req.Scope)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "Send the scope as \"item\" or \"all\".")
+		return
+	}
+	switch err := s.Blocklist.SetScope(id, itemOnly); {
+	case errors.Is(err, sql.ErrNoRows):
+		writeError(w, http.StatusNotFound, "That blocklist entry no longer exists.")
+	case errors.Is(err, blocklist.ErrNoTitle):
+		writeError(w, http.StatusConflict, "This release isn't tied to a title, so it can only be blocked everywhere.")
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	default:
+		writeJSON(w, http.StatusOK, nil)
+	}
 }
 
 func (s *Server) handleClearBlocklist(w http.ResponseWriter, r *http.Request) {

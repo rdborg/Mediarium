@@ -227,7 +227,7 @@ func (s *Server) searchMovieTitles(ctx context.Context, instances []indexers.Ins
 	if enough == nil {
 		ctx = indexers.AsManual(ctx) // a person asked for this search
 	}
-	outcomes := indexers.SearchAll(ctx, instances, indexerQuery(m.Title), movieCategory)
+	outcomes := indexers.SearchAll(s.withMovieIDs(ctx, m), instances, indexerQuery(m.Title), movieCategory)
 	// A popular title ("Dune", "Halloween") can have more releases than a
 	// search reads, and the right film's may never be among them: then the
 	// title is searched again with its year.

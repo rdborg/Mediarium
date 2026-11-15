@@ -18,6 +18,8 @@ export interface Source {
   language?: string
   minRating?: string
   runtime?: string
+  // Streaming service keys, separated by commas, whose titles are left out (not for "more like your library").
+  hide?: string
   // "More like your library" only: also list titles from before the last 15 years.
   older?: boolean
 }
@@ -37,10 +39,10 @@ async function legacyList(kind: Kind, list: ListName): Promise<DiscoverMovie[]> 
 
 export async function fetchPage(src: Source, page: number): Promise<Page> {
   if (src.list === 'browse') {
-    return api.discoverBrowse({ kind: src.kind, genre: src.genre, yearFrom: src.yearFrom, yearTo: src.yearTo, sort: src.sort, language: src.language, minRating: src.minRating, runtime: src.runtime, page })
+    return api.discoverBrowse({ kind: src.kind, genre: src.genre, yearFrom: src.yearFrom, yearTo: src.yearTo, sort: src.sort, language: src.language, minRating: src.minRating, runtime: src.runtime, hide: src.hide, page })
   }
   try {
-    return await api.discoverList(src.kind, src.list, page, src.older)
+    return await api.discoverList(src.kind, src.list, page, src.older, src.hide)
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) {
       return { results: page === 1 ? await legacyList(src.kind, src.list) : [], totalPages: 1 }
@@ -68,6 +70,7 @@ export function sourceFromQuery(q: URLSearchParams): Source {
     language: q.get('language') ?? undefined,
     minRating: q.get('minRating') ?? undefined,
     runtime: q.get('runtime') ?? undefined,
+    hide: q.get('hide') ?? undefined,
     older: q.get('older') === 'true' || undefined,
   }
 }

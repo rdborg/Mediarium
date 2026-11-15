@@ -509,7 +509,7 @@ export function installDemo() {
       case p === '/api/activity':
         return json(activity)
       case p === '/api/blocklist':
-        return json([{ id: 1, releaseTitle: 'The.Quiet.Signal.2016.720p.HDTV-JUNK', protocol: 'usenet', reason: 'Bad release: archive is corrupt', createdAt: ago(2100) }])
+        return json([{ id: 1, releaseTitle: 'The.Quiet.Signal.2016.720p.HDTV-JUNK', protocol: 'usenet', reason: 'Bad release: archive is corrupt', createdAt: ago(2100), scope: 'all' }])
       case p === '/api/subtitles/wanted':
         return json([
           { kind: 'movie', id: 2, tmdbId: 9002, title: 'The Long Equation', missing: ['en'] },

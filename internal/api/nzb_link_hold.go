@@ -148,9 +148,9 @@ func (s *Server) searchSkipKeys() map[string]bool {
 }
 
 // searchSkips reports whether a search result is in a set made by searchSkipKeys
-// (or blockedKeys).
-func searchSkips(r indexers.Result, skip map[string]bool) bool {
-	return skip[blocklist.Key(r.Title)] || skip[nzbLinkHoldKey(r.DownloadURL, r.Title)]
+// (or blockedKeys) for a search for the title sc (zero: for no one title).
+func searchSkips(r indexers.Result, skip map[string]bool, sc blocklist.Scope) bool {
+	return blocklist.Blocked(skip, r.Title, sc) || skip[nzbLinkHoldKey(r.DownloadURL, r.Title)]
 }
 
 // nzbLinkHeldNote is said on the Activity row of a download that failed this

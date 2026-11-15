@@ -92,6 +92,7 @@ function BookPage({ id }: { id?: string }) {
   const fromAudible = book.olKey.startsWith('audnexus:')
   const fromHardcover = book.olKey.startsWith('hc-')
   const fromGoogle = book.olKey.startsWith('gb-')
+  const byHand = book.olKey.startsWith('manual:')
   const formats = (['ebook', 'audiobook'] as BookFormat[]).filter((f) => on(f === 'ebook' ? 'ebooks' : 'audiobooks') || book[f].status === 'downloaded')
   return (
     <div>
@@ -119,7 +120,7 @@ function BookPage({ id }: { id?: string }) {
                 <Icon name={l.kind === 'audiobookshelf' ? 'headphones' : 'book'} size={13} /> {l.kind === 'audiobookshelf' ? t('Listen in {name}', { name: l.name }) : t('Read in {name}', { name: l.name })}
               </a>
             ))}
-            {!fromAudible && !fromHardcover && !fromGoogle && (
+            {!fromAudible && !fromHardcover && !fromGoogle && !byHand && (
               <a className="link-pill" href={`https://openlibrary.org/works/${book.olKey}`} target="_blank" rel="noreferrer">
                 <Icon name="external" size={13} /> {t('More about this book')}
               </a>
@@ -159,7 +160,7 @@ function BookPage({ id }: { id?: string }) {
           <FormatPanel key={f} book={book} format={f} queue={queue} onChanged={load} />
         ))}
       </div>
-      {!fromAudible && <BookSeries workKey={book.olKey} title={book.title} author={book.author} />}
+      {!fromAudible && !byHand && <BookSeries workKey={book.olKey} title={book.title} author={book.author} />}
       {book.authorKey && <AuthorBooks authorKey={book.authorKey} author={book.author} exclude={book.olKey} />}
       {formats.length === 0 && (
         <p className="hint">

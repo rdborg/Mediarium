@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -31,6 +32,50 @@ const maxMusicSearchesPerHunt = 25
 // albumQuery is what is searched for: "Artist Album".
 func albumQuery(artist music.Artist, album music.Album) string {
 	return artist.Name + " " + album.Title
+}
+
+// albumQueries are the searches sent to the indexers for an album: "Artist
+// Album", and the same with German umlauts written out ("fuer" for "für") when
+// that is different, because scene names are written without umlauts and an
+// indexer does not match the two spellings (#193).
+func albumQueries(artist music.Artist, album music.Album) []string {
+	q := albumQuery(artist, album)
+	out := []string{q}
+	if spelled := music.SpellUmlauts(q); spelled != q {
+		out = append(out, spelled)
+	}
+	return out
+}
+
+// searchAlbumQueries asks every indexer for each query in turn and returns
+// all the outcomes (an indexer has one outcome for each query).
+func searchAlbumQueries(ctx context.Context, instances []indexers.Instance, queries []string) []indexers.Outcome {
+	var outcomes []indexers.Outcome
+	for _, q := range queries {
+		if ctx.Err() != nil {
+			break
+		}
+		outcomes = append(outcomes, indexers.SearchAll(ctx, instances, q, musicCategories)...)
+	}
+	return outcomes
+}
+
+// albumFilteredCounts tallies the reasons automation would skip the releases
+// of an interactive album search, for the "Searches used" part of the page.
+func albumFilteredCounts(list []musicReleasePayload) []filteredCount {
+	var out []filteredCount
+	for _, p := range list {
+		for _, why := range p.Rejections {
+			i := slices.IndexFunc(out, func(c filteredCount) bool { return c.Reason == why })
+			if i < 0 {
+				out = append(out, filteredCount{Reason: why})
+				i = len(out) - 1
+			}
+			out[i].Count++
+		}
+	}
+	slices.SortStableFunc(out, func(a, b filteredCount) int { return b.Count - a.Count })
+	return out
 }
 
 // soulseekWords turns a name into the words Soulseek matches: letters and
@@ -101,11 +146,13 @@ type musicReleasePayload struct {
 	Title       string `json:"title"`
 	IndexerName string `json:"indexerName"`
 	Protocol    string `json:"protocol"`
-	DownloadURL string `json:"downloadUrl"` // an opaque reference to send back to grab
+	DownloadURL string `json:"downloadUrl"`       // an opaque reference to send back to grab
+	InfoURL     string `json:"infoUrl,omitempty"` // the release's page on its indexer (indexers.SafeInfoURL)
 	SizeBytes   int64  `json:"sizeBytes"`
 	PublishDate string `json:"publishDate,omitempty"`
 	Seeders     int    `json:"seeders,omitempty"`
 	Peers       int    `json:"peers,omitempty"`
+	Discount    int    `json:"discount,omitempty"` // percent of the download the tracker does not count (100 = freeleech)
 	// Soulseek only: the user's upload speed (bytes a second), how many files wait
 	// in their queue, and whether a slot is free now.
 	PeerSpeed int64 `json:"peerSpeed,omitempty"`
@@ -204,7 +251,15 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	// Soulseek (slskd), when it is set up, is asked at the same time as the indexers.
 	soulseek := make(chan soulseekRun, 1)
-	go func() { soulseek <- s.soulseekAlbumRun(r.Context(), artist, album, profile) }()
+	// Words typed by hand are searched on the indexers only.
+	custom := customSearchQuery(r)
+	go func() {
+		if custom != "" {
+			soulseek <- soulseekRun{}
+			return
+		}
+		soulseek <- s.soulseekAlbumRun(r.Context(), artist, album, profile)
+	}()
 	if len(instances) == 0 {
 		run := <-soulseek
 		writeSearchWith(w, r, append(out, run.Releases...), 0, nil, nil, nil, run.extra())
@@ -220,15 +275,21 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 			notAsked = append(notAsked, inst.Name)
 		}
 	}
-	outcomes := indexers.SearchAll(indexers.AsManual(r.Context()), asked, albumQuery(artist, album), musicCategories)
+	// Words typed by hand are searched as they are: the person is looking for
+	// a release posted under another name.
+	queries := albumQueries(artist, album)
+	if custom != "" {
+		queries = []string{custom}
+	}
+	outcomes := searchAlbumQueries(indexers.AsManual(r.Context()), asked, queries)
 	for _, res := range indexers.MergeResults(outcomes) {
 		rel := music.ParseRelease(res.Title)
 		p := musicReleasePayload{
-			Title: res.Title, IndexerName: res.IndexerName, Protocol: string(res.Protocol), DownloadURL: s.offered.ref(res.DownloadURL),
-			SizeBytes: res.SizeBytes, Seeders: res.Seeders, Peers: res.Peers,
+			Title: res.Title, IndexerName: res.IndexerName, Protocol: string(res.Protocol), DownloadURL: s.offered.ref(res.DownloadURL), InfoURL: indexers.SafeInfoURL(res.InfoURL, res.DownloadURL),
+			SizeBytes: res.SizeBytes, Seeders: res.Seeders, Peers: res.Peers, Discount: res.Discount,
 			Artist: rel.Artist, Album: rel.Album, Year: rel.Year, Format: string(rel.Format), Bitrate: rel.Bitrate, BitDepth: rel.BitDepth,
 			Source: rel.Source, Discography: rel.Discography, Quality: string(rel.Tier()),
-			Blocklisted: blocked[blocklist.Key(res.Title)],
+			Blocklisted: blocklist.Blocked(blocked, res.Title, blocklist.Scope{AlbumID: album.ID}),
 			Rejections:  s.musicRejections(res, rel, artist, album, profile, sources),
 			AcceptedBy:  musicAcceptedBy(profile, rel.Tier()),
 		}
@@ -241,8 +302,9 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 		out = append(out, p)
 	}
 	run := <-soulseek
+	filtered := albumFilteredCounts(out)
 	out = append(out, run.Releases...)
-	writeSearchWith(w, r, out, len(instances), outcomes, notAsked, instances, run.extra())
+	writeSearchWith(w, r, out, len(instances), outcomes, notAsked, instances, run.extra(), filtered...)
 }
 
 // handleAlbumGrab grabs one release for an album (from the interactive
@@ -325,7 +387,7 @@ func (s *Server) huntAlbum(ctx context.Context, artist music.Artist, album music
 		return false
 	}
 	asked, _ := indexers.SplitByCategories(ctx, instances, musicCategories)
-	outcomes := indexers.SearchAll(ctx, asked, albumQuery(artist, album), musicCategories)
+	outcomes := searchAlbumQueries(ctx, asked, albumQueries(artist, album))
 	results, expired := s.freshResults(indexers.MergeResults(outcomes))
 	results, thin := s.keepSeeded(ctx, results)
 	sources := s.sourcesFor("")
@@ -379,7 +441,7 @@ func pickMusicRelease(results []indexers.Result, blocked map[string]bool, source
 		rel := music.ParseRelease(res.Title)
 		tier := rel.Tier()
 		switch {
-		case blocked[blocklist.Key(res.Title)]:
+		case blocklist.Blocked(blocked, res.Title, blocklist.Scope{AlbumID: album.ID}):
 			v.reject("blocklisted")
 			continue
 		case sources != sourcesBoth && sources != "" && res.Protocol != indexers.Protocol(sources):

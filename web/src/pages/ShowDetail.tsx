@@ -50,6 +50,7 @@ export default function ShowDetail() {
     show.seasons ? { label: t('Seasons'), value: String(show.seasons) } : null,
     show.episodes ? { label: t('Episodes'), value: String(show.episodes) } : null,
     show.networks?.length ? { label: t('Network'), value: show.networks.join(', ') } : null,
+    show.studios?.length ? { label: show.studios.length > 1 ? t('Studios') : t('Studio'), value: show.studios.slice(0, 3).join(', ') } : null,
     show.releaseStatus ? { label: t('Status'), value: show.releaseStatus } : null,
   ].filter(Boolean) as { label: string; value: ReactNode }[]
 

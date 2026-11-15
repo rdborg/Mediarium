@@ -125,6 +125,9 @@ func (s *Server) rescanAlbum(ctx context.Context, artist music.Artist, album mus
 		}
 		infos[i] = music.IdentifyFile(f, reader)
 	}
+	if tracks, err = s.tracksForManual(album, tracks, infos); err != nil {
+		return albumRescanReport{}, err
+	}
 	slots := make([]music.TrackSlot, len(tracks))
 	for i, t := range tracks {
 		slots[i] = music.TrackSlot{Disc: t.Disc, Position: t.Position, Title: t.Title}

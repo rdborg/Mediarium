@@ -184,6 +184,11 @@ type Outcome struct {
 	Elapsed   time.Duration
 	Results   []Result
 	Err       error
+	// Query is the text this indexer was asked for (after SearchText) and
+	// Categories the standard categories that went with it, so a search can
+	// show what was sent.
+	Query      string
+	Categories []int
 	// Skipped is set when the indexer was not asked because it is paused after
 	// repeated failures (see Tracker); PausedUntil says until when. Err is nil
 	// then: a paused indexer is not a new problem.
@@ -321,6 +326,7 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 	wg.Wait()
 	for i, inst := range enabled {
 		outcomes[i].IndexerID, outcomes[i].Protocol = inst.ID, inst.Protocol
+		outcomes[i].Query, outcomes[i].Categories = query, categories
 	}
 	if ctx.Err() == nil {
 		for _, o := range outcomes {

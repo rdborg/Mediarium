@@ -275,6 +275,11 @@ func (s *Server) ensureTracks(ctx context.Context, album music.Album) ([]music.T
 	if err != nil || len(tracks) > 0 {
 		return tracks, err
 	}
+	if album.Manual() {
+		// Added by hand: MusicBrainz has no tracklist for it. The tracks are made
+		// from the files when they arrive (see tracksForManual).
+		return nil, nil
+	}
 	rel, err := s.MusicBrainz().CanonicalTracklist(ctx, album.MBID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the track list for %q from the music database: %w", album.Title, err)
@@ -324,14 +329,17 @@ func (s *Server) importAlbumFiles(ctx context.Context, artist music.Artist, albu
 	if err != nil {
 		return albumImport{}, err
 	}
-	if len(tracks) == 0 {
-		return albumImport{}, fmt.Errorf("the music database lists no tracks for %q", album.Title)
-	}
-
 	infos := make([]music.FileInfo, len(files))
 	for i, f := range files {
 		infos[i] = music.IdentifyFile(f, musicTagReader)
 	}
+	if tracks, err = s.tracksForManual(album, tracks, infos); err != nil {
+		return albumImport{}, err
+	}
+	if len(tracks) == 0 {
+		return albumImport{}, fmt.Errorf("the music database lists no tracks for %q", album.Title)
+	}
+
 	slots := make([]music.TrackSlot, len(tracks))
 	multiDisc := false
 	for i, t := range tracks {

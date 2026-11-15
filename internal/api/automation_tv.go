@@ -7,9 +7,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/quality"
 )
@@ -300,7 +302,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 	// limited is the search with the blocklist, the sources, the size table and
 	// the delay profile applied; current is set for an upgrade search.
 	refine := func(series library.Series, season, episode int, current *upgradeBase, raw []indexers.Result) []indexers.Result {
-		found := filterSources(dropBlocked(raw, blocked), s.sourcesFor(series.SourcePref))
+		found := filterSources(dropBlocked(raw, blocked, blocklist.Scope{SeriesID: series.ID}), s.sourcesFor(series.SourcePref))
 		return s.limitTVResults(series, season, episode, s.profileForSeries(profiles, series), current, !scope.force, found)
 	}
 	limited := func(series library.Series, season, episode int, current *upgradeBase) []indexers.Result {
@@ -313,7 +315,11 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 	// grab queues best for season (and episode, 0 for a season pack) and
 	// returns the episodes it covers, read the way the show numbers them.
 	grab := func(series library.Series, season, episode int, best *indexers.Result) (bool, []int) {
-		if _, err := s.grabTV(series, season, episode, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(scope.force)); err != nil {
+		var by origin.Origin
+		if logPrefix == "rss-sync" {
+			by = origin.Origin{Kind: origin.Auto, Name: origin.JobRSS}
+		}
+		if _, err := s.grabTVBy(series, season, episode, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(scope.force), by); err != nil {
 			if !errors.Is(err, errAlreadyGrabbed) && !errors.Is(err, errBlocklisted) {
 				log.Printf("automation: %s: tv grab %q for %q: %v", logPrefix, best.Title, series.Title, err)
 			}

@@ -13,6 +13,7 @@ import (
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 )
 
@@ -265,7 +266,7 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 		}
 		payload := s.toSearchResultPayload(res)
 		payload.MatchedTitle = matchedOtherTitle(res.Title, series.Title, series.AltTitles)
-		payload.Blocklisted = blocked[blocklist.Key(res.Title)]
+		payload.Blocklisted = blocklist.Blocked(blocked, res.Title, blocklist.Scope{SeriesID: series.ID})
 		payload.addReasonList(rejectionReasonsFor(res.Title, profile, keeps != keepsNothing, "", "", keeps))
 		payload.addReasons("size", sizeReasons(res.Title, res.SizeBytes))
 		payload.addStateReasons()
@@ -337,7 +338,7 @@ func (s *Server) grabFromSearchTV(w http.ResponseWriter, r *http.Request, req gr
 			return
 		}
 		userID, byline := requester(r)
-		series, err = s.addSeriesFromTMDB(r.Context(), match.TMDBID, userID, true, s.newShowFolder())
+		series, err = s.addSeriesFromTMDB(r.Context(), match.TMDBID, userID, true, s.newShowFolder(), origin.Origin{Kind: origin.Manual})
 		if err != nil {
 			writeUpstreamError(w, "add that show", err)
 			return
@@ -345,7 +346,7 @@ func (s *Server) grabFromSearchTV(w http.ResponseWriter, r *http.Request, req gr
 		_ = s.QueueRepo.LogSeriesActivity(series.ID, "added", series.Title+" (series) added to library"+byline)
 	}
 
-	queueID, err := s.grabTVOpts(series, 0, 0, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked, req.Replace)
+	queueID, err := s.grabTVOpts(series, 0, 0, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.protocol(), grabPicked, req.Replace, userOrigin(r, origin.Manual))
 	if err != nil {
 		writeGrabError(w, err, http.StatusBadRequest)
 		return

@@ -12,7 +12,7 @@ import (
 const idCapsXML = `<?xml version="1.0"?><caps><searching>
 <search available="yes" supportedParams="q"/>
 <tv-search available="yes" supportedParams="q,imdbid,tvdbid,season,ep"/>
-<movie-search available="yes" supportedParams="q,imdbid"/></searching></caps>`
+<movie-search available="yes" supportedParams="q,imdbid,tmdbid"/></searching></caps>`
 
 func itemXML(title, link string) string {
 	return `<item><title>` + title + `</title><link>` + link + `</link><enclosure url="` + link + `" length="1000" type="application/x-nzb"/></item>`
@@ -89,5 +89,105 @@ func TestIDQuery(t *testing.T) {
 	}
 	if _, ok := idQuery(idCaps{}, IDs{IMDB: "tt1"}, nil); ok {
 		t.Error("an indexer with no tv search must not be asked by id")
+	}
+}
+
+func TestSearchByIDMovie(t *testing.T) {
+	var mu sync.Mutex
+	var seen []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		mu.Lock()
+		seen = append(seen, q.Get("t")+"|"+q.Get("imdbid")+"|"+q.Get("tmdbid")+"|"+q.Get("season"))
+		mu.Unlock()
+		switch q.Get("t") {
+		case "caps":
+			w.Write([]byte(idCapsXML))
+		case "movie":
+			w.Write([]byte(`<rss><channel>` + itemXML("Wrong.Title.2024.1080p", "http://x/1") + itemXML("Shared.2024", "http://x/2") + `</channel></rss>`))
+		default:
+			w.Write([]byte(`<rss><channel>` + itemXML("Shared.2024", "http://x/2") + `</channel></rss>`))
+		}
+	}))
+	defer srv.Close()
+	idCapsMu.Lock()
+	delete(idCapsCache, srv.URL)
+	idCapsMu.Unlock()
+
+	c := NewNewznabClient("t", srv.URL, "k")
+	ctx := WithIDs(context.Background(), IDs{IMDB: "tt1234567", TMDB: 55, Movie: true})
+	text, err := c.Search(ctx, "Some Film", []int{2000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID, n := c.SearchByID(ctx, []int{2000})
+	if n != 2 {
+		t.Errorf("requests = %d, want 2 (caps and the id search)", n)
+	}
+	if got := mergeByLink(text, byID); len(got) != 2 {
+		t.Errorf("merged %d releases, want 2 without a duplicate", len(got))
+	}
+	if !strings.Contains(strings.Join(seen, " "), "movie|tt1234567||") {
+		t.Errorf("requests seen: %v", seen)
+	}
+}
+
+func TestSearchByIDMovieLookup(t *testing.T) {
+	var asked []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		asked = append(asked, q.Get("t")+"|"+q.Get("imdbid"))
+		if q.Get("t") == "caps" {
+			if strings.Contains(r.URL.Path, "plain") {
+				w.Write([]byte(`<caps><searching><movie-search available="yes" supportedParams="q"/></searching></caps>`))
+				return
+			}
+			w.Write([]byte(idCapsXML))
+			return
+		}
+		w.Write([]byte(`<rss><channel>` + itemXML("Film.2024", "http://x/9") + `</channel></rss>`))
+	}))
+	defer srv.Close()
+	calls := 0
+	lookup := func(context.Context) string { calls++; return "tt777" }
+	ctx := WithIDs(context.Background(), IDs{TMDB: 9, Movie: true, LookupIMDB: lookup})
+
+	// An indexer that takes no ids is never the reason for a lookup.
+	plain := NewNewznabClient("p", srv.URL+"/plain", "k")
+	if r, _ := plain.SearchByID(ctx, nil); r != nil || calls != 0 {
+		t.Errorf("plain indexer: results %v, lookups %d", r, calls)
+	}
+	c := NewNewznabClient("t", srv.URL, "k")
+	idCapsMu.Lock()
+	delete(idCapsCache, srv.URL)
+	idCapsMu.Unlock()
+	if r, _ := c.SearchByID(ctx, nil); len(r) != 1 || calls != 1 {
+		t.Errorf("results %v, lookups %d", r, calls)
+	}
+	if !strings.Contains(strings.Join(asked, " "), "movie|tt777") {
+		t.Errorf("requests: %v", asked)
+	}
+}
+
+func TestIDQueryMovie(t *testing.T) {
+	tv, movie := parseIDCaps([]byte(idCapsXML))
+	caps := idCaps{tv: tv, movie: movie, ok: true}
+	q, ok := idQuery(caps, IDs{IMDB: "tt1", TMDB: 5, Movie: true, Season: 3}, []int{2000})
+	if !ok || q.Get("t") != "movie" || q.Get("imdbid") != "tt1" || q.Get("season") != "" || q.Get("cat") != "2000" {
+		t.Errorf("movie query = %v %v", q, ok)
+	}
+	// Without an IMDb id the TMDB id is used, when the indexer lists it.
+	if q, ok := idQuery(caps, IDs{TMDB: 5, Movie: true}, nil); !ok || q.Get("tmdbid") != "5" || q.Get("imdbid") != "" {
+		t.Errorf("tmdb query = %v %v", q, ok)
+	}
+	only := idCaps{movie: map[string]bool{"q": true, "imdbid": true}}
+	if _, ok := idQuery(only, IDs{TMDB: 5, Movie: true}, nil); ok {
+		t.Error("an indexer that does not list tmdbid must not be asked by it")
+	}
+	if _, ok := idQuery(idCaps{tv: tv}, IDs{IMDB: "tt1", Movie: true}, nil); ok {
+		t.Error("an indexer with no movie search must not be asked by id")
+	}
+	if got := WithIDs(context.Background(), IDs{TMDB: 5}); got != context.Background() {
+		t.Error("a TMDB id alone must only count for a film")
 	}
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // The Sonarr half of the arr-style API (see arr.go): shows and episodes.
@@ -432,7 +433,7 @@ func (s *Server) arrAddSeries(w http.ResponseWriter, r *http.Request) {
 	if problem != "" {
 		rootPath = s.newShowFolder()
 	}
-	created, err := s.addSeriesFromTMDB(ctx, tmdbID, userID, true, rootPath)
+	created, err := s.addSeriesFromTMDB(ctx, tmdbID, userID, true, rootPath, origin.Origin{Kind: origin.API})
 	if err != nil {
 		writeUpstreamError(w, "add that show", err)
 		return

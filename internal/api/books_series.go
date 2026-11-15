@@ -190,6 +190,9 @@ func (s *Server) handleBookSeries(w http.ResponseWriter, r *http.Request) {
 // rememberSeries stores a library book's series, place and release date when
 // they changed.
 func (s *Server) rememberSeries(b books.Book, series *books.Series, position string) {
+	if b.Manual() {
+		return // added by hand: nothing from a catalogue is written over it
+	}
 	if position != "" && (b.SeriesName != series.Name || b.SeriesPosition != position) {
 		_ = s.BookRepo.SetSeries(b.ID, series.Name, position)
 	}
@@ -294,6 +297,9 @@ func (s *Server) addSeriesBooks(ctx context.Context, f books.FollowedSeries, by 
 		}
 		found := books.Found{Key: e.Key, Title: e.Title, Author: e.Author}
 		if have := findBook(library, found); have != nil {
+			if have.Manual() {
+				continue // added by hand: its details stay as they were typed
+			}
 			if have.SeriesName == "" {
 				_ = s.BookRepo.SetSeries(have.ID, series.Name, e.Position)
 			}
@@ -421,7 +427,7 @@ var audioLookups sync.Map
 // lookUpAudioDetailsLater fetches the narrator, running time (and, when
 // missing, the series) of a book's audiobook in the background, once per book.
 func (s *Server) lookUpAudioDetailsLater(b books.Book) {
-	if b.AudioCheckedAt != "" || !s.audiobooksEnabled() || (!b.WantAudiobook && b.AudioStatus != books.StatusDownloaded) {
+	if b.Manual() || b.AudioCheckedAt != "" || !s.audiobooksEnabled() || (!b.WantAudiobook && b.AudioStatus != books.StatusDownloaded) {
 		return
 	}
 	if _, busy := audioLookups.LoadOrStore(b.ID, true); busy {

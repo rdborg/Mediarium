@@ -171,6 +171,10 @@ type settingsPayload struct {
 	// SeasonPacks looks for a season pack once a season has ended (off unless
 	// switched on; a show can say otherwise for itself).
 	SeasonPacks *bool `json:"seasonPacks,omitempty"`
+	// AddMonitored and AddSearchNow are the starting state of "Monitor" and
+	// "Start searching now" in the add dialog (both on unless switched off).
+	AddMonitored *bool `json:"addMonitored,omitempty"`
+	AddSearchNow *bool `json:"addSearchNow,omitempty"`
 	// HoldUnreleased makes automatic searches wait for a movie's release and for
 	// an episode to air (on unless switched off; hold_unreleased.go).
 	HoldUnreleased *bool `json:"holdUnreleased,omitempty"`
@@ -398,6 +402,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	osEnabled, subdlEnabled, addonsEnabled := sources.OpenSubtitles.Switch, sources.SubDL.Switch, sources.Addons.Switch
 	unmonitorDownloaded, unmonitorFinished := s.unmonitorDownloaded(), s.unmonitorFinished()
 	seasonPacks := s.seasonPackDefault()
+	addMonitored, addSearchNow := s.addMonitoredDefault(), s.addSearchNowDefault()
 	holdUnreleased := holdUnreleasedOn()
 	foldersInInfoLanguage := s.settingOn(settings.KeyFoldersInInfoLanguage, false)
 	tvmazeAirTimes := s.tvmazeOn()
@@ -512,6 +517,8 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		TrailerSound:             &trailerSound,
 		UnmonitorFinished:        &unmonitorFinished,
 		SeasonPacks:              &seasonPacks,
+		AddMonitored:             &addMonitored,
+		AddSearchNow:             &addSearchNow,
 		HoldUnreleased:           &holdUnreleased,
 		FoldersInInfoLanguage:    &foldersInInfoLanguage,
 		TVmazeAirTimes:           &tvmazeAirTimes,
@@ -1009,6 +1016,19 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setHoldUnreleased(*req.HoldUnreleased)
+	}
+
+	if req.AddMonitored != nil {
+		if err := setBool(tx, settings.KeyAddMonitored, *req.AddMonitored); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if req.AddSearchNow != nil {
+		if err := setBool(tx, settings.KeyAddSearchNow, *req.AddSearchNow); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
 	if req.SeasonPacks != nil {

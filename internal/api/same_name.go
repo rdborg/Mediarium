@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/libimport"
@@ -267,6 +269,42 @@ func allDistinct(tags []string) bool {
 	}
 	return true
 }
+
+// withMovieIDs lets the indexers that take a film's id be asked by id too. The
+// IMDb id is read from TMDB when an indexer wants it, and remembered; when TMDB does not answer the
+// film is searched by name (and TMDB id) as before.
+func (s *Server) withMovieIDs(ctx context.Context, m library.Movie) context.Context {
+	if m.TMDBID <= 0 {
+		return ctx
+	}
+	tmdb := m.TMDBID
+	// Asked only when an indexer lists imdbid, and then once per search.
+	var once sync.Once
+	var imdb string
+	lookup := func(lctx context.Context) string {
+		once.Do(func() {
+			if v, ok := movieIMDbIDs.Load(tmdb); ok {
+				imdb, _ = v.(string)
+				return
+			}
+			t := s.TMDB()
+			if t == nil {
+				return
+			}
+			tctx, cancel := context.WithTimeout(lctx, 5*time.Second)
+			defer cancel()
+			if d, err := t.GetMovieDetail(tctx, tmdb); err == nil && d.IMDBID != "" {
+				imdb = d.IMDBID
+				movieIMDbIDs.Store(tmdb, imdb)
+			}
+		})
+		return imdb
+	}
+	return indexers.WithIDs(ctx, indexers.IDs{TMDB: tmdb, Movie: true, LookupIMDB: lookup})
+}
+
+// movieIMDbIDs remembers the IMDb id of each film (TMDB id -> "tt...").
+var movieIMDbIDs sync.Map
 
 // withSeriesIDs lets the indexers that take a show's id be asked by id too
 // ("The Girlfriend S01" finds the wrong show, tt32267726 season 1 does not).

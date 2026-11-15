@@ -117,6 +117,8 @@ const (
 	KeyReleaseCountry        = "info.release_country"             // the country release dates are read for, as a code like "IN"; unset = the country of the info language
 	KeySubtitleAddons        = "subtitles.addons"                 // subtitle add-ons (JSON list of {id, name, url}; the url can hold the person's own key for a site, so it is stored encrypted)
 	KeyDefaultSources        = "library.default_sources"          // usenet | torrent | both (default both)
+	KeyAddMonitored          = "library.add_monitored"            // "0" starts the add dialog with monitoring off; unset or "1" leaves it on (each title can still be changed when it is added)
+	KeyAddSearchNow          = "library.add_search_now"           // "0" starts the add dialog with "start searching now" off; unset or "1" leaves it on
 	KeySeasonPacks           = "library.season_packs"             // "1" looks for a season pack once a season has ended (a show can say otherwise for itself); unset or "0" leaves it off
 	KeyDefaultProfileID      = "library.default_profile_id"       // id of the stored quality profile used by items with no profile of their own
 	KeyDefaultTVProfileID    = "library.default_profile_id_tv"    // id of the quality profile shows with none of their own use; unset = the same default as movies
@@ -311,6 +313,7 @@ const (
 	KeyUpdatesCheckedAt   = "updates.last_checked_at"        // when the last check ran (RFC 3339; set by the app, not user-editable)
 	KeyUpdatesNotified    = "updates.notified_version"       // the version the "new version" message was last sent for (set by the app, not user-editable)
 	KeyAutoRestartStuck   = "system.auto_restart_when_stuck" // "0" stops Mediarium restarting itself when it has not answered for three minutes; anything else (including unset) leaves it on
+	KeyMCPDownloads       = "mcp.downloads"                  // "1" lets an AI assistant that is connected over MCP search for releases and start the download of one, after a second confirming call; unset or "0" keeps those two tools away. Only a signed-in browser session can switch it on, not an API key
 	KeyMCPEnabled         = "mcp.enabled"                    // "1" lets AI assistants connect to the MCP address (POST /mcp) with an administrator's API key; unset or "0" keeps it off. Only a signed-in browser session can switch it on, not an API key
 
 	// The SABnzbd and qBittorrent look-alike addresses for phone apps (Settings > Other apps). Off by default.

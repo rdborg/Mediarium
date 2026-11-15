@@ -50,6 +50,10 @@ func TestDiscoverBrowseFilters(t *testing.T) {
 		{"three letter language, rated 8+, short", "kind=movie&language=yue&minRating=8&runtime=under90", "/discover/movie", map[string]string{
 			"with_original_language": "yue", "vote_average.gte": "8", "vote_count.gte": "100", "with_runtime.lte": "89",
 		}},
+		{"hide Netflix and Disney+", "kind=tv&hide=netflix,disney", "/discover/tv", map[string]string{
+			"without_watch_providers": "8|1796|337", "watch_region": "US",
+		}},
+		{"no services to hide", "kind=tv&hide=", "/discover/tv", map[string]string{"without_watch_providers": "", "watch_region": ""}},
 		{"no filters", "kind=movie", "/discover/movie", map[string]string{
 			"with_original_language": "", "vote_average.gte": "", "with_runtime.gte": "",
 		}},
@@ -80,6 +84,8 @@ func TestDiscoverBrowseFilters(t *testing.T) {
 		{"kind=movie&minRating=5", "minRating"},
 		{"kind=movie&minRating=10", "minRating"},
 		{"kind=movie&minRating=abc", "minRating"},
+		{"kind=movie&hide=netflix,nope", "hide"},
+		{"kind=movie&hide=all", "hide"},
 		{"kind=movie&runtime=120", "runtime"},
 		{"kind=movie&runtime=over120%26x%3D1", "runtime"},
 	}

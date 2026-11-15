@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -37,7 +38,10 @@ type queueItemPayload struct {
 	ProgressPct  float64 `json:"progressPct"`
 	Error        string  `json:"error,omitempty"`
 	AddedAt      string  `json:"addedAt,omitempty"`
-	CompletedAt  string  `json:"completedAt,omitempty"`
+	// Origin is who or what started the download (a person, a list, a scheduled
+	// job); left out for one from before that was recorded.
+	Origin      *originView `json:"origin,omitempty"`
+	CompletedAt string      `json:"completedAt,omitempty"`
 	// DestPath is only populated for a StatusConflict item — the path a
 	// naming collision was found at, under the "always ask" import
 	// conflict policy. See handleResolveQueueConflict.
@@ -177,6 +181,7 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 	sortQueueItems(items)
 	positions := waitingPositions(items)
 	out := make([]queueItemPayload, len(items))
+	admin := isAdminRequest(r) // who started a download is for administrators
 	indexerNames := s.indexerNames()
 	categories, _ := s.TorrentOpts.Categories()
 	namer := s.newQueueNamer(items)
@@ -204,6 +209,9 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 			ReleaseTitle: it.ReleaseTitle, Protocol: string(it.Protocol), SizeBytes: it.SizeBytes, Status: string(it.Status),
 			ProgressPct: it.ProgressPct, Error: memberText(r, plainerror.Text(it.Error)), AddedAt: it.AddedAt, CompletedAt: it.CompletedAt, DestPath: fileLabel(r, it.DestPath), KeptFile: fileLabel(r, it.KeptFile), KeptData: it.KeptData,
 			Interrupted: it.Interrupted, Pending: s.pipelines.pending(it.ID), QueuePosition: positions[it.ID],
+		}
+		if admin {
+			p.Origin = originOut(it.Origin, nil)
 		}
 		if it.IndexerID.Valid {
 			p.IndexerName = indexerNames[it.IndexerID.Int64]
@@ -405,13 +413,13 @@ func (s *Server) regrab(item queue.Item) (int64, error) {
 		if err != nil {
 			return 0, fmt.Errorf("That show isn't in your library any more.")
 		}
-		return s.grabTVOpts(series, item.Season, item.Episode, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked, item.ReplaceByHand)
+		return s.grabTVOpts(series, item.Season, item.Episode, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked, item.ReplaceByHand, item.Origin)
 	case item.MovieID > 0:
 		movie, err := s.MovieRepo.Get(item.MovieID)
 		if err != nil {
 			return 0, fmt.Errorf("That movie isn't in your library any more.")
 		}
-		return s.grabMovieOpts(movie, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked, grabOpts{byHand: item.ReplaceByHand})
+		return s.grabMovieOpts(movie, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked, grabOpts{byHand: item.ReplaceByHand, by: item.Origin})
 	case item.AlbumID > 0:
 		album, err := s.MusicRepo.GetAlbum(item.AlbumID)
 		if err != nil {
@@ -444,7 +452,9 @@ func (s *Server) queueItemEvent(item queue.Item, kind string, level queue.Level,
 
 // handleBlocklistQueueItem marks a release as bad and tries another: it
 // blocklists the failed release, removes the entry and starts a fresh search
-// for the same movie or show.
+// for the same movie or show. The body may say {"scope": "item"} to block the
+// release for this title only; without a body, or with "all", it is blocked
+// everywhere, as it always was.
 func (s *Server) handleBlocklistQueueItem(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -456,7 +466,21 @@ func (s *Server) handleBlocklistQueueItem(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusNotFound, "That download is no longer in the queue.")
 		return
 	}
-	if err := s.blocklistQueueItem(item); err != nil {
+	var req struct {
+		Scope string `json:"scope"`
+	}
+	if r.ContentLength != 0 {
+		if err := decodeJSON(r, &req); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "Send the scope as \"item\" or \"all\".")
+			return
+		}
+	}
+	itemOnly, ok := parseBlocklistScope(req.Scope)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "Send the scope as \"item\" or \"all\".")
+		return
+	}
+	if err := s.blocklistQueueItem(item, itemOnly); err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, errStillRunning) {
 			status = http.StatusConflict
@@ -472,7 +496,10 @@ var errStillRunning = errors.New("This download is still running.")
 // blocklistQueueItem blocklists the release of a download that is not running,
 // removes the download and looks for another release for its title. One
 // download from the Activity buttons, or each of several picked together.
-func (s *Server) blocklistQueueItem(item queue.Item) error {
+//
+// itemOnly blocks the release for the item's own title and no other; a
+// download that is not for a title is blocklisted everywhere either way.
+func (s *Server) blocklistQueueItem(item queue.Item, itemOnly bool) error {
 	if isActiveStatus(item.Status) {
 		return errStillRunning
 	}
@@ -482,11 +509,12 @@ func (s *Server) blocklistQueueItem(item queue.Item) error {
 	}
 	if err := s.Blocklist.Add(blocklist.Entry{
 		ReleaseTitle: item.ReleaseTitle, Protocol: string(item.Protocol), Reason: reason, MovieID: item.MovieID, SeriesID: item.SeriesID,
+		AlbumID: item.AlbumID, BookID: item.BookID, ItemOnly: itemOnly,
 	}); err != nil {
 		return err
 	}
 	_ = s.QueueRepo.LogItemEvent(queue.ItemEvent{MovieID: item.MovieID, SeriesID: item.SeriesID, AlbumID: item.AlbumID,
-		Kind: "blocklisted", Level: queue.LevelWarn, Message: "Blocklisted \"" + item.ReleaseTitle + "\": by you"})
+		Kind: "blocklisted", Level: queue.LevelWarn, Message: "Blocklisted \"" + item.ReleaseTitle + "\": by you" + onlyForThisTitle(itemOnly)})
 	s.dropBlocklistedItem(item)
 	switch {
 	case item.MovieID > 0:

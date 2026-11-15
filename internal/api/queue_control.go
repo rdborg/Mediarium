@@ -913,6 +913,9 @@ type bulkQueueRequest struct {
 	IDs         []int64 `json:"ids"`
 	Action      string  `json:"action"`
 	DeleteFiles bool    `json:"deleteFiles"`
+	// Scope is for "blocklist": "item" blocks each release for its own title
+	// only, "all" (or nothing) everywhere.
+	Scope string `json:"scope"`
 }
 
 type bulkQueueFailure struct {
@@ -959,6 +962,11 @@ func (s *Server) handleBulkQueue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	resp := bulkQueueResponse{Failed: []bulkQueueFailure{}}
+	itemOnly, scopeOK := parseBlocklistScope(req.Scope)
+	if !scopeOK {
+		writeError(w, http.StatusBadRequest, `Choose the scope "item" or "all".`)
+		return
+	}
 	if req.Action == "retry" || req.Action == "blocklist" {
 		// Retry is a new grab, like Retry on one download, and blocklisting
 		// removes the download and looks again. Neither holds queueControlMu
@@ -970,7 +978,7 @@ func (s *Server) handleBulkQueue(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if req.Action == "blocklist" {
-				err = s.blocklistQueueItem(item)
+				err = s.blocklistQueueItem(item, itemOnly)
 			} else {
 				_, err = s.retryQueueItem(item)
 			}

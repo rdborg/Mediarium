@@ -235,8 +235,8 @@ func registerMovie(tx *sql.Tx, batchID int64, opts ImportOptions, e ImportEntry,
 			return ImportOutcome{}, fmt.Errorf("update movie: %w", err)
 		}
 	} else {
-		res, err := tx.Exec(`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, added_at, updated_at, no_upgrade, details_state)
-			VALUES (?, ?, ?, '', ?, 'downloaded', ?, ?, ?, ?, ?, ?, 'pending')`,
+		res, err := tx.Exec(`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, added_at, updated_at, no_upgrade, details_state, origin_kind)
+			VALUES (?, ?, ?, '', ?, 'downloaded', ?, ?, ?, ?, ?, ?, 'pending', 'import')`,
 			e.TMDBID, e.Title, e.Year, e.PosterPath, e.Quality, e.FilePath, opts.Monitor, addedStamp(e.AddedAt, now), stamp(now), opts.NoUpgrade)
 		if err != nil {
 			return ImportOutcome{}, fmt.Errorf("insert movie: %w", err)
@@ -282,8 +282,8 @@ func registerSeries(tx *sql.Tx, batchID int64, opts ImportOptions, e ImportEntry
 		// A show that is already there can still gain episodes from the
 		// files found; the worker adds them the same way.
 	case errors.Is(err, sql.ErrNoRows):
-		res, err := tx.Exec(`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_at, updated_at, no_upgrade, details_state)
-			VALUES (?, ?, ?, '', ?, '', ?, ?, ?, ?, 'pending')`,
+		res, err := tx.Exec(`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_at, updated_at, no_upgrade, details_state, origin_kind)
+			VALUES (?, ?, ?, '', ?, '', ?, ?, ?, ?, 'pending', 'import')`,
 			e.TMDBID, e.Title, e.Year, e.PosterPath, opts.Monitor || opts.MonitorMissing, addedStamp(e.AddedAt, now), stamp(now), opts.NoUpgrade)
 		if err != nil {
 			return ImportOutcome{}, fmt.Errorf("insert series: %w", err)
@@ -686,6 +686,10 @@ type SeriesDetails struct {
 	// (Sonarr's numbering) stands for, from the anime lists. Nil when the
 	// lists don't know the show.
 	TVDBMap func(season, episode int) (int, int, bool)
+	// OfferTVDBOrder is true when a TheTVDB key is saved and the show still
+	// follows the movie database's episode order. A report that leaves files
+	// out then says the show can be switched to TheTVDB's order.
+	OfferTVDBOrder bool
 }
 
 // SeriesImportResult counts what a show's import did with its files.
@@ -903,7 +907,8 @@ func (r *Repo) CompleteSeriesImport(item ImportItem, d SeriesDetails, episodes [
 		}
 	}
 
-	note := importNote(out.BySeason, out.Titled, leftOutNote(out.Unknown, leftByAbsolute > 0, leftByNumber > 0, anime), leftFiles)
+	note := importNote(out.BySeason, out.Titled, leftOutNote(out.Unknown, leftByAbsolute > 0, leftByNumber > 0, anime), leftFiles,
+		tvdbOrderNote(out.Unknown, leftByAbsolute > 0, d.OfferTVDBOrder && !anime))
 	if _, err := tx.Exec(`INSERT INTO activity (series_id, event_type, message) VALUES (?, 'imported', ?)`,
 		item.TitleID, fmt.Sprintf("%s: registered %s that were already on disk", d.Title, countOf(out.Imported, "episode"))); err != nil {
 		return out, fmt.Errorf("log import: %w", err)

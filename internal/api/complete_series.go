@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/parser"
@@ -308,7 +309,7 @@ func (s *Server) searchCompleteSeries(ctx context.Context, sr library.Series, in
 		if raw == nil {
 			continue // out of searches, or the app is shutting down
 		}
-		found := filterSources(dropBlocked(raw, blocked), sources)
+		found := filterSources(dropBlocked(raw, blocked, blocklist.Scope{SeriesID: sr.ID}), sources)
 		found = s.limitTVResults(sr, n.season, 0, profile, nil, false, found)
 		if best := pickSeasonPack(found, sr, n.season, profile, packPlan{floor: n.floor}, mapper); best != nil {
 			picks[n.season] = best
@@ -435,12 +436,12 @@ func (s *Server) findWholeSeriesPack(ctx context.Context, sr library.Series, ins
 		}
 		return ""
 	}
-	v := judgeSearchLimited(fresh, blocked, sources, profile, keep, "", "", limit)
+	v := judgeSearchLimited(fresh, blocked, blocklist.Scope{SeriesID: sr.ID}, sources, profile, keep, "", "", limit)
 	v.addExpired(expired, s.retentionDays())
 	v.addThin(thin)
 	v.failedIndexers = failedIndexers(outcomes)
 
-	candidates := filterSources(dropBlocked(s.autoCandidates(ctx, merged), blocked), sources)
+	candidates := filterSources(dropBlocked(s.autoCandidates(ctx, merged), blocked, blocklist.Scope{SeriesID: sr.ID}), sources)
 	best := pickCompletePack(candidates, sr, seasons, showSeasons, profile, sizeOK)
 	msg, level := v.message("Searched for a pack of the whole series", pickedText(profile, best))
 	if hint := foreignShowHint(sr); best == nil && hint != "" && (strings.Contains(msg, "none acceptable") || strings.Contains(msg, "no releases found")) {

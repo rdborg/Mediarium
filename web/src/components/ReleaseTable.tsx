@@ -2,9 +2,10 @@ import { Fragment, useMemo, useState } from 'react'
 import type { SearchResult } from '../api'
 import { formatBytes, nameParts } from '../format'
 import { locale, st, t } from '../i18n'
+import { releasePageUrl } from '../releaseLink'
 import { loadShowWhy, saveShowWhy, signed, whyOf, type WhyInfo } from '../releaseWhy'
 import { indexerChoices, type Searched } from '../searched'
-import { FIRST_DIRECTION, ageOf, defaultOrder, filterReleases, publishedAt, qualitiesIn, scoreOf, sortReleases, type ReleaseSortKey, type SortDir } from '../releaseSort'
+import { FIRST_DIRECTION, ageOf, defaultOrder, filterReleases, isFreeleech, publishedAt, qualitiesIn, scoreOf, sortReleases, type ReleaseSortKey, type SortDir } from '../releaseSort'
 import Dropdown from './Dropdown'
 import Icon from './Icon'
 import ReleaseChecks from './ReleaseChecks'
@@ -44,6 +45,10 @@ export default function ReleaseTable({
   const [words, setWords] = useState('')
   const [indexer, setIndexer] = useState('')
   const [quality, setQuality] = useState('')
+  const [freeOnly, setFreeOnly] = useState(false)
+  // The toggle only exists when the list has a freeleech release; without one a stale choice must not hide everything.
+  const anyFree = useMemo(() => results.some(isFreeleech), [results])
+  const freeleech = freeOnly && anyFree
   // "Show why" opens the details of every row; a row's own button overrides it.
   const [showWhy, setShowWhy] = useState(loadShowWhy)
   const [opened, setOpened] = useState<Record<string, boolean>>({})
@@ -57,11 +62,11 @@ export default function ReleaseTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results, qualityGroup])
   const shown = useMemo(() => {
-    const base = qualityGroup ? filterReleases(results, { text: words, indexer, quality: '' }).filter((r) => !quality || groupOf(r) === quality) : filterReleases(results, { text: words, indexer, quality })
+    const base = qualityGroup ? filterReleases(results, { text: words, indexer, quality: '', freeleech }).filter((r) => !quality || groupOf(r) === quality) : filterReleases(results, { text: words, indexer, quality, freeleech })
     return sortReleases(defaultOrder(base), sort?.key ?? null, sort?.dir ?? 1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results, words, indexer, quality, sort, qualityGroup])
-  const filtering = words !== '' || indexer !== '' || quality !== ''
+  }, [results, words, indexer, quality, freeleech, sort, qualityGroup])
+  const filtering = words !== '' || indexer !== '' || quality !== '' || freeleech
   // Two releases can share one link (the same torrent listed twice), and React mixes up rows that share a key: a row the filter removed could stay on screen.
   const rowKeys = useMemo(() => {
     const seen = new Map<string, number>()
@@ -123,6 +128,11 @@ export default function ReleaseTable({
           />
         )}
         {qualities.length > 1 && <Dropdown label={t('Quality')} value={quality} onChange={setQuality} options={[{ value: '', label: t('Any quality') }, ...qualities.map((q) => ({ value: q, label: qualityName(q) }))]} />}
+        {anyFree && (
+          <button type="button" className="btn-sm" aria-pressed={freeOnly} onClick={() => setFreeOnly((v) => !v)} title={t('Show only releases the tracker counts as free to download')}>
+            {t('Freeleech only')}
+          </button>
+        )}
         {anyWhy && (
           <button type="button" className="btn-sm" aria-pressed={showWhy} onClick={toggleAll} title={t('Open the details under every release: where the score comes from and why an automatic search may skip it')}>
             {t('Show why')}
@@ -137,6 +147,7 @@ export default function ReleaseTable({
               setWords('')
               setIndexer('')
               setQuality('')
+              setFreeOnly(false)
             }}
           >
             {t('Clear filters')}
@@ -179,6 +190,11 @@ export default function ReleaseTable({
                         <wbr />
                       </Fragment>
                     ))}
+                    {pageUrl(r) && (
+                      <a className="rel-link" href={pageUrl(r)} target="_blank" rel="noopener noreferrer" aria-label={t('Open on {indexer}', { indexer: r.indexerName })} title={t('Open on {indexer}', { indexer: r.indexerName })}>
+                        <Icon name="external" size={14} />
+                      </a>
+                    )}
                     {r.best && (
                       <span className="badge downloaded" style={{ marginLeft: 8 }} title={t('The release an automatic search would take')}>
                         {t('Best match')}
@@ -194,6 +210,15 @@ export default function ReleaseTable({
                     {r.cached && (
                       <span className="badge downloaded" style={{ marginLeft: 8 }} title={t('Your debrid service already has this torrent, so it starts at once')}>
                         {t('Cached')}
+                      </span>
+                    )}
+                    {(r.discount ?? 0) > 0 && (
+                      <span
+                        className={`badge${isFreeleech(r) ? ' downloaded' : ''}`}
+                        style={{ marginLeft: 8 }}
+                        title={isFreeleech(r) ? t('Freeleech: this download is not counted against your ratio on the tracker') : t('Discounted: the tracker counts only {n}% of this download against your ratio', { n: 100 - (r.discount ?? 0) })}
+                      >
+                        {isFreeleech(r) ? t('Freeleech') : t('{n}% off', { n: r.discount ?? 0 })}
                       </span>
                     )}
                     {r.belowMinSeeders && (
@@ -276,6 +301,8 @@ export default function ReleaseTable({
     </>
   )
 }
+
+const pageUrl = (r: SearchResult) => releasePageUrl(r)
 
 // scoreTip lists the parts of a release's score for the tooltip of its cell.
 // peerLine is what the seeders column says for a Soulseek release: whether the

@@ -134,6 +134,9 @@ func (s *Server) refreshMusicArtists(ctx context.Context) {
 // refreshMusicArtist is refreshMusicArtists for one artist; it returns the
 // albums it added.
 func (s *Server) refreshMusicArtist(ctx context.Context, artist music.Artist) ([]music.Album, error) {
+	if artist.Manual() {
+		return nil, nil // added by hand: MusicBrainz knows nothing of it, and nothing is changed
+	}
 	groups, err := s.MusicBrainz().ArtistReleaseGroups(ctx, artist.MBID, nil, true)
 	if err != nil {
 		return nil, err

@@ -24,6 +24,11 @@ func newQueryLogIndexer(t *testing.T, answers map[string]string) (srv *httptest.
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		if r.URL.Query().Get("t") == "caps" { // the capabilities are not a search
+			w.Header().Set("Content-Type", "application/xml")
+			fmt.Fprint(w, `<?xml version="1.0"?><caps><searching/></caps>`)
+			return
+		}
 		q := strings.ToLower(r.URL.Query().Get("q"))
 		mu.Lock()
 		seen = append(seen, q)

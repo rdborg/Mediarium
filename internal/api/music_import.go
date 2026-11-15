@@ -570,6 +570,10 @@ func (s *Server) registerScannedAlbum(ctx context.Context, res *musicScanResult,
 		res.Status, res.Message = musicResultFailed, err.Error()
 		return
 	}
+	if tracks, err = s.tracksForManual(album, tracks, infos); err != nil {
+		res.Status, res.Message = musicResultFailed, err.Error()
+		return
+	}
 	slots := make([]music.TrackSlot, len(tracks))
 	for i, t := range tracks {
 		slots[i] = music.TrackSlot{Disc: t.Disc, Position: t.Position, Title: t.Title}

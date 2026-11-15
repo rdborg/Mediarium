@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/organizer"
@@ -98,7 +99,7 @@ func (s *Server) replaceWithSmaller(ctx context.Context, m library.Movie, instan
 	sources := s.sourcesFor(m.SourcePref)
 	m = s.movieWithAltTitles(ctx, m)
 	outcomes := s.searchMovieTitles(ctx, instances, m, nil)
-	found := s.limitMovieResults(ctx, m, profile, false, filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked), m), sources))
+	found := s.limitMovieResults(ctx, m, profile, false, filterSources(matchingResults(dropBlocked(s.autoCandidates(ctx, indexers.MergeResults(outcomes)), blocked, blocklist.Scope{MovieID: m.ID}), m), sources))
 	best := pickSmallerResult(found, profile, quality.Tier(m.Quality), size, m.Year)
 	if best == nil {
 		return false, "Nothing smaller that the quality profile accepts was found. The file you have stays.", nil

@@ -531,7 +531,7 @@ func (s *Server) handleBookReleases(w http.ResponseWriter, r *http.Request) {
 	out := make([]searchResultPayload, 0, len(found.Results))
 	for i, res := range found.Results {
 		p := s.toSearchResultPayload(res)
-		p.Blocklisted = blocked[blocklist.Key(res.Title)]
+		p.Blocklisted = blocklist.Blocked(blocked, res.Title, blocklist.Scope{BookID: b.ID})
 		p.Categories = res.Categories
 		p.setLanguage(found.Fits[i])
 		out = append(out, p)
@@ -621,7 +621,7 @@ func (s *Server) searchBook(bookID int64, f books.Format, retry bool) bool {
 	}
 	blocked := s.searchSkipKeys()
 	for _, res := range filterSources(s.autoCandidates(ctx, results), s.sourcesFor("")) {
-		if searchSkips(res, blocked) {
+		if searchSkips(res, blocked, blocklist.Scope{BookID: b.ID}) {
 			continue
 		}
 		if _, err := s.grabBook(b, f, res.Title, res.DownloadURL, res.SizeBytes, res.Protocol, queue.PriorityAutomatic); err == nil {

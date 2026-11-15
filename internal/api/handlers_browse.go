@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/rdborg/mediarium/internal/metadata"
 )
@@ -115,6 +116,10 @@ func (s *Server) handleDiscoverList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page = metadata.ClampPage(page)
+	hide, ok := s.hidingFromRequest(w, r)
+	if !ok {
+		return
+	}
 	if list == listSimilar {
 		s.handleDiscoverSimilar(w, r, kind, page)
 		return
@@ -125,7 +130,7 @@ func (s *Server) handleDiscoverList(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	if kind == "movie" {
-		p, err := s.displayTMDB().MovieList(ctx, list, page)
+		p, err := s.displayTMDB().MovieListHiding(ctx, list, page, hide)
 		if err != nil {
 			writeUpstreamError(w, "load the "+list+" movies", err)
 			return
@@ -133,12 +138,31 @@ func (s *Server) handleDiscoverList(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, s.moviePagePayload(ctx, p))
 		return
 	}
-	p, err := s.displayTMDB().TVList(ctx, list, page)
+	p, err := s.displayTMDB().TVListHiding(ctx, list, page, hide)
 	if err != nil {
 		writeUpstreamError(w, "load the "+list+" shows", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, s.showPagePayload(ctx, p))
+}
+
+// hidingFromRequest reads the optional hide parameter of a Discover request:
+// streaming service keys separated by commas, whose titles are left out. It
+// answers a 400 itself and returns false for a key it does not know.
+func (s *Server) hidingFromRequest(w http.ResponseWriter, r *http.Request) (metadata.Hiding, bool) {
+	keys, ok := metadata.ParseServices(r.URL.Query().Get("hide"))
+	if !ok {
+		var names []string
+		for _, svc := range metadata.StreamingServices() {
+			names = append(names, svc.Key)
+		}
+		writeError(w, http.StatusBadRequest, "hide must be streaming service names separated by commas: "+strings.Join(names, ", "))
+		return metadata.Hiding{}, false
+	}
+	if len(keys) == 0 {
+		return metadata.Hiding{}, true
+	}
+	return metadata.Hiding{Services: keys, Region: s.releaseRegion()}, true
 }
 
 // queryInt reads an optional non-negative integer parameter.
@@ -191,6 +215,11 @@ func (s *Server) handleDiscoverBrowse(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `runtime must be "under90", "90to120" or "over120"`)
 		return
 	}
+	hide, ok := s.hidingFromRequest(w, r)
+	if !ok {
+		return
+	}
+	q.Hide = hide
 	if q.YearFrom > 0 && q.YearTo > 0 && q.YearFrom > q.YearTo {
 		writeError(w, http.StatusBadRequest, "yearFrom must not be after yearTo")
 		return

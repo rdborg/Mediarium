@@ -25,6 +25,7 @@ import { CastCard, PeopleLinks, titleLinks } from '../components/TitlePreview'
 import { crewWith } from '../people'
 import WatchLinks from '../components/WatchLinks'
 import FolderLine from '../components/FolderLine'
+import { originText } from '../origin'
 import LocateDialog from '../components/LocateDialog'
 import TitleEvents from '../components/TitleEvents'
 import SearchStatus from '../components/SearchStatus'
@@ -84,7 +85,7 @@ function MoviePage() {
   useEffect(() => {
     if (hasResults) releasesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [hasResults])
-  const [answered, setAnswered] = useState<{ sources: number; unanswered: Unanswered[]; warnings?: string[]; searched?: Searched[]; ignoredSamples?: string[] }>({ sources: 0, unanswered: [] })
+  const [answered, setAnswered] = useState<{ sources: number; unanswered: Unanswered[]; warnings?: string[]; searched?: Searched[]; ignoredSamples?: string[]; filtered?: { reason: string; count: number }[] }>({ sources: 0, unanswered: [] })
   const [searching, setSearching] = useState(false)
   const [searchingNow, setSearchingNow] = useState(false)
   const [grabbing, setGrabbing] = useState<string | null>(null)
@@ -228,7 +229,7 @@ function MoviePage() {
     if (q === undefined) setResults(null)
     try {
       const a = await api.movieSearch(libraryId, q)
-      setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched, ignoredSamples: a.ignoredSamples })
+      setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched, ignoredSamples: a.ignoredSamples, filtered: a.filtered })
       setResults(a.results)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
@@ -324,6 +325,7 @@ function MoviePage() {
           facts: [
             ...(directors.length ? [{ label: directors.length > 1 ? t('Directors') : t('Director'), value: <PeopleLinks people={directors} /> }] : []),
             ...(writers.length ? [{ label: writers.length > 1 ? t('Writers') : t('Writer'), value: <PeopleLinks people={writers} /> }] : []),
+            ...(movie?.studios?.length ? [{ label: movie.studios.length > 1 ? t('Studios') : t('Studio'), value: movie.studios.slice(0, 3).join(', ') }] : []),
             ...releaseFacts(movie.releaseDates, movie.releaseDate),
             ...(movie.releaseStatus ? [{ label: t('Status'), value: movie.releaseStatus }] : []),
             ...(inLibrary && movie.filePath && diskBytes > 0 ? [{ label: t('Size on disk'), value: formatBytes(diskBytes) }] : []),
@@ -416,6 +418,7 @@ function MoviePage() {
             )}
           </FolderLine>
         )}
+        {inLibrary && admin && originText(movie.origin) && <p className="added-by">{originText(movie.origin)}</p>}
         {locating && movie.libraryId && <LocateDialog kind="movie" id={movie.libraryId} start={movie.folderPath} onClose={() => setLocating(false)} onDone={reload} />}
         {inLibrary && movie.libraryId && <WatchedLine kind="movie" id={movie.libraryId} />}
       </TitleHero>
@@ -437,7 +440,7 @@ function MoviePage() {
         <section ref={releasesRef} className="card" style={{ marginBottom: 24, scrollMarginTop: 80 }}>
           <h2>{t('Releases')}</h2>
           <CustomSearch busy={searching} onSearch={(q) => chooseRelease(q)} />
-          <ReleaseNotice sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} ignoredSamples={answered.ignoredSamples} results={results.length} />
+          <ReleaseNotice sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} ignoredSamples={answered.ignoredSamples} filtered={answered.filtered} results={results.length} />
           {results.length === 0 && (
             <button className="btn-sm" onClick={() => setResults(null)}>
               {t('Close')}

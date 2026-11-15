@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // Series is a TV show in the library. Metadata is keyed by TMDB id (TMDB
@@ -22,6 +24,8 @@ type Series struct {
 	ProfileID    int64  // quality profile; 0 = the default profile
 	SourcePref   string // "" = follow Settings; else usenet, torrent or both
 	AddedBy      int64  // account that added it; 0 = unknown
+	// Origin is how it came into the library, as on Movie.
+	Origin origin.Origin
 	// Genres are TMDB genre names; nil means not fetched yet (as for Movie).
 	Genres []string
 	// NoUpgrade leaves every episode out of the search for better versions.
@@ -32,6 +36,9 @@ type Series struct {
 	// SeriesType is how release names number the episodes: SeriesStandard,
 	// SeriesAnime or SeriesDaily.
 	SeriesType string
+	// EpisodeOrder is the list a show's regular seasons follow:
+	// EpisodeOrderTMDB (the default) or EpisodeOrderTVDB.
+	EpisodeOrder string
 	// CopyOf is the main show's id when this row is a second copy of it,
 	// with its own episodes, kept in another quality; 0 for the main show.
 	CopyOf int64
@@ -132,7 +139,7 @@ const seriesSelect = `
 	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres, s.no_upgrade, s.details_state, s.details_note, s.series_type,
 	       COALESCE(s.copy_of, 0), s.tvdb_id, s.imdb_id, s.tmdb_status, s.root_path, s.season_pack,
 	       COALESCE((SELECT names FROM title_names WHERE kind = 'tv' AND tmdb_id = s.tmdb_id), ''),
-	       s.origin_country, s.status_checked_at, s.tvmaze_id, s.tvmaze_checked_at
+	       s.origin_country, s.status_checked_at, s.tvmaze_id, s.tvmaze_checked_at, s.episode_order, s.origin_kind, s.origin_name
 	FROM series s`
 
 func scanSeries(scan func(dest ...any) error) (Series, error) {
@@ -142,9 +149,10 @@ func scanSeries(scan func(dest ...any) error) (Series, error) {
 		alts   string
 		origin sql.NullString
 	)
-	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote, &s.SeriesType, &s.CopyOf, &s.TVDBID, &s.IMDBID, &s.TMDBStatus, &s.RootPath, &s.SeasonPack, &alts, &origin, &s.StatusCheckedAt, &s.TVmazeID, &s.TVmazeCheckedAt); err != nil {
+	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote, &s.SeriesType, &s.CopyOf, &s.TVDBID, &s.IMDBID, &s.TMDBStatus, &s.RootPath, &s.SeasonPack, &alts, &origin, &s.StatusCheckedAt, &s.TVmazeID, &s.TVmazeCheckedAt, &s.EpisodeOrder, &s.Origin.Kind, &s.Origin.Name); err != nil {
 		return Series{}, fmt.Errorf("scan series: %w", err)
 	}
+	s.EpisodeOrder = ValidEpisodeOrder(s.EpisodeOrder)
 	s.OriginCountry = decodeCountries(origin)
 	s.Genres = decodeGenres(genres)
 	s.AltTitles = decodeTitleNames(alts)
@@ -166,8 +174,8 @@ func (r *Repo) AddSeries(s Series, episodes []Episode) (Series, error) {
 		return Series{}, err
 	}
 	res, err := tx.Exec(
-		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres, no_upgrade, series_type, root_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres, s.NoUpgrade, ValidSeriesType(s.SeriesType), s.RootPath,
+		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres, no_upgrade, series_type, root_path, origin_kind, origin_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres, s.NoUpgrade, ValidSeriesType(s.SeriesType), s.RootPath, s.Origin.Clean().Kind, s.Origin.Clean().Name,
 	)
 	if err != nil {
 		return Series{}, fmt.Errorf("insert series: %w", err)
@@ -359,8 +367,8 @@ func (r *Repo) AddSeriesCopy(mainID, profileID int64) (Series, error) {
 	}
 	defer tx.Rollback()
 	res, err := tx.Exec(
-		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, profile_id, source_pref, added_by, genres, series_type, origin_country, copy_of)
-		 SELECT tmdb_id, title, year, overview, poster_path, first_air_date, monitored, ?, source_pref, added_by, genres, series_type, origin_country, id FROM series WHERE id = ?
+		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, profile_id, source_pref, added_by, genres, series_type, origin_country, episode_order, copy_of)
+		 SELECT tmdb_id, title, year, overview, poster_path, first_air_date, monitored, ?, source_pref, added_by, genres, series_type, origin_country, episode_order, id FROM series WHERE id = ?
 		 AND NOT EXISTS (SELECT 1 FROM series WHERE copy_of = ? AND profile_id = ?)`, profileID, mainID, mainID, profileID)
 	if err != nil {
 		return Series{}, fmt.Errorf("add a second copy: %w", err)

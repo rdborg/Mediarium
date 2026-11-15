@@ -28,7 +28,15 @@ var (
 	)
 	// umlautSpelled is how scene names write umlauts out: "Die Aerzte".
 	umlautSpelled = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue")
+	// umlautWritten keeps the case: "Für" is "Fuer", "ÄRZTE" is "AERZTE".
+	umlautWritten = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue", "ß", "ss", "Ä", "Ae", "Ö", "Oe", "Ü", "Ue", "ẞ", "SS")
 )
+
+// SpellUmlauts writes German umlauts out the way scene release names do
+// (ä as ae, ö as oe, ü as ue, ß as ss): "Björk" is "Bjoerk". It returns the
+// text as it was when there is no umlaut in it, so the caller can tell
+// whether a second search is worth sending.
+func SpellUmlauts(s string) string { return umlautWritten.Replace(s) }
 
 // NormalizeName reduces an artist, album or track name to lowercase letters
 // and digits for comparing: accents folded, "&" read as "and", a leading

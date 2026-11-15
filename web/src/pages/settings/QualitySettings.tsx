@@ -212,10 +212,50 @@ export default function QualitySettings() {
 
 // The third Library page: when Mediarium looks for things by itself, and
 // whether it waits for a Usenet or torrent release.
+// What the add dialog starts with, for every film, show and artist you add.
+// Each title can still be changed in the dialog; requests and import lists
+// have their own settings and are not affected.
+function AddDefaultsSection() {
+  const monitored = useAutosaveSetting<boolean>(
+    (s) => s.addMonitored ?? true,
+    (v) => ({ addMonitored: v }),
+    (saved) => (saved ? t('Saved: new titles start out monitored.') : t('Saved: new titles start out not monitored.')),
+    true,
+  )
+  const searchNow = useAutosaveSetting<boolean>(
+    (s) => s.addSearchNow ?? true,
+    (v) => ({ addSearchNow: v }),
+    (saved) => (saved ? t('Saved: adding a title starts a search.') : t('Saved: adding a title does not start a search.')),
+    true,
+  )
+  return (
+    <section className="card">
+      <h2>{t('When you add a title')}</h2>
+      <Switch
+        checked={monitored.value}
+        onChange={monitored.change}
+        disabled={!monitored.loaded || monitored.saving}
+        label={t('Monitor new titles by default')}
+        description={t('The starting choice in the add dialog for films, shows and artists. You can still change it for each title.')}
+        showState
+      />
+      <Switch
+        checked={searchNow.value}
+        onChange={searchNow.change}
+        disabled={!searchNow.loaded || searchNow.saving}
+        label={t('Start searching when a title is added')}
+        description={t('Whether "Start searching now" is ticked in the add dialog. If it is off, a new title waits for the next automatic search.')}
+        showState
+      />
+    </section>
+  )
+}
+
 export function AutomationSettings() {
   return (
     <div className="settings-stack">
       <AutomationSection />
+      <AddDefaultsSection />
       <DelayProfileCard />
     </div>
   )

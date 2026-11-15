@@ -14,6 +14,7 @@ import { useToast } from './Toast'
 import { useFocusTrap } from '../useFocusTrap'
 import { t, st } from '../i18n'
 import { defaultProfileFor } from '../profileDefaults'
+import { addStart } from '../addDefaults'
 import InfoTip from './InfoTip'
 import { collectionBodyFor, offersCollectionAdd } from '../collectionAdd'
 
@@ -84,6 +85,8 @@ function AddForm({
   const [monitor, setMonitor] = useState<'all' | 'future' | 'none'>('all')
   const [sources, setSources] = useState<SourcePref>('')
   const [searchNow, setSearchNow] = useState(true)
+  // Settings sets the starting state of the monitoring and search choices; a choice made here before it loads wins.
+  const edited = useRef({ monitored: false, searchNow: false })
   // The library folders to choose from, when more than one is set up (the main one first).
   const [folders, setFolders] = useState<string[]>([])
   const [rootPath, setRootPath] = useState('')
@@ -127,6 +130,12 @@ function AddForm({
       setProfiles(sortProfiles(r.profiles))
       setDefaultProfileId(defaultProfileFor(target.kind, r))
       setDefaultSources(r.defaultSources || 'both')
+      const start = addStart(r)
+      if (!edited.current.monitored) {
+        setMonitored(start.monitored)
+        setMonitor(start.monitor)
+      }
+      if (!edited.current.searchNow) setSearchNow(start.searchNow)
     }).catch(() => undefined)
     api
       .libraryFolders()
@@ -247,7 +256,7 @@ function AddForm({
                 {t('Monitoring')}
                 <InfoTip text={t('A monitored movie is searched for and downloaded by itself. If you choose "Not monitored" it only goes into your library; nothing is searched for or downloaded until you do it yourself.')} />
               </span>
-              <select value={monitored ? 'yes' : 'no'} onChange={(e) => setMonitored(e.target.value === 'yes')}>
+              <select value={monitored ? 'yes' : 'no'} onChange={(e) => { edited.current.monitored = true; setMonitored(e.target.value === 'yes') }}>
                 <option value="yes">{t('Monitored: search for it and download it')}</option>
                 <option value="no">{t('Not monitored: just add it to the library')}</option>
               </select>
@@ -258,7 +267,7 @@ function AddForm({
                 {t('Which episodes to monitor')}
                 <InfoTip text={t('Only monitored episodes are searched for and downloaded. "None" adds the show to your library and downloads nothing; you can switch episodes on later.')} />
               </span>
-              <select value={monitor} onChange={(e) => setMonitor(e.target.value as 'all' | 'future' | 'none')}>
+              <select value={monitor} onChange={(e) => { edited.current.monitored = true; setMonitor(e.target.value as 'all' | 'future' | 'none') }}>
                 <option value="all">{t('All episodes')}</option>
                 <option value="future">{t("Only episodes that haven't aired yet")}</option>
                 <option value="none">{t('None (add it, download nothing)')}</option>
@@ -294,7 +303,7 @@ function AddForm({
           </label>
 
           <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
-            <input type="checkbox" checked={searchNow} onChange={(e) => setSearchNow(e.target.checked)} disabled={cannotSearch} />
+            <input type="checkbox" checked={searchNow} onChange={(e) => { edited.current.searchNow = true; setSearchNow(e.target.checked) }} disabled={cannotSearch} />
             <span className="has-tip">
               {isMovie ? t('Start searching for it now') : t('Start searching for missing episodes now')}
               <InfoTip text={t('Looks for a release as soon as you add it. If you leave it unticked, the title waits for the next automatic search or for you to press Search now. It is greyed out until you add an indexer.')} />

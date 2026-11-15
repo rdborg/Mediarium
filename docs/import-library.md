@@ -34,6 +34,10 @@ A file never takes an episode that another file names for certain, and a title n
 
 A season and episode that the show does list are always taken as the file says. When nothing says for certain which episode a file is, it is left out and the report's note tells you why: "Left out 55 episodes that the movie database doesn't list for this show" is followed by what to do, which is either to set the show's **Episode numbering** to **Anime** on its page and import the folder again, or to rename the files to the season and episode the show's page shows. Nothing is guessed. The same rule applies to a show's folder when you [move over from Sonarr](./migrate.md), and **Import a file by hand** places a file of an anime by the number in its name when the season and episode you typed do not exist.
 
+## Files left out because TMDB counts differently
+
+The movie database counts a double-length episode as one; TheTVDB counts it as two, and many file names follow TheTVDB (The Office season 4 is 14 episodes on TMDB and 19 on TheTVDB, so `S04E03-E04.mkv` has no match). When files are left out and you have saved a TheTVDB key, the report adds a line saying the show can be switched to **TheTVDB order** (the show page's **Episode order**, see [Episode order](library.md#episode-order)). Switch it and import the folder again; nothing is switched for you.
+
 ## What happens in the background
 
 After you confirm, the server fills in the rest, a few titles at a time: poster, summary, genres and release date for movies, and the complete season and episode list for shows. Then the episodes found on disk are marked as downloaded.

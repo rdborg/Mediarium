@@ -7,6 +7,7 @@ import TitleTags from '../components/Tags'
 import WatchedLine from '../components/WatchedLine'
 import NumberingCard from '../components/NumberingCard'
 import SeriesTypePicker from '../components/SeriesTypePicker'
+import EpisodeOrderPicker from '../components/EpisodeOrderPicker'
 import FileChips from '../components/FileChips'
 import ShortFile from '../components/ShortFile'
 import { redoAnswerText } from '../shortFile'
@@ -15,6 +16,7 @@ import MonitorModePicker from '../components/MonitorModePicker'
 import TitleHero from '../components/TitleHero'
 import WatchLinks from '../components/WatchLinks'
 import FolderLine from '../components/FolderLine'
+import { originText } from '../origin'
 import LocateDialog from '../components/LocateDialog'
 import TitleEvents from '../components/TitleEvents'
 import { useToast } from '../components/Toast'
@@ -440,6 +442,7 @@ function SeriesPage() {
             ...(diskBytes > 0 ? [{ label: t('Size on disk'), value: formatBytes(diskBytes) }] : []),
             ...(nextText ? [{ label: t('Next episode'), value: nextText }] : []),
             ...(tv?.networks?.length ? [{ label: t('Network'), value: tv.networks.join(', ') }] : []),
+            ...(tv?.studios?.length ? [{ label: tv.studios.length > 1 ? t('Studios') : t('Studio'), value: tv.studios.slice(0, 3).join(', ') }] : []),
           ],
         }}
         status={
@@ -494,6 +497,9 @@ function SeriesPage() {
           </ProfilePicker>
           {canManage && <MonitorModePicker id={seriesId} onDone={load} />}
           {canManage && <SeriesTypePicker id={seriesId} value={series.seriesType ?? 'standard'} onChange={(type) => setSeries((cur) => (cur ? { ...cur, seriesType: type } : cur))} />}
+          {canManage && series.seriesType !== 'anime' && !series.copyOf && (
+            <EpisodeOrderPicker id={seriesId} value={series.episodeOrder ?? 'tmdb'} onChanged={(order) => { setSeries((cur) => (cur ? { ...cur, episodeOrder: order } : cur)); load() }} />
+          )}
         </div>
         {admin && series.folderPath && (
           <FolderLine path={series.folderPath} kind="series">
@@ -502,6 +508,7 @@ function SeriesPage() {
             </button>
           </FolderLine>
         )}
+        {admin && originText(series.origin) && <p className="added-by">{originText(series.origin)}</p>}
         {changingFolder && <LocateDialog kind="series" id={seriesId} start={series.folderPath} onClose={() => setChangingFolder(false)} onDone={load} />}
         {linking && (
           <LocateDialog

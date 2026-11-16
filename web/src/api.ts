@@ -1618,6 +1618,7 @@ export interface FileSubtitle {
 export interface ShortFileNote {
   minutes: number
   expected?: number
+  archive?: string // 'rar' | 'zip' | '7z': the file is an archive that was never unpacked, not a video
 }
 export interface FileInfo {
   container: string

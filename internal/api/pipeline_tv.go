@@ -2,6 +2,7 @@ package api
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -302,10 +303,16 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		if err := s.checkEpisodeLength(ctx, series.TMDBID, eps[0].Season, file); err != nil {
 			// Not filed: this file is a fake, a sample or cut off. The rest of a
 			// pack is imported as usual.
-			slog.Warn("import: a file is far shorter than its episode, left out", "file", filepath.Base(file))
 			if tooShort == nil {
 				tooShort = err
 			}
+			var nv *notVideoError
+			if errors.As(err, &nv) {
+				slog.Warn("import: a file is an archive, not a video, left out", "file", filepath.Base(file))
+				_ = s.QueueRepo.LogSeriesActivity(series.ID, "skipped", fmt.Sprintf("%s: %s It was left out.", series.Title, nv.msg))
+				continue
+			}
+			slog.Warn("import: a file is far shorter than its episode, left out", "file", filepath.Base(file))
 			if seconds, ok := videoSeconds(file); ok {
 				_ = s.QueueRepo.LogSeriesActivity(series.ID, "skipped", fmt.Sprintf("%s: the file %s was left out because it looks like a fake or broken release (it is only %d min long).", series.Title, filepath.Base(file), lengthMinutes(seconds)))
 			}

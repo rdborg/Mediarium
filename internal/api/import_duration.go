@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/library"
@@ -25,6 +27,10 @@ import (
 // incompleteReason is what the blocklist keeps as the reason.
 const incompleteReason = "incomplete file"
 
+// notVideoReason is the blocklist's reason for a release whose "video" is an
+// archive that was never unpacked.
+const notVideoReason = "not a video file"
+
 // incompleteFileError is the failure of a video that is far shorter than it
 // should be. It is wrapped as a bad release, so it blocklists the release
 // and starts the search for another one.
@@ -32,13 +38,36 @@ type incompleteFileError struct{ msg string }
 
 func (e *incompleteFileError) Error() string { return e.msg }
 
+// notVideoError is the failure of a file named like a video that is really an
+// archive (RAR, ZIP, 7z). Like a short file it is a bad release.
+type notVideoError struct{ msg string }
+
+func (e *notVideoError) Error() string { return e.msg }
+
 // blocklistReason is the reason a release is blocklisted for after cause.
 func blocklistReason(cause error) string {
 	var inc *incompleteFileError
 	if errors.As(cause, &inc) {
 		return incompleteReason
 	}
+	var nv *notVideoError
+	if errors.As(cause, &nv) {
+		return notVideoReason
+	}
 	return cause.Error()
+}
+
+// notAVideo is the failure for a file that is an archive saved under a video's
+// name, nil for anything else (a video, or a file that can't be read). No
+// player can open such a file, so it is turned away whether or not the length
+// check is on.
+func notAVideo(path string) error {
+	info, err := mediainfo.ReadFile(path)
+	if err != nil || !mediainfo.IsArchive(info.Container) {
+		return nil
+	}
+	return badRelease(&notVideoError{msg: fmt.Sprintf("The file %s is a %s archive, not a video: the release was never unpacked. This looks like a broken release.",
+		filepath.Base(path), strings.ToUpper(info.Container))})
 }
 
 // checkDurationOn says whether the length check is on (it is, unless switched
@@ -83,6 +112,9 @@ func videoSeconds(path string) (seconds float64, ok bool) {
 // checkMovieLength is nil when the movie file is long enough (or nothing can
 // be said), else the failure to give the download.
 func (s *Server) checkMovieLength(ctx context.Context, tmdbID int, path string) error {
+	if err := notAVideo(path); err != nil {
+		return err
+	}
 	if !s.checkDurationOn() {
 		return nil
 	}
@@ -100,6 +132,9 @@ func (s *Server) checkMovieLength(ctx context.Context, tmdbID int, path string) 
 // checkEpisodeLength is checkMovieLength for one episode file. The specials
 // (season 0) are judged only by the lowest limit: they are often short.
 func (s *Server) checkEpisodeLength(ctx context.Context, tmdbID, season int, path string) error {
+	if err := notAVideo(path); err != nil {
+		return err
+	}
 	if !s.checkDurationOn() {
 		return nil
 	}

@@ -8,6 +8,10 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Files that are an archive, not a video, are found.** A release that was never unpacked can end up in the library under a video's name, for example RAR volumes saved as `Show - S01E01.mkv`: no player can open them, and the length check passed them by because their length can't be read. Mediarium now recognises RAR, ZIP and 7z archives by their first bytes. In the Library they are listed under **Looks incomplete** with a **Not a video (RAR archive)** chip, and **Delete this file and search again** deletes them, blocklists the release as *not a video file* and searches again. A new download like that is refused before it is imported, and the next release is tried. Files already in the library are read again once, so they show up after the update. See [docs/library.md](docs/library.md#files-that-look-incomplete).
+
 ## [4.0.8] - 2026-11-15
 
 ### Added

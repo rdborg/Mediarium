@@ -19,7 +19,7 @@ import (
 
 // Info is what is known about one file.
 type Info struct {
-	Container string     `json:"container"`          // "matroska", "webm", "mp4", "mov"; or the extension for a container this can't open
+	Container string     `json:"container"`          // "matroska", "webm", "mp4", "mov"; "rar", "zip" or "7z" for an archive under a video's name (see IsArchive); or the extension for a container this can't open
 	Duration  float64    `json:"duration,omitempty"` // seconds
 	Video     *Video     `json:"video,omitempty"`    // the first video track
 	Audio     []Audio    `json:"audio,omitempty"`
@@ -130,6 +130,9 @@ func Read(ra io.ReaderAt, size int64, ext string) (Info, error) {
 	if n < 12 {
 		return Info{Container: ext}, nil
 	}
+	if kind := archiveKind(head[:]); kind != "" {
+		return Info{Container: kind}, nil
+	}
 	if head[0] == 0x1A && head[1] == 0x45 && head[2] == 0xDF && head[3] == 0xA3 {
 		return readMatroska(r)
 	}
@@ -138,6 +141,48 @@ func Read(ra io.ReaderAt, size int64, ext string) (Info, error) {
 		return readMP4(r)
 	}
 	return Info{Container: ext}, nil
+}
+
+// Archives saved under a video's name. A release that was never unpacked (an
+// obfuscated one, or a RAR set whose parts were renamed) can be filed as
+// "Show - S01E01.mkv" while it holds a RAR volume: no player can open it. Its
+// first bytes say what it really is, whatever its name says.
+var archiveMagic = []struct {
+	kind  string
+	magic []byte
+}{
+	{"rar", []byte("Rar!\x1a\x07")},                  // RAR 4 and 5
+	{"zip", []byte("PK\x03\x04")},                    // ZIP
+	{"7z", []byte{'7', 'z', 0xBC, 0xAF, 0x27, 0x1C}}, // 7-Zip
+}
+
+func archiveKind(head []byte) string {
+	for _, a := range archiveMagic {
+		if len(head) >= len(a.magic) && string(head[:len(a.magic)]) == string(a.magic) {
+			return a.kind
+		}
+	}
+	return ""
+}
+
+// IsArchive says whether container is an archive Read found in place of a
+// video ("rar", "zip", "7z"), as opposed to a video container.
+func IsArchive(container string) bool {
+	for _, a := range archiveMagic {
+		if container == a.kind {
+			return true
+		}
+	}
+	return false
+}
+
+// ArchiveContainers lists the containers IsArchive is true for.
+func ArchiveContainers() []string {
+	out := make([]string, len(archiveMagic))
+	for i, a := range archiveMagic {
+		out[i] = a.kind
+	}
+	return out
 }
 
 // reader hands out bounded slices of a file.

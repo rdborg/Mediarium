@@ -13,6 +13,11 @@ test('the hover text names the length the title should have, when it is known', 
   assert.equal(shortFileTip({ minutes: 2 }), 'This file is much shorter than a real episode or movie. It may be a fake or a cut-off download.')
 })
 
+test('an archive saved under a video name says what it is', () => {
+  assert.equal(shortFileText({ minutes: 0, archive: 'rar' }), 'Not a video (RAR archive)')
+  assert.equal(shortFileTip({ minutes: 0, archive: '7z' }), 'This file is a 7Z archive that was never unpacked, saved under a video name. No player can open it.')
+})
+
 test('only titles with a file that looks incomplete are reached, and their files are counted', () => {
   const r = redoRequest([
     { kind: 'movie', id: 1, shortFiles: 1 },

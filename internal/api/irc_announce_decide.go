@@ -231,7 +231,7 @@ func (d ircDecider) decideMovie(ctx context.Context, res indexers.Result, movies
 		cands := filterSources(dropBlocked([]indexers.Result{res}, blocked, blocklist.Scope{MovieID: m.ID}), sources)
 		if len(cands) == 0 {
 			switch {
-			case blocklist.Blocked(blocked, res.Title, blocklist.Scope{MovieID: m.ID}):
+			case releaseBlocked(blocked, res, blocklist.Scope{MovieID: m.ID}):
 				why = "That release is on the blocklist."
 			default:
 				why = onlyOtherSource(movieLabel(m), res)
@@ -316,7 +316,7 @@ func (d ircDecider) decideTV(ctx context.Context, rel parser.Release, res indexe
 		if len(cands) == 0 {
 			if blocked[nzbLinkHoldKey(res.DownloadURL, res.Title)] {
 				why = "That release is held back for a few hours because its indexer sent a web page instead of the NZB file."
-			} else if blocklist.Blocked(blocked, res.Title, blocklist.Scope{SeriesID: sr.ID}) {
+			} else if releaseBlocked(blocked, res, blocklist.Scope{SeriesID: sr.ID}) {
 				why = "That release is on the blocklist."
 			} else {
 				why = onlyOtherSource(sr.Title, res)

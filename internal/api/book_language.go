@@ -105,6 +105,9 @@ var languageWords = func() map[string]string {
 // three-letter one (GER, ENG) also in capitals. "" when the name names no
 // language.
 func languageInCategory(name string) string {
+	if l := languageAsOwnPart(name); l != "" {
+		return l
+	}
 	words := strings.FieldsFunc(name, func(r rune) bool { return !unicode.IsLetter(r) })
 	for _, w := range words {
 		if l, ok := languageWords[strings.ToLower(w)]; ok && len([]rune(w)) > 3 {
@@ -115,6 +118,24 @@ func languageInCategory(name string) string {
 			if l, ok := languageWords["code:"+strings.ToLower(w)]; ok {
 				return l
 			}
+		}
+	}
+	return ""
+}
+
+// languageAsOwnPart reads a two-letter code that stands alone between
+// separators in capitals, as in "Books - DE / Ebook" (#128). It is not in
+// brackets, but it is not part of a phrase either, so "IT Books" is still not
+// Italian. "IT" needs its brackets here: "Books - IT / Ebook" is too often
+// about computers.
+func languageAsOwnPart(name string) string {
+	for _, part := range strings.FieldsFunc(name, func(r rune) bool { return strings.ContainsRune("-/|:,;()[]\\", r) }) {
+		part = strings.TrimSpace(part)
+		if len(part) != 2 || strings.ToUpper(part) != part || part == "IT" {
+			continue
+		}
+		if l, ok := languageWords["code:"+strings.ToLower(part)]; ok {
+			return l
 		}
 	}
 	return ""

@@ -4,7 +4,7 @@ Mediarium's screens come in **English, Spanish (Español), German (Deutsch), Fre
 
 ## Choosing a language
 
-- **Settings > General > App language** changes it for the browser you're using, and so does **App language** in the profile menu. The page reloads in the new language. It only changes the language of the app itself, not the audio or subtitle language.
+- **Settings > Basics > General > App language** changes it for the browser you're using, and so does **App language** in the profile menu. The page reloads in the new language. It only changes the language of the app itself, not the audio or subtitle language.
 - The sign-in page and the first step of setup have the same list, so you can switch before signing in.
 - Until you pick one, Mediarium follows your browser's language when it has a translation, and English otherwise. A browser set to Portuguese from Portugal gets the European Portuguese translation, any other Portuguese the Brazilian one. Any Chinese setting gets Simplified Chinese until a Traditional translation exists.
 
@@ -14,7 +14,7 @@ The choice is kept per browser, so a phone and a laptop can each use their own l
 
 The language for movie and show information is its own choice, apart from the screen language: someone can read Mediarium in English and still want film titles in Portuguese.
 
-- Pick it under **Settings > Info, lists and subtitles > Movie and show info > Language for movie and show info**, or in the **Connect your services** step of setup. There are about thirty languages. If you've set a screen language, a button offers the matching one.
+- Pick it under **Settings > Library and files > Movie and show info > Language for movie and show info**, or in the **Connect your services** step of setup. There are about thirty languages. If you've set a screen language, a button offers the matching one.
 - Release dates on a movie page and in the calendar are the ones of a country. Under **Country for release dates**, in the same card, you can pick yours (India, say, while reading in English); **Same as the info language** takes it from the language above, so English means the US.
 - It changes the titles, descriptions, genres and posters on **Discover, search results and title pages**. Where TMDB has no translation of something, you see the English text.
 - The same language is used for the **title, poster and description of a movie or show already in your library**: the Library, the Dashboard, Activity (a download and the waiting list), the calendar, reports, requests, statistics, and the title and poster in a notification. The description is the one on the title's own page. Those are read from what Mediarium has already saved. A background job asks TMDB for them, a few dozen at a time, right after a title is added or refreshed and again for the rest of the library. Until a title's translation is saved, you see the English one. On a show's page, the description is also the one TMDB returns for that page, already in this language, the same request that brings the tagline. Where TMDB has no translation, poster or description in that language, the English one is kept. Changing the info language starts the job again for the new language. The English title stays saved. An episode's own name and description stay as they were saved.

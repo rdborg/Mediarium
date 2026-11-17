@@ -2,7 +2,7 @@
 
 Many torrent trackers, private and public, post every new release in an IRC channel a few seconds after it is uploaded. **IRC announce** lets Mediarium sit in that channel, read each announcement and download a release you want straight away. Without it, a new release is found at the next RSS check or search, which can be many minutes later. On a busy tracker, the first seconds are when a release has the most seeders.
 
-You'll find it under **Settings > Indexers & Search**, in the **IRC announce** card below the indexer cards. **It's off until you add a connection and switch it on.** Nothing connects to IRC before that.
+You'll find it under **Settings > Finding releases > Indexers & Search**, in the **IRC announce** card below the indexer cards. **It's off until you add a connection and switch it on.** Nothing connects to IRC before that.
 
 ## What you need
 
@@ -17,7 +17,7 @@ An announcement is only ever **checked against your library**. Mediarium never a
 
 1. It reads the line with the template you chose (see below) and gets the release name, size and the other details.
 2. It looks for a **monitored** movie or show with that name in your library. If there's none, the announcement is skipped.
-3. It applies the same rules as the automatic searches and the RSS check: the title and year must match, the release must suit the quality profile (quality, size, language, rejected words), it must not be on the blocklist, the movie must be released, and the title must be **missing** or have a **better version** to gain. The size limits (**Settings > Library > Quality > Size limits**) and the delay profile apply as well: a release outside the size table is skipped, and a release the delay profile holds back is skipped for now, with the time it is let through written in the log. When that time comes, Mediarium searches the title again by itself. A season pack is only taken when the whole season is missing. A release that would repeat what you already have, or one that is only a little different, is skipped.
+3. It applies the same rules as the automatic searches and the RSS check: the title and year must match, the release must suit the quality profile (quality, size, language, rejected words), it must not be on the blocklist, the movie must be released, and the title must be **missing** or have a **better version** to gain. The size limits (**Settings > Finding releases > Quality > Size limits**) and the delay profile apply as well: a release outside the size table is skipped, and a release the delay profile holds back is skipped for now, with the time it is let through written in the log. When that time comes, Mediarium searches the title again by itself. A season pack is only taken when the whole season is missing. A release that would repeat what you already have, or one that is only a little different, is skipped.
 4. If it passes, the release goes into the download line like any automatic download. It waits behind anything you started yourself, and the usual limits apply (at most 10 automatic downloads an hour, at most 10 waiting).
 
 The same release is never grabbed twice, even if two bots announce it or it is announced again. If the grab fails, that release is not retried.

@@ -259,6 +259,10 @@ func (s *Server) markCachedPayloads(ctx context.Context, rows []searchResultPayl
 // the same pickKey. The indexer's priority and the preferred protocol come
 // first, as they always did; a cached release wins what is left.
 func preferOver(best, candidate *indexers.Result) bool {
+	// The same name posted twice: the later post is the one that was fixed.
+	if newer := newerSameName(best, candidate); newer != nil {
+		return newer == candidate
+	}
 	if preferUsenet(best, candidate) {
 		return true
 	}

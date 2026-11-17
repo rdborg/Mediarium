@@ -140,6 +140,10 @@ func toEpisodePayload(e library.Episode) episodePayload {
 type seriesDetailPayload struct {
 	seriesPayload
 	Episodes []episodePayload `json:"episodes"`
+	// TheTVDBKey says a TheTVDB key is saved, so the show can follow
+	// TheTVDB's episode order. The key's settings are for administrators;
+	// this lets a manager see whether the choice is open.
+	TheTVDBKey bool `json:"thetvdbKey"`
 }
 
 // handleSearchTV searches for shows by title, to find something to add. It
@@ -198,6 +202,7 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 	short := s.incompleteNow().series
 	for i, sr := range list {
 		out[i] = toSeriesPayload(sr, who)
+		out[i].Origin = adminOrigin(r, out[i].Origin)
 		out[i].Title, out[i].PosterURL = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 		out[i].Overview = s.shownOverview("tv", sr.TMDBID, sr.Overview)
 		out[i].ShortFiles = len(short[sr.ID])
@@ -237,6 +242,8 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := seriesDetailPayload{seriesPayload: toSeriesPayload(sr, s.accountNames()), Episodes: make([]episodePayload, len(eps))}
+	out.Origin = adminOrigin(r, out.Origin)
+	out.TheTVDBKey = s.tvdbKeyClient() != nil
 	out.Title, out.PosterURL = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
 	out.Overview = s.shownOverview("tv", sr.TMDBID, sr.Overview)
 	out.RootPath = folderShown(r, s.tvFolders(), sr.RootPath)
@@ -335,7 +342,9 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		}
 		_, byline := requester(r)
 		_ = s.QueueRepo.LogSeriesActivity(existing.ID, "added", fmt.Sprintf("%s %s is now wanted%s", existing.Title, req.Episode.code(), byline))
-		writeJSON(w, http.StatusOK, toSeriesPayload(existing, s.accountNames()))
+		shown := toSeriesPayload(existing, s.accountNames())
+		shown.Origin = adminOrigin(r, shown.Origin)
+		writeJSON(w, http.StatusOK, shown)
 		return
 	}
 
@@ -395,12 +404,10 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.SearchNow {
 		by := userOrigin(r, origin.Search)
-		go func() {
-			defer s.hintGrabs(true, created.ID, by)()
-			s.searchSeriesInBackground(created.ID)
-		}()
+		go s.searchSeriesInBackgroundBy(created.ID, by)
 	}
 	added := toSeriesPayload(created, s.accountNames())
+	added.Origin = adminOrigin(r, added.Origin)
 	added.RootPath = folderShown(r, s.tvFolders(), created.RootPath)
 	writeJSON(w, http.StatusCreated, added)
 }
@@ -544,6 +551,7 @@ func (s *Server) handleRefreshSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	refreshed := toSeriesPayload(updated, s.accountNames())
+	refreshed.Origin = adminOrigin(r, refreshed.Origin)
 	refreshed.RootPath = folderShown(r, s.tvFolders(), updated.RootPath)
 	writeJSON(w, http.StatusOK, refreshed)
 }

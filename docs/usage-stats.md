@@ -6,7 +6,7 @@ Mediarium can send one small, anonymous message a day, so the project knows how 
 
 - The first time an administrator opens Mediarium (a new install, or an install that has just been updated), a window asks: **Yes, share anonymous numbers**, **No thanks**, or **Ask me later**. Nothing is chosen for you. **Ask me later** only closes the window until the next time the app is opened.
 - The window shows the exact message that would be sent, with the links to the code.
-- You can change your answer at any time under **Settings > General > Anonymous usage numbers**. Switching it off forgets the random ID. **Reset my ID** makes a new one, used from the next day's message on (it never sends a second message the same day).
+- You can change your answer at any time under **Settings > Basics > General > Anonymous usage numbers**. Switching it off forgets the random ID. **Reset my ID** makes a new one, used from the next day's message on (it never sends a second message the same day).
 - Accounts that are not administrators are not asked, and do not see the numbers.
 - **Never ask, never send:** set the environment variable `MEDIARIUM_DISABLE_STATS=1` on the container. The window is not shown and nothing is sent, whatever was answered before. It is listed in [reference/environment.md](https://github.com/rdborg/Mediarium/blob/main/docs/reference/environment.md).
 

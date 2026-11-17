@@ -81,3 +81,39 @@ func TestSpellUmlauts(t *testing.T) {
 		}
 	}
 }
+
+// A scene name is cut at its first dash, which splits an artist with a hyphen
+// in the name. Searching for that artist tries the other places it could end.
+func TestParseReleaseForHyphenatedArtist(t *testing.T) {
+	cases := []struct {
+		title, artist, album string
+		year                 int
+		wantArtist           string
+		wantAlbum            string
+		ok                   bool
+	}{
+		{"AC-DC Back in Black-FLAC-2005", "AC/DC", "Back in Black", 1980, "AC-DC", "Back in Black", true},
+		{"AC-DC-Back_in_Black-REMASTERED-WEB-FLAC-2005-GRP", "AC/DC", "Back in Black", 1980, "AC-DC", "Back in Black", true},
+		{"AC-DC-Highway_to_Hell-CD-FLAC-1979-GRP", "AC/DC", "Back in Black", 1980, "AC-DC", "Highway to Hell", false},
+		{"Jay-Z The Blueprint-WEB-FLAC-2001-GRP", "Jay-Z", "The Blueprint", 2001, "Jay-Z", "The Blueprint", true},
+		{"Jay-Z-The_Blueprint-CD-FLAC-2001-GRP", "JAY-Z", "The Blueprint", 2001, "Jay-Z", "The Blueprint", true},
+		{"Blink-182 Enema of the State-WEB-FLAC-1999-GRP", "blink-182", "Enema of the State", 1999, "Blink-182", "Enema of the State", true},
+		{"Blink-182-Enema_of_the_State-CD-FLAC-1999-GRP", "blink-182", "Enema of the State", 1999, "Blink-182", "Enema of the State", true},
+		{"Blink-182 - Enema of the State 1999 FLAC", "blink-182", "Enema of the State", 1999, "Blink-182", "Enema of the State", true},
+		{"Lichterkinder-Weihnacht auch fuer Dich-16BIT-44-KHZ-WEB-FLAC-2024-WALKMAN", "Lichterkinder", "Weihnacht auch für Dich", 2024, "Lichterkinder", "Weihnacht auch fuer Dich", true},
+		{"Taylor_Swift-1989-WEB-FLAC-2014-GRP", "Taylor Swift", "1989", 2014, "Taylor Swift", "1989", true},
+		// Another artist stays another artist.
+		{"AC-DC Back in Black-FLAC-2005", "Airbourne", "Back in Black", 1980, "AC", "DC Back in Black", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.title+" for "+tc.artist, func(t *testing.T) {
+			got := ParseReleaseFor(tc.title, tc.artist)
+			if got.Artist != tc.wantArtist || got.Album != tc.wantAlbum {
+				t.Fatalf("ParseReleaseFor = artist %q album %q, want %q / %q", got.Artist, got.Album, tc.wantArtist, tc.wantAlbum)
+			}
+			if ok, reason := ReleaseMatch(got, tc.artist, tc.album, tc.year); ok != tc.ok {
+				t.Fatalf("ReleaseMatch = (%v, %q), want %v", ok, reason, tc.ok)
+			}
+		})
+	}
+}

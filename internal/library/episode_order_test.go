@@ -2,10 +2,12 @@ package library_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/rdborg/mediarium/internal/library"
+	"github.com/rdborg/mediarium/internal/store"
 )
 
 type officeEp struct {
@@ -334,5 +336,135 @@ func TestEpisodeOrderIsStoredPerShow(t *testing.T) {
 	}
 	if cp.EpisodeOrder != library.EpisodeOrderTVDB {
 		t.Errorf("a second copy follows the main show's order, got %q", cp.EpisodeOrder)
+	}
+}
+
+// Downloads, watched state and delayed releases name an episode by its
+// numbers: they move with the episode when the order changes.
+func TestEpisodeOrderMovesRowsKeyedByNumber(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "app.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	repo := library.NewRepo(db)
+	sr, err := repo.AddSeries(library.Series{TMDBID: 2316, Title: "The Office", Monitored: true}, listOf(4, officeTMDB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _ := repo.ListEpisodes(sr.ID)
+	for _, e := range old {
+		if e.Title == "Local Ad" || e.Title == "Goodbye, Toby" {
+			if err := repo.SetEpisodeStatus(e.ID, library.StatusDownloaded, "HDTV-720p", fmt.Sprintf("/tv/office/s04e%02d.mkv", e.Episode)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Local Ad (E05) is downloading, Goodbye, Toby (E14) was watched and
+	// Dunder Mifflin Infinity (E02) has a release held back by a delay.
+	exec(`INSERT INTO download_queue (release_title, series_id, season, episode) VALUES ('The.Office.S04E05', ?, 4, 5)`, sr.ID)
+	exec(`INSERT INTO download_queue (release_title, series_id, season, episode) VALUES ('The.Office.S04', ?, 4, NULL)`, sr.ID)
+	exec(`INSERT INTO watched (kind, title_id, season, episode, plays) VALUES ('episode', ?, 4, 14, 2)`, sr.ID)
+	exec(`INSERT INTO delayed_releases (kind, series_id, season, episode, release_title, first_seen_at, due_at) VALUES ('episode', ?, 4, 2, 'The.Office.S04E02', 'x', 'y')`, sr.ID)
+
+	old, _ = repo.ListEpisodes(sr.ID)
+	plan := library.PlanEpisodeOrder(old, listOf(4, officeTVDB))
+	if err := repo.ApplyEpisodeOrder(sr.ID, plan); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name, query string
+		want        int
+	}{
+		{"download of Local Ad", `SELECT episode FROM download_queue WHERE release_title = 'The.Office.S04E05'`, 9},
+		{"watched Goodbye, Toby", `SELECT episode FROM watched WHERE title_id = ` + fmt.Sprint(sr.ID), 18},
+		{"delayed Dunder Mifflin Infinity", `SELECT episode FROM delayed_releases WHERE release_title = 'The.Office.S04E02'`, 3},
+		{"season pack stays a season pack", `SELECT COALESCE(episode, -1) FROM download_queue WHERE release_title = 'The.Office.S04'`, -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got int
+			if err := db.QueryRow(tt.query).Scan(&got); err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("episode %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+// A removed episode takes its downloads, watched state and delayed releases
+// with it: the episode that moves to its number must not inherit them.
+func TestEpisodeOrderDropsTheRowsOfARemovedEpisode(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "app.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	repo := library.NewRepo(db)
+	var eps []library.Episode
+	for n := 1; n <= 6; n++ {
+		eps = append(eps, library.Episode{Season: 1, Episode: n, Title: fmt.Sprintf("Episode %d", n)})
+	}
+	sr, err := repo.AddSeries(library.Series{TMDBID: 99, Title: "Show", Monitored: true}, eps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _ := repo.ListEpisodes(sr.ID)
+	ids := map[int]int64{}
+	for _, e := range old {
+		ids[e.Episode] = e.ID
+	}
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// E6 goes and E5 takes its number. Both have a release held back by a
+	// delay (one of them the same release), and E6 an old failed download
+	// and a play.
+	exec(`INSERT INTO delayed_releases (kind, series_id, season, episode, release_title, first_seen_at, due_at) VALUES
+		('episode', ?, 1, 6, 'Show.S01E06.Dropped', 'x', 'y'),
+		('episode', ?, 1, 6, 'Show.S01.Same', 'x', 'dropped'),
+		('episode', ?, 1, 5, 'Show.S01E05.Moved', 'x', 'y'),
+		('episode', ?, 1, 5, 'Show.S01.Same', 'x', 'moved')`, sr.ID, sr.ID, sr.ID, sr.ID)
+	exec(`INSERT INTO download_queue (release_title, series_id, season, episode, status) VALUES ('Show.S01E06.Old', ?, 1, 6, 'failed')`, sr.ID)
+	exec(`INSERT INTO watched (kind, title_id, season, episode, plays) VALUES ('episode', ?, 1, 6, 3)`, sr.ID)
+
+	plan := library.EpisodeOrderPlan{
+		Moves: []library.EpisodeMove{{ID: ids[5], Season: 1, From: 5, Episode: 6}},
+		Drop:  []int64{ids[6]},
+	}
+	if err := repo.ApplyEpisodeOrder(sr.ID, plan); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name, query string
+		want        string
+	}{
+		{"delayed releases at E6", `SELECT group_concat(release_title || '/' || due_at, ',') FROM (SELECT * FROM delayed_releases WHERE season = 1 AND episode = 6 ORDER BY release_title)`, "Show.S01.Same/moved,Show.S01E05.Moved/y"},
+		{"delayed releases at E5", `SELECT COUNT(*) FROM delayed_releases WHERE season = 1 AND episode = 5`, "0"},
+		{"downloads at E6", `SELECT COUNT(*) FROM download_queue WHERE season = 1 AND episode = 6`, "0"},
+		{"plays at E6", `SELECT COUNT(*) FROM watched WHERE title_id = ` + fmt.Sprint(sr.ID) + ` AND season = 1 AND episode = 6`, "0"},
+		{"the removed episode", `SELECT COUNT(*) FROM episodes WHERE id = ` + fmt.Sprint(ids[6]), "0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got string
+			if err := db.QueryRow(tt.query).Scan(&got); err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

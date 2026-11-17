@@ -44,6 +44,7 @@ import { useConfirm } from '../components/ConfirmProvider'
 import { removeOption } from '../diskUsage'
 import CustomSearch from '../components/CustomSearch'
 import ReleaseNotice from '../components/ReleaseNotice'
+import type { Filtered } from '../components/SearchesUsed'
 import type { Unanswered } from '../releaseHint'
 import type { Searched } from '../searched'
 import { useDocumentTitle } from '../documentTitle'
@@ -101,7 +102,7 @@ function SeriesPage() {
   const [message, setMessage] = useState('')
   const [target, setTarget] = useState<SearchTarget | null>(null)
   const [results, setResults] = useState<SearchResult[] | null>(null)
-  const [answered, setAnswered] = useState<{ sources: number; unanswered: Unanswered[]; warnings?: string[]; searched?: Searched[] }>({ sources: 0, unanswered: [] })
+  const [answered, setAnswered] = useState<{ sources: number; unanswered: Unanswered[]; warnings?: string[]; searched?: Searched[]; filtered?: Filtered[] }>({ sources: 0, unanswered: [] })
   const [searching, setSearching] = useState(false)
   const [grabbing, setGrabbing] = useState<string | null>(null)
   const [searchingNow, setSearchingNow] = useState(false)
@@ -167,7 +168,7 @@ function SeriesPage() {
     try {
       const a = await api.seriesSearch(seriesId, st.season, st.episode, q, st.complete)
       if (mine !== searchId.current) return
-      setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched })
+      setAnswered({ sources: a.sources, unanswered: a.unanswered, warnings: a.warnings, searched: a.searched, filtered: a.filtered })
       setResults(a.results)
     } catch (e) {
       if (mine === searchId.current) setError(e instanceof Error ? e.message : String(e))
@@ -498,7 +499,7 @@ function SeriesPage() {
           {canManage && <MonitorModePicker id={seriesId} onDone={load} />}
           {canManage && <SeriesTypePicker id={seriesId} value={series.seriesType ?? 'standard'} onChange={(type) => setSeries((cur) => (cur ? { ...cur, seriesType: type } : cur))} />}
           {canManage && series.seriesType !== 'anime' && !series.copyOf && (
-            <EpisodeOrderPicker id={seriesId} value={series.episodeOrder ?? 'tmdb'} onChanged={(order) => { setSeries((cur) => (cur ? { ...cur, episodeOrder: order } : cur)); load() }} />
+            <EpisodeOrderPicker id={seriesId} value={series.episodeOrder ?? 'tmdb'} hasKey={series.thetvdbKey === true} onChanged={(order) => { setSeries((cur) => (cur ? { ...cur, episodeOrder: order } : cur)); load() }} />
           )}
         </div>
         {admin && series.folderPath && (
@@ -531,7 +532,7 @@ function SeriesPage() {
           <h2>{t('Releases for {target}', { target: target.label })}</h2>
           <CustomSearch key={target.label} busy={searching} onSearch={(q) => runSearch(target, q)} />
           {searching && <p>{t('Looking for releases…')}</p>}
-          {results !== null && <ReleaseNotice sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} results={results.length} />}
+          {results !== null && <ReleaseNotice sources={answered.sources} unanswered={answered.unanswered} warnings={answered.warnings} searched={answered.searched} filtered={answered.filtered} results={results.length} />}
           {!searching && (results === null || results.length === 0) && (
             <button className="btn-sm" onClick={() => setTarget(null)}>
               {t('Close')}

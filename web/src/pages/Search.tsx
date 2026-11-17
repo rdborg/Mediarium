@@ -320,7 +320,7 @@ export default function Search() {
   const term = q.trim()
   // Under the results: for a book or an album the databases don't have, or keep getting wrong.
   const byHandButton = (kind: ByHandKind) =>
-    can(me, 'addDirect') && (
+    can(me, 'addDirect') && can(me, kind === 'book' ? 'books' : 'music') && (
       <p className="search-by-hand">
         <button type="button" className="btn-sm btn-with-icon" onClick={() => setByHand(kind)}>
           <Icon name="plus" size={14} /> {t("Can't find it? Add it by hand")}

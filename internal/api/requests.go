@@ -63,6 +63,17 @@ func (s *Server) mayAddNew(w http.ResponseWriter, r *http.Request, kind string) 
 	return true
 }
 
+// mayManage reports whether the account behind r has the manage permission
+// (Search now and monitoring): administrators always do.
+func (s *Server) mayManage(r *http.Request) bool {
+	u := auth.UserFromContext(r.Context())
+	if u == nil || u.IsAdmin {
+		return true
+	}
+	p, err := s.Auth.PermissionsOf(u.ID)
+	return err == nil && p.Allows(auth.PermManage)
+}
+
 type requestInfo struct {
 	title, poster string
 	year          int

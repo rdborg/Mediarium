@@ -45,7 +45,7 @@ When you add or edit a basic user, **Permissions** lets you choose what they may
 - **They can add or ask for:** Movies, TV shows, Music, Books (only the types switched on are listed). A type that's off can't be added or asked for at all.
 - **Add titles themselves.** Off: what they add becomes a **request** instead (see below). Good for children's accounts. Without it they also can't follow a book series or an author (that adds books by itself), and picking a release in Search only works for titles already in the library.
 - **Pick releases.** Search your indexers and choose what to download.
-- **Search now and monitoring.** Start searches, change what is monitored and the tags, follow authors and series.
+- **Search now and monitoring.** Start searches, change what is monitored and the tags, follow authors and series, and add an album to an artist already in the library (also with **Add it by hand**).
 - **Retry downloads.** Try a failed or stopped download again.
 - **Subtitles.** Find and download subtitles.
 - **Play, read and listen.** Play videos, preview files, and read and listen in Mediarium Books.
@@ -57,23 +57,23 @@ Buttons for things an account may not do are hidden, and the server refuses them
 A basic user without **Add titles themselves** still sees Discover and the search box, but their Add button says **Request**. What they pick is kept as a request, exactly as they chose it (quality, formats and so on), and they're told it was sent to an administrator.
 
 - **Activity > Requests** lists them. Admins see everyone's, with **Approve** (the title is added for that person, as they asked, and the library says who asked) and **Decline** (with an optional note the person sees). Everyone else sees their own, and can take back a request that is still waiting. Asking twice for the same title is refused; two titles that only share a name (a 1984 film and its 2021 remake) are separate requests. A request whose kind of media has been switched off waits until it is switched on again. For music, "Only this album" is part of the request, so approving it adds the artist with just that album.
-- New requests can reach you by notification: tick **Requests** on a notification under Settings > Connections > Notifications.
+- New requests can reach you by notification: tick **Requests** on a notification under Settings > Media servers and apps > Notifications.
 - Asking twice for the same title, or for something already in the library, is refused with a message.
 
 ### The request portal settings
 
-Under **Settings > Account & Access > Requests and reports**, the **Requests** card holds five things. All of them are off or unlimited until you change them.
+Under **Settings > People and access > Requests and reports**, the **Requests** card holds five things. All of them are off or unlimited until you change them.
 
 **Tell people when their request is answered.** Switch it on and the person who asked gets a message when their request is approved, declined (with your note) and when the title is ready to watch in the library, and when a problem they reported is answered. Messages go:
 
-- by **email**, to the address on their account, through the email server of an email notification you already set up under Settings > Connections > Notifications (the message keeps that notification's server and login and only changes who it goes to). Without an email notification, or without an address on the account, nothing is sent by email;
+- by **email**, to the address on their account, through the email server of an email notification you already set up under Settings > Media servers and apps > Notifications (the message keeps that notification's server and login and only changes who it goes to). Without an email notification, or without an address on the account, nothing is sent by email;
 - to the **phones and browsers** the person allowed notifications on, under **Your profile > Messages about your requests > Also send them to this device**. Push needs Mediarium opened over https (see [notifications.md](./notifications.md)).
 
 The card on someone's profile has a switch, **Send me these messages**, for people who don't want them. It shows only while the setting above is on. "Ready to watch" is noticed within about ten minutes of the first file arriving (for a show, its first episode). Requests approved before you switched messages on are not announced afterwards.
 
 **Limit requests.** Set how many requests each person may make over **the last day** or **the last week** (a sliding window, not a calendar day). Empty or 0 means no limit. Waiting and approved requests count; declined requests and requests taken back do not. Someone who is out of requests is told when a place frees up. Under the default limit, each person who has to ask has a menu: follow the default, **No limit**, or **A number of their own**. People see how many they have left at the top of **Activity > Requests**, for example "3 of 5 requests left this week". Admins are never limited, and neither is anyone who can add titles themselves (they don't make requests).
 
-**4K requests.** Switch on **Let people ask for a 4K copy** and choose the quality profile of that copy (the built-in **4K & over**, say). This uses [second copies](./library.md): you also need a folder for second copies under Settings > Library > Folders, for movies and for shows. The Add dialog of someone who has to ask then offers **Ask for a 4K copy as well**, and a title already in the library has an **Ask for a 4K copy** button on its page. The request shows a **4K** tag. When you approve it, the title is added the usual way if it is not in the library yet, and then a second copy in the 4K quality is added next to it and searched for. A title that is already in the library only gets the copy. A title whose own quality is already the 4K one doesn't need a copy, and one that has a 4K copy can't be asked for again.
+**4K requests.** Switch on **Let people ask for a 4K copy** and choose the quality profile of that copy (the built-in **4K & over**, say). This uses [second copies](./library.md): you also need a folder for second copies under Settings > Library and files and files > Folders, for movies and for shows. The Add dialog of someone who has to ask then offers **Ask for a 4K copy as well**, and a title already in the library has an **Ask for a 4K copy** button on its page. The request shows a **4K** tag. When you approve it, the title is added the usual way if it is not in the library yet, and then a second copy in the 4K quality is added next to it and searched for. A title that is already in the library only gets the copy. A title whose own quality is already the 4K one doesn't need a copy, and one that has a 4K copy can't be asked for again.
 
 **Age limits.** Under the quota table, **Age limits** lists every basic account with a menu for the highest rating it may ask for or add: no limit, up to G and TV-G (all ages), up to PG and TV-PG, up to PG-13 and TV-14, or up to R and TV-MA. Ratings from different countries are put on one short scale (all ages, about 10, about 14, about 17, 18 and over), so PG-13 and TV-14 count the same, and plain ages such as 12 or 16 and ratings such as U, 12A, 15, 18, FSK 16 or AL are placed on it too. Mediarium reads a movie's or show's rating from TMDB when someone asks for it (the answer is kept for a few minutes, nothing new is stored). A title above the limit is refused with a plain message that names its rating, and nothing is saved; the limit applies to accounts that add directly as well as to accounts that have to ask. A title without a rating is allowed, unless you tick **Also refuse titles with no rating** for that person. Titles above the limit still show up in Discover and search; they just can't be asked for or added. Administrators are never limited, and approving a request is not stopped by a limit either.
 
@@ -105,18 +105,18 @@ Pick **Viewer** when you add an account, or change the role of an existing one u
 
 ## Read-only API keys
 
-When you make an API key under **Settings > Account & Access > Security > API keys**, tick **Read-only**. A read-only key can only be used for `GET` requests; every other request is refused with `403` ("This API key is read-only"), including on the Radarr, Sonarr and Lidarr style endpoints. It is meant for dashboards and monitoring scripts, such as Homarr or a status page, that only need to look. A read-only key of an admin can still read what an admin can read, so keep it as private as any other key. It is marked "read-only" in the key list. You can't change an existing key into a read-only one: make a new one and revoke the old one.
+When you make an API key under **Settings > People and access > Security > API keys**, tick **Read-only**. A read-only key can only be used for `GET` requests; every other request is refused with `403` ("This API key is read-only"), including on the Radarr, Sonarr and Lidarr style endpoints. It is meant for dashboards and monitoring scripts, such as Homarr or a status page, that only need to look. A read-only key of an admin can still read what an admin can read, so keep it as private as any other key. It is marked "read-only" in the key list. You can't change an existing key into a read-only one: make a new one and revoke the old one.
 
 ## The account list
 
-Everyone has their own pages under **Settings > Account & Access** (the profile menu has a shortcut): **Your profile** (name, email and Change password side by side), **Security** (passkeys, two-step sign-in and your API keys) and **Linked services** (the Plex watchlist, ListenBrainz and your e-reader). The language of the app is under **Settings > General**. Admins also have **Settings > Account & Access > All accounts** (the **Accounts** list, then **Add an account**), **Requests and reports** and **Ways to sign in** (including sign-in through your reverse proxy). Each account has a card with its name and username, an **Admin** or **Basic user** badge, its email address and when it last signed in ("Signed in 3 days ago", "Never signed in"). Your own card is marked **You**.
+Everyone has their own pages under **Settings > People and access** (the profile menu has a shortcut): **Your profile** (name, email and Change password side by side), **Security** (passkeys, two-step sign-in and your API keys) and **Linked services** (the Plex watchlist, ListenBrainz and your e-reader). The language of the app is under **Settings > Basics > General**. Admins also have **Settings > People and access > All accounts** (the **Accounts** list, then **Add an account**), **Requests and reports** and **Ways to sign in** (including sign-in through your reverse proxy). Each account has a card with its name and username, an **Admin** or **Basic user** badge, its email address and when it last signed in ("Signed in 3 days ago", "Never signed in"). Your own card is marked **You**.
 
 **Revoke** stops an API key working straight away. A revoked key stays in the list, so you can see it was there. Press **Delete** next to a revoked key to take it off the list for good. Scripts: `DELETE /api/auth/api-keys/{id}` revokes, and `DELETE /api/auth/api-keys/{id}?remove=true` deletes a key that is already revoked (an active key answers 409).
 
 ## Adding a family account
 
 1. Sign in as an admin.
-2. Open **Settings > Account & Access > All accounts** and fill in **Add an account**: a username (3 to 32 characters: letters, numbers, dots, dashes and underscores), optionally a name and email address, a password (8 to 72 characters; the eye button shows what you typed), and a role. **Basic user** can find, add and download movies and shows. **Admin** has full control.
+2. Open **Settings > People and access > All accounts** and fill in **Add an account**: a username (3 to 32 characters: letters, numbers, dots, dashes and underscores), optionally a name and email address, a password (8 to 72 characters; the eye button shows what you typed), and a role. **Basic user** can find, add and download movies and shows. **Admin** has full control.
 3. Tell them the username and password. They can change the password from their profile.
 
 **What is checked.** Every account form points out a problem under the field when you leave it, or when you press the button, and nothing is sent until it's fixed. The server enforces the same rules, so they hold for scripts too: usernames of 3 to 32 characters with only letters, numbers, dots, dashes and underscores; an optional email address that looks like `name@example.com`; a name of up to 100 characters; passwords of 8 to 72 characters. Only a username you change is checked, so an older username with other characters keeps working.
@@ -144,7 +144,7 @@ Two rules stop you from locking yourself out:
 
 Each person can add a second step to signing in: after the password, Mediarium asks for the six-digit code from an authenticator app on their phone (Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden, Authy and the like). Someone who learns the password still can't get in without the phone.
 
-It is **off** until each person switches it on for themselves under **Settings > Account & Access > Security > Two-step sign-in**. Mediarium suggests it (on the dashboard and on the profile page) once it can be reached from outside your home: when a public address or sign-in through a proxy is set, or someone signed in from outside your home network in the last 30 days. It never forces it.
+It is **off** until each person switches it on for themselves under **Settings > People and access > Security > Two-step sign-in**. Mediarium suggests it (on the dashboard and on the profile page) once it can be reached from outside your home: when a public address or sign-in through a proxy is set, or someone signed in from outside your home network in the last 30 days. It never forces it.
 
 Setting it up:
 
@@ -169,7 +169,7 @@ If a proxy such as Authelia or Authentik already asks everyone to log in, Mediar
 
 ## Ways to sign in
 
-Besides the username and password of an account made here, there are three more ways in: **single sign-on** with an OpenID Connect provider, **directory sign-in** (LDAP or Active Directory) and **passkeys**. All of them are **off** until an administrator switches them on, under **Settings > Account & Access > All accounts**. Nothing changes for an existing install until then, and the password form stays where it is unless you turn it off yourself (see [Turning password sign-in off](#turning-password-sign-in-off)).
+Besides the username and password of an account made here, there are three more ways in: **single sign-on** with an OpenID Connect provider, **directory sign-in** (LDAP or Active Directory) and **passkeys**. All of them are **off** until an administrator switches them on, under **Settings > People and access > All accounts**. Nothing changes for an existing install until then, and the password form stays where it is unless you turn it off yourself (see [Turning password sign-in off](#turning-password-sign-in-off)).
 
 Accounts that come from single sign-on or the directory have **no password here**. Mediarium never stores or sees the password of a directory account beyond the one moment it is checked. So while that way to sign in is switched off (or `MEDIARIUM_DISABLE_SSO` is set), those accounts can't sign in at all; they come back as soon as it is on again. These accounts show a **Single sign-on** or **Directory** badge in the account list. Their name and email are updated each time they sign in, they can't change a password or set up two-step sign-in here (the provider does that), and an admin can't set a password for them.
 
@@ -177,9 +177,9 @@ Accounts that come from single sign-on or the directory have **no password here*
 
 You can use any OpenID Connect provider: Authelia, Authentik, Keycloak, Pocket ID, Google and others. People press **Sign in with <name>** on the sign-in page, sign in at the provider, and come back signed in.
 
-1. **Set the address you open Mediarium at** under **Settings > General > Address of Mediarium** (for example `https://mediarium.example.com`). Mediarium builds the return address from it, never from what a browser sends. Without it single sign-on can't be switched on.
+1. **Set the address you open Mediarium at** under **Settings > Basics > General > Address of Mediarium** (for example `https://mediarium.example.com`). Mediarium builds the return address from it, never from what a browser sends. Without it single sign-on can't be switched on.
 2. **Add Mediarium to your provider** as a client (an "application"): type *confidential*, the authorization code flow, and the redirect address the card shows under **Redirect address to enter at the provider** (it ends in `/api/auth/oidc/callback`). Ask for the scopes `openid profile email`, and `groups` too if you want to use groups. Copy the client ID and the client secret.
-3. Open **Settings > Account & Access > Ways to sign in > Single sign-on (OpenID Connect)**. Fill in the name for the button, the provider's address (the *issuer*), the client ID and the secret. Press **Test the provider**: Mediarium reads the provider's setup and says what it found, then tick **Turn on single sign-on** and **Save**.
+3. Open **Settings > People and access > Ways to sign in > Single sign-on (OpenID Connect)**. Fill in the name for the button, the provider's address (the *issuer*), the client ID and the secret. Press **Test the provider**: Mediarium reads the provider's setup and says what it found, then tick **Turn on single sign-on** and **Save**.
 
 The issuer has to be written exactly as the provider reports it, including a closing slash if there is one:
 
@@ -206,7 +206,7 @@ The issuer has to be written exactly as the provider reports it, including a clo
 
 **Linking an existing account.** Two ways:
 
-- A person with a password here can open **Settings > Account & Access > Security** and press **Link to <name>**. After that, **Sign in with <name>** lands on their account, and their password keeps working. **Unlink** takes it away again.
+- A person with a password here can open **Settings > People and access > Security** and press **Link to <name>**. After that, **Sign in with <name>** lands on their account, and their password keeps working. **Unlink** takes it away again.
 - **Link a first sign-in to an existing account with the same email address** (off by default): when the provider says the email address is verified, and exactly one account here has it, that account is linked. Only an address an administrator set on the account (when making it, or with **Edit**) counts; one a person typed on their own profile never does, because anyone could type someone else's address. Addresses saved by an older version are not known to have been set by an administrator, so set them again with **Edit** if you rely on this. A sign-in with an unverified address is refused. An admin account is never linked this way, because whoever controls an email address at the provider would otherwise control an admin: an admin links their account from their own profile. Only turn this on if your provider checks email addresses.
 
 #### Groups and roles
@@ -233,7 +233,7 @@ If something goes wrong the sign-in page tells you in a sentence, for example "T
 
 People use the normal sign-in form with their directory user name and password. Mediarium looks the person up with a service account, then asks the directory to check the password by signing in as that person. The password is used once and dropped.
 
-Open **Settings > Account & Access > Ways to sign in > Directory sign-in** and fill in:
+Open **Settings > People and access > Ways to sign in > Directory sign-in** and fill in:
 
 - **Server address**: `ldaps://ldap.example.com:636` is best. For `ldap://` tick **StartTLS** so the connection is encrypted before any password is sent. Sending passwords without encryption has to be ticked on purpose and is not recommended. The server's certificate is checked. For a directory with its own certificate authority, paste that CA certificate under **Attribute names and the certificate**; there is also a box to skip the check, which you should not use.
 - **Base DN**: where people are, for example `ou=people,dc=example,dc=com`.
@@ -268,8 +268,8 @@ How it behaves:
 
 A passkey signs you in with your fingerprint, face or device PIN, with no password to type. It is a key pair kept in your phone, computer or security key; Mediarium keeps only the public half.
 
-- An admin switches passkeys on under **Ways to sign in**. They need the address you open Mediarium at (**Settings > General > Address of Mediarium**), starting with `https://` and with a host name, not an IP address. `http://localhost` works too, for testing. The browser ties every passkey to that host name and only offers it on pages opened at that address: opened at a different address, passkeys don't show up.
-- Each person adds passkeys on **Settings > Account & Access > Security > Passkeys**: **Add a passkey**, confirm with your password, then confirm on your device. Add one for each device, name them, rename them, and remove one when you lose a device. An account can have up to 20.
+- An admin switches passkeys on under **Ways to sign in**. They need the address you open Mediarium at (**Settings > Basics > General > Address of Mediarium**), starting with `https://` and with a host name, not an IP address. `http://localhost` works too, for testing. The browser ties every passkey to that host name and only offers it on pages opened at that address: opened at a different address, passkeys don't show up.
+- Each person adds passkeys on **Settings > People and access > Security > Passkeys**: **Add a passkey**, confirm with your password, then confirm on your device. Add one for each device, name them, rename them, and remove one when you lose a device. An account can have up to 20.
 - On the sign-in page **Sign in with a passkey** needs no user name: the browser shows the passkeys it has for Mediarium.
 - A passkey always checks the person too (PIN, fingerprint or face), so a passkey sign-in counts as a second step and doesn't ask for an authenticator code.
 - A passkey keeps a counter that goes up with every use. If a sign-in comes in with a counter that did not go up, the passkey may have been copied, and the sign-in is refused. Many passkeys that sync between devices always report 0; those are fine.
@@ -277,7 +277,7 @@ A passkey signs you in with your fingerprint, face or device PIN, with no passwo
 
 ### Signing in automatically
 
-If most people sign in through single sign-on, the extra click on the sign-in page can go. Under **Settings > Account & Access > All accounts > Ways to sign in**, pick your provider in **Sign in automatically with** (the default is **Off**). Anyone who opens Mediarium without being signed in is then sent straight to the provider, and lands on the page they asked for after signing in. Password sign-in is not changed: it stays on, or off, as you set it.
+If most people sign in through single sign-on, the extra click on the sign-in page can go. Under **Settings > People and access > All accounts > Ways to sign in**, pick your provider in **Sign in automatically with** (the default is **Off**). Anyone who opens Mediarium without being signed in is then sent straight to the provider, and lands on the page they asked for after signing in. Password sign-in is not changed: it stays on, or off, as you set it.
 
 - **To see the normal sign-in page** (for the password form, or when the provider is down), open Mediarium with `?no-redirect=1` on the end of the address, for example `https://mediarium.example.com/?no-redirect=1`. `?disable-auth-redirect` works too. This only skips the redirect. It doesn't turn the password form on if you turned it off.
 - **After you sign out** you get the normal sign-in page once, so you aren't signed straight back in. The next visit redirects again.
@@ -305,7 +305,7 @@ environment:
 
 ## A forgotten administrator password
 
-The sign-in page has a **Forgot your password?** line. There's no email reset. Another administrator can set a new password in **Settings > Account & Access > All accounts**, and the command below is for the only administrator.
+The sign-in page has a **Forgot your password?** line. There's no email reset. Another administrator can set a new password in **Settings > People and access > All accounts**, and the command below is for the only administrator.
 
 If the only admin has forgotten their password, reset it from the command line on the machine running Mediarium. There is deliberately no way to do this over the web.
 

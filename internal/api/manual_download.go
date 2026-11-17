@@ -24,16 +24,20 @@ import (
 	"github.com/anacrolix/torrent/metainfo"
 
 	"github.com/rdborg/mediarium/internal/bencsafe"
+	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/download"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
+	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/origin"
+	"github.com/rdborg/mediarium/internal/queue"
 )
 
 // Adding a download by hand: an NZB or .torrent file, an address that points
-// to one, or a magnet link, attached to a movie or an episode the person
-// picks. It goes into the download line the same way a release picked from a
-// search does (grabRelease, grabTVRelease), so everything after it is the
-// usual pipeline.
+// to one, or a magnet link, attached to a movie, an episode, an album or a
+// book (one format of it) the person picks. It goes into the download line the
+// same way a release picked from a search does (grabRelease, grabTVRelease,
+// grabAlbum, grabBook), so everything after it is the usual pipeline.
 
 const (
 	// maxManualNZB is the biggest NZB file taken. Real ones are a few MB; a
@@ -319,10 +323,13 @@ func chooseReleaseName(typed string, candidates ...string) string {
 
 // manualTarget is what the download is for, as the person picked it.
 type manualTarget struct {
-	movieID  int64
-	seriesID int64
-	season   int // 0 is the specials
-	episode  int // 0 is the whole season
+	movieID    int64
+	seriesID   int64
+	season     int // 0 is the specials
+	episode    int // 0 is the whole season
+	albumID    int64
+	bookID     int64
+	bookFormat books.Format
 }
 
 type manualDownloadResponse struct {
@@ -333,12 +340,13 @@ type manualDownloadResponse struct {
 }
 
 // handleManualDownload adds an NZB, a torrent or a magnet link to the download
-// line for a chosen movie or episode. The request is a multipart form:
+// line for a chosen movie, episode, album or book. The request is a multipart form:
 //
 //	file    an .nzb or .torrent file (or url, not both)
 //	url     an address of an NZB or .torrent file, or a magnet link
 //	name    the release name (optional; the file or address gives one)
-//	movieId, or seriesId with season and episode (episode 0 = the whole season)
+//	movieId, or seriesId with season and episode (episode 0 = the whole season),
+//	or albumId, or bookId with format ("ebook" or "audiobook")
 func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 	allowLongUpload(w)
 	r.Body = http.MaxBytesReader(w, r.Body, maxManualNZB+(1<<20))
@@ -348,7 +356,7 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("That file is too large. NZB files can be up to %d MB and .torrent files up to %d MB.", maxManualNZB>>20, maxManualTorrent>>20))
 			return
 		}
-		writeError(w, http.StatusBadRequest, "Send a file or an address, with the movie or episode it is for.")
+		writeError(w, http.StatusBadRequest, "Send a file or an address, with the title it is for.")
 		return
 	}
 	if r.MultipartForm != nil {
@@ -382,7 +390,50 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 	// The title comes first: nothing is stored for one that isn't there.
 	var movie library.Movie
 	var series library.Series
-	if target.movieID > 0 {
+	var album music.Album
+	var artist music.Artist
+	var book books.Book
+	switch {
+	case target.albumID > 0:
+		if !s.requireModule(w, moduleMusic) {
+			return
+		}
+		a, err := s.MusicRepo.GetAlbum(target.albumID)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "That album isn't in your library.")
+			return
+		}
+		if err == nil {
+			artist, err = s.MusicRepo.GetArtist(a.ArtistID)
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		album = a
+	case target.bookID > 0:
+		module := moduleEbooks
+		if target.bookFormat == books.Audiobook {
+			module = moduleAudiobooks
+		}
+		if !s.requireModule(w, module) {
+			return
+		}
+		b, err := s.BookRepo.Get(target.bookID)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "That book isn't in your library.")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !b.Wants(target.bookFormat) {
+			writeError(w, http.StatusConflict, "This book isn't kept in that format. Turn that format on for the book first.")
+			return
+		}
+		book = b
+	case target.movieID > 0:
 		if !s.requireModule(w, moduleMovies) {
 			return
 		}
@@ -396,7 +447,7 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		movie = m
-	} else {
+	default:
 		if !s.requireModule(w, moduleTV) {
 			return
 		}
@@ -432,14 +483,23 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var queueID int64
-	if target.movieID > 0 {
+	switch {
+	case target.albumID > 0:
+		queueID, err = s.grabAlbum(artist, album, src.title, src.ref, src.size, src.protocol, grabPicked, userOrigin(r, origin.Manual))
+	case target.bookID > 0:
+		queueID, err = s.grabBook(book, target.bookFormat, src.title, src.ref, src.size, src.protocol, queue.PriorityManual, userOrigin(r, origin.Manual))
+	case target.movieID > 0:
 		queueID, err = s.grabRelease(movie, src.title, src.ref, src.size, src.protocol)
-	} else {
+	default:
 		queueID, err = s.grabTVRelease(series, target.season, target.episode, src.title, src.ref, src.size, src.protocol)
 	}
 	if err != nil {
 		s.removeUpload(src.ref)
-		writeGrabError(w, err, http.StatusInternalServerError)
+		failed := http.StatusInternalServerError
+		if target.bookID > 0 {
+			failed = http.StatusConflict // a book's grab only fails because a download is already there
+		}
+		writeGrabError(w, err, failed)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, manualDownloadResponse{
@@ -458,9 +518,25 @@ func parseManualTarget(r *http.Request) (manualTarget, string) {
 	}
 	movieID, hasMovie := num("movieId")
 	seriesID, hasSeries := num("seriesId")
+	albumID, hasAlbum := num("albumId")
+	bookID, hasBook := num("bookId")
+	chosen := 0
+	for _, has := range []bool{hasMovie, hasSeries, hasAlbum, hasBook} {
+		if has {
+			chosen++
+		}
+	}
 	switch {
-	case hasMovie && hasSeries:
-		return manualTarget{}, "Choose a movie or a show, not both."
+	case chosen > 1:
+		return manualTarget{}, "Choose one title for this download, not both."
+	case hasAlbum && albumID > 0:
+		return manualTarget{albumID: int64(albumID)}, ""
+	case hasBook && bookID > 0:
+		f := books.Format(strings.TrimSpace(r.FormValue("format")))
+		if !f.Valid() {
+			return manualTarget{}, `Choose the format: "ebook" or "audiobook".`
+		}
+		return manualTarget{bookID: int64(bookID), bookFormat: f}, ""
 	case hasMovie && movieID > 0:
 		return manualTarget{movieID: int64(movieID)}, ""
 	case hasSeries && seriesID > 0:
@@ -474,7 +550,7 @@ func parseManualTarget(r *http.Request) (manualTarget, string) {
 		}
 		return manualTarget{seriesID: int64(seriesID), season: season, episode: episode}, ""
 	}
-	return manualTarget{}, "Choose the movie, or the show with its season and episode, this download is for."
+	return manualTarget{}, "Choose the movie, show, album or book this download is for."
 }
 
 // tvTargetMismatch says so when the release name names another season or

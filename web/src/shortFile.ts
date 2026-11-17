@@ -6,13 +6,16 @@ import { plural, t } from './i18n.ts'
 // length it read out of each file; this only words what it says and works out
 // what the "Delete incomplete files and search again" action reaches.
 
-// The chip on a movie or episode page: "Only 1 min long".
+// The chip on a movie or episode page: "Only 1 min long", or "Not a video
+// (RAR archive)" for a release that was never unpacked.
 export function shortFileText(note: ShortFileNote): string {
+  if (note.archive) return t('Not a video ({kind} archive)', { kind: note.archive.toUpperCase() })
   return t('Only {n} min long', { n: note.minutes })
 }
 
 // What the chip's hover text says.
 export function shortFileTip(note: ShortFileNote): string {
+  if (note.archive) return t('This file is a {kind} archive that was never unpacked, saved under a video name. No player can open it.', { kind: note.archive.toUpperCase() })
   if (note.expected) return t('This file is {n} min long, but it should be about {expected} min. It may be a fake or a cut-off download.', { n: note.minutes, expected: note.expected })
   return t('This file is much shorter than a real episode or movie. It may be a fake or a cut-off download.')
 }

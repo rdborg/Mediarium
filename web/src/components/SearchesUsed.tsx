@@ -52,7 +52,7 @@ export default function SearchesUsed({ searched, filtered, className }: { search
           <ul>
             {filtered.map((f) => (
               <li key={f.reason}>
-                {reasonText(f.reason)}: {f.count}
+                {reasonText(f.reason).replace(/[.\u3002]$/, '')}: {f.count}
               </li>
             ))}
           </ul>

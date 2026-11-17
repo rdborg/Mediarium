@@ -14,6 +14,7 @@ import (
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/indexers"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/quality"
@@ -429,13 +430,13 @@ func (s *Server) regrab(item queue.Item) (int64, error) {
 		if err != nil {
 			return 0, fmt.Errorf("That album isn't in your library any more.")
 		}
-		return s.grabAlbum(artist, album, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked)
+		return s.grabAlbum(artist, album, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, grabPicked, item.Origin)
 	case item.BookID > 0:
 		book, err := s.BookRepo.Get(item.BookID)
 		if err != nil {
 			return 0, fmt.Errorf("That book isn't in your library any more.")
 		}
-		return s.grabBook(book, books.Format(item.BookFormat), item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, queue.PriorityManual)
+		return s.grabBook(book, books.Format(item.BookFormat), item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, queue.PriorityManual, item.Origin)
 	}
 	return 0, fmt.Errorf("This download isn't linked to a movie, show, album or book.")
 }
@@ -509,12 +510,12 @@ func (s *Server) blocklistQueueItem(item queue.Item, itemOnly bool) error {
 	}
 	if err := s.Blocklist.Add(blocklist.Entry{
 		ReleaseTitle: item.ReleaseTitle, Protocol: string(item.Protocol), Reason: reason, MovieID: item.MovieID, SeriesID: item.SeriesID,
-		AlbumID: item.AlbumID, BookID: item.BookID, ItemOnly: itemOnly,
+		AlbumID: item.AlbumID, BookID: item.BookID, ItemOnly: itemOnly, ReleaseID: s.itemReleaseID(item),
 	}); err != nil {
 		return err
 	}
 	_ = s.QueueRepo.LogItemEvent(queue.ItemEvent{MovieID: item.MovieID, SeriesID: item.SeriesID, AlbumID: item.AlbumID,
-		Kind: "blocklisted", Level: queue.LevelWarn, Message: "Blocklisted \"" + item.ReleaseTitle + "\": by you" + onlyForThisTitle(itemOnly)})
+		Kind: "blocklisted", Level: queue.LevelWarn, Message: blocklistedByYou(item.ReleaseTitle, itemOnly)})
 	s.dropBlocklistedItem(item)
 	switch {
 	case item.MovieID > 0:
@@ -524,7 +525,7 @@ func (s *Server) blocklistQueueItem(item queue.Item, itemOnly bool) error {
 	case item.AlbumID > 0:
 		s.background(func() { s.retryAlbum(item.AlbumID) })
 	case item.BookID > 0:
-		s.background(func() { s.searchBook(item.BookID, books.Format(item.BookFormat), true) })
+		s.background(func() { s.searchBook(item.BookID, books.Format(item.BookFormat), true, origin.Origin{}) })
 	}
 	return nil
 }
@@ -535,7 +536,7 @@ func (s *Server) blocklistQueueItem(item queue.Item, itemOnly bool) error {
 // often blocklisted by itself first), or else the failure on its row.
 func (s *Server) personBlocklistReason(item queue.Item) (string, error) {
 	const byYou = "Blocklisted by you"
-	why, listed, err := s.Blocklist.Reason(item.ReleaseTitle)
+	why, listed, err := s.Blocklist.ReasonOfAny(item.ReleaseTitle, s.itemReleaseIDs(item))
 	if err != nil {
 		return "", err
 	}

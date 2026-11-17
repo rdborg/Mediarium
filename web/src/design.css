@@ -3419,8 +3419,10 @@ img[data-broken] { visibility: hidden; }
 .sidebar .sn-collapse-inner { min-height: 0; overflow: hidden; }
 .sidebar .sn-collapse:not(.open) .sn-collapse-inner { visibility: hidden; transition: visibility 0s linear 0.24s; }
 .sidebar .sn-collapse .subnav { animation: none; }
-.sidebar a .nav-here { margin-left: auto; min-width: 0; max-width: 46%; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; font-weight: 500; color: var(--text-dim); }
+.sidebar a .nav-here { margin-left: auto; min-width: 0; max-width: 40%; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; font-weight: 500; color: var(--text-dim); }
 .sidebar a .nav-here + .nav-chev { margin-left: 0; }
+/* The group's own name stays whole; the page named next to it is what gets shortened. */
+.sidebar a:has(.nav-here) .nav-label { flex: none; }
 .sidebar a[aria-expanded] .nav-chev { transition: transform 0.24s var(--ease); }
 @media (prefers-reduced-motion: reduce) {
   .sidebar .sn-collapse, .sidebar .sn-collapse:not(.open) .sn-collapse-inner, .sidebar a[aria-expanded] .nav-chev { transition: none; }

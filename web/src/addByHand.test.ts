@@ -1,7 +1,7 @@
 // Run with: npm test (uses node's built-in test runner, no extra packages).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkByHand, type ByHandForm } from './addByHand.ts'
+import { checkByHand, coverUpload, type ByHandForm } from './addByHand.ts'
 
 const now = new Date('2026-11-15T12:00:00Z')
 const book: ByHandForm = { kind: 'book', title: 'Home Brew', by: 'A. Writer', year: '', externalId: '', ebook: true, audiobook: false }
@@ -33,4 +33,15 @@ test('an own ID has no odd characters', () => {
 test('a book needs at least one format', () => {
   assert.notEqual(checkByHand({ ...book, ebook: false, audiobook: false }, now), '')
   assert.equal(checkByHand({ ...book, ebook: false, audiobook: true }, now), '')
+})
+
+test('the cover is only sent when one was picked and the person may change covers', () => {
+  const cases: [ByHandForm['kind'], boolean, boolean, ReturnType<typeof coverUpload>][] = [
+    ['book', true, true, 'book'],
+    ['music', true, true, 'album'],
+    ['book', false, true, null],
+    ['music', true, false, null],
+    ['book', true, false, null],
+  ]
+  for (const [kind, picked, canManage, want] of cases) assert.equal(coverUpload(kind, picked, canManage), want, `${kind} picked=${picked} manage=${canManage}`)
 })

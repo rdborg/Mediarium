@@ -46,7 +46,8 @@ func TestStreamingServicesAreComplete(t *testing.T) {
 }
 
 // Hiding goes to TMDB as a watch region and a list of providers to leave out,
-// on a browse, and on every list, where trending and popular become a browse.
+// on a browse and on the upcoming list, which is a browse already. Trending and
+// popular are read as they are (hidelist_test.go).
 func TestHidingReachesTMDB(t *testing.T) {
 	var last url.Values
 	var lastPath string
@@ -73,10 +74,6 @@ func TestHidingReachesTMDB(t *testing.T) {
 		}, "/discover/tv", map[string]string{"watch_region": "US", "without_watch_providers": "15"}},
 		{"browse with nothing to hide", func() error { _, err := c.DiscoverMovies(ctx, metadata.DiscoverQuery{}); return err },
 			"/discover/movie", map[string]string{"watch_region": "", "without_watch_providers": ""}},
-		{"popular movies become a browse", func() error { _, err := c.MovieListHiding(ctx, metadata.ListPopular, 2, hide); return err },
-			"/discover/movie", map[string]string{"without_watch_providers": "8|1796|337", "sort_by": "popularity.desc", "page": "2"}},
-		{"trending shows become a browse", func() error { _, err := c.TVListHiding(ctx, metadata.ListTrending, 1, hide); return err },
-			"/discover/tv", map[string]string{"without_watch_providers": "8|1796|337", "sort_by": "popularity.desc"}},
 		{"upcoming movies keep their date", func() error { _, err := c.MovieListHiding(ctx, metadata.ListUpcoming, 1, hide); return err },
 			"/discover/movie", map[string]string{"without_watch_providers": "8|1796|337", "primary_release_date.gte": "*"}},
 		{"popular with nothing to hide is TMDB's own list", func() error { _, err := c.TVListHiding(ctx, metadata.ListPopular, 1, metadata.Hiding{}); return err },

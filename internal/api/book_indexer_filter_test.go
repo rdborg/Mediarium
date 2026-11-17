@@ -240,3 +240,30 @@ func TestBookReleasesSecondPassSkipsSitesThatFailed(t *testing.T) {
 		t.Errorf("unanswered: %+v", got.Unanswered)
 	}
 }
+
+// The "Searches used" part of a book search says how many releases were left
+// out for being another book or only the other format.
+func TestBookReleasesSayWhatWasLeftOut(t *testing.T) {
+	client, bookURL, _, add := newBookForSearch(t, false)
+	add("right", "Books/EBook", newFakeBookSite(t, "J.R.R. Tolkien - The Hobbit (1937) [EPUB]", 0))
+	add("other-book", "Books/EBook", newFakeBookSite(t, "Some Writer - A Different Story (2001) [EPUB]", 0))
+	add("audio", "Books/EBook", newFakeBookSite(t, "J.R.R. Tolkien - The Hobbit (1937) [M4B]", 0))
+	got := getJSON[struct {
+		Results  []map[string]any `json:"results"`
+		Ignored  int              `json:"ignored"`
+		Filtered []struct {
+			Reason string `json:"reason"`
+			Count  int    `json:"count"`
+		} `json:"filtered"`
+	}](t, client, bookURL+"/releases?format=ebook&detail=1")
+	if len(got.Results) != 1 {
+		t.Fatalf("results: %v", got.Results)
+	}
+	counts := map[string]int{}
+	for _, f := range got.Filtered {
+		counts[f.Reason] = f.Count
+	}
+	if got.Ignored != 1 || counts["not this title"] != 1 || counts["Only in the other format (an audiobook for an ebook, or the other way round)."] != 1 {
+		t.Fatalf("ignored %d, filtered %+v", got.Ignored, got.Filtered)
+	}
+}

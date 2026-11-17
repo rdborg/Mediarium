@@ -118,3 +118,49 @@ func TestDownloadOriginIsForAdministrators(t *testing.T) {
 		}
 	}
 }
+
+// How a title came in (the list's name, the person) is shown to
+// administrators only, in the lists and on the title's own page.
+func TestTitleOriginIsForAdministrators(t *testing.T) {
+	server, base, admin, member, _ := familyServer(t)
+	trending := origin.Origin{Kind: origin.List, Name: "Trending"}
+	m, err := server.MovieRepo.Add(library.Movie{TMDBID: 603, Title: "The Matrix", Origin: trending})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sr, err := server.MovieRepo.AddSeries(library.Series{TMDBID: 1399, Title: "Fixture Show", Origin: trending}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	urls := []string{
+		base + "/api/movies",
+		fmt.Sprintf("%s/api/movies/%d", base, m.ID),
+		base + "/api/series",
+		fmt.Sprintf("%s/api/series/%d", base, sr.ID),
+	}
+	originsAt := func(c *http.Client, url string) []any {
+		t.Helper()
+		if url == base+"/api/movies" || url == base+"/api/series" {
+			var out []any
+			for _, x := range getJSON[[]map[string]any](t, c, url) {
+				out = append(out, x["origin"])
+			}
+			return out
+		}
+		return []any{getJSON[map[string]any](t, c, url)["origin"]}
+	}
+	for _, url := range urls {
+		t.Run(url[len(base):], func(t *testing.T) {
+			for _, o := range originsAt(admin, url) {
+				if v, _ := o.(map[string]any); v == nil || v["name"] != "Trending" {
+					t.Fatalf("an administrator sees the list: %v", o)
+				}
+			}
+			for _, o := range originsAt(member, url) {
+				if o != nil {
+					t.Fatalf("a member must not see how a title came in: %v", o)
+				}
+			}
+		})
+	}
+}

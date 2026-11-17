@@ -24,6 +24,7 @@ export function originText(o?: Origin | null): string {
     case 'auto':
       if (name === 'rss') return t('Added by Mediarium via the RSS check')
       if (name === 'announce') return t('Added by Mediarium via an IRC announce channel')
+      if (name === 'follow') return t('Added by Mediarium via a followed artist, author or series')
       return t('Added by Mediarium via automated search')
     case 'list':
       return name ? t('Added by Mediarium via list {name}', { name }) : t('Added by Mediarium via an import list')
@@ -37,4 +38,12 @@ export function originText(o?: Origin | null): string {
       return user ? t("Added by Mediarium from {user}'s Plex watchlist", { user }) : t('Added by Mediarium from a Plex watchlist')
   }
   return ''
+}
+
+// albumOriginText is the line for an album on its artist's page: only when it
+// came in another way than the artist did (added later by someone, found by
+// following the artist), since most albums simply came with their artist.
+export function albumOriginText(album?: Origin | null, artist?: Origin | null): string {
+  const text = originText(album)
+  return text && text !== originText(artist) ? text : ''
 }

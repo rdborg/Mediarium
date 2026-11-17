@@ -16,7 +16,7 @@ It is off until you switch it on, and it adds nothing to install: it is part of 
 
 ## Switch it on
 
-1. Open **Settings > Connections > Other apps**.
+1. Open **Settings > Media servers and apps > Other apps**.
 2. Under **Let AI assistants connect (MCP)** switch it on. The address appears with a copy button.
 3. Make an API key for the assistant: press **Make a key for other apps** on the same page, or use **Accounts > API keys**. For a key that may only ask questions, tick **Read-only** when you make it.
 
@@ -85,7 +85,7 @@ What happens: the program asks the MCP address, is told where the sign-in is, op
 
 Tokens last an hour and renew themselves quietly for 90 days of use. They belong to the administrator who approved. They stop working when that person is made a member, switched off, removed, or changes their password, and when you disconnect the app.
 
-You see and end all of this on **Settings > Connections > Other apps**, under **Connected apps**: the program's name, the account, what it may do, when it connected and when it was last used, with a **Revoke** button.
+You see and end all of this on **Settings > Media servers and apps > Other apps**, under **Connected apps**: the program's name, the account, what it may do, when it connected and when it was last used, with a **Revoke** button.
 
 ### Home Assistant
 
@@ -100,7 +100,7 @@ Home Assistant's *Model Context Protocol* integration only speaks the sign-in. T
 
 **With application credentials** (when Home Assistant asks for a client ID and a client secret first):
 
-1. In Mediarium open **Settings > Connections > Other apps**, then **Register a client for apps that ask for a client ID and secret**.
+1. In Mediarium open **Settings > Media servers and apps > Other apps**, then **Register a client for apps that ask for a client ID and secret**.
 2. Enter the name `Home Assistant` and the redirect address `https://my.home-assistant.io/redirect/oauth`. If you use Home Assistant without My Home Assistant, use the redirect address your version shows (it ends in `/auth/external/callback`; plain `http` is fine for this one because you entered it yourself). Press the button and copy the client ID and the secret. The secret is shown once.
 3. In Home Assistant open **Settings > Devices & services**, the three dots at the top right, **Application credentials**, **Add application credentials**. Pick **Model Context Protocol** and paste the ID and the secret.
 4. Add the **Model Context Protocol** integration with the Mediarium address and approve in the browser as above.
@@ -157,7 +157,7 @@ Each of these needs `confirm: true`. Called without it, the tool changes nothing
 
 ### Let an assistant start downloads
 
-Picking one specific release and downloading it is a separate permission, and it is **off** until you switch it on. On **Settings > Connections > Other apps**, under **Let AI assistants connect (MCP)**, switch on **Let assistants pick releases and start downloads**. Like the main MCP switch it can only be turned on from the web page while you are signed in, never with an API key. With it off, the two tools below don't even show up in the assistant's list, and calling them anyway is refused.
+Picking one specific release and downloading it is a separate permission, and it is **off** until you switch it on. On **Settings > Media servers and apps > Other apps**, under **Let AI assistants connect (MCP)**, switch on **Let assistants pick releases and start downloads**. Like the main MCP switch it can only be turned on from the web page while you are signed in, never with an API key. With it off, the two tools below don't even show up in the assistant's list, and calling them anyway is refused.
 
 | Tool | What it does |
 |---|---|

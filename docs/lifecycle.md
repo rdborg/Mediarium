@@ -1,12 +1,12 @@
 # Library lifecycle
 
-Library lifecycle takes care of what nobody watches any more, without surprises. It is **off** until an administrator switches it on under **Settings > Media types** (the setup wizard and the What's new window offer it too). While it is off nothing runs and every `/api/lifecycle` answer is empty.
+Library lifecycle takes care of what nobody watches any more, without surprises. It is **off** until an administrator switches it on under **Settings > Basics > Media types** (the setup wizard and the What's new window offer it too). While it is off nothing runs and every `/api/lifecycle` answer is empty.
 
 It uses the same three rules as the [cleanup rules](./media-servers.md#cleanup-rules) and the same watch data, so **What's been watched** has to be on and every media server has to have answered in the last two days. Switching a rule on switches reading what's been watched on for you. While Library lifecycle is on it replaces the daily cleanup: the cleanup rules keep their settings but stop running by themselves.
 
 ## How it works
 
-1. **Set the rules.** The card under the module cards on Settings > Media types has the three rules (movies watched a while ago, movies nobody watched, episodes watched a while ago), **Days on the shelf first** (14 at first, 1 to 365) and **Always keep titles tagged**.
+1. **Set the rules.** The card under the module cards on Settings > Basics > Media types has the three rules (movies watched a while ago, movies nobody watched, episodes watched a while ago), **Days on the shelf first** (14 at first, 1 to 365) and **Always keep titles tagged**.
 2. **Dry run.** The **Dry run** button saves the rules and lists the titles they would put on the shelf. Nothing is changed and nothing is removed.
 3. **Act for real.** The switch can only be turned on after a dry run with the rules as they are now. Change a rule and it asks for a new dry run. It asks again before it switches on. While it is on, the rules are locked.
 4. **The Leaving soon shelf.** Titles that match a rule are put on the shelf (the first ones right away, then once a day) with the days they have left. The shelf is on **Home**, for every signed-in account, and each title has a **Keep** button.

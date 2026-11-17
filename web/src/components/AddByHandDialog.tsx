@@ -1,13 +1,15 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../api'
+import { api, can } from '../api'
+import { useAuth } from '../AuthContext'
+import { addStart } from '../addDefaults'
 import Icon from './Icon'
 import { useToast } from './Toast'
 import { useFocusTrap } from '../useFocusTrap'
 import { useModules } from '../ModulesContext'
 import { t } from '../i18n'
-import { checkByHand, type ByHandKind } from '../addByHand'
+import { checkByHand, coverUpload, type ByHandKind } from '../addByHand'
 
 // Add a book, an audiobook or an album by hand, for when the databases don't
 // have it or keep finding the wrong one. It is searched for, downloaded and
@@ -16,10 +18,14 @@ export default function AddByHandDialog({ initialKind, initialTitle, onClose }: 
   const toast = useToast()
   const navigate = useNavigate()
   const { on } = useModules()
+  // Giving a cover needs the right to change covers; without it the picker is not shown.
+  const mayCover = can(useAuth().user, 'manage')
   const box = useRef<HTMLDivElement>(null)
   useFocusTrap(box)
-  const booksOn = on('ebooks') || on('audiobooks')
-  const musicOn = on('music')
+  const me = useAuth().user
+  // Only the kinds this account may add are offered.
+  const booksOn = (on('ebooks') || on('audiobooks')) && can(me, 'books')
+  const musicOn = on('music') && can(me, 'music')
   const [kind, setKind] = useState<ByHandKind>(initialKind === 'music' && !musicOn ? 'book' : initialKind === 'book' && !booksOn ? 'music' : initialKind)
   const [title, setTitle] = useState(initialTitle ?? '')
   const [by, setBy] = useState('') // the author of a book, the artist of an album
@@ -31,8 +37,19 @@ export default function AddByHandDialog({ initialKind, initialTitle, onClose }: 
   const [audiobook, setAudiobook] = useState(!on('ebooks') && on('audiobooks'))
   const [cover, setCover] = useState<File | null>(null)
   const [searchNow, setSearchNow] = useState(true)
+  const searchEdited = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  // Start from "When you add a title" in Settings, unless the box was already changed.
+  useEffect(() => {
+    api
+      .listProfiles()
+      .then((r) => {
+        if (!searchEdited.current) setSearchNow(addStart(r).searchNow)
+      })
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
@@ -52,14 +69,14 @@ export default function AddByHandDialog({ initialKind, initialTitle, onClose }: 
     try {
       if (kind === 'book') {
         const b = await api.addBookByHand({ title: title.trim(), author: by.trim(), year: y || undefined, description: description.trim() || undefined, externalId: externalId.trim() || undefined, ebook, audiobook, searchNow })
-        if (cover) await api.uploadBookCover(b.id, cover, cover.name).catch(() => toast.error(t('The book was added, but its cover could not be saved. You can add it from the book page.')))
+        if (cover && coverUpload(kind, true, mayCover)) await api.uploadBookCover(b.id, cover, cover.name).catch(() => toast.error(t('The book was added, but its cover could not be saved. You can add it from the book page.')))
         window.dispatchEvent(new CustomEvent('mediarium:book-added', { detail: { key: b.olKey, id: b.id } }))
         toast.success(t('{title} added.', { title: b.title }))
         onClose()
         navigate(`/book/${b.id}`)
       } else {
         const r = await api.addAlbumByHand({ artist: by.trim(), album: title.trim(), year: y || undefined, type: albumType, externalId: externalId.trim() || undefined, searchNow })
-        if (cover) await api.uploadAlbumCover(r.albumId, cover, cover.name).catch(() => toast.error(t('The album was added, but its cover could not be saved.')))
+        if (cover && coverUpload(kind, true, mayCover)) await api.uploadAlbumCover(r.albumId, cover, cover.name).catch(() => toast.error(t('The album was added, but its cover could not be saved.')))
         toast.success(t('{title} added.', { title: r.album.title }))
         onClose()
         navigate(`/music/album/${r.albumId}`)
@@ -151,12 +168,14 @@ export default function AddByHandDialog({ initialKind, initialTitle, onClose }: 
             {music ? t('Your own ID (optional)') : t('ISBN or your own ID (optional)')}
             <input type="text" value={externalId} onChange={(e) => setExternalId(e.target.value)} maxLength={64} placeholder={music ? t('A catalogue number, for example') : '9781234567897'} disabled={busy} spellCheck={false} autoComplete="off" />
           </label>
-          <label>
-            {t('Cover (optional)')}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setCover(e.target.files?.[0] ?? null)} disabled={busy} />
-          </label>
+          {mayCover && (
+            <label>
+              {t('Cover (optional)')}
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setCover(e.target.files?.[0] ?? null)} disabled={busy} />
+            </label>
+          )}
           <label className="check-row">
-            <input type="checkbox" checked={searchNow} onChange={(e) => setSearchNow(e.target.checked)} disabled={busy} /> {t('Start searching for it now')}
+            <input type="checkbox" checked={searchNow} onChange={(e) => { searchEdited.current = true; setSearchNow(e.target.checked) }} disabled={busy} /> {t('Start searching for it now')}
           </label>
           {error && <p className="error-text">{error}</p>}
         </div>

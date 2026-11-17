@@ -50,10 +50,10 @@ func TestNZBLinkHold(t *testing.T) {
 	if got := dropBlocked(results, s.searchSkipKeys(), blocklist.Scope{}); len(got) != 1 || got[0].DownloadURL != other {
 		t.Fatalf("dropBlocked kept %+v", got)
 	}
-	if err := s.grabRefused(grabAutomatic, title, link, blocklist.Scope{}); !errors.Is(err, errNZBLinkHeld) || !errors.Is(err, errBlocklisted) {
+	if err := s.grabRefused(grabAutomatic, title, link, 0, blocklist.Scope{}); !errors.Is(err, errNZBLinkHeld) || !errors.Is(err, errBlocklisted) {
 		t.Fatalf("an automatic grab is refused: %v", err)
 	}
-	if err := s.grabRefused(grabPicked, title, link, blocklist.Scope{}); err != nil {
+	if err := s.grabRefused(grabPicked, title, link, 0, blocklist.Scope{}); err != nil {
 		t.Fatalf("a release a person picks is never held back: %v", err)
 	}
 

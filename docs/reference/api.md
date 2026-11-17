@@ -37,6 +37,8 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/auth/api-keys` | any account | makes a new API key and returns the key itself this one time. |
 | DELETE | `/api/auth/api-keys/{id}` | any account |  |
 | POST | `/api/auth/change-password` | any account |  |
+| GET | `/api/auth/discover-services` | any account | answers GET /api/auth/discover-services. |
+| PUT | `/api/auth/discover-services` | any account | answers PUT /api/auth/discover-services {"services": ["netflix"], "on": true}. |
 | GET | `/api/auth/ereader` | any account | GET /api/auth/ereader |
 | DELETE | `/api/auth/ereader/kobo` | any account | DELETE /api/auth/ereader/kobo |
 | POST | `/api/auth/ereader/kobo` | any account | POST /api/auth/ereader/kobo: makes a new Kobo address; the old one stops working and the next sync sends everything again. |
@@ -248,7 +250,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| POST | `/api/downloads/manual` | admin | adds an NZB, a torrent or a magnet link to the download line for a chosen movie or episode. |
+| POST | `/api/downloads/manual` | admin | adds an NZB, a torrent or a magnet link to the download line for a chosen movie, episode, album or book. |
 | GET | `/api/downloads/status` | admin | summarises the two built-in downloaders for the Downloads settings page: Usenet is ready once at least one server is enabled; the torrent client is always re... |
 | GET | `/api/downloads/stream-pause` | admin | shows the switch and what the last check found. |
 | PUT | `/api/downloads/stream-pause` | admin | turns the switch on or off. |
@@ -988,4 +990,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-608 routes.
+610 routes.

@@ -187,9 +187,8 @@ type Server struct {
 	usenetSlots  slotGate           // how many built-in Usenet downloads run at once (builtin_slots.go)
 	torrentSlots slotGate           // the same for built-in torrents
 
-	grabHints sync.Map       // who is behind the searches running for a title (see hintGrabs)
-	grabMu    sync.Mutex     // makes "is this already being downloaded?" and "queue it" one step (see grab_claim.go)
-	bg        sync.WaitGroup // download pipelines and automatic retries still running (see grab_claim.go)
+	grabMu sync.Mutex     // makes "is this already being downloaded?" and "queue it" one step (see grab_claim.go)
+	bg     sync.WaitGroup // download pipelines and automatic retries still running (see grab_claim.go)
 
 	unpacking    unpackTracker     // how far the running unpacks have come, for the Activity page (unpack_progress.go)
 	pipelines    pipelineRegistry  // running download pipelines, so removing a title can cancel its downloads
@@ -511,6 +510,8 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("GET /api/auth/me", s.handleMe)
 	member.HandleFunc("PUT /api/auth/profile", s.handleUpdateUserProfile)
 	member.HandleFunc("POST /api/auth/change-password", s.handleChangePassword)
+	member.HandleFunc("GET /api/auth/discover-services", s.handleGetDiscoverServices)
+	member.HandleFunc("PUT /api/auth/discover-services", s.handlePutDiscoverServices)
 	member.HandleFunc("GET /api/auth/sessions", s.handleListSessions)
 	member.HandleFunc("DELETE /api/auth/sessions", s.handleEndOtherSessions)
 	member.HandleFunc("GET /api/auth/api-keys", s.handleListAPIKeys)

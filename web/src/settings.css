@@ -274,3 +274,21 @@ label.field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px
 @media (prefers-reduced-motion: reduce) {
   .find-hit { animation: none; }
 }
+
+/* ---- Settings overview (what shows at /settings) ---------------------- */
+.settings-content .so-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.settings-content .so-grid > * { flex: none; }
+.settings-content .so-group > h2 { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+.settings-content .so-ico { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--sc) 18%, transparent); color: color-mix(in srgb, var(--sc) 70%, var(--text)); }
+.settings-content .so-blurb { margin: 0 0 10px; color: var(--text-dim); font-size: 0.84rem; text-wrap: balance; }
+.settings-content .so-pages { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.settings-content .so-pages a { display: grid; gap: 1px; padding: 7px 10px; border-radius: 10px; color: var(--text); text-decoration: none; min-width: 0; }
+.settings-content .so-pages a:hover, .settings-content .so-pages a:focus-visible { background: color-mix(in srgb, var(--sc) 12%, transparent); }
+.settings-content .so-name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-content .so-desc { color: var(--text-dim); font-size: 0.78rem; line-height: 1.35; text-wrap: balance; }
+.settings-content .so-hint { margin: 18px 0 0; color: var(--text-dim); font-size: 0.86rem; text-wrap: balance; }
+.settings-content .so-hint kbd { font-family: var(--font-mono); font-size: 0.78rem; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); }
+
+/* A pointer to the page that holds a related setting */
+.settings-content .settings-pointer { margin: 0 0 14px; color: var(--text-dim); font-size: 0.86rem; text-wrap: balance; }
+.settings-content .settings-pointer a { color: var(--accent); }

@@ -5,7 +5,7 @@ import { useConfirm } from './ConfirmProvider'
 import Icon from './Icon'
 import Loading from './Loading'
 import { useToast } from './Toast'
-import { locale, plural, t } from '../i18n'
+import { locale, plural, t, tx } from '../i18n'
 
 // Wanted > Long wanted (#168): the films and shows still missing long after
 // they came out, with where each came from, to tidy up a big wanted list.
@@ -86,14 +86,24 @@ export default function WantedReview() {
   }
 
   async function remove() {
-    const ok = await confirm({
+    const answer = await confirm({
       title: plural(chosen.length, 'Remove {n} title?', 'Remove {n} titles?'),
-      body: <p>{t('Mediarium stops tracking them and cancels anything still downloading for them. Files already on the disk stay where they are. You can add them back any time.')}</p>,
+      body: (
+        <>
+          <p>{t('Mediarium stops tracking them and cancels anything still downloading for them. You can add them back any time.')}</p>
+          <p>{tx('{files} unless you tick the box below.', { files: <strong>{t('Your files stay where they are')}</strong> })}</p>
+        </>
+      ),
       confirmLabel: t('Remove'),
       danger: true,
+      option: {
+        label: chosen.length === 1 ? t('Also delete its files from the disk') : t('Also delete the files of all {n} from the disk', { n: chosen.length }),
+        hint: t('This deletes their folders in your library too. It cannot be undone.'),
+        defaultChecked: false,
+      },
     })
-    if (!ok) return
-    await run(() => api.bulkRemove(titles(), false), plural(chosen.length, 'Removed {n} title.', 'Removed {n} titles.'))
+    if (!answer) return
+    await run(() => api.bulkRemove(titles(), answer.checked), plural(chosen.length, 'Removed {n} title.', 'Removed {n} titles.'))
   }
 
   const period = PERIODS.find((p) => p.days === days)?.label ?? ''

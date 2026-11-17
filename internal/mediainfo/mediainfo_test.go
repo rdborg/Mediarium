@@ -200,6 +200,43 @@ func TestOtherFilesReturnTheContainerOnly(t *testing.T) {
 	}
 }
 
+// A release that was never unpacked, saved under a video's name, is named by
+// what it really is.
+func TestArchivesUnderAVideoName(t *testing.T) {
+	pad := make([]byte, 600)
+	tests := []struct {
+		name, ext, want string
+		head            []byte
+	}{
+		{"rar5 as mkv", "mkv", "rar", []byte("Rar!\x1a\x07\x01\x00")},
+		{"rar4 as mp4", "mp4", "rar", []byte("Rar!\x1a\x07\x00")},
+		{"zip as mkv", "mkv", "zip", []byte("PK\x03\x04")},
+		{"7z as avi", "avi", "7z", []byte{'7', 'z', 0xBC, 0xAF, 0x27, 0x1C}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := read(t, append(append([]byte{}, tt.head...), pad...), tt.ext)
+			if !reflect.DeepEqual(got, Info{Container: tt.want}) {
+				t.Errorf("got %+v, want container %q", got, tt.want)
+			}
+			if !IsArchive(got.Container) {
+				t.Errorf("IsArchive(%q) = false", got.Container)
+			}
+		})
+	}
+	for _, c := range []string{"matroska", "mp4", "mkv", "avi", "ts", ""} {
+		if IsArchive(c) {
+			t.Errorf("IsArchive(%q) = true", c)
+		}
+	}
+	// "PK" alone, or "Rar" without its marker, is not enough.
+	for _, head := range [][]byte{[]byte("PKZZ"), []byte("Rar?\x1a\x07")} {
+		if got := read(t, append(append([]byte{}, head...), pad...), "mkv"); got.Container != "mkv" {
+			t.Errorf("%q read as %+v", head, got)
+		}
+	}
+}
+
 // Hostile and damaged files must end quickly, without a panic, and without
 // reading much.
 func TestHostileFiles(t *testing.T) {

@@ -15,6 +15,7 @@ import Login from './pages/Login'
 import MusicAlbumRedirect from './pages/MusicAlbumRedirect'
 import NotFound from './pages/NotFound'
 import SettingsLayout from './pages/settings/SettingsLayout'
+import SettingsOverview from './pages/settings/SettingsOverview'
 import { SETTINGS_REDIRECTS } from './settingsNav'
 
 // Mediarium Books (reader and player), an app of its own, loaded when opened.
@@ -199,7 +200,7 @@ function Gate() {
         <Route path="/help" element={<Guide />} />
         <Route path="/help/:topic" element={<Guide />} />
         <Route path="/settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="general" replace />} />
+          <Route index element={<SettingsOverview />} />
           <Route path="modules" element={<AdminOnly><ModulesSettings /></AdminOnly>} />
           <Route path="media" element={<AdminOnly><MediaSettings /></AdminOnly>} />
           <Route path="naming" element={<AdminOnly><NamingSettings /></AdminOnly>} />

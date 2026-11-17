@@ -50,3 +50,27 @@ func TestQueryPiecesAreNotSentences(t *testing.T) {
 		t.Error("a normal sentence starting with And must still count")
 	}
 }
+
+// A line of the activity feed made with feedLine is kept, whatever it ends with.
+func TestScanFindsFeedLines(t *testing.T) {
+	src := `package api
+
+func line(title string, only bool) string {
+	if only {
+		return feedLine("Blocklisted \"%s\": by you (only for this title)", title)
+	}
+	return feedLine("Blocklisted \"%s\": by you", title)
+}
+`
+	path := filepath.Join(t.TempDir(), "feed.go")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	scan(path, found)
+	for _, want := range []string{`Blocklisted "{0}": by you (only for this title)`, `Blocklisted "{0}": by you`} {
+		if !found[want] {
+			t.Errorf("missing %q in %v", want, found)
+		}
+	}
+}

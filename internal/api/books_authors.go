@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/books"
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // Authors: the other books by a book's author, and following an author so
@@ -144,7 +145,7 @@ func (s *Server) checkFollowedAuthors(ctx context.Context) int {
 				continue
 			}
 			b, err := s.BookRepo.Add(books.Book{OLKey: f.Key, Title: f.Title, Author: f.Author, AuthorKey: f.AuthorKey, Year: f.Year, CoverID: f.CoverID,
-				WantEbook: a.WantEbook && s.ebooksEnabled(), WantAudiobook: a.WantAudiobook && s.audiobooksEnabled()})
+				WantEbook: a.WantEbook && s.ebooksEnabled(), WantAudiobook: a.WantAudiobook && s.audiobooksEnabled(), Origin: origin.Origin{Kind: origin.Auto, Name: origin.JobFollow}})
 			if errors.Is(err, books.ErrExists) || (err == nil && !b.WantEbook && !b.WantAudiobook) {
 				continue
 			}
@@ -158,7 +159,7 @@ func (s *Server) checkFollowedAuthors(ctx context.Context) int {
 			for _, bf := range []books.Format{books.Ebook, books.Audiobook} {
 				if b.Wants(bf) {
 					bf := bf
-					s.background(func() { s.searchBook(b.ID, bf, false) })
+					s.background(func() { s.searchBook(b.ID, bf, false, origin.Origin{}) })
 				}
 			}
 		}

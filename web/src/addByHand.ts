@@ -31,3 +31,12 @@ export function checkByHand(f: ByHandForm, now = new Date()): string {
   if (f.kind === 'book' && !f.ebook && !f.audiobook) return t('Choose ebook, audiobook or both.')
   return ''
 }
+
+// coverUpload says which cover route to send the chosen picture to after the
+// entry is added, or null when there is none to send. The cover routes need the
+// "Search now and monitoring" permission, as changing any book's cover does, so
+// a person without it is not offered the picture at all (canManage false).
+export function coverUpload(kind: ByHandKind, picked: boolean, canManage: boolean): 'book' | 'album' | null {
+  if (!picked || !canManage) return null
+  return kind === 'music' ? 'album' : 'book'
+}

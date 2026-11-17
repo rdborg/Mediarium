@@ -1,12 +1,15 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/quality"
 )
 
@@ -59,16 +62,16 @@ func TestScopedBlocklistEntryOnlyAffectsItsTitle(t *testing.T) {
 	}
 
 	// The check at grab time follows the same rules.
-	if err := s.grabRefused(grabAutomatic, wrong, "http://x/1", blocklist.Scope{MovieID: one.ID}); err == nil {
+	if err := s.grabRefused(grabAutomatic, wrong, "http://x/1", 0, blocklist.Scope{MovieID: one.ID}); err == nil {
 		t.Fatal("an automatic grab of the blocked release for its own movie is refused")
 	}
-	if err := s.grabRefused(grabAutomatic, wrong, "http://x/1", blocklist.Scope{MovieID: two.ID}); err != nil {
+	if err := s.grabRefused(grabAutomatic, wrong, "http://x/1", 0, blocklist.Scope{MovieID: two.ID}); err != nil {
 		t.Fatalf("the other movie may take it: %v", err)
 	}
-	if err := s.grabRefused(grabAutomatic, dud, "http://x/2", blocklist.Scope{MovieID: two.ID}); err == nil {
+	if err := s.grabRefused(grabAutomatic, dud, "http://x/2", 0, blocklist.Scope{MovieID: two.ID}); err == nil {
 		t.Fatal("a release blocked everywhere is refused for every movie")
 	}
-	if err := s.grabRefused(grabPicked, wrong, "http://x/1", blocklist.Scope{MovieID: one.ID}); err != nil {
+	if err := s.grabRefused(grabPicked, wrong, "http://x/1", 0, blocklist.Scope{MovieID: one.ID}); err != nil {
 		t.Fatalf("a person can still pick it by hand: %v", err)
 	}
 
@@ -101,5 +104,86 @@ func TestScopedBlocklistEntryForAnAlbum(t *testing.T) {
 	}
 	if got := dropBlocked(res, blocked, blocklist.Scope{AlbumID: b}); len(got) != 1 {
 		t.Fatal("another album may still take it")
+	}
+}
+
+// An automatic grab for an album checks the blocklist when it is made, like
+// one for a movie or a show: a release blocked for that album, or everywhere,
+// is refused; another album may still take a title-only one, and a person
+// picking the release by hand is never refused.
+func TestAlbumGrabChecksTheBlocklist(t *testing.T) {
+	s := newAuditServer(t)
+	s.dispatch.Stop() // nothing is downloaded: only the check at grab time is under test
+	artist, albums, err := s.MusicRepo.AddArtist(music.Artist{MBID: "mb-1", Name: "Artist", Monitored: true}, []music.Album{
+		{MBID: "rg-1", Title: "Album", Monitored: true}, {MBID: "rg-2", Title: "Other", Monitored: true},
+	})
+	if err != nil || len(albums) != 2 {
+		t.Fatalf("add artist: %v", err)
+	}
+	const onlyHere = "Artist - Album (2010) [FLAC]"
+	const everywhere = "Artist - Album (2010) [MP3 320]"
+	if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: onlyHere, AlbumID: albums[0].ID, ItemOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: everywhere, AlbumID: albums[0].ID}); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		album   music.Album
+		release string
+		kind    grabKind
+		refused bool
+	}{
+		{"blocked for this album, automatic", albums[0], onlyHere, grabAutomatic, true},
+		{"blocked everywhere, automatic", albums[1], everywhere, grabAutomatic, true},
+		{"blocked for another album, automatic", albums[1], onlyHere, grabAutomatic, false},
+		{"blocked for this album, picked by hand", albums[0], onlyHere, grabPicked, false},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, err := s.grabAlbum(artist, tt.album, tt.release, fmt.Sprintf("http://indexer.invalid/%d", i), 1, indexers.ProtocolUsenet, tt.kind, origin.Origin{})
+			if refused := errors.Is(err, errBlocklisted); refused != tt.refused {
+				t.Fatalf("refused = %v (err %v), want %v", refused, err, tt.refused)
+			}
+			if !tt.refused {
+				if err != nil {
+					t.Fatalf("grab: %v", err)
+				}
+				// One download per album: clear it for the next case.
+				if err := s.QueueRepo.Delete(id); err != nil {
+					t.Fatal(err)
+				}
+				if err := s.MusicRepo.SetAlbumStatus(tt.album.ID, music.StatusMissing); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// A release that failed for an album is tied to that album, so it can later
+// be narrowed to "only for this title" without a 409.
+func TestAutoBlocklistedAlbumReleaseCanBeNarrowed(t *testing.T) {
+	s := newAuditServer(t)
+	_, albums, err := s.MusicRepo.AddArtist(music.Artist{MBID: "mb-2", Name: "Artist", Monitored: true}, []music.Album{
+		{MBID: "rg-3", Title: "Album", Monitored: true},
+	})
+	if err != nil || len(albums) != 1 {
+		t.Fatalf("add artist: %v", err)
+	}
+	const rel = "Artist - Album (2010) [FLAC]"
+	if !s.blocklistAlbumRelease(0, albums[0].ID, rel, indexers.ProtocolUsenet, errors.New("bad archive")) {
+		t.Fatal("not blocklisted")
+	}
+	list, err := s.Blocklist.List()
+	if err != nil || len(list) != 1 {
+		t.Fatalf("list: %+v, %v", list, err)
+	}
+	if list[0].AlbumID != albums[0].ID {
+		t.Fatalf("entry not tied to the album: %+v", list[0])
+	}
+	if err := s.Blocklist.SetScope(list[0].ID, true); err != nil {
+		t.Fatalf("narrow: %v", err)
 	}
 }

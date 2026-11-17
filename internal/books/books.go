@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // Format is one of the two ways a book can be had.
@@ -41,6 +43,11 @@ type Book struct {
 	Description string
 	AddedAt     string
 	AddedBy     int64
+	// Origin is how the book came into the library: by a person, a request, a
+	// followed author or series, a library folder scan... (only Kind and Name
+	// are kept; the person is AddedBy). The zero value is a book from before
+	// this was recorded.
+	Origin origin.Origin
 
 	// A cover a person chose (see owncover.go). Neither touches CoverID, the
 	// automatic one, so a later look-up can't undo the choice.
@@ -119,14 +126,14 @@ func NewRepo(db *sql.DB) *Repo { return &Repo{db: db} }
 
 const columns = `id, ol_key, title, author, author_key, year, cover_id, description, added_at, COALESCE(added_by, 0),
 	want_ebook, ebook_status, ebook_format, ebook_path, want_audiobook, audiobook_status, audiobook_format, audiobook_path,
-	series_name, series_position, release_date, asin, narrators, runtime_min, audio_checked_at, own_cover, picked_cover_id`
+	series_name, series_position, release_date, asin, narrators, runtime_min, audio_checked_at, own_cover, picked_cover_id, origin_kind, origin_name`
 
 func scan(sc interface{ Scan(...any) error }) (Book, error) {
 	var b Book
 	err := sc.Scan(&b.ID, &b.OLKey, &b.Title, &b.Author, &b.AuthorKey, &b.Year, &b.CoverID, &b.Description, &b.AddedAt, &b.AddedBy,
 		&b.WantEbook, &b.EbookStatus, &b.EbookFormat, &b.EbookPath, &b.WantAudiobook, &b.AudioStatus, &b.AudioFormat, &b.AudioPath,
 		&b.SeriesName, &b.SeriesPosition, &b.ReleaseDate, &b.ASIN, &b.Narrators, &b.RuntimeMin, &b.AudioCheckedAt,
-		&b.OwnCover, &b.PickedCoverID)
+		&b.OwnCover, &b.PickedCoverID, &b.Origin.Kind, &b.Origin.Name)
 	return b, err
 }
 
@@ -137,11 +144,12 @@ func (r *Repo) Add(b Book) (Book, error) {
 	if b.AddedBy > 0 {
 		nullBy = b.AddedBy
 	}
+	how := b.Origin.Clean()
 	res, err := r.db.Exec(`INSERT INTO books (ol_key, title, author, author_key, year, cover_id, description, want_ebook, want_audiobook, added_by,
-		series_name, series_position, release_date)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		series_name, series_position, release_date, origin_kind, origin_name)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		b.OLKey, b.Title, b.Author, b.AuthorKey, b.Year, b.CoverID, b.Description, b.WantEbook, b.WantAudiobook, nullBy,
-		b.SeriesName, b.SeriesPosition, b.ReleaseDate)
+		b.SeriesName, b.SeriesPosition, b.ReleaseDate, how.Kind, how.Name)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return Book{}, ErrExists

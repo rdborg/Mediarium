@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // The Lidarr part of the arr-style API (see arr.go): artists and albums,
@@ -255,14 +257,14 @@ func (s *Server) arrAddArtist(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	userID, _ := requester(r)
-	artist, albums, err := s.addArtistFromMusicBrainz(r.Context(), req.ForeignArtistID, monitor, profileID, userID)
+	artist, albums, err := s.addArtistFromMusicBrainz(r.Context(), req.ForeignArtistID, monitor, profileID, userID, origin.Origin{Kind: origin.API})
 	if err != nil {
 		writeUpstreamError(w, "add that artist", err)
 		return
 	}
 	if req.AddOptions != nil && req.AddOptions.SearchForMissingAlbums && monitor != monitorNone {
 		id := artist.ID
-		s.background(func() { s.searchArtistAlbums(id) })
+		s.background(func() { s.searchArtistAlbums(context.Background(), id) })
 	}
 	writeJSON(w, http.StatusCreated, toArrArtist(artist, len(albums), 0))
 }

@@ -97,6 +97,77 @@ func ParseRelease(title string) Release {
 	return r
 }
 
+// ParseReleaseFor is ParseRelease for a search for a known artist. A scene
+// name is cut at its first dash, which is wrong for an artist with a hyphen
+// in the name: "AC-DC Back in Black-FLAC-2005" reads as the artist "AC".
+// When the artist read that way is not the one searched for, the other places
+// the artist could end (every dash or space before the first metadata field)
+// are tried, and the first that gives the searched-for artist is used.
+func ParseReleaseFor(title, artist string) Release {
+	r := ParseRelease(title)
+	if artist == "" || SameArtist(r.Artist, artist) {
+		return r
+	}
+	for _, alt := range sceneSplits(title) {
+		if SameArtist(alt[0], artist) {
+			r.Artist, r.Album = alt[0], alt[1]
+			return r
+		}
+	}
+	return r
+}
+
+// sceneSplits lists the (artist, album) pairs a scene name could be read as:
+// the artist ends at a dash or a space before the first metadata field, and
+// the album is the rest of that field (split at a space) or the next field
+// (split at a dash). It is empty for a title that is not a scene name.
+func sceneSplits(title string) [][2]string {
+	title = strings.TrimSpace(reExt.ReplaceAllString(strings.TrimSpace(title), ""))
+	if m := reLeading.FindStringSubmatch(title); m != nil && isMeta(m[1]) {
+		title = strings.TrimSpace(title[len(m[0]):])
+	}
+	if strings.Contains(title, " - ") || !(!strings.Contains(title, " ") && strings.Count(title, "-") >= 1 || spacedScene(title)) {
+		return nil
+	}
+	var parts []string
+	for _, p := range strings.Split(title, "-") {
+		p = strings.TrimSpace(strings.NewReplacer("_", " ", ".", " ").Replace(p))
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	// The album is never the first metadata-looking field ("1989" is an
+	// album), so the head reaches at least to the second field.
+	end := len(parts)
+	for i := 2; i < len(parts); i++ {
+		if isMeta(parts[i]) || pureYear(parts[i]) != 0 {
+			end = i
+			break
+		}
+	}
+	var out [][2]string
+	add := func(artist, album string) {
+		if artist, album = cleanName(artist), cutAlbum(album); artist != "" && album != "" {
+			out = append(out, [2]string{artist, album})
+		}
+	}
+	for k := 0; k < end; k++ {
+		before := strings.Join(parts[:k], "-")
+		if before != "" {
+			before += "-"
+		}
+		for j, c := range parts[k] {
+			if c == ' ' {
+				add(before+parts[k][:j], parts[k][j+1:])
+			}
+		}
+		if k+1 < end {
+			add(before+parts[k], parts[k+1])
+		}
+	}
+	return out
+}
+
 // spacedScene reports whether a title with spaces in it is still a scene name:
 // dashes with no space beside them are the only separators between the fields
 // ("Artist-Album Name-16BIT-44-KHZ-WEB-FLAC-2024-GRP"), and at least one field

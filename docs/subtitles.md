@@ -4,7 +4,7 @@ Mediarium can save subtitles next to your movies and episodes. This page covers 
 
 ## The switch
 
-Turn subtitles on under **Settings > Info, lists and subtitles > Subtitles**, with **Subtitles for my movies and shows**. With it off, Mediarium doesn't fetch subtitles and hides the parts of the app that deal with them: the Wanted page has no Subtitles tab, and title pages have no subtitle tools. Your account, key and language choices are kept for when you turn it on again.
+Turn subtitles on under **Settings > Library and files > Subtitles**, with **Subtitles for my movies and shows**. With it off, Mediarium doesn't fetch subtitles and hides the parts of the app that deal with them: the Wanted page has no Subtitles tab, and title pages have no subtitle tools. Your account, key and language choices are kept for when you turn it on again.
 
 Subtitles that come inside a download are always imported and always listed in a title's files.
 
@@ -12,7 +12,7 @@ For scripts: the switch is the setting `subtitles.enabled` (`subtitlesEnabled` i
 
 ## Which languages
 
-**Languages to keep** under **Settings > Info, lists and subtitles > Subtitles** offers English, Spanish, French, German, Italian, Portuguese (Portugal and Brazil), Dutch, Swedish, Danish, Finnish, Norwegian, Polish, Czech, Slovak, Slovenian, Hungarian, Romanian, Bulgarian, Croatian, Serbian, Bosnian, Ukrainian, Greek, Turkish, Russian, Arabic, Hebrew, Japanese, Korean, Chinese (Simplified and Traditional), Hindi, Indonesian, Thai, Vietnamese and Catalan. They use the language codes OpenSubtitles uses (`hr`, `sr`, `bs`, `sl` and so on). OpenSubtitles has a single Serbian: its Latin and Cyrillic subtitles are both `sr`, so Mediarium keeps whichever one it is given, and reads the file in the right alphabet. Scripts can send any code made of two or three letters (`pt-BR` and `zh-CN` style regions are fine), up to 50 languages in `subtitleLanguages`.
+**Languages to keep** under **Settings > Library and files > Subtitles** offers English, Spanish, French, German, Italian, Portuguese (Portugal and Brazil), Dutch, Swedish, Danish, Finnish, Norwegian, Polish, Czech, Slovak, Slovenian, Hungarian, Romanian, Bulgarian, Croatian, Serbian, Bosnian, Ukrainian, Greek, Turkish, Russian, Arabic, Hebrew, Japanese, Korean, Chinese (Simplified and Traditional), Hindi, Indonesian, Thai, Vietnamese and Catalan. They use the language codes OpenSubtitles uses (`hr`, `sr`, `bs`, `sl` and so on). OpenSubtitles has a single Serbian: its Latin and Cyrillic subtitles are both `sr`, so Mediarium keeps whichever one it is given, and reads the file in the right alphabet. Scripts can send any code made of two or three letters (`pt-BR` and `zh-CN` style regions are fine), up to 50 languages in `subtitleLanguages`.
 
 ## Where subtitles come from
 
@@ -53,7 +53,7 @@ A subtitle comes in three kinds:
 - **SDH** (subtitles for the deaf and hard of hearing) is the dialogue plus descriptions of sounds, like "[door slams]". Some sites call it "hearing impaired".
 - **Forced** holds only the lines spoken in another language than the film's, such as a few words of a foreign tongue. Players show it even when you have subtitles off. OpenSubtitles calls it "foreign parts only".
 
-Pick what you want for each language under **Settings > Info, lists and subtitles > Subtitles**, in **Which kind of subtitle** (it lists the languages you picked above it):
+Pick what you want for each language under **Settings > Library and files > Subtitles**, in **Which kind of subtitle** (it lists the languages you picked above it):
 
 | Choice | What Mediarium looks for |
 |---|---|
@@ -86,11 +86,11 @@ Subtitle tracks inside an MKV (also WebM) or MP4 (also M4V and MOV) count as the
 - Picture-based tracks (PGS from Blu-rays, VobSub from DVDs) count as well. If your player can't show them, switch this off.
 - QuickTime "text" tracks in MOV files are left out: they're usually chapter names.
 
-Switch it off with **Count subtitles already inside the video file** under **Settings > Info, lists and subtitles > Subtitles** (stored as `subtitles.count_embedded`; `subtitleCountEmbedded` in `PUT /api/settings`). `GET /api/movies/{id}/subtitles/status` lists the languages found inside the video in `embedded`.
+Switch it off with **Count subtitles already inside the video file** under **Settings > Library and files > Subtitles** (stored as `subtitles.count_embedded`; `subtitleCountEmbedded` in `PUT /api/settings`). `GET /api/movies/{id}/subtitles/status` lists the languages found inside the video in `embedded`.
 
 ## SubDL
 
-[SubDL](https://subdl.com) is a second place to find subtitles. It's optional and needs a free API key: create an account at subdl.com, copy the key from your account panel and paste it into the **SubDL** card under **Settings > Info, lists and subtitles > Subtitles** (stored encrypted as `subtitles.subdl_api_key`; `subdlApiKey` in `PUT /api/settings`; test it with `POST /api/settings/test-service` and `{"service": "subdl"}`).
+[SubDL](https://subdl.com) is a second place to find subtitles. It's optional and needs a free API key: create an account at subdl.com, copy the key from your account panel and paste it into the **SubDL** card under **Settings > Library and files > Subtitles** (stored encrypted as `subtitles.subdl_api_key`; `subdlApiKey` in `PUT /api/settings`; test it with `POST /api/settings/test-service` and `{"service": "subdl"}`).
 
 While SubDL is switched on (it is as soon as you save a key), every search asks it along with the other sources that are on, and the best fit for your file wins, whichever site it's from. SubDL has no file hash, so "made for this exact file" only ever comes from OpenSubtitles; a SubDL subtitle can later be swapped for one of those if [upgrades](#subtitles-made-for-your-exact-file) are on. When the OpenSubtitles daily limit is used up, automatic downloads carry on with SubDL and the add-ons. A short "too many requests" from OpenSubtitles is not the daily limit: Mediarium waits the few seconds it asks for and tries again. You can also use SubDL without OpenSubtitles: switch OpenSubtitles off, or just leave it without a key.
 
@@ -108,7 +108,7 @@ A lookup that comes back with nothing usable, for any reason, is followed by the
 
 For a site Mediarium has no built-in support for, such as [subs.ro](https://subs.ro) or a Hebrew or Arabic subtitle site, you can add an **add-on**. An add-on is a small web service that follows the Stremio add-on protocol: Mediarium asks it for the subtitles of one title and it answers with links. A lot of sites have one, so a single feature covers them all.
 
-To add one, open **Settings > Info, lists and subtitles > Subtitles**, find the **Subtitle add-ons** card, paste the add-on's address and press **Add add-on**. The address ends in `/manifest.json`; an address that starts with `stremio://` works too. Mediarium reads the manifest first and only accepts add-ons that offer subtitles. **Test** on a row checks that the add-on still answers, and **Remove** takes it out. You can add up to eight.
+To add one, open **Settings > Library and files > Subtitles**, find the **Subtitle add-ons** card, paste the add-on's address and press **Add add-on**. The address ends in `/manifest.json`; an address that starts with `stremio://` works too. Mediarium reads the manifest first and only accepts add-ons that offer subtitles. **Test** on a row checks that the add-on still answers, and **Remove** takes it out. You can add up to eight.
 
 For subs.ro, create a free account on subs.ro, get your API key from subs.ro/api, install its Stremio add-on from the add-on's page with that key, and paste the address it gives you (it contains the key).
 
@@ -120,7 +120,7 @@ The address can hold your own key for the site, so the list is stored encrypted 
 
 Hebrew has two big subtitle sites, Wizdom and Ktuvit, and OpenSubtitles and SubDL don't have everything they do. Here is how to get at both.
 
-**Wizdom (built in).** [Wizdom](https://wizdom.xyz) has a public API that needs no key and no account, so Mediarium can ask it directly. It's off until you switch it on: open **Settings > Info, lists and subtitles > Subtitles**, find the **Wizdom (Hebrew)** card and turn on **Look for Hebrew subtitles on Wizdom**. **Test** checks that the site answers. You also need Hebrew among your subtitle languages.
+**Wizdom (built in).** [Wizdom](https://wizdom.xyz) has a public API that needs no key and no account, so Mediarium can ask it directly. It's off until you switch it on: open **Settings > Library and files > Subtitles**, find the **Wizdom (Hebrew)** card and turn on **Look for Hebrew subtitles on Wizdom**. **Test** checks that the site answers. You also need Hebrew among your subtitle languages.
 
 - Wizdom is only asked when the language being searched is Hebrew. For every other language it's left out.
 - It's searched together with your other sources, in automatic downloads and in the list you pick from by hand, where the result says it's from Wizdom. The title is looked up by its IMDb id (read from TMDB), then the best fit for your file is picked by release name, as with the other sources. Wizdom has no file hash, so "made for this exact file" only comes from OpenSubtitles.
@@ -132,7 +132,7 @@ Hebrew has two big subtitle sites, Wizdom and Ktuvit, and OpenSubtitles and SubD
 
 1. Open the add-on directory at [stremio-addons.net](https://stremio-addons.net) and search for "Hebrew". Community add-ons that serve Hebrew subtitles include *Hebrew Subs Multi* (it searches Wizdom, OpenSubtitles, SubDL and a few other sites, and Ktuvit as an option) and *ktuvit-stremio* (Ktuvit only). They're run by other people and come and go, so check that one is still being updated.
 2. On the add-on's page, copy its address (the install link, or the one that ends in `/manifest.json`; `stremio://` addresses work too). Some of them ask you to enter your own Ktuvit sign-in on a setup page first, and then give you an address that has it built in.
-3. In **Settings > Info, lists and subtitles > Subtitles**, paste it into the **Subtitle add-ons** card and press **Add add-on**.
+3. In **Settings > Library and files > Subtitles**, paste it into the **Subtitle add-ons** card and press **Add add-on**.
 
 Add-on subtitles are matched by IMDb id and converted from windows-1255 to UTF-8 the same way. If you use an add-on that already includes Wizdom, you can leave the **Wizdom** switch off.
 

@@ -2,6 +2,8 @@ package library
 
 import (
 	"cmp"
+	"database/sql"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -331,9 +333,12 @@ func isNumber(w string) bool {
 // ApplyEpisodeOrder carries out a plan's moves and removals in one
 // transaction: moved episodes keep their row, so their file, status and
 // monitoring come along. The episodes still have to be upserted with
-// plan.Final afterwards. Only an episode that never got anything is removed;
-// if a move finds its episode changed meanwhile, nothing is done and an
-// error comes back.
+// plan.Final afterwards. Downloads, watched state and delayed releases kept
+// under the old season and episode numbers move with them. Only an episode
+// that never got anything is removed, and those rows of a removed episode go
+// with it, so an episode moving to its number does not inherit them; if a
+// move finds its episode changed meanwhile, nothing is done and an error
+// comes back.
 func (r *Repo) ApplyEpisodeOrder(seriesID int64, plan EpisodeOrderPlan) error {
 	if !plan.Changes() {
 		return nil
@@ -344,8 +349,18 @@ func (r *Repo) ApplyEpisodeOrder(seriesID int64, plan EpisodeOrderPlan) error {
 	}
 	defer tx.Rollback()
 	for _, id := range plan.Drop {
-		if _, err := tx.Exec(`DELETE FROM episodes WHERE id = ? AND series_id = ? AND status = 'missing' AND COALESCE(file_path, '') = ''`, id, seriesID); err != nil {
+		var season, number int
+		err := tx.QueryRow(`DELETE FROM episodes WHERE id = ? AND series_id = ? AND status = 'missing' AND COALESCE(file_path, '') = '' RETURNING season, episode`, id, seriesID).Scan(&season, &number)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue // it got something meanwhile: it stays, and so do its rows
+		}
+		if err != nil {
 			return fmt.Errorf("remove episode %d: %w", id, err)
+		}
+		for _, t := range episodeKeyedTables {
+			if _, err := tx.Exec(t.drop, seriesID, season, number); err != nil {
+				return fmt.Errorf("remove %s of episode %d: %w", t.name, id, err)
+			}
 		}
 	}
 	// Out of the way first, so two episodes can swap numbers.
@@ -363,11 +378,52 @@ func (r *Repo) ApplyEpisodeOrder(seriesID int64, plan EpisodeOrderPlan) error {
 			return fmt.Errorf("renumber episode %d to %d: %w", m.ID, m.Episode, err)
 		}
 	}
+	if err := renumberKeyedRows(tx, seriesID, plan.Moves); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`UPDATE season_pack_searches SET tries = 0 WHERE series_id = ?`, seriesID); err != nil {
 		return fmt.Errorf("reset season pack searches: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit episode order: %w", err)
+	}
+	return nil
+}
+
+// episodeKeyedTables are the other tables that name an episode of a show by
+// its season and episode number rather than by the episode's row: each has
+// the UPDATE that renumbers it, with the new number, the series id, season
+// and old number as arguments, and the DELETE that removes the rows of an
+// episode that goes, with the series id, season and number. Watched state and
+// delayed releases have a unique key, so a row already sitting at the new
+// number gives way.
+var episodeKeyedTables = []struct{ name, update, drop string }{
+	{"downloads",
+		`UPDATE download_queue SET episode = ? WHERE series_id = ? AND season = ? AND episode = ?`,
+		`DELETE FROM download_queue WHERE series_id = ? AND season = ? AND episode = ?`},
+	{"watched state",
+		`UPDATE OR REPLACE watched SET episode = ? WHERE kind = 'episode' AND title_id = ? AND season = ? AND episode = ?`,
+		`DELETE FROM watched WHERE kind = 'episode' AND title_id = ? AND season = ? AND episode = ?`},
+	{"delayed releases",
+		`UPDATE OR REPLACE delayed_releases SET episode = ? WHERE kind = 'episode' AND series_id = ? AND season = ? AND episode = ?`,
+		`DELETE FROM delayed_releases WHERE kind = 'episode' AND series_id = ? AND season = ? AND episode = ?`},
+}
+
+// renumberKeyedRows moves the rows of episodeKeyedTables along with the
+// episodes, in the same two steps as the episodes themselves (out of the way
+// to a number no episode has, then to the new one) so two can swap.
+func renumberKeyedRows(tx *sql.Tx, seriesID int64, moves []EpisodeMove) error {
+	for _, t := range episodeKeyedTables {
+		for _, m := range moves {
+			if _, err := tx.Exec(t.update, -m.ID, seriesID, m.Season, m.From); err != nil {
+				return fmt.Errorf("renumber %s of episode %d: %w", t.name, m.ID, err)
+			}
+		}
+		for _, m := range moves {
+			if _, err := tx.Exec(t.update, m.Episode, seriesID, m.Season, -m.ID); err != nil {
+				return fmt.Errorf("renumber %s of episode %d to %d: %w", t.name, m.ID, m.Episode, err)
+			}
+		}
 	}
 	return nil
 }

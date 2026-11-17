@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/netguard"
@@ -27,6 +28,10 @@ type Client struct {
 	// SeriesIDs gives a show's TheTVDB and IMDb ids from its TMDB id, for
 	// servers that file shows under those (Silo). Nil means unknown.
 	SeriesIDs func(tmdbID int) (tvdbID int, imdbID string)
+
+	// siloAPI remembers which API generation (1 or 2) each Silo address
+	// answered on, keyed by its base URL.
+	siloAPI sync.Map
 }
 
 // maxAnswerBytes is the most read of a media server's answer (a library

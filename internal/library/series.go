@@ -139,7 +139,7 @@ const seriesSelect = `
 	       COALESCE(s.profile_id, 0), s.source_pref, COALESCE(s.added_by, 0), s.genres, s.no_upgrade, s.details_state, s.details_note, s.series_type,
 	       COALESCE(s.copy_of, 0), s.tvdb_id, s.imdb_id, s.tmdb_status, s.root_path, s.season_pack,
 	       COALESCE((SELECT names FROM title_names WHERE kind = 'tv' AND tmdb_id = s.tmdb_id), ''),
-	       s.origin_country, s.status_checked_at, s.tvmaze_id, s.tvmaze_checked_at, s.episode_order, s.origin_kind, s.origin_name
+	       s.origin_country, s.status_checked_at, s.tvmaze_id, s.tvmaze_checked_at, s.episode_order, s.origin_kind, s.origin_name, COALESCE(s.origin_list_id, 0)
 	FROM series s`
 
 func scanSeries(scan func(dest ...any) error) (Series, error) {
@@ -149,7 +149,7 @@ func scanSeries(scan func(dest ...any) error) (Series, error) {
 		alts   string
 		origin sql.NullString
 	)
-	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote, &s.SeriesType, &s.CopyOf, &s.TVDBID, &s.IMDBID, &s.TMDBStatus, &s.RootPath, &s.SeasonPack, &alts, &origin, &s.StatusCheckedAt, &s.TVmazeID, &s.TVmazeCheckedAt, &s.EpisodeOrder, &s.Origin.Kind, &s.Origin.Name); err != nil {
+	if err := scan(&s.ID, &s.TMDBID, &s.Title, &s.Year, &s.Overview, &s.PosterPath, &s.FirstAirDate, &s.Monitored, &s.EpisodeCount, &s.DownloadedCount, &s.ProfileID, &s.SourcePref, &s.AddedBy, &genres, &s.NoUpgrade, &s.DetailsState, &s.DetailsNote, &s.SeriesType, &s.CopyOf, &s.TVDBID, &s.IMDBID, &s.TMDBStatus, &s.RootPath, &s.SeasonPack, &alts, &origin, &s.StatusCheckedAt, &s.TVmazeID, &s.TVmazeCheckedAt, &s.EpisodeOrder, &s.Origin.Kind, &s.Origin.Name, &s.Origin.ListID); err != nil {
 		return Series{}, fmt.Errorf("scan series: %w", err)
 	}
 	s.EpisodeOrder = ValidEpisodeOrder(s.EpisodeOrder)
@@ -174,8 +174,8 @@ func (r *Repo) AddSeries(s Series, episodes []Episode) (Series, error) {
 		return Series{}, err
 	}
 	res, err := tx.Exec(
-		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres, no_upgrade, series_type, root_path, origin_kind, origin_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres, s.NoUpgrade, ValidSeriesType(s.SeriesType), s.RootPath, s.Origin.Clean().Kind, s.Origin.Clean().Name,
+		`INSERT INTO series (tmdb_id, title, year, overview, poster_path, first_air_date, monitored, added_by, genres, no_upgrade, series_type, root_path, origin_kind, origin_name, origin_list_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.TMDBID, s.Title, s.Year, s.Overview, s.PosterPath, s.FirstAirDate, s.Monitored, nullID(s.AddedBy), genres, s.NoUpgrade, ValidSeriesType(s.SeriesType), s.RootPath, s.Origin.Clean().Kind, s.Origin.Clean().Name, nullID(s.Origin.Clean().ListID),
 	)
 	if err != nil {
 		return Series{}, fmt.Errorf("insert series: %w", err)

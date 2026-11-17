@@ -1,6 +1,7 @@
 import Collapsible from './Collapsible'
 import Switch from './Switch'
-import { hidingSummary, SERVICES, setHideServices, toggleService, useMyServices } from '../streamingServices'
+import { hidingSummary, SERVICES } from '../streamingServices'
+import { setHideServices, toggleService, useMyServices } from '../myServices'
 import { t } from '../i18n'
 
 // Discover's "streaming services I have": pick them, then one switch leaves

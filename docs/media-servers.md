@@ -11,11 +11,11 @@ Mediarium doesn't convert video, and its only player is the simple in-browser on
 
 ## The page
 
-**Settings > Connections > Media servers** lists the servers you have added at the top, each with **Test**, **Refresh now**, **Open**, **Edit**, **Disable** and **Remove**. Below them, **Add a media server** has the ways to connect on the left (**Find my media servers**, **Plex**, **Jellyfin**, **Emby**) and the form for the one you pick on the right. On a phone the list becomes a row you slide sideways. What you type for one kind is kept while you look at the others, until you add the server.
+**Settings > Media servers and apps > Media servers** lists the servers you have added at the top, each with **Test**, **Refresh now**, **Open**, **Edit**, **Disable** and **Remove**. Below them, **Add a media server** has the ways to connect on the left (**Find my media servers**, **Plex**, **Jellyfin**, **Emby**) and the form for the one you pick on the right. On a phone the list becomes a row you slide sideways. What you type for one kind is kept while you look at the others, until you add the server.
 
 ![The Media servers page with a Plex and a Jellyfin server added and the Add a media server panel below](images/settings-media-servers.png)
 
-*Settings > Connections > Media servers: the servers you added, each with Test, Refresh now, Open, Edit, Disable and Remove, and the ways to connect another. The addresses shown are examples.*
+*Settings > Media servers and apps > Media servers: the servers you added, each with Test, Refresh now, Open, Edit, Disable and Remove, and the ways to connect another. The addresses shown are examples.*
 
 ## Find my media servers
 
@@ -76,7 +76,7 @@ Signing in again to a server that is already added (by any of these methods) upd
 
 ## Adding a server
 
-You can always add a server by hand, with its address and a token or API key. You can paste the address straight from your browser's address bar: the end that only opens the server's web app (`/web/#/home` for Jellyfin, `/web/index.html#!/home` for Emby and Plex) is dropped for you. Go to **Settings > Connections > Media servers** and pick the kind on the left of **Add a media server**. For Plex, open **Or enter the address and token by hand**; for Jellyfin or Emby, open **Or enter an API key by hand**. **Address you open in your browser** and **Folder mapping** are under **More options**.
+You can always add a server by hand, with its address and a token or API key. You can paste the address straight from your browser's address bar: the end that only opens the server's web app (`/web/#/home` for Jellyfin, `/web/index.html#!/home` for Emby and Plex) is dropped for you. Go to **Settings > Media servers and apps > Media servers** and pick the kind on the left of **Add a media server**. For Plex, open **Or enter the address and token by hand**; for Jellyfin or Emby, open **Or enter an API key by hand**. **Address you open in your browser** and **Folder mapping** are under **More options**.
 
 | Field | What to enter |
 |---|---|
@@ -123,6 +123,7 @@ Press **Test** (it lists Silo's libraries), then **Add**. What you get:
 - **New downloads show up straight away.** After each import Mediarium asks Silo to scan just the new folder. A folder outside all of Silo's libraries gets a scan of every library instead, as with Jellyfin; add a folder mapping so that doesn't happen. A book is only sent when one of Silo's libraries holds its folder.
 - **Watch in Silo** on movie and show pages. Silo files a movie under its TMDB id and a show under its TheTVDB id (or TMDB id, or IMDb id, when it has no TheTVDB one), so Mediarium looks it up by the same ids.
 - **Refresh now** scans all of Silo's libraries.
+- **Old and new Silo builds.** Current Silo builds moved their API from `/api/v1` to `/api/v2` and answer the old one with 410 Gone. Mediarium tries the new API first and falls back to the old one for older builds, and remembers which one your server answers on until Mediarium restarts. Test, the scans and **Refresh now** work on both. **Watch in Silo** still uses the old lookup (the new one needs a profile and its title ids are not documented), so on a current build the button is simply not shown until that is sorted out.
 - Tags as collections and **What's been watched** aren't available for Silo.
 
 Silo also watches its folders for changes by itself (real-time monitoring), so new files usually appear even without Mediarium telling it. Connecting it adds the links and a scan you can count on when monitoring is off or your folders are on a network share.
@@ -206,7 +207,7 @@ If your internet is slow, a download can make the picture stutter. On the media 
 
 ## NFO and artwork files
 
-Kodi, Jellyfin and Emby read small files that sit next to your videos: an **NFO file** with the title, plot, cast and the ids of the title on TMDB, IMDb and TheTVDB, and pictures for the poster and the background. Mediarium can write them. It is **off by default**, and you choose it separately for movies and for TV shows under **Settings > Library > Folders > NFO and artwork files**: one switch for the NFO files and one for the artwork, for each kind. Nothing changes for an install until you switch something on.
+Kodi, Jellyfin and Emby read small files that sit next to your videos: an **NFO file** with the title, plot, cast and the ids of the title on TMDB, IMDb and TheTVDB, and pictures for the poster and the background. Mediarium can write them. It is **off by default**, and you choose it separately for movies and for TV shows under **Settings > Library and files and files > Folders > NFO and artwork files**: one switch for the NFO files and one for the artwork, for each kind. Nothing changes for an install until you switch something on.
 
 What is written:
 
@@ -217,7 +218,7 @@ What is written:
 | A show, in its folder | `tvshow.nfo`, `poster.jpg`, `fanart.jpg`, `clearlogo.png` when there is one, and a poster for each season: `season01-poster.jpg`, `season02-poster.jpg`, and `season-specials-poster.jpg` for the specials |
 | An episode | `<video name>.nfo` next to the video. A file that holds two episodes gets one NFO with both. |
 
-The layout follows what Kodi writes itself. A movie's NFO (`<movie>`) has the title and original title, the plot and tagline, runtime, release date and year, TMDB's rating, the age rating, genres, countries, studios, directors, writers, the cast with their roles, a link to the trailer and, for a film in a collection, the collection's name. A show's NFO (`<tvshow>`) has the same kind of details with the status and networks; an episode's (`<episodedetails>`) has its title, season and episode number, air date and plot. The ids are written as `<uniqueid type="tmdb">`, `imdb` and `tvdb`, which is how Kodi, Jellyfin and Emby match the title to the right one, and also as `<tmdbid>`, `<imdbid>` and `<tvdbid>` for Jellyfin and Emby. A movie's `<id>` is its IMDb id and a show's is its TVDB id. Titles and plots come in the language chosen under Settings > Info, lists and subtitles.
+The layout follows what Kodi writes itself. A movie's NFO (`<movie>`) has the title and original title, the plot and tagline, runtime, release date and year, TMDB's rating, the age rating, genres, countries, studios, directors, writers, the cast with their roles, a link to the trailer and, for a film in a collection, the collection's name. A show's NFO (`<tvshow>`) has the same kind of details with the status and networks; an episode's (`<episodedetails>`) has its title, season and episode number, air date and plot. The ids are written as `<uniqueid type="tmdb">`, `imdb` and `tvdb`, which is how Kodi, Jellyfin and Emby match the title to the right one, and also as `<tmdbid>`, `<imdbid>` and `<tvdbid>` for Jellyfin and Emby. A movie's `<id>` is its IMDb id and a show's is its TVDB id. Titles and plots come in the language chosen under Settings > Library and files.
 
 **An existing file is never overwritten.** Mediarium looks for your own files first, whatever they are called and in whatever picture format: a `folder.jpg` or `cover.png` counts as the poster, `backdrop.jpg` or `background.jpg` as the background, `logo.png` as the logo, and an NFO named after the video or `movie.nfo` counts as the NFO. If one of them is there, nothing is written for that job. Under **If a file is already there** you can pick **Replace the ones Mediarium wrote**, which swaps only the files with the exact names above and never touches anything you named differently.
 
@@ -281,7 +282,7 @@ What is never removed: a title with a keep tag; a movie or episode downloaded ag
 
 What a removal does: the title's files are deleted, or moved to the recycle bin when it is on (Settings > System). The title stays in your library as missing and stops being looked for, so it isn't downloaded again; switch monitoring back on to get it again. Every removal is written to Activity. For an episode only its own file and the files named after it go, never the show's folder. A run removes at most 50 titles, the ones that have waited longest first. Nothing runs unless what's been watched was read from every media server in the last two days: if one of them doesn't answer, or answers with no libraries or titles at all (for example Plex started before its drive was mounted), cleanup waits, because its plays would be missing. **Remove these now** removes exactly what the preview listed; change a rule and it asks for a new preview.
 
-With **Library lifecycle** on (Settings > Media types), the same rules put titles on a Leaving soon shelf first and the daily run above stops: see [lifecycle.md](./lifecycle.md).
+With **Library lifecycle** on (Settings > Basics > Media types), the same rules put titles on a Leaving soon shelf first and the daily run above stops: see [lifecycle.md](./lifecycle.md).
 
 ## Troubleshooting
 

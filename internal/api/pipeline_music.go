@@ -16,6 +16,7 @@ import (
 	"github.com/rdborg/mediarium/internal/musicbrainz"
 	"github.com/rdborg/mediarium/internal/notify"
 	"github.com/rdborg/mediarium/internal/organizer"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/quality"
 	"github.com/rdborg/mediarium/internal/queue"
@@ -39,8 +40,12 @@ func albumLabel(artist music.Artist, album music.Album) string {
 
 // grabAlbum puts a release for an album in the download line, where it starts
 // when a place is free. One download per album: a grab by hand while another
-// runs is refused with 409, an automatic one with errAlreadyGrabbed.
-func (s *Server) grabAlbum(artist music.Artist, album music.Album, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind) (int64, error) {
+// runs is refused with 409, an automatic one with errAlreadyGrabbed. An
+// automatic grab of a release on the blocklist (everywhere, or for this album)
+// is refused with errBlocklisted, as for movies and shows: the search that
+// picked it may have started before the release was blocked. by is who asked
+// for it (see grabOrigin).
+func (s *Server) grabAlbum(artist music.Artist, album music.Album, releaseTitle, downloadURL string, sizeBytes int64, protocol indexers.Protocol, kind grabKind, by origin.Origin) (int64, error) {
 	if protocol == indexers.ProtocolTorrent && !s.torrentReleasesOn() {
 		return 0, errTorrentsDisabled
 	}
@@ -57,9 +62,9 @@ func (s *Server) grabAlbum(artist music.Artist, album music.Album, releaseTitle,
 		}
 		return 0, alreadyDownloadingError{release: running}
 	}
-	if kind.refusesDuplicates() && s.nzbLinkHeld(downloadURL, releaseTitle) {
+	if err := s.grabRefused(kind, releaseTitle, downloadURL, sizeBytes, blocklist.Scope{AlbumID: album.ID}); err != nil {
 		s.grabMu.Unlock()
-		return 0, errNZBLinkHeld
+		return 0, err
 	}
 	current, err := s.MusicRepo.GetAlbum(album.ID)
 	if err != nil {
@@ -76,6 +81,7 @@ func (s *Server) grabAlbum(artist music.Artist, album music.Album, releaseTitle,
 	}
 	queueID, err := s.QueueRepo.Enqueue(queue.Item{
 		AlbumID: album.ID, ReleaseTitle: releaseTitle, NZBURL: downloadURL, SizeBytes: sizeBytes, Protocol: queue.Protocol(protocol), Priority: kind.priority(),
+		Origin: s.grabOrigin(kind, by, ""),
 	})
 	if err != nil {
 		_ = s.MusicRepo.SetAlbumStatus(album.ID, restore)
@@ -152,7 +158,7 @@ func (s *Server) runMusicPipelineFrom(queueID, artistID, albumID int64, restore 
 		_ = s.QueueRepo.SetStatus(queueID, queue.StatusFailed, plain)
 		noteDownloadFailure(queueID, label, fmt.Sprintf("/music/artist/%d", artistID), stepErr)
 		s.doctorNoteFailure(queueID, stepErr)
-		blocklisted := isBadRelease(stepErr) && s.blocklistAlbumRelease(albumID, releaseTitle, protocol, stepErr)
+		blocklisted := isBadRelease(stepErr) && s.blocklistAlbumRelease(queueID, albumID, releaseTitle, protocol, stepErr)
 		_ = s.MusicRepo.SetAlbumStatus(albumID, restore)
 		message := fmt.Sprintf("%s: %s", label, plain)
 		_ = s.QueueRepo.LogItemEvent(queue.ItemEvent{AlbumID: albumID, Kind: "failed", Level: queue.LevelError, Message: message})
@@ -229,8 +235,8 @@ func (s *Server) runMusicPipelineFrom(queueID, artistID, albumID int64, restore 
 
 // blocklistAlbumRelease blocklists a release that failed through its own
 // fault and records it in the album's log (and the activity feed).
-func (s *Server) blocklistAlbumRelease(albumID int64, releaseTitle string, protocol indexers.Protocol, cause error) bool {
-	if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: releaseTitle, Protocol: string(protocol), Reason: cause.Error()}); err != nil {
+func (s *Server) blocklistAlbumRelease(queueID, albumID int64, releaseTitle string, protocol indexers.Protocol, cause error) bool {
+	if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: releaseTitle, Protocol: string(protocol), Reason: cause.Error(), AlbumID: albumID, ReleaseID: s.queueReleaseID(queueID)}); err != nil {
 		slog.Warn("music: blocklist release", "release", releaseTitle, "err", err)
 		return false
 	}

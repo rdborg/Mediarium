@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -84,6 +85,7 @@ type FileLength struct {
 	Path     string
 	Seconds  float64
 	Expected float64 // minutes TMDB gives, 0 when not known
+	Archive  string  // set by ArchiveFiles: the archive the "video" really is ("rar", "zip", "7z")
 }
 
 // The lengths are the "duration" column, copied from the saved details JSON when
@@ -136,4 +138,38 @@ func (r *Repo) ShortFileCandidates(maxSeconds float64) ([]FileLength, error) {
 		out = append(out, f)
 	}
 	return out, eps.Err()
+}
+
+// ArchiveFiles lists the downloaded movie and episode files whose saved details
+// say they are an archive, not a video (a release that was never unpacked):
+// the container column holds one of containers (mediainfo.ArchiveContainers).
+func (r *Repo) ArchiveFiles(containers []string) ([]FileLength, error) {
+	if len(containers) == 0 {
+		return nil, nil
+	}
+	in := strings.TrimSuffix(strings.Repeat("?,", len(containers)), ",")
+	args := make([]any, len(containers))
+	for i, c := range containers {
+		args[i] = c
+	}
+	rows, err := r.db.Query(`SELECT 0, m.id, 0, 0, m.file_path, mi.container FROM movies m JOIN media_info mi ON mi.path = m.file_path
+		WHERE m.status = 'downloaded' AND mi.failed = 0 AND mi.container IN (`+in+`)
+		UNION ALL
+		SELECT 1, e.id, e.series_id, e.season, e.file_path, mi.container FROM episodes e JOIN media_info mi ON mi.path = e.file_path
+		WHERE e.status = 'downloaded' AND mi.failed = 0 AND mi.container IN (`+in+`)`, append(args, args...)...)
+	if err != nil {
+		return nil, fmt.Errorf("archive files: %w", err)
+	}
+	defer rows.Close()
+	var out []FileLength
+	for rows.Next() {
+		var f FileLength
+		var episode int
+		if err := rows.Scan(&episode, &f.ID, &f.SeriesID, &f.Season, &f.Path, &f.Archive); err != nil {
+			return nil, fmt.Errorf("scan archive file: %w", err)
+		}
+		f.Episode = episode == 1
+		out = append(out, f)
+	}
+	return out, rows.Err()
 }

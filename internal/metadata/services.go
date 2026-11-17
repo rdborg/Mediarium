@@ -97,10 +97,6 @@ func (h Hiding) apply(v url.Values) {
 	if p == "" {
 		return
 	}
-	region := strings.ToUpper(h.Region)
-	if len(region) != 2 {
-		region = "US"
-	}
-	v.Set("watch_region", region)
+	v.Set("watch_region", h.region())
 	v.Set("without_watch_providers", p)
 }

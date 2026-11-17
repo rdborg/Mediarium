@@ -307,6 +307,7 @@ func SearchAll(ctx context.Context, instances []Instance, query string, categori
 					results[j].Protocol = ProtocolTorrent
 				}
 				results[j].Priority = inst.Priority
+				results[j].IndexerID = inst.ID
 				if results[j].Protocol == ProtocolTorrent {
 					results[j].MinSeeders = inst.MinSeeders
 					results[j].TorrentRoute = inst.TorrentRoute
@@ -384,7 +385,7 @@ func MergeResults(outcomes []Outcome) []Result {
 	// Several queries for one thing (S00E05 and the special's title, an
 	// anime's season and absolute number) often bring back the same release
 	// from the same indexer: it is listed once.
-	seen := map[[3]string]bool{}
+	seen := map[string]bool{}
 	// The same release often comes from several indexers: parse each name once.
 	parsed := map[string]*parser.Release{}
 	for _, o := range outcomes {
@@ -392,11 +393,9 @@ func MergeResults(outcomes []Outcome) []Result {
 			continue
 		}
 		for _, r := range o.Results {
-			key := [3]string{r.IndexerName, r.DownloadURL, r.Title}
-			if r.DownloadURL != "" && seen[key] {
+			if seenRelease(seen, r) {
 				continue
 			}
-			seen[key] = true
 			p := parsed[r.Title]
 			if p == nil {
 				rel := parser.Parse(r.Title)

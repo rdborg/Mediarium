@@ -25,6 +25,8 @@ import (
 type Result struct {
 	Title       string
 	IndexerName string
+	GUID        string   // the id the indexer gave the release, when it said one
+	IndexerID   int64    // the indexer's id here; set by the engine, not this client
 	Protocol    Protocol // usenet or torrent — set by the engine, not this client
 	DownloadURL string   // .nzb URL, or a magnet URI / .torrent URL for torrent results
 	InfoURL     string
@@ -152,9 +154,15 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 		maxPages = newznabMaxPagesManual // a person looking at the list wants all of it
 	}
 	var all []Result
+	// An indexer (or Prowlarr in front of it) that ignores the offset sends the
+	// first page again for every page asked, and a release posted while the
+	// pages are read moves the next page back by one: both bring a release
+	// twice. Each is kept once, and a page with nothing new ends the reading.
+	seen := map[string]bool{}
+	offset := 0 // releases the indexer sent so far, repeats included
 	for page := 0; ; page++ {
 		if page > 0 {
-			q.Set("offset", strconv.Itoa(len(all)))
+			q.Set("offset", strconv.Itoa(offset))
 		}
 		body, err := c.get(ctx, q)
 		if err != nil {
@@ -171,8 +179,10 @@ func (c *NewznabClient) Search(ctx context.Context, query string, categories []i
 			}
 			return nil, err
 		}
-		all = append(all, results...)
-		if len(results) == 0 || total <= len(all) || page+1 >= maxPages {
+		offset += len(results)
+		fresh := dedupeResults(seen, results)
+		all = append(all, fresh...)
+		if len(results) == 0 || len(fresh) == 0 || total <= len(all) || page+1 >= maxPages {
 			return all, nil
 		}
 		c.ExtraRequests++
@@ -547,6 +557,7 @@ func (item newznabItem) toResult(indexerName string) Result {
 	r := Result{
 		Title:       item.Title,
 		IndexerName: indexerName,
+		GUID:        strings.TrimSpace(item.GUID),
 		DownloadURL: strings.TrimSpace(item.Enclosure.URL),
 		InfoURL:     strings.TrimSpace(item.Comments),
 		SizeBytes:   item.Enclosure.Length,

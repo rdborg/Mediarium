@@ -63,6 +63,9 @@ type Item struct {
 	ID        int64
 	MovieID   int64 // 0 for a TV grab
 	IndexerID sql.NullInt64
+	// ReleaseGUID is the id the indexer gave the release ("" when not known). It
+	// tells two uploads of the same name and size apart on the blocklist.
+	ReleaseGUID string
 	// TV grabs: SeriesID > 0 and Season > 0; Episode == 0 means a whole
 	// season pack. Movie grabs leave all three zero.
 	SeriesID     int64
@@ -134,12 +137,18 @@ type Repo struct {
 	// indexerOf, when set, names the indexer of a release that was added
 	// without one.
 	indexerOf func(url string) (int64, bool)
+	// guidOf, when set, names the guid of a release that was added without one.
+	guidOf func(url string) string
 }
 
 // SetIndexerOf sets a function that says which indexer gave the release at a
 // URL. A release added without an indexer gets the one it names, so the
 // indexer's seeding rules and statistics can follow the download.
 func (r *Repo) SetIndexerOf(f func(url string) (int64, bool)) { r.indexerOf = f }
+
+// SetGUIDOf sets a function that says which guid the indexer gave the release
+// at a download address, so items added without one still keep it.
+func (r *Repo) SetGUIDOf(f func(url string) string) { r.guidOf = f }
 
 // SetOnEnqueue sets a function that is called after each release is added.
 func (r *Repo) SetOnEnqueue(f func(Item)) { r.onEnqueue = f }
@@ -239,16 +248,19 @@ func (r *Repo) Enqueue(item Item) (int64, error) {
 			item.IndexerID = sql.NullInt64{Int64: id, Valid: true}
 		}
 	}
+	if item.ReleaseGUID == "" && r.guidOf != nil {
+		item.ReleaseGUID = r.guidOf(item.NZBURL)
+	}
 	oc := item.Origin.Clean()
 	// The new item goes to the back of the line: one number past the highest
 	// place anyone has taken, and always above 0 (0 and below mark resumed
 	// items, see Requeue).
 	res, err := r.db.Exec(
-		`INSERT INTO download_queue (movie_id, series_id, season, episode, album_id, book_id, book_format, indexer_id, release_title, nzb_url, size_bytes, protocol, status, priority, replaces_file, replace_by_hand, origin_kind, origin_name, origin_user_id, origin_user, line_seq)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT MAX(COALESCE(MAX(line_seq), 0), 0) + 1 FROM download_queue))`,
+		`INSERT INTO download_queue (movie_id, series_id, season, episode, album_id, book_id, book_format, indexer_id, release_guid, release_title, nzb_url, size_bytes, protocol, status, priority, replaces_file, replace_by_hand, origin_kind, origin_name, origin_user_id, origin_user, origin_list_id, line_seq)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT MAX(COALESCE(MAX(line_seq), 0), 0) + 1 FROM download_queue))`,
 		nullIfZero(item.MovieID), nullIfZero(item.SeriesID), nullIfZero(int64(item.Season)), nullIfZero(int64(item.Episode)), nullIfZero(item.AlbumID), nullIfZero(item.BookID), item.BookFormat,
-		item.IndexerID, item.ReleaseTitle, storedURL, item.SizeBytes, string(item.Protocol), string(StatusQueued), int(item.Priority), item.ReplacesFile, item.ReplaceByHand,
-		oc.Kind, oc.Name, oc.UserID, oc.User,
+		item.IndexerID, item.ReleaseGUID, item.ReleaseTitle, storedURL, item.SizeBytes, string(item.Protocol), string(StatusQueued), int(item.Priority), item.ReplacesFile, item.ReplaceByHand,
+		oc.Kind, oc.Name, oc.UserID, oc.User, nullIfZero(oc.ListID),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("enqueue download: %w", err)
@@ -341,8 +353,8 @@ func (r *Repo) Get(id int64) (Item, error) {
 	var status, protocol string
 	var sourcePath, destPath sql.NullString
 	err := r.db.QueryRow(
-		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), COALESCE(book_id, 0), book_format, indexer_id, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), source_path, dest_path, interrupted, priority, line_seq, replaces_file, replace_by_hand, kept_file, kept_data, COALESCE((SELECT release_date FROM movies WHERE id = download_queue.movie_id), (SELECT air_date FROM episodes WHERE series_id = download_queue.series_id AND season = download_queue.season AND episode = download_queue.episode), ''), origin_kind, origin_name, origin_user_id, origin_user FROM download_queue WHERE id = ?`, id,
-	).Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.BookID, &it.BookFormat, &it.IndexerID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &sourcePath, &destPath, &it.Interrupted, &it.Priority, &it.LineSeq, &it.ReplacesFile, &it.ReplaceByHand, &it.KeptFile, &it.KeptData, &it.Released, &it.Origin.Kind, &it.Origin.Name, &it.Origin.UserID, &it.Origin.User)
+		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), COALESCE(book_id, 0), book_format, indexer_id, release_guid, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), source_path, dest_path, interrupted, priority, line_seq, replaces_file, replace_by_hand, kept_file, kept_data, COALESCE((SELECT release_date FROM movies WHERE id = download_queue.movie_id), (SELECT air_date FROM episodes WHERE series_id = download_queue.series_id AND season = download_queue.season AND episode = download_queue.episode), ''), origin_kind, origin_name, origin_user_id, origin_user, COALESCE(origin_list_id, 0) FROM download_queue WHERE id = ?`, id,
+	).Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.BookID, &it.BookFormat, &it.IndexerID, &it.ReleaseGUID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &sourcePath, &destPath, &it.Interrupted, &it.Priority, &it.LineSeq, &it.ReplacesFile, &it.ReplaceByHand, &it.KeptFile, &it.KeptData, &it.Released, &it.Origin.Kind, &it.Origin.Name, &it.Origin.UserID, &it.Origin.User, &it.Origin.ListID)
 	if err != nil {
 		return Item{}, fmt.Errorf("get queue item %d: %w", id, err)
 	}
@@ -480,7 +492,7 @@ func (r *Repo) ListUnfinished() ([]Item, error) {
 
 func (r *Repo) list(where string) ([]Item, error) {
 	rows, err := r.db.Query(
-		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), COALESCE(book_id, 0), book_format, indexer_id, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), dest_path, added_at, COALESCE(completed_at, ''), interrupted, priority, line_seq, replace_by_hand, kept_file, kept_data, COALESCE((SELECT release_date FROM movies WHERE id = download_queue.movie_id), (SELECT air_date FROM episodes WHERE series_id = download_queue.series_id AND season = download_queue.season AND episode = download_queue.episode), ''), origin_kind, origin_name, origin_user_id, origin_user FROM download_queue ` + where + ` ORDER BY added_at DESC, id DESC`)
+		`SELECT id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(season, 0), COALESCE(episode, 0), COALESCE(album_id, 0), COALESCE(book_id, 0), book_format, indexer_id, release_guid, release_title, nzb_url, size_bytes, protocol, status, progress_pct, COALESCE(error, ''), dest_path, added_at, COALESCE(completed_at, ''), interrupted, priority, line_seq, replace_by_hand, kept_file, kept_data, COALESCE((SELECT release_date FROM movies WHERE id = download_queue.movie_id), (SELECT air_date FROM episodes WHERE series_id = download_queue.series_id AND season = download_queue.season AND episode = download_queue.episode), ''), origin_kind, origin_name, origin_user_id, origin_user, COALESCE(origin_list_id, 0) FROM download_queue ` + where + ` ORDER BY added_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list queue: %w", err)
 	}
@@ -491,7 +503,7 @@ func (r *Repo) list(where string) ([]Item, error) {
 		var it Item
 		var status, protocol string
 		var destPath sql.NullString
-		if err := rows.Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.BookID, &it.BookFormat, &it.IndexerID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &destPath, &it.AddedAt, &it.CompletedAt, &it.Interrupted, &it.Priority, &it.LineSeq, &it.ReplaceByHand, &it.KeptFile, &it.KeptData, &it.Released, &it.Origin.Kind, &it.Origin.Name, &it.Origin.UserID, &it.Origin.User); err != nil {
+		if err := rows.Scan(&it.ID, &it.MovieID, &it.SeriesID, &it.Season, &it.Episode, &it.AlbumID, &it.BookID, &it.BookFormat, &it.IndexerID, &it.ReleaseGUID, &it.ReleaseTitle, &it.NZBURL, &it.SizeBytes, &protocol, &status, &it.ProgressPct, &it.Error, &destPath, &it.AddedAt, &it.CompletedAt, &it.Interrupted, &it.Priority, &it.LineSeq, &it.ReplaceByHand, &it.KeptFile, &it.KeptData, &it.Released, &it.Origin.Kind, &it.Origin.Name, &it.Origin.UserID, &it.Origin.User, &it.Origin.ListID); err != nil {
 			return nil, fmt.Errorf("scan queue item: %w", err)
 		}
 		it.Protocol = Protocol(protocol)

@@ -74,10 +74,11 @@ func (s *Server) blockedKeys() map[string]bool {
 // hands the title back to "missing", so no automation run can see the title
 // as wanted while the bad release is not blocklisted yet (and grab it
 // again), and then calls retryAfterBadRelease.
-func (s *Server) blocklistBadRelease(releaseTitle string, protocol indexers.Protocol, movieID, seriesID int64, cause error) bool {
+func (s *Server) blocklistBadRelease(queueID int64, releaseTitle string, protocol indexers.Protocol, movieID, seriesID int64, cause error) bool {
 	reason := blocklistReason(cause)
 	if err := s.Blocklist.Add(blocklist.Entry{
 		ReleaseTitle: releaseTitle, Protocol: string(protocol), Reason: reason, MovieID: movieID, SeriesID: seriesID,
+		ReleaseID: s.queueReleaseID(queueID),
 	}); err != nil {
 		log.Printf("api: %v", err)
 		return false
@@ -184,14 +185,20 @@ func parseBlocklistScope(scope string) (itemOnly, ok bool) {
 	return false, false
 }
 
-// onlyForThisTitle is the note added to an Activity line for a release that is
-// blocklisted for one title only.
-func onlyForThisTitle(itemOnly bool) string {
+// blocklistedByYou is the Activity line for a release a person blocklisted,
+// with a note when it is blocked for this one title only. Each wording is one
+// whole sentence so the activity feed can translate it.
+func blocklistedByYou(releaseTitle string, itemOnly bool) string {
 	if itemOnly {
-		return " (only for this title)"
+		return feedLine("Blocklisted \"%s\": by you (only for this title)", releaseTitle)
 	}
-	return ""
+	return feedLine("Blocklisted \"%s\": by you", releaseTitle)
 }
+
+// feedLine is fmt.Sprintf for a line of the activity feed that is built
+// somewhere other than the LogActivity calls: the translation list
+// (tools/msgextract) picks up its format as a sentence the screen shows.
+func feedLine(format string, args ...any) string { return fmt.Sprintf(format, args...) }
 
 // blocklistTitle names the title an entry is tied to.
 func (s *Server) blocklistTitle(e blocklist.Entry) (kind string, id int64, title string) {

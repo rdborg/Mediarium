@@ -66,7 +66,7 @@ type Movie struct {
 	AltTitles []string
 }
 
-const movieColumns = `id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref, COALESCE(added_by, 0), genres, no_upgrade, details_state, details_note, COALESCE(copy_of, 0), release_title, root_path, COALESCE((SELECT names FROM title_names WHERE kind = 'movie' AND tmdb_id = movies.tmdb_id), ''), origin_kind, origin_name`
+const movieColumns = `id, tmdb_id, title, year, overview, poster_path, status, quality, file_path, monitored, COALESCE(release_date, ''), COALESCE(profile_id, 0), source_pref, COALESCE(added_by, 0), genres, no_upgrade, details_state, details_note, COALESCE(copy_of, 0), release_title, root_path, COALESCE((SELECT names FROM title_names WHERE kind = 'movie' AND tmdb_id = movies.tmdb_id), ''), origin_kind, origin_name, COALESCE(origin_list_id, 0)`
 
 type Repo struct {
 	db *sql.DB
@@ -85,8 +85,8 @@ func (r *Repo) Add(m Movie) (Movie, error) {
 		return Movie{}, err
 	}
 	res, err := r.db.Exec(
-		`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, monitored, release_date, added_by, genres, no_upgrade, root_path, origin_kind, origin_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		m.TMDBID, m.Title, m.Year, m.Overview, m.PosterPath, string(m.Status), m.Monitored, m.ReleaseDate, nullID(m.AddedBy), genres, m.NoUpgrade, m.RootPath, m.Origin.Clean().Kind, m.Origin.Clean().Name,
+		`INSERT INTO movies (tmdb_id, title, year, overview, poster_path, status, monitored, release_date, added_by, genres, no_upgrade, root_path, origin_kind, origin_name, origin_list_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		m.TMDBID, m.Title, m.Year, m.Overview, m.PosterPath, string(m.Status), m.Monitored, m.ReleaseDate, nullID(m.AddedBy), genres, m.NoUpgrade, m.RootPath, m.Origin.Clean().Kind, m.Origin.Clean().Name, nullID(m.Origin.Clean().ListID),
 	)
 	if err != nil {
 		return Movie{}, fmt.Errorf("insert movie: %w", err)
@@ -379,7 +379,7 @@ func (r *Repo) scanRow(scanner rowScanner) (Movie, error) {
 		genres   sql.NullString
 		altNames string
 	)
-	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref, &m.AddedBy, &genres, &m.NoUpgrade, &m.DetailsState, &m.DetailsNote, &m.CopyOf, &m.ReleaseTitle, &m.RootPath, &altNames, &m.Origin.Kind, &m.Origin.Name)
+	err := scanner.Scan(&m.ID, &m.TMDBID, &m.Title, &m.Year, &m.Overview, &m.PosterPath, &status, &quality, &filePath, &m.Monitored, &m.ReleaseDate, &m.ProfileID, &m.SourcePref, &m.AddedBy, &genres, &m.NoUpgrade, &m.DetailsState, &m.DetailsNote, &m.CopyOf, &m.ReleaseTitle, &m.RootPath, &altNames, &m.Origin.Kind, &m.Origin.Name, &m.Origin.ListID)
 	if err == sql.ErrNoRows {
 		return Movie{}, err
 	}

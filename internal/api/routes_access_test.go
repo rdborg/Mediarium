@@ -25,6 +25,7 @@ var memberRoutes = []string{
 	"POST /api/auth/two-step/disable",
 	"POST /api/auth/two-step/recovery",
 	"PUT /api/auth/profile",
+	"GET /api/auth/discover-services", "PUT /api/auth/discover-services",
 	"POST /api/auth/change-password",
 	"GET /api/auth/sessions",
 	"DELETE /api/auth/sessions",

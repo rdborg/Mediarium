@@ -235,7 +235,7 @@ func (s *Server) grabMovieOpts(movie library.Movie, releaseTitle, downloadURL st
 		}
 	}
 	if kind.refusesDuplicates() {
-		if err := s.grabRefused(kind, releaseTitle, downloadURL, blocklist.Scope{MovieID: movie.ID}); err != nil {
+		if err := s.grabRefused(kind, releaseTitle, downloadURL, sizeBytes, blocklist.Scope{MovieID: movie.ID}); err != nil {
 			s.grabMu.Unlock()
 			return 0, err
 		}
@@ -255,7 +255,7 @@ func (s *Server) grabMovieOpts(movie library.Movie, releaseTitle, downloadURL st
 	}
 	queueID, err := s.QueueRepo.Enqueue(queue.Item{
 		MovieID: movie.ID, ReleaseTitle: releaseTitle, NZBURL: downloadURL, SizeBytes: sizeBytes, Protocol: queue.Protocol(protocol), Priority: kind.priority(), ReplacesFile: o.replaces, ReplaceByHand: o.byHand && kind == grabPicked,
-		Origin: s.grabOrigin(kind, o.by, false, movie.ID, ""),
+		Origin: s.grabOrigin(kind, o.by, ""),
 	})
 	if err == nil {
 		// From here the movie is taken, as an episode or an album is, even while

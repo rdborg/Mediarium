@@ -26,9 +26,18 @@ var errBlocklisted = errors.New("on the blocklist")
 // now, for the title sc it is meant for. An automation run builds its view of the blocklist when it starts; a
 // download that fails while the run is still going puts its release there
 // afterwards, and the run must not grab it again. Call with grabMu held.
-func (s *Server) releaseBlocklisted(releaseTitle string, sc blocklist.Scope) bool {
+func (s *Server) releaseBlocklisted(releaseTitle, releaseID string, sc blocklist.Scope) bool {
+	if releaseID == "" {
+		return s.releaseBlocklistedAny(releaseTitle, nil, sc)
+	}
+	return s.releaseBlocklistedAny(releaseTitle, []string{releaseID}, sc)
+}
+
+// releaseBlocklistedAny is releaseBlocklisted for an upload known by several
+// ids (see blocklist.ReleaseIDs).
+func (s *Server) releaseBlocklistedAny(releaseTitle string, releaseIDs []string, sc blocklist.Scope) bool {
 	keys, err := s.Blocklist.Keys()
-	return err == nil && blocklist.Blocked(keys, releaseTitle, sc)
+	return err == nil && blocklist.BlockedAny(keys, releaseTitle, releaseIDs, sc)
 }
 
 // errNZBLinkHeld is what a grab that is not a person's own pick is refused
@@ -39,11 +48,11 @@ var errNZBLinkHeld = fmt.Errorf("held back for a few hours because its indexer s
 // grabRefused says why a grab of this kind may not take the release now:
 // it is on the blocklist, or held back after its link sent no NZB. A release
 // a person picked is never refused here. Call with grabMu held.
-func (s *Server) grabRefused(kind grabKind, releaseTitle, downloadURL string, sc blocklist.Scope) error {
+func (s *Server) grabRefused(kind grabKind, releaseTitle, downloadURL string, sizeBytes int64, sc blocklist.Scope) error {
 	if !kind.refusesDuplicates() {
 		return nil
 	}
-	if s.releaseBlocklisted(releaseTitle, sc) {
+	if s.releaseBlocklistedAny(releaseTitle, s.downloadReleaseIDs(downloadURL, sizeBytes), sc) {
 		return errBlocklisted
 	}
 	if s.nzbLinkHeld(downloadURL, releaseTitle) {

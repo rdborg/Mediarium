@@ -21,7 +21,7 @@ func (r *Repo) SetArtistFollow(id int64, follow bool) error {
 
 // AddAlbums adds albums to an artist that already has some, skipping the
 // ones it has (same MusicBrainz id). It returns only the albums it added,
-// with ids.
+// with ids. Each album keeps the Origin it is given (zero: not recorded).
 func (r *Repo) AddAlbums(artistID int64, albums []Album) ([]Album, error) {
 	added := make([]Album, 0, len(albums))
 	for _, al := range albums {
@@ -32,9 +32,10 @@ func (r *Repo) AddAlbums(artistID int64, albums []Album) ([]Album, error) {
 		if al.Type == "" {
 			al.Type = TypeAlbum
 		}
-		res, err := r.db.Exec(`INSERT INTO albums (artist_id, mbid, release_mbid, title, type, release_date, monitored, status, quality, path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		kind, name, by := albumOrigin(al)
+		res, err := r.db.Exec(`INSERT INTO albums (artist_id, mbid, release_mbid, title, type, release_date, monitored, status, quality, path, origin_kind, origin_name, added_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (artist_id, mbid) DO NOTHING`,
-			al.ArtistID, al.MBID, al.ReleaseMBID, al.Title, al.Type, al.ReleaseDate, al.Monitored, string(al.Status), al.Quality, al.Path)
+			al.ArtistID, al.MBID, al.ReleaseMBID, al.Title, al.Type, al.ReleaseDate, al.Monitored, string(al.Status), al.Quality, al.Path, kind, name, by)
 		if err != nil {
 			return added, fmt.Errorf("add album %s: %w", al.Title, err)
 		}

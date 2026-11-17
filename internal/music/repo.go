@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // Status is where an album stands, the same lifecycle as movies and
@@ -41,6 +43,10 @@ type Artist struct {
 	ProfileID      int64 // 0 = the default profile
 	AddedAt        string
 	AddedBy        int64 // account that added it; 0 = unknown
+	// Origin is how the artist came into the library: by a person, a request, a
+	// library folder scan... (only Kind and Name are kept; the person is
+	// AddedBy). The zero value is an artist from before this was recorded.
+	Origin origin.Origin
 }
 
 // ArtistSummary is an artist with counts of its albums.
@@ -65,6 +71,11 @@ type Album struct {
 	Status      Status
 	Quality     string // a Tier once downloaded
 	Path        string // the album's folder once imported
+	// Origin is how the album came into the library: with its artist, added by
+	// a person, found by following the artist... Kind, Name and UserID (the
+	// account that added it) are kept. Zero for an album from before this was
+	// recorded; AddArtist gives the artist's origin to albums that have none.
+	Origin origin.Origin
 }
 
 // Year is the album's release year, 0 if unknown.
@@ -109,12 +120,18 @@ func nullID(id int64) any {
 	return id
 }
 
-const artistColumns = `id, mbid, name, sort_name, disambiguation, monitored, monitor_new, COALESCE(profile_id, 0), added_at, COALESCE(added_by, 0)`
+const artistColumns = `id, mbid, name, sort_name, disambiguation, monitored, monitor_new, COALESCE(profile_id, 0), added_at, COALESCE(added_by, 0), origin_kind, origin_name`
 
 func scanArtist(row interface{ Scan(...any) error }) (Artist, error) {
 	var a Artist
-	err := row.Scan(&a.ID, &a.MBID, &a.Name, &a.SortName, &a.Disambiguation, &a.Monitored, &a.MonitorNew, &a.ProfileID, &a.AddedAt, &a.AddedBy)
+	err := row.Scan(&a.ID, &a.MBID, &a.Name, &a.SortName, &a.Disambiguation, &a.Monitored, &a.MonitorNew, &a.ProfileID, &a.AddedAt, &a.AddedBy, &a.Origin.Kind, &a.Origin.Name)
 	return a, err
+}
+
+// albumOrigin is what is stored for an album: its own origin, cleaned.
+func albumOrigin(al Album) (kind, name string, by int64) {
+	o := al.Origin.Clean()
+	return o.Kind, o.Name, o.UserID
 }
 
 // AddArtist adds an artist with its albums in one step. Albums get their
@@ -133,8 +150,9 @@ func (r *Repo) AddArtist(a Artist, albums []Album) (Artist, []Album, error) {
 	if exists > 0 {
 		return Artist{}, nil, ErrArtistExists
 	}
-	res, err := tx.Exec(`INSERT INTO artists (mbid, name, sort_name, disambiguation, monitored, monitor_new, profile_id, added_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.MBID, a.Name, a.SortName, a.Disambiguation, a.Monitored, a.MonitorNew, nullID(a.ProfileID), nullID(a.AddedBy))
+	how := a.Origin.Clean()
+	res, err := tx.Exec(`INSERT INTO artists (mbid, name, sort_name, disambiguation, monitored, monitor_new, profile_id, added_by, origin_kind, origin_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.MBID, a.Name, a.SortName, a.Disambiguation, a.Monitored, a.MonitorNew, nullID(a.ProfileID), nullID(a.AddedBy), how.Kind, how.Name)
 	if err != nil {
 		return Artist{}, nil, fmt.Errorf("insert artist %s: %w", a.Name, err)
 	}
@@ -150,9 +168,14 @@ func (r *Repo) AddArtist(a Artist, albums []Album) (Artist, []Album, error) {
 		if al.Type == "" {
 			al.Type = TypeAlbum
 		}
-		res, err := tx.Exec(`INSERT INTO albums (artist_id, mbid, release_mbid, title, type, release_date, monitored, status, quality, path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		if !al.Origin.Known() {
+			// Added with the artist: it came the same way.
+			al.Origin = origin.Origin{Kind: how.Kind, Name: how.Name, UserID: a.AddedBy}
+		}
+		kind, name, by := albumOrigin(al)
+		res, err := tx.Exec(`INSERT INTO albums (artist_id, mbid, release_mbid, title, type, release_date, monitored, status, quality, path, origin_kind, origin_name, added_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (artist_id, mbid) DO NOTHING`,
-			al.ArtistID, al.MBID, al.ReleaseMBID, al.Title, al.Type, al.ReleaseDate, al.Monitored, string(al.Status), al.Quality, al.Path)
+			al.ArtistID, al.MBID, al.ReleaseMBID, al.Title, al.Type, al.ReleaseDate, al.Monitored, string(al.Status), al.Quality, al.Path, kind, name, by)
 		if err != nil {
 			return Artist{}, nil, fmt.Errorf("insert album %s: %w", al.Title, err)
 		}
@@ -198,7 +221,7 @@ func (r *Repo) GetArtistByMBID(mbid string) (Artist, bool, error) {
 
 // ListArtists lists every artist with album counts, by sort name.
 func (r *Repo) ListArtists() ([]ArtistSummary, error) {
-	rows, err := r.db.Query(`SELECT a.id, a.mbid, a.name, a.sort_name, a.disambiguation, a.monitored, a.monitor_new, COALESCE(a.profile_id, 0), a.added_at, COALESCE(a.added_by, 0),
+	rows, err := r.db.Query(`SELECT a.id, a.mbid, a.name, a.sort_name, a.disambiguation, a.monitored, a.monitor_new, COALESCE(a.profile_id, 0), a.added_at, COALESCE(a.added_by, 0), a.origin_kind, a.origin_name,
 		(SELECT COUNT(*) FROM albums WHERE artist_id = a.id),
 		(SELECT COUNT(*) FROM albums WHERE artist_id = a.id AND monitored = 1),
 		(SELECT COUNT(*) FROM albums WHERE artist_id = a.id AND status = 'downloaded')
@@ -211,7 +234,7 @@ func (r *Repo) ListArtists() ([]ArtistSummary, error) {
 	for rows.Next() {
 		var s ArtistSummary
 		a := &s.Artist
-		if err := rows.Scan(&a.ID, &a.MBID, &a.Name, &a.SortName, &a.Disambiguation, &a.Monitored, &a.MonitorNew, &a.ProfileID, &a.AddedAt, &a.AddedBy,
+		if err := rows.Scan(&a.ID, &a.MBID, &a.Name, &a.SortName, &a.Disambiguation, &a.Monitored, &a.MonitorNew, &a.ProfileID, &a.AddedAt, &a.AddedBy, &a.Origin.Kind, &a.Origin.Name,
 			&s.Albums, &s.Monitored, &s.Downloaded); err != nil {
 			return nil, fmt.Errorf("scan artist: %w", err)
 		}
@@ -252,12 +275,12 @@ func (r *Repo) DeleteArtist(id int64) error {
 	return nil
 }
 
-const albumColumns = `id, artist_id, mbid, release_mbid, title, type, release_date, monitored, status, quality, path`
+const albumColumns = `id, artist_id, mbid, release_mbid, title, type, release_date, monitored, status, quality, path, origin_kind, origin_name, added_by`
 
 func scanAlbum(row interface{ Scan(...any) error }) (Album, error) {
 	var a Album
 	var status string
-	err := row.Scan(&a.ID, &a.ArtistID, &a.MBID, &a.ReleaseMBID, &a.Title, &a.Type, &a.ReleaseDate, &a.Monitored, &status, &a.Quality, &a.Path)
+	err := row.Scan(&a.ID, &a.ArtistID, &a.MBID, &a.ReleaseMBID, &a.Title, &a.Type, &a.ReleaseDate, &a.Monitored, &status, &a.Quality, &a.Path, &a.Origin.Kind, &a.Origin.Name, &a.Origin.UserID)
 	a.Status = Status(status)
 	return a, err
 }

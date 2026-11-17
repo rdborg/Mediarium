@@ -84,8 +84,9 @@ func (s *Server) listHistory(l importList) (listHistory, error) {
 	if err := s.db.QueryRow(`SELECT COUNT(*), COALESCE(MAX(at), '') FROM import_list_log WHERE list_id = ?`, l.ID).Scan(&out.Added, &out.LastAddedAt); err != nil {
 		return out, err
 	}
-	// What the list started itself is credited to it by name.
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM download_queue WHERE origin_kind = 'list' AND origin_name = ?`, l.Name).Scan(&out.Downloads); err != nil {
+	// What the list started itself is credited to it by its id, so a new name
+	// keeps the count and two lists with the same name each keep their own.
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM download_queue WHERE origin_kind = 'list' AND origin_list_id = ?`, l.ID).Scan(&out.Downloads); err != nil {
 		return out, err
 	}
 

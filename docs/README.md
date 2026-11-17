@@ -33,7 +33,7 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 | Tell others about Mediarium, star it or send an idea (the profile menu has **Share Mediarium** with ready-made posts and pictures) | [README.md](#sharing-and-feedback) |
 | See why a title has not downloaded, read the Activity page, pause, resume or stop a download, retry without downloading again | [activity.md](./activity.md) |
 | Subtitles: the on/off switch, release subtitles, offers, daily limits, dismissing | [subtitles.md](./subtitles.md) |
-| Switch movies, TV, music, ebooks and audiobooks on or off (Settings > Media types) | [modules.md](./modules.md) |
+| Switch movies, TV, music, ebooks and audiobooks on or off (Settings > Basics > Media types) | [modules.md](./modules.md) |
 | Remove what nobody watches, with a dry run, a Leaving soon shelf and a Keep button | [lifecycle.md](./lifecycle.md) |
 | Follow YouTube channels and playlists and keep their videos or just the audio, with a yt-dlp you supply yourself (off by default, with a warning) | [archiver.md](./archiver.md) |
 | Change many movies, shows or artists at once from the Library (monitor, better versions, quality profile, download from, search now, remove) | [library.md](./library.md) |
@@ -59,21 +59,19 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 
 ## Where to find a setting
 
-Settings has one entry in the sidebar. It always lists its groups, and one group at a time shows its pages. Older addresses such as `/settings/downloads` still open, on the page that now holds that setting.
+Settings has one entry in the sidebar. It always lists its groups, in the order most people set things up, and one group at a time shows its pages. Hover a page in the sidebar to see what it is for. Opening **Settings** itself shows an overview: every group side by side, each page with a line about what is on it. If you can't find a setting, press `Ctrl+K` (or `Cmd+K` on a Mac) or use the search bar at the top and type a few words. Older addresses such as `/settings/downloads` still open, on the page that now holds that setting.
 
 | Group | Pages | What is there |
 |---|---|---|
-| General | General | The language of the app, light or dark, the time zone note, the address you open Mediarium at, updates and the legal notice. Everyone sees the first three. |
-| Media types | Media types | Switch movies, shows, music, ebooks and audiobooks on or off. |
-| Library | Folders, File names and importing, Quality, Automatic searching | Where files live; how they are named, NFO and artwork files and the script after an import; quality profiles, size limits and the audio language you want; when Mediarium searches by itself. |
-| Indexers & Search | Indexers & Search | Indexers, FlareSolverr and IRC announce. |
+| Basics | General, Media types | The language of the app, light or dark, the time zone note, the address you open Mediarium at, updates and the legal notice (everyone sees the first three); switching movies, shows, music, ebooks and audiobooks on or off. |
+| Library and files | Folders, File names and importing, Movie and show info, Import lists, Subtitles | Where files live; how they are named, NFO and artwork files and the script after an import; TMDB and the info language, trailers; lists, the Trakt key and the Simkl account; subtitles. |
+| Finding releases | Indexers & Search, Quality, Automatic searching | Indexers, FlareSolverr and IRC announce; quality profiles (including how far upgrades go), size limits and the audio language you want; when Mediarium searches by itself and what a new title starts with. |
 | Downloading | Usenet, Torrents, VPN and proxy, Download rules | Your Usenet provider; the torrent client, debrid and your own client; the VPN; where to download from, speed, hours and checks. |
-| Info, lists and subtitles | Movie and show info, Import lists, Subtitles | TMDB and the info language, trailers; lists, the Trakt key and the Simkl account; subtitles. |
-| Connections | Media servers, Notifications, Other apps | Plex, Jellyfin and Emby; messages; Overseerr and phone apps. |
-| Accounts | Your profile, Security, Linked services, All accounts, Requests and reports, Ways to sign in | Your own details, passkeys, two-step sign-in and API keys, Plex watchlist, ListenBrainz and e-reader; for administrators the accounts, requests and every way to sign in. |
+| Media servers and apps | Media servers, Notifications, Other apps, Add-ons | Plex, Jellyfin and Emby; messages; Overseerr and phone apps; links to other programs you run. |
+| People and access | Your profile, Security, Linked services, All accounts, Requests and reports, Ways to sign in | Your own details, passkeys, two-step sign-in and API keys, Plex watchlist, ListenBrainz and e-reader; for administrators the accounts, requests and every way to sign in. |
 | System | Server, Backup and restore, Statistics, Logs and errors, Move from other apps, About and credits | The server and its clean-up, backups, numbers, errors and the report for support. |
 
-The app language is only about the app itself. The audio language you want is under Settings > Library > Quality, and the subtitle languages are under Settings > Info, lists and subtitles > Subtitles.
+The app language is only about the app itself. The audio language you want is under Settings > Finding releases > Quality, and the subtitle languages are under Settings > Library and files > Subtitles.
 
 ## Keeping the docs current
 

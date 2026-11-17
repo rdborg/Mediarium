@@ -11,6 +11,7 @@ import type { LibraryHit } from './librarySuggest'
 import type { MusicFilter } from './musicFilter'
 import type { Origin } from './origin'
 import type { Searched } from './searched'
+import type { SavedServices } from './streamingServices.ts'
 import type { Diagnostics } from './supportReport'
 import type { ProfileScoreChange } from './formatChanges'
 import type { ProblemCounts, ProblemList } from './problemsView'
@@ -1618,6 +1619,7 @@ export interface FileSubtitle {
 export interface ShortFileNote {
   minutes: number
   expected?: number
+  archive?: string // 'rar' | 'zip' | '7z': the file is an archive that was never unpacked, not a video
 }
 export interface FileInfo {
   container: string
@@ -1677,6 +1679,7 @@ export interface TitleCopies {
 
 export interface SeriesDetail extends Series {
   episodes: Episode[]
+  thetvdbKey?: boolean // a TheTVDB key is saved, so TheTVDB's episode order can be chosen
 }
 
 export interface WantedItem {
@@ -2726,6 +2729,7 @@ export interface BookFormatState {
 export interface Book {
   id: number
   olKey: string
+  origin?: Origin // how it came into the library (administrators, on the book's own page)
   title: string
   author: string
   authorKey?: string
@@ -2907,6 +2911,7 @@ export type MusicMonitor = 'all' | 'future' | 'none'
 export interface MusicAlbum {
   id: number
   artistId: number
+  origin?: Origin // how it came into the library (administrators)
   artistName?: string
   mbid: string
   title: string
@@ -3000,6 +3005,7 @@ export interface MusicTrack {
 export interface MusicArtist {
   id: number
   mbid: string
+  origin?: Origin // how it came into the library (administrators, on the artist's page)
   manual?: boolean // added by hand: not on MusicBrainz, never looked up again
   name: string
   sortName: string
@@ -3825,6 +3831,8 @@ export const api = {
   resolveIssue: (id: number, comment: string) => post<Issue>(`/issues/${id}/resolve`, { comment }),
   reopenIssue: (id: number) => post<Issue>(`/issues/${id}/reopen`, {}),
   deleteIssue: (id: number) => del<null>(`/issues/${id}`),
+  discoverServices: () => get<SavedServices>('/auth/discover-services'),
+  putDiscoverServices: (services: string[], on: boolean) => put<SavedServices>('/auth/discover-services', { services, on }),
   requestNotices: () => get<RequestNotices>('/auth/request-notices'),
   putRequestNotices: (enabled: boolean) => put<RequestNotices>('/auth/request-notices', { enabled }),
   addNoticeDevice: (subscription: string, name: string) => post<RequestNotices>('/auth/request-notices/devices', { subscription, name }),

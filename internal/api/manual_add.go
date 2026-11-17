@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/listenbrainz"
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/origin"
 )
 
 // Adding a book, an audiobook or an album by hand, for when the metadata
@@ -116,7 +118,7 @@ func (s *Server) handleAddBookManual(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, byline := requester(r)
 	created, err := s.BookRepo.Add(books.Book{OLKey: key, Title: req.Title, Author: req.Author, Year: req.Year, Description: req.Description,
-		WantEbook: req.Ebook, WantAudiobook: req.Audiobook, AddedBy: userID})
+		WantEbook: req.Ebook, WantAudiobook: req.Audiobook, AddedBy: userID, Origin: addOrigin(r)})
 	if errors.Is(err, books.ErrExists) {
 		writeError(w, http.StatusConflict, fmt.Sprintf("A book with the id %s is already in your library.", strings.TrimPrefix(key, books.ManualKeyPrefix)))
 		return
@@ -127,12 +129,7 @@ func (s *Server) handleAddBookManual(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s by %s added to the library by hand%s", created.Name(), created.Author, byline))
 	if req.SearchNow {
-		for _, f := range []books.Format{books.Ebook, books.Audiobook} {
-			if created.Wants(f) {
-				f := f
-				s.background(func() { s.searchBook(created.ID, f, false) })
-			}
-		}
+		s.searchNewBook(created, userOrigin(r, origin.Search))
 	}
 	writeJSON(w, http.StatusCreated, toBookPayload(created, isAdminRequest(r)))
 }
@@ -199,7 +196,9 @@ func (s *Server) handleAddMusicManual(w http.ResponseWriter, r *http.Request) {
 		date = fmt.Sprintf("%04d", req.Year)
 	}
 	userID, byline := requester(r)
-	album := music.Album{MBID: albumID, Title: req.Album, Type: req.Type, ReleaseDate: date, Monitored: true}
+	how := addOrigin(r)
+	album := music.Album{MBID: albumID, Title: req.Album, Type: req.Type, ReleaseDate: date, Monitored: true,
+		Origin: origin.Origin{Kind: how.Kind, Name: how.Name, UserID: userID}}
 
 	artist, found, err := s.MusicRepo.FindArtistByName(req.Artist)
 	if err != nil {
@@ -207,6 +206,13 @@ func (s *Server) handleAddMusicManual(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if found {
+		// Adding an album to an artist already in the library is what POST
+		// /api/music/artists/{id}/albums does, and that needs the manage
+		// permission too.
+		if !s.mayManage(r) {
+			writeError(w, http.StatusForbidden, "That artist is already in your library. Adding an album to an artist you have needs the Search now and monitoring permission, so ask an administrator.")
+			return
+		}
 		have, err := s.MusicRepo.ListAlbums(artist.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -234,7 +240,7 @@ func (s *Server) handleAddMusicManual(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		a, added, err := s.MusicRepo.AddArtist(music.Artist{MBID: artistKey, Name: req.Artist, SortName: req.Artist, Monitored: true, MonitorNew: false, AddedBy: userID}, []music.Album{album})
+		a, added, err := s.MusicRepo.AddArtist(music.Artist{MBID: artistKey, Name: req.Artist, SortName: req.Artist, Monitored: true, MonitorNew: false, AddedBy: userID, Origin: how}, []music.Album{album})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -247,6 +253,7 @@ func (s *Server) handleAddMusicManual(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.QueueRepo.LogActivity(0, "added", fmt.Sprintf("%s by %s added to the music library by hand%s", album.Title, artist.Name, byline))
 	if req.SearchNow {
+		by := userOrigin(r, origin.Search)
 		s.background(func() {
 			instances, err := s.searchableIndexers()
 			if err != nil || len(instances) == 0 {
@@ -256,7 +263,7 @@ func (s *Server) handleAddMusicManual(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			s.huntAlbum(context.Background(), artist, album, profile, instances, s.searchSkipKeys(), false)
+			s.huntAlbum(withGrabBy(context.Background(), by), artist, album, profile, instances, s.searchSkipKeys(), false)
 		})
 	}
 	writeJSON(w, http.StatusCreated, manualMusicResponse{ArtistID: artist.ID, AlbumID: album.ID, Album: toMusicAlbumPayload(album), NewArtist: !found})
@@ -268,6 +275,20 @@ func (s *Server) manualCoverDir() string { return filepath.Join(s.cfg.ConfigDir,
 
 func (s *Server) manualCoverPath(albumID int64) string {
 	return filepath.Join(s.manualCoverDir(), fmt.Sprintf("%d.jpg", albumID))
+}
+
+// forgetManualCovers deletes the covers given by hand for albums that have
+// left the library (with their artist), so the folder only holds covers of
+// albums that are still there.
+func (s *Server) forgetManualCovers(albums []music.Album) {
+	for _, a := range albums {
+		if !a.Manual() {
+			continue
+		}
+		if err := os.Remove(s.manualCoverPath(a.ID)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			slog.Warn("music: remove the cover of an album added by hand", "album", a.Title, "err", err)
+		}
+	}
 }
 
 // handleUploadAlbumCover is POST /api/music/albums/{id}/cover (multipart,

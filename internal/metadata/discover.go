@@ -308,11 +308,12 @@ func (c *Client) MovieList(ctx context.Context, list string, page int) (*MoviePa
 
 // MovieListHiding is MovieList without the titles that are on the streaming
 // services in hide. TMDB's trending and popular lists cannot be filtered, so
-// with something to hide they become a browse by popularity, which is close
-// to the same list; the upcoming list is a browse already.
+// with something to hide they are read as they are and the hidden titles are
+// dropped and replaced by the ones that follow (see hidelist.go); the upcoming
+// list is a browse already, so TMDB leaves the titles out itself.
 func (c *Client) MovieListHiding(ctx context.Context, list string, page int, hide Hiding) (*MoviePage, error) {
-	if hide.Active() && ValidList(list) && list != ListUpcoming {
-		return c.DiscoverMovies(ctx, DiscoverQuery{Page: page, Hide: hide})
+	if hide.Active() && (list == ListTrending || list == ListPopular) {
+		return c.hiddenMovieList(ctx, list, page, hide)
 	}
 	paged := url.Values{"page": {strconv.Itoa(ClampPage(page))}}
 	switch list {
@@ -335,8 +336,8 @@ func (c *Client) TVList(ctx context.Context, list string, page int) (*ShowPage, 
 // TVListHiding is TVList without the shows that are on the streaming services
 // in hide; see MovieListHiding.
 func (c *Client) TVListHiding(ctx context.Context, list string, page int, hide Hiding) (*ShowPage, error) {
-	if hide.Active() && ValidList(list) && list != ListUpcoming {
-		return c.DiscoverTV(ctx, DiscoverQuery{Page: page, Hide: hide})
+	if hide.Active() && (list == ListTrending || list == ListPopular) {
+		return c.hiddenTVList(ctx, list, page, hide)
 	}
 	paged := url.Values{"page": {strconv.Itoa(ClampPage(page))}}
 	switch list {

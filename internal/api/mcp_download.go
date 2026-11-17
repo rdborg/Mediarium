@@ -28,8 +28,8 @@ import (
 const (
 	mcpOfferTTL   = 30 * time.Minute // how long a release found by find_releases can still be picked
 	mcpTokenTTL   = 5 * time.Minute  // how long a confirm_token lives
-	mcpOfferMax   = 500              // most releases remembered at once
-	mcpTokenMax   = 100              // most unused tokens remembered at once
+	mcpOfferMax   = 500              // most releases remembered at once for one account
+	mcpTokenMax   = 100              // most unused tokens remembered at once for one account
 	mcpFindLimit  = 10               // releases find_releases lists unless asked for more
 	mcpFindMax    = 25
 	mcpTokenStamp = "mcpgrab_"
@@ -104,14 +104,21 @@ func (d *mcpDownloads) addOffer(o mcpOffer) string {
 	if d.offers == nil {
 		d.offers = map[string]*mcpOffer{}
 	}
-	if len(d.offers) >= mcpOfferMax {
-		// Make room by dropping the one that runs out first.
-		var oldest string
-		for k, v := range d.offers {
-			if oldest == "" || v.expires.Before(d.offers[oldest].expires) {
-				oldest = k
-			}
+	// Each account has its own room, so one account's searches never push
+	// out what another was shown. When it is full, its release that runs out
+	// first goes.
+	var oldest string
+	mine := 0
+	for k, v := range d.offers {
+		if v.userID != o.userID {
+			continue
 		}
+		mine++
+		if oldest == "" || v.expires.Before(d.offers[oldest].expires) {
+			oldest = k
+		}
+	}
+	if mine >= mcpOfferMax {
 		delete(d.offers, oldest)
 	}
 	o.expires = now.Add(mcpOfferTTL)
@@ -142,16 +149,25 @@ func (d *mcpDownloads) mint(userID int64, offerID string) (token string, ttl tim
 	if d.tokens == nil {
 		d.tokens = map[string]*mcpGrabToken{}
 	}
+	// As with releases, each account has its own room for tokens: when it
+	// is full, its token that runs out first goes, never another account's.
+	var oldest string
+	mine := 0
 	for k, t := range d.tokens {
-		if t.userID == userID && t.offerID == offerID {
+		if t.userID != userID {
+			continue
+		}
+		if t.offerID == offerID {
 			delete(d.tokens, k)
+			continue
+		}
+		mine++
+		if oldest == "" || t.expires.Before(d.tokens[oldest].expires) {
+			oldest = k
 		}
 	}
-	if len(d.tokens) >= mcpTokenMax {
-		for k := range d.tokens { // map order is random: drop any one
-			delete(d.tokens, k)
-			break
-		}
+	if mine >= mcpTokenMax {
+		delete(d.tokens, oldest)
 	}
 	token = mcpRandom(mcpTokenStamp, 16)
 	d.tokens[token] = &mcpGrabToken{userID: userID, offerID: offerID, expires: now.Add(mcpTokenTTL)}

@@ -1634,3 +1634,7 @@ fieldset.group { border-radius: 6px 26px 26px 26px; }
 /* Text size (V4 B7): almost every size is in rem, so the whole page follows the root size. */
 :root[data-text='large'] { font-size: 112.5%; }
 :root[data-text='larger'] { font-size: 125%; }
+
+/* Settings group names such as "Media servers and apps" fit on one line:
+   a slightly smaller size instead of a second line. */
+.sidebar .subnav .sn-head .nav-label { white-space: nowrap; font-size: 0.77rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

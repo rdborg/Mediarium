@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -410,7 +411,7 @@ func (s *Server) resolveScanArtist(ctx context.Context, cache map[string]*scanAr
 	if err == nil && !ok {
 		// New to the library: listed with its albums, none monitored, so
 		// finding your collection never starts a wave of downloads.
-		artist, _, err = s.addArtistFromMusicBrainz(ctx, mb.ID, monitorNone, 0, userID)
+		artist, _, err = s.addArtistFromMusicBrainz(ctx, mb.ID, monitorNone, 0, userID, origin.Origin{Kind: origin.Import})
 		if err == nil {
 			_ = s.MusicRepo.SetArtistMonitored(artist.ID, true)
 			artist.Monitored = true

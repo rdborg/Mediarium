@@ -32,6 +32,7 @@ func (s *Server) setupSearchExtras() {
 	tr := s.IndexerRepo.Tracker()
 	s.QueueRepo.SetOnEnqueue(func(it queue.Item) { tr.NoteGrab(it.NZBURL, it.SizeBytes) })
 	s.QueueRepo.SetIndexerOf(s.indexerOfRelease)
+	s.QueueRepo.SetGUIDOf(tr.GUIDOf)
 }
 
 // ---- size limits ----

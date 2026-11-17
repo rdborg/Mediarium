@@ -1210,69 +1210,76 @@ export default function Queue() {
                   {t('Clear all')}
                 </button>
               </div>
-              <table className="act-table">
-                <thead>
-                  <tr>
-                    <th>{t('Release')}</th>
-                    <th>{t('Blocked for')}</th>
-                    <th>{t('Why')}</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {blocklist.map((b) => (
-                    <tr key={b.id}>
-                      <td className="mono-cell">{b.releaseTitle}</td>
-                      <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                        {b.scope === 'item' ? t('Only for {title}', { title: b.itemTitle ?? '' }) : t('Everywhere')}
-                      </td>
-                      <td style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{st(b.reason)}</td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {(b.scope === 'item' || b.itemId) && (
-                          <button
-                            className="btn-sm"
-                            style={{ marginRight: 8 }}
-                            disabled={tidying}
-                            title={b.scope === 'item' ? t('Block this release for every title again') : t('Only block this release for {title}', { title: b.itemTitle ?? '' })}
-                            onClick={async () => {
-                              setTidying(true)
-                              try {
-                                await api.setBlocklistScope(b.id, b.scope === 'item' ? 'all' : 'item')
-                                toast.success(b.scope === 'item' ? t('Now blocked everywhere.') : t('Now only blocked for this title.'))
-                                void load()
-                              } catch (e) {
-                                toast.error(e instanceof Error ? e.message : String(e))
-                              } finally {
-                                setTidying(false)
-                              }
-                            }}
-                          >
-                            {b.scope === 'item' ? t('Block everywhere') : t('Only this title')}
-                          </button>
-                        )}
-                        <button
-                          className="btn-sm"
-                          disabled={tidying}
-                          onClick={async () => {
-                            setTidying(true)
-                            try {
-                              await api.removeBlocklistEntry(b.id)
-                              toast.success(t('Removed from the blocklist.'))
-                              void load()
-                            } catch (e) {
-                              toast.error(e instanceof Error ? e.message : String(e))
-                            } finally {
-                              setTidying(false)
-                            }
-                          }}
-                        >
-                          {t('Remove')}
-                        </button>
-                      </td>
+              <div className="table-scroll">
+                <table className="act-table blocklist-table">
+                  <thead>
+                    <tr>
+                      <th>{t('Release')}</th>
+                      <th>{t('Blocked for')}</th>
+                      <th>{t('Why')}</th>
+                      <th />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {blocklist.map((b) => {
+                      // The title an entry is tied to can be gone from the library.
+                      const forTitle = b.itemTitle || t('a removed title')
+                      return (
+                        <tr key={b.id}>
+                          <td className="mono-cell">{b.releaseTitle}</td>
+                          <td className="bl-scope">
+                            {b.scope === 'item' ? t('Only for {title}', { title: forTitle }) : t('Everywhere')}
+                          </td>
+                          <td style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{st(b.reason)}</td>
+                          <td>
+                            <div className="bl-actions">
+                              {(b.scope === 'item' || b.itemId) && (
+                                <button
+                                  className="btn-sm"
+                                  disabled={tidying}
+                                  title={b.scope === 'item' ? t('Block this release for every title again') : t('Only block this release for {title}', { title: forTitle })}
+                                  onClick={async () => {
+                                    setTidying(true)
+                                    try {
+                                      await api.setBlocklistScope(b.id, b.scope === 'item' ? 'all' : 'item')
+                                      toast.success(b.scope === 'item' ? t('Now blocked everywhere.') : t('Now only blocked for this title.'))
+                                      void load()
+                                    } catch (e) {
+                                      toast.error(e instanceof Error ? e.message : String(e))
+                                    } finally {
+                                      setTidying(false)
+                                    }
+                                  }}
+                                >
+                                  {b.scope === 'item' ? t('Block everywhere') : t('Only this title')}
+                                </button>
+                              )}
+                              <button
+                                className="btn-sm"
+                                disabled={tidying}
+                                onClick={async () => {
+                                  setTidying(true)
+                                  try {
+                                    await api.removeBlocklistEntry(b.id)
+                                    toast.success(t('Removed from the blocklist.'))
+                                    void load()
+                                  } catch (e) {
+                                    toast.error(e instanceof Error ? e.message : String(e))
+                                  } finally {
+                                    setTidying(false)
+                                  }
+                                }}
+                              >
+                                {t('Remove')}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
               {blocklist.length < blocklistTotal && (
                 <div className="rail-foot">
                   <span style={{ color: 'var(--text-dim)', marginRight: 12 }}>{t('Showing {shown} of {total}', { shown: blocklist.length, total: blocklistTotal })}</span>

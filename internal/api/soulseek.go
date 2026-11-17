@@ -270,7 +270,8 @@ func (s *Server) soulseekAlbumRun(ctx context.Context, artist music.Artist, albu
 		return skip("not_set_up", fmt.Sprintf("Soulseek is not set up yet: %s is missing.", strings.Join(m, " and ")))
 	}
 	c := slskd.New(cfg.URL, cfg.Key)
-	ctx, cancel := context.WithTimeout(ctx, 3*soulseekQueryWait+15*time.Second)
+	queries := soulseekQueries(artist, album)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(len(queries))*soulseekQueryWait+15*time.Second)
 	defer cancel()
 	fail := func(code, reason, detail string) soulseekRun {
 		line.Ms = time.Since(start).Milliseconds()
@@ -296,14 +297,15 @@ func (s *Server) soulseekAlbumRun(ctx context.Context, artist music.Artist, albu
 	// Soulseek matches whole words, so the exact title with its punctuation or
 	// an "(Original Motion Picture Soundtrack)" tail finds nothing. The first
 	// try is the cleaned artist and title; a search that comes back empty is
-	// tried again with fewer words, up to three asks (#143, balkie31).
+	// tried with the umlauts written out when the names have any (#193), then
+	// with fewer words, up to four asks in all (#143, balkie31).
 	var (
 		query   string
 		resps   []slskd.Response
 		out     []musicReleasePayload
 		folders int
 	)
-	for i, q := range soulseekQueries(artist, album) {
+	for _, q := range queries {
 		query = q
 		var err error
 		resps, err = c.Search(ctx, q, soulseekQueryWait)
@@ -312,7 +314,7 @@ func (s *Server) soulseekAlbumRun(ctx context.Context, artist music.Artist, albu
 			return fail(code, reason, detail)
 		}
 		out, folders = s.soulseekReleases(resps, artist, album, profile)
-		if len(out) > 0 || i >= 2 {
+		if len(out) > 0 {
 			break
 		}
 	}

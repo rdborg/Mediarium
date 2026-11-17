@@ -2,7 +2,7 @@
 
 Mediarium downloads with its own built-in Usenet and torrent downloaders. Phone apps such as nzb360 are made to talk to SABnzbd (Usenet) and qBittorrent (torrents), so they can show speed, time left, the queue and the history, and pause, resume or remove a download. Mediarium can answer like both of them, so you can add it in those apps as if it were SABnzbd or qBittorrent.
 
-This is off until you switch it on: **Settings > Connections > Other apps > Phone apps for downloads**. The same card shows the addresses and a copy button for each.
+This is off until you switch it on: **Settings > Media servers and apps > Other apps > Phone apps for downloads**. The same card shows the addresses and a copy button for each.
 
 This idea came from SanketBaraiya (GitHub discussion #177).
 

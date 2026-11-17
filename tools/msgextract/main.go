@@ -39,7 +39,7 @@ const out = "web/src/serverText.json"
 // the position of that argument: whatever it holds is kept even when it does
 // not end like a sentence.
 var messageCalls = map[string]int{
-	"writeError": 2, "LogActivity": 2, "LogSeriesActivity": 2, "LogItemActivity": 3, "renamedLine": 0,
+	"writeError": 2, "LogActivity": 2, "LogSeriesActivity": 2, "LogItemActivity": 3, "renamedLine": 0, "feedLine": 0,
 }
 
 // healthCalls are the functions that add a line to the Health list on the
@@ -54,7 +54,7 @@ var shownFields = map[string][]int{"Help": {3, 4, 5, 6}}
 var (
 	verb     = regexp.MustCompile(`%[-+# 0]*(\d+|\*)?(\.(\d+|\*))?[a-zA-Z]`)
 	indexed  = regexp.MustCompile(`%\[\d+\]`)
-	sqlWords = regexp.MustCompile(`(?i)\b(SELECT|INSERT INTO|UPDATE \w+ SET|DELETE FROM|CREATE TABLE|ALTER TABLE|PRAGMA)\b`)
+	sqlWords = regexp.MustCompile(`(?i)\b(SELECT|INSERT INTO|UPDATE (?:OR \w+ )?\w+ SET|DELETE FROM|CREATE TABLE|ALTER TABLE|PRAGMA)\b`)
 	// A piece of a query added to another one (" AND s.id = ?").
 	sqlClause = regexp.MustCompile(`^(AND|OR|WHERE|FROM|JOIN|LEFT JOIN|ORDER BY|GROUP BY|LIMIT|SET) `)
 )

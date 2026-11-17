@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
@@ -21,11 +22,16 @@ import (
 // were imported before the length check existed, or while it was off. The
 // Library can filter on them, the movie and episode pages say so, and an
 // administrator can delete them and search again.
+//
+// A file that is an archive rather than a video (a release that was never
+// unpacked, saved under a video's name) can't be played at all, so it is in
+// the same list, the same filter and the same "delete and search again".
 
-// shortFileNote says how short a file is.
+// shortFileNote says how short a file is, or that it isn't a video at all.
 type shortFileNote struct {
-	Minutes  int `json:"minutes"`            // the file's length, at least 1
-	Expected int `json:"expected,omitempty"` // the length it should have; left out when TMDB doesn't say
+	Minutes  int    `json:"minutes"`            // the file's length, at least 1; 0 for an archive
+	Expected int    `json:"expected,omitempty"` // the length it should have; left out when TMDB doesn't say
+	Archive  string `json:"archive,omitempty"`  // "rar", "zip" or "7z" when the file is an archive, not a video
 }
 
 // incompleteEntry is one library file that looks cut off.
@@ -49,7 +55,26 @@ type incompleteSet struct {
 const shortCandidateSeconds = 10 * 60
 
 func entryNote(f library.FileLength) shortFileNote {
+	if f.Archive != "" {
+		return shortFileNote{Archive: f.Archive}
+	}
 	return shortFileNote{Minutes: lengthMinutes(f.Seconds), Expected: int(math.Round(f.Expected))}
+}
+
+// reason is what the blocklist keeps for the release the file came from.
+func (e incompleteEntry) reason() string {
+	if e.Archive != "" {
+		return notVideoReason
+	}
+	return incompleteReason
+}
+
+// why ends the activity line about the deleted file.
+func (e incompleteEntry) why() string {
+	if e.Archive != "" {
+		return fmt.Sprintf("because it is a %s archive, not a video", strings.ToUpper(e.Archive))
+	}
+	return "because it looks incomplete"
 }
 
 // incompleteNow returns the files that look incomplete, kept for a few seconds
@@ -96,17 +121,31 @@ func (s *Server) buildIncomplete() *incompleteSet {
 		if !mediainfo.TooShort(f.Seconds, f.Expected, kind) {
 			continue
 		}
-		e := incompleteEntry{FileLength: f, note: entryNote(f)}
-		out.byPath[f.Path] = e
-		if f.Episode {
-			out.episodes[f.ID] = e
-			out.series[f.SeriesID] = append(out.series[f.SeriesID], e)
-		} else {
-			out.movies[f.ID] = e
-		}
+		out.add(f)
+	}
+	archives, err := s.MovieRepo.ArchiveFiles(mediainfo.ArchiveContainers())
+	if err != nil {
+		slog.Warn("incomplete files: couldn't list the archives", "err", err)
+	}
+	for _, f := range archives {
+		out.add(f)
 	}
 	st.cache.setIncomplete(out)
 	return out
+}
+
+func (set *incompleteSet) add(f library.FileLength) {
+	if _, dup := set.byPath[f.Path]; dup {
+		return
+	}
+	e := incompleteEntry{FileLength: f, note: entryNote(f)}
+	set.byPath[f.Path] = e
+	if f.Episode {
+		set.episodes[f.ID] = e
+		set.series[f.SeriesID] = append(set.series[f.SeriesID], e)
+	} else {
+		set.movies[f.ID] = e
+	}
 }
 
 // shortFileOf is the note for the file at path, nil when it is fine or not known.
@@ -165,7 +204,7 @@ func (s *Server) handleRedoIncomplete(w http.ResponseWriter, r *http.Request) {
 			ans.Skipped++
 			continue
 		}
-		s.blocklistIncomplete(m.ReleaseTitle, id, 0)
+		s.blocklistIncomplete(m.ReleaseTitle, e.reason(), id, 0)
 		n, trashed, err := s.discardFileWithSidecars(s.fileRoot(s.movieRootFor(m), m.FilePath), m.FilePath, movieLabel(m))
 		if err != nil {
 			writeError(w, http.StatusConflict, fmt.Sprintf("Couldn't delete the file of %s: %s", movieLabel(m), err.Error()))
@@ -175,7 +214,7 @@ func (s *Server) handleRedoIncomplete(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		_ = s.QueueRepo.LogActivity(id, "removed", fmt.Sprintf("%s: its file %s was deleted%s because it looks incomplete. The movie is wanted again.", movieLabel(m), filepath.Base(m.FilePath), binNote(trashed)))
+		_ = s.QueueRepo.LogActivity(id, "removed", fmt.Sprintf("%s: its file %s was deleted%s %s. The movie is wanted again.", movieLabel(m), filepath.Base(m.FilePath), binNote(trashed), e.why()))
 		ans.Files += n
 		ans.Titles++
 		searches = append(searches, func() { s.searchMovieInBackground(id) })
@@ -217,7 +256,7 @@ func (s *Server) handleRedoIncomplete(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		for _, ep := range eps {
-			s.blocklistIncomplete(ep.ReleaseTitle, 0, sid)
+			s.blocklistIncomplete(ep.ReleaseTitle, set.episodes[ep.ID].reason(), 0, sid)
 		}
 		done, err := s.deleteEpisodeFiles(series, eps)
 		ans.Files += done.Files
@@ -267,15 +306,15 @@ func (s *Server) searchEpisodeAgain(sc tvScope) {
 
 // blocklistIncomplete blocklists the release a file came from, when the
 // history knows it, so the same one isn't grabbed again.
-func (s *Server) blocklistIncomplete(release string, movieID, seriesID int64) {
+func (s *Server) blocklistIncomplete(release, reason string, movieID, seriesID int64) {
 	if release == "" {
 		return
 	}
-	if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: release, Reason: incompleteReason, MovieID: movieID, SeriesID: seriesID}); err != nil {
+	if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: release, Reason: reason, MovieID: movieID, SeriesID: seriesID}); err != nil {
 		slog.Warn("incomplete files: couldn't blocklist a release", "err", err)
 		return
 	}
-	_ = s.QueueRepo.LogItemActivity(movieID, seriesID, "blocklisted", fmt.Sprintf("Blocklisted \"%s\": %s", release, incompleteReason))
+	_ = s.QueueRepo.LogItemActivity(movieID, seriesID, "blocklisted", fmt.Sprintf("Blocklisted \"%s\": %s", release, reason))
 }
 
 // inLibrary says whether path lies inside a movie or TV library folder.

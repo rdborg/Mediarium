@@ -69,6 +69,9 @@ type tvScope struct {
 	// (for shows that take them). Only the scheduled hunt does: it is the one
 	// run that can keep to the once-a-week spacing.
 	packs bool
+	// by is who is behind the run (a person's search, an import list); empty
+	// for the scheduled search.
+	by origin.Origin
 }
 
 // packedSeason names one season of one show.
@@ -315,7 +318,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 	// grab queues best for season (and episode, 0 for a season pack) and
 	// returns the episodes it covers, read the way the show numbers them.
 	grab := func(series library.Series, season, episode int, best *indexers.Result) (bool, []int) {
-		var by origin.Origin
+		by := scope.by
 		if logPrefix == "rss-sync" {
 			by = origin.Origin{Kind: origin.Auto, Name: origin.JobRSS}
 		}
@@ -499,6 +502,12 @@ func tvTargetFound(results []indexers.Result, series library.Series, season, epi
 // the episodes that are monitored: "future episodes only" must not fetch the
 // back catalogue.
 func (s *Server) searchSeriesInBackground(seriesID int64) {
+	s.searchSeriesInBackgroundBy(seriesID, origin.Origin{})
+}
+
+// searchSeriesInBackgroundBy is searchSeriesInBackground for a search someone
+// asked for: its downloads are attributed to by.
+func (s *Server) searchSeriesInBackgroundBy(seriesID int64, by origin.Origin) {
 	instances, err := s.searchableIndexers()
 	if err != nil || len(instances) == 0 {
 		return
@@ -507,7 +516,7 @@ func (s *Server) searchSeriesInBackground(seriesID int64) {
 	if err != nil {
 		return
 	}
-	s.autoGrabTV(s.targetedTVSearcher(context.Background(), instances, maxTVSearchesPerHunt, true), "add", profiles, tvScope{seriesID: seriesID, force: true, asMarked: true})
+	s.autoGrabTV(s.targetedTVSearcher(context.Background(), instances, maxTVSearchesPerHunt, true), "add", profiles, tvScope{seriesID: seriesID, force: true, asMarked: true, by: by})
 }
 
 func (s *Server) huntTV(ctx context.Context, instances []indexers.Instance, profiles profileSet) {

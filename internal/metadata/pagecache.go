@@ -20,6 +20,8 @@ type pageCache struct {
 	mu      sync.Mutex
 	entries map[string]pageCacheEntry
 	now     func() time.Time
+	// max is how many entries are kept; zero means pageCacheEntries.
+	max int
 }
 
 type pageCacheEntry struct {
@@ -32,6 +34,13 @@ func (p *pageCache) clock() time.Time {
 		return p.now()
 	}
 	return time.Now()
+}
+
+func (p *pageCache) limit() int {
+	if p.max > 0 {
+		return p.max
+	}
+	return pageCacheEntries
 }
 
 func (p *pageCache) get(key string) (any, bool) {
@@ -58,7 +67,7 @@ func (p *pageCache) putFor(key string, value any, ttl time.Duration) {
 	if p.entries == nil {
 		p.entries = map[string]pageCacheEntry{}
 	}
-	if _, exists := p.entries[key]; !exists && len(p.entries) >= pageCacheEntries {
+	if _, exists := p.entries[key]; !exists && len(p.entries) >= p.limit() {
 		// Drop what has expired; if the cache is still full, drop the entry
 		// closest to expiring (the oldest).
 		var oldestKey string
@@ -72,7 +81,7 @@ func (p *pageCache) putFor(key string, value any, ttl time.Duration) {
 				oldestKey, oldest = k, e.expires
 			}
 		}
-		if len(p.entries) >= pageCacheEntries {
+		if len(p.entries) >= p.limit() {
 			delete(p.entries, oldestKey)
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rdborg/mediarium/internal/books"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/settings"
 )
 
@@ -311,7 +312,7 @@ func (s *Server) addSeriesBooks(ctx context.Context, f books.FollowedSeries, by 
 		}
 		b, err := s.BookRepo.Add(books.Book{OLKey: e.Key, Title: e.Title, Author: e.Author, AuthorKey: e.AuthorKey, Year: e.Year, CoverID: e.CoverID,
 			WantEbook: f.WantEbook && s.ebooksEnabled(), WantAudiobook: f.WantAudiobook && s.audiobooksEnabled(), AddedBy: by,
-			SeriesName: series.Name, SeriesPosition: e.Position, ReleaseDate: e.ReleaseDate})
+			SeriesName: series.Name, SeriesPosition: e.Position, ReleaseDate: e.ReleaseDate, Origin: origin.Origin{Kind: origin.Auto, Name: origin.JobFollow}})
 		if errors.Is(err, books.ErrExists) || (err == nil && !b.WantEbook && !b.WantAudiobook) {
 			continue
 		}
@@ -328,7 +329,7 @@ func (s *Server) addSeriesBooks(ctx context.Context, f books.FollowedSeries, by 
 		for _, bf := range []books.Format{books.Ebook, books.Audiobook} {
 			if b.Wants(bf) {
 				bf := bf
-				s.background(func() { s.searchBook(b.ID, bf, false) })
+				s.background(func() { s.searchBook(b.ID, bf, false, origin.Origin{}) })
 			}
 		}
 	}

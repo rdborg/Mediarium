@@ -34,6 +34,10 @@ const (
 	JobSearch   = "search"   // the scheduled search for missing titles and better versions
 	JobRSS      = "rss"      // the RSS check of the indexers
 	JobAnnounce = "announce" // an IRC announce channel
+	// JobFollow is a title added because its artist, author or book series is
+	// followed: a new album found when the artist is looked up again, a new
+	// book of a followed author or series.
+	JobFollow = "follow"
 )
 
 // Origin is where something came from.
@@ -46,6 +50,10 @@ type Origin struct {
 	// and its name as it was when the thing was added (0 and "" when unknown).
 	UserID int64  `json:"userId,omitempty"`
 	User   string `json:"user,omitempty"`
+	// ListID is the import list's id for a List origin (0 otherwise, and for
+	// a row from before it was kept), so what a list did stays its own when
+	// the list is renamed or another list has the same name.
+	ListID int64 `json:"listId,omitempty"`
 }
 
 // Known says the origin was recorded.
@@ -63,6 +71,9 @@ func (o Origin) Clean() Origin {
 	o.User = clip(o.User)
 	if o.UserID < 0 {
 		o.UserID = 0
+	}
+	if o.Kind != List || o.ListID < 0 {
+		o.ListID = 0
 	}
 	return o
 }

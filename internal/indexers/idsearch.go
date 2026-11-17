@@ -208,13 +208,7 @@ func mergeByLink(main, extra []Result) []Result {
 	}
 	seen := make(map[string]bool, len(main))
 	for _, r := range main {
-		seen[r.DownloadURL] = true
+		seenRelease(seen, r)
 	}
-	for _, r := range extra {
-		if !seen[r.DownloadURL] {
-			seen[r.DownloadURL] = true
-			main = append(main, r)
-		}
-	}
-	return main
+	return append(main, dedupeResults(seen, extra)...)
 }

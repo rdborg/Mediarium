@@ -43,7 +43,7 @@ const NAV: { to: string; label: string; icon: IconName; sec: SectionKey; end?: b
   { to: '/library', label: t('Library'), icon: 'film', sec: 'library' },
   { to: '/calendar', label: t('Upcoming'), icon: 'calendar', sec: 'calendar' },
   { to: '/queue', label: t('Activity'), icon: 'activity', sec: 'activity' },
-  { to: '/settings/media', label: t('Settings'), icon: 'sliders', sec: 'settings' },
+  { to: '/settings', label: t('Settings'), icon: 'sliders', sec: 'settings' },
 ]
 
 // The lines under "Library" in the left menu: what each one is called, the glyph
@@ -148,7 +148,7 @@ function Shell() {
   const admin = isAdmin(user)
   // Members only have their own profile and About under Settings.
   const settingsGroups = settingsGroupsFor(admin, user?.role === 'viewer')
-  const nav = NAV.map((n) => (n.sec === 'settings' ? { ...n, to: settingsGroups[0].pages[0].to } : n))
+  const nav = NAV
   const { on: moduleOn } = useModules()
   const ebooksOn = moduleOn('ebooks')
   const audiobooksOn = moduleOn('audiobooks')
@@ -448,7 +448,7 @@ function Shell() {
             const current = g.pages.some((p) => inPage(location.pathname, p.to))
             if (g.pages.length === 1) {
               return (
-                <NavLink key={g.key} to={g.pages[0].to} style={{ ['--sc' as string]: g.color }} className={() => (current ? 'active' : '')}>
+                <NavLink key={g.key} to={g.pages[0].to} title={g.pages[0].blurb} style={{ ['--sc' as string]: g.color }} className={() => (current ? 'active' : '')}>
                   <span className="nav-ico">
                     <Icon name={g.icon} size={15} />
                   </span>
@@ -470,6 +470,7 @@ function Shell() {
               <div key={g.key} className={`sn-group${open ? ' open' : ''}`} style={{ ['--sc' as string]: g.color }}>
                 <NavLink
                   to={g.pages[0].to}
+                  title={g.blurb}
                   role="button"
                   aria-expanded={open}
                   aria-controls={`sn-pages-${g.key}`}
@@ -498,7 +499,7 @@ function Shell() {
                 {open && (
                   <div className="sn-pages" id={`sn-pages-${g.key}`}>
                     {g.pages.map((p) => (
-                      <NavLink key={p.to} to={p.to} title={p.label} style={{ ['--sc' as string]: g.color }} className={() => (inPage(location.pathname, p.to) ? 'sn-page active' : 'sn-page')}>
+                      <NavLink key={p.to} to={p.to} title={p.blurb} aria-label={p.label} style={{ ['--sc' as string]: g.color }} className={() => (inPage(location.pathname, p.to) ? 'sn-page active' : 'sn-page')}>
                         <span className="sn-ico">
                           <Icon name={p.icon} size={13} />
                         </span>

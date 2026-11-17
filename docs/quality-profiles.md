@@ -1,8 +1,10 @@
 # Quality profiles
 
-A quality profile decides which releases Mediarium may download for a movie or show, and when it stops looking for something better. Every title uses the **default profile** unless you give it one of its own. Change the default with **Make default for movies** on Settings > Library > Quality (or `PUT /api/settings` with `defaultProfileId`), and a single title's profile from its page.
+A quality profile decides which releases Mediarium may download for a movie or show, and when it stops looking for something better. Every title uses the **default profile** unless you give it one of its own. Change the default with **Make default for movies** on Settings > Finding releases > Quality (or `PUT /api/settings` with `defaultProfileId`), and a single title's profile from its page.
 
 Shows can have a default of their own. Press **Make default for TV** on a profile (or send `defaultTvProfileId` in `PUT /api/settings`) and every show with no profile of its own uses that one, while movies keep the movie default. Until you set one, shows use the same default as movies, so nothing changes for you. **Use the movie default for TV** (or `defaultTvProfileId: 0`) puts it back. The add-title window, a title's profile picker and the Library list all show the default that fits the title. A profile that is the default for movies or for TV can't be deleted.
+
+Looking for automatic quality upgrades? Each profile has its own **Keep looking for better versions after it is downloaded** switch and a quality where it stops, both on this page (**Settings > Finding releases > Quality**). When Mediarium searches, and what a new title starts with, is under [Automatic searching](#automatic-searching). The settings search (`Ctrl+K`) finds both when you type *automatic quality upgrades*, *upgrade* or *better quality*.
 
 A profile has:
 
@@ -12,13 +14,13 @@ A profile has:
 - **Keep looking for better versions after it is downloaded** (shown as *Better versions* in the list, `upgradeAllowed` in the API): a title with a file below the cutoff keeps being searched for a better allowed release. Left off, the first acceptable release is kept. A new profile starts with it off.
 - Optional **Release restrictions & preferred terms**: words a release name must contain at least one of, words it must not contain any of, and preferred words with a score. One term per line, matched anywhere in the release name, ignoring capitals, with dots and dashes counting as spaces.
 - Optional fallback profiles (**If nothing is found at this quality, also try**): other profiles to try, in order, when nothing found is acceptable to this one (see below).
-- **Skip bad releases** (`skipBadReleases`), on unless you switch it off: leaves out releases nobody wants to watch at home, so you get good downloads without any extra setup. These are whole Blu-ray discs (BDMV, BD50, "COMPLETE BLURAY"), 3D releases (SBS, OU, MVC), upscaled copies, subtitles burned into the picture (HC, HARDSUB, KORSUB) and groups known for poor re-encodes (YIFY/YTS, aXXo and a few others). Between two releases of the same quality it also prefers a group's fixed release (PROPER, REPACK). A release left out says why in interactive search, for example "is a 3D release, which "Skip bad releases" leaves out", and you can still grab it by hand.
+- **Skip bad releases** (`skipBadReleases`), on unless you switch it off: leaves out releases nobody wants to watch at home, so you get good downloads without any extra setup. These are whole Blu-ray discs (BDMV, BD50, "COMPLETE BLURAY"), 3D releases (SBS, OU, MVC), upscaled copies, subtitles burned into the picture (HC, HARDSUB, KORSUB) and groups known for poor re-encodes (YIFY/YTS, aXXo and a few others). Between two releases of the same quality it also prefers a group's fixed release (PROPER, REPACK). When the same release name was uploaded more than once, an automatic search takes the newest upload (a copy on another indexer has to be posted at least two hours later to count as a new upload, so one release showing up on two indexers is not mistaken for a repost). The release lists show every upload. A release left out says why in interactive search, for example "is a 3D release, which "Skip bad releases" leaves out", and you can still grab it by hand.
 - **Never download season packs** (`noSeasonPacks`): whole-season releases are skipped, so TV episodes are fetched one by one even when a full season is out. Off by default.
 - Optional **Custom format scores**: a score for each custom format, a minimum score and an upgrade-until score (see [Custom formats](#custom-formats) below). They're hidden until you switch on **Show advanced options**.
 
 ![The Quality page with the table of quality profiles and the fallback order for the default profile below it](images/settings-quality.png)
 
-*Settings > Library > Quality: the profiles come first, each with its qualities, where it stops upgrading, and Edit, Make default and Delete. The default profile's fallback order sits below the list.*
+*Settings > Finding releases > Quality: the profiles come first, each with its qualities, where it stops upgrading, and Edit, Make default and Delete. The default profile's fallback order sits below the list.*
 
 ![Editing a profile: name, accepted qualities, where to stop upgrading, better versions switch and fallback profiles](images/quality-editor.png)
 
@@ -35,7 +37,7 @@ To shrink a movie you already have, use **Replace with a smaller version** on it
 3. Mediarium searches your indexers for the best release that the movie's current profile accepts, that is not a higher quality than your file, and that is at least a tenth smaller. If it finds one it downloads it like any other release.
 4. Only when the new file is downloaded and in your library is the old file removed. If nothing suitable is found, or the download fails, your old file stays and the movie stays downloaded. Nothing is deleted first.
 
-The new file goes through the usual import, so **If a file already exists** (Settings > Library > File names and importing) is respected for the name of the new file. If the movie's file changed while the download was running, nothing is removed. For TV shows there is no such button yet: change the profile and the episodes that are already below it are looked for again, but a file above the profile is left alone.
+The new file goes through the usual import, so **If a file already exists** (Settings > Library and files and files > File names and importing) is respected for the name of the new file. If the movie's file changed while the download was running, nothing is removed. For TV shows there is no such button yet: change the profile and the episodes that are already below it are looked for again, but a file above the profile is left alone.
 
 The same thing through the API: `POST /api/movies/{id}/replace-smaller` for one movie, and `POST /api/library/bulk/replace-smaller` with `{"items": [{"kind": "movie", "id": 1}]}` for a selection (administrators, at most 25 at a time).
 
@@ -105,11 +107,11 @@ Two size rules keep fakes and oversized releases out, with nothing to fill in:
 
 You can still pick any release by hand from a title's release list.
 
-The built-in minimum has a switch: **Settings > Library > Quality > Size limits > Built-in minimum size check**. It is on by default. Off, automatic searches no longer skip a release for being too small for its quality, and the release list stops showing "smaller than a real ... release is likely to be". The profile's largest size and the size table are not affected. In the API, `GET` and `PUT /api/quality/min-size-check` with `{"enabled": false}`; the setting is `search.min_size_check`.
+The built-in minimum has a switch: **Settings > Finding releases > Quality > Size limits > Built-in minimum size check**. It is on by default. Off, automatic searches no longer skip a release for being too small for its quality, and the release list stops showing "smaller than a real ... release is likely to be". The profile's largest size and the size table are not affected. In the API, `GET` and `PUT /api/quality/min-size-check` with `{"enabled": false}`; the setting is `search.min_size_check`.
 
 ### Size limits per quality
 
-**Settings > Library > Quality > Size limits** is a table with a smallest and a largest size for every quality, one table for **Movies** and one for **TV** (the two tabs above it, each with its own switch, **Reset to defaults** and **Apply TRaSH sizes**), in the same way that Radarr and Sonarr each have their own. A movie release is judged by the Movies table and an episode or season pack by the TV table. The card can be folded away; the line next to its arrow says where the limits are on.
+**Settings > Finding releases > Quality > Size limits** is a table with a smallest and a largest size for every quality, one table for **Movies** and one for **TV** (the two tabs above it, each with its own switch, **Reset to defaults** and **Apply TRaSH sizes**), in the same way that Radarr and Sonarr each have their own. A movie release is judged by the Movies table and an episode or season pack by the TV table. The card can be folded away; the line next to its arrow says where the limits are on.
 
 Each table has a smallest and a largest size for every quality, in **megabytes for each minute** of the film or episode, like the quality definitions in Radarr and Sonarr. A 2-hour film at 4 MB a minute is about 0.5 GB. The right-hand column shows what the numbers mean for a film of 100 minutes.
 
@@ -133,7 +135,7 @@ Scripts: `GET /api/quality/size-limits/trash/{list}` answers what a TRaSH list w
 
 ## Automatic searching
 
-The **Automation** card on **Settings > Library > Automatic searching** has one switch, **Automatic searching and downloading** (`automation.enabled`, or `automationEnabled` in `PUT /api/settings`). When it's off, Mediarium doesn't search by itself for missing titles, new releases or upgrades. **Search now** and grabbing a release by hand still work.
+The **Automation** card on **Settings > Finding releases > Automatic searching** has one switch, **Automatic searching and downloading** (`automation.enabled`, or `automationEnabled` in `PUT /api/settings`). When it's off, Mediarium doesn't search by itself for missing titles, new releases or upgrades. **Search now** and grabbing a release by hand still work.
 
 Under the switch are two numbers:
 
@@ -174,7 +176,7 @@ A show can choose for itself under **Season packs** on its page: **Default** fol
 
 ## Wait for a better protocol
 
-The **Wait for a better protocol** card on **Settings > Library > Automatic searching** works like a delay profile in Radarr and Sonarr. Mediarium's own searches can hold back a release for a number of minutes, so a copy from the protocol you like better has time to appear. For example: prefer Usenet, wait 120 minutes for torrents, and a torrent that was posted 30 minutes ago waits another 90 minutes. If a Usenet copy turns up meanwhile, that one is taken.
+The **Wait for a better protocol** card on **Settings > Finding releases > Automatic searching** works like a delay profile in Radarr and Sonarr. Mediarium's own searches can hold back a release for a number of minutes, so a copy from the protocol you like better has time to appear. For example: prefer Usenet, wait 120 minutes for torrents, and a torrent that was posted 30 minutes ago waits another 90 minutes. If a Usenet copy turns up meanwhile, that one is taken.
 
 - **Preferred protocol**: between two equally good releases this one wins. Usenet is the default.
 - **Wait for Usenet releases** and **Wait for torrent releases**, in minutes (0 to 43,200, which is 30 days). 0 means no wait, and both at 0 (the default) means nothing is delayed.
@@ -187,7 +189,7 @@ Scripts: `GET` and `PUT /api/search/delay` with `{"preferredProtocol": "usenet",
 
 ## Audio language
 
-**Settings > Library > Quality > Audio language** lists the languages you want to hear, best first (`quality.language`, or `qualityLanguage` in `PUT /api/settings`: names separated by commas, such as `Spanish,English`). English is the starting value. It applies to every profile. The switch under the list, **Only take releases in these languages**, is `quality.language_only` (`qualityLanguageOnly` in `GET` and `PUT /api/settings`, `true` or `false`, off by default; the settings file has it too).
+**Settings > Finding releases > Quality > Audio language** lists the languages you want to hear, best first (`quality.language`, or `qualityLanguage` in `PUT /api/settings`: names separated by commas, such as `Spanish,English`). English is the starting value. It applies to every profile. The switch under the list, **Only take releases in these languages**, is `quality.language_only` (`qualityLanguageOnly` in `GET` and `PUT /api/settings`, `true` or `false`, off by default; the settings file has it too).
 
 With more than one language, a release is taken when it suits any of them, and one that suits an earlier language is chosen over one that only suits a later language. A release with two or more audio tracks counts when one of its languages is on your list.
 
@@ -253,11 +255,11 @@ In **Choose a release** (the search list of a movie, show or season), the arrow 
 - **Language**, **size** (the profile's largest size, the built-in minimum and the size tables), **seeders** against the indexer's minimum, and the day it was posted. A release whose size the indexer does not give passes the size check.
 - Anything else that makes an automatic search leave it out: the blocklist, a Usenet post older than the retention, an upgrade that is no upgrade.
 
-Next to it, **Why this score** shows each custom format and preferred term with its points and the total, and **Where it ranks** says why the release stands above the next one an automatic search could take: the first thing in which the two differ (seeders, language, quality, score, indexer priority, protocol, or just being found first). **Why it was not the best match** says the same from the other side. These lines are worked out with the same code the automatic search uses to choose, so they cannot disagree with what it does. In the API they are the `checks` and `reasons` of each result of `GET /api/movies/{id}/search` and `GET /api/series/{id}/search`.
+Next to it, **Why this score** shows each custom format and preferred term with its points and the total, and **Where it ranks** says why the release stands above the next one an automatic search could take: the first thing in which the two differ (seeders, language, quality, score, a later post of the same name, indexer priority, protocol, or just being found first). **Why it was not the best match** says the same from the other side. These lines are worked out with the same code the automatic search uses to choose, so they cannot disagree with what it does. In the API they are the `checks` and `reasons` of each result of `GET /api/movies/{id}/search` and `GET /api/series/{id}/search`.
 
 ## Try this profile
 
-**Settings > Library > Quality > Try this profile** runs a release name through a profile without searching for anything. Paste a name such as `Some.Movie.2020.1080p.WEB-DL.x265-GROUP`, pick a profile and whether it is for a movie or a show, and optionally a size in GB and one of your indexers (its minimum seeders and priority are then used). **Try it** shows:
+**Settings > Finding releases > Quality > Try this profile** runs a release name through a profile without searching for anything. Paste a name such as `Some.Movie.2020.1080p.WEB-DL.x265-GROUP`, pick a profile and whether it is for a movie or a show, and optionally a size in GB and one of your indexers (its minimum seeders and priority are then used). **Try it** shows:
 
 - how the name reads: quality, source, resolution, codec, audio, HDR, group, languages, year, season and episodes;
 - the score: each custom format and preferred term it matched, with its points, and the total;
@@ -314,7 +316,7 @@ What the score does:
 
 ### Getting formats
 
-Custom formats are an advanced option: most people don't need them, because the quality and **Skip bad releases** already get good downloads. To see them, switch on **Show advanced options** in the **Advanced** card at the bottom of Settings > Library > Quality (`ui.show_advanced`, or `showAdvanced` in `PUT /api/settings`). Until it's set, it's on when you already have custom formats. Switching it off only hides them: formats a profile scores keep counting.
+Custom formats are an advanced option: most people don't need them, because the quality and **Skip bad releases** already get good downloads. To see them, switch on **Show advanced options** in the **Advanced** card at the bottom of Settings > Finding releases > Quality (`ui.show_advanced`, or `showAdvanced` in `PUT /api/settings`). Until it's set, it's on when you already have custom formats. Switching it off only hides them: formats a profile scores keep counting.
 
 The **Custom formats** card then has four tabs:
 
@@ -372,4 +374,4 @@ In `POST /api/quality-profiles` and `PUT /api/quality-profiles/{id}` the scores 
 
 ## Music profiles
 
-With the music module on, **Settings > Library > Quality** ends with a **Music** section. It lists the music profiles: the formats each one takes (MP3-192 up to FLAC 24bit, worst to best), the format where it stops upgrading (highlighted), what it falls back to, and how many artists use it. Administrators can create, edit and delete music profiles there, drag the fallback order and choose the default for artists without a profile of their own. The rules are the ones above: a unique name, at least one quality, a cutoff among the accepted qualities. A profile that's the default or in use can't be deleted. The built-in default is **Lossy (MP3 320)**, which falls back to **Lossless (FLAC)**. Choose an artist's profile when adding it, or later on the artist's page. See [music.md](./music.md#quality).
+With the music module on, **Settings > Finding releases > Quality** ends with a **Music** section. It lists the music profiles: the formats each one takes (MP3-192 up to FLAC 24bit, worst to best), the format where it stops upgrading (highlighted), what it falls back to, and how many artists use it. Administrators can create, edit and delete music profiles there, drag the fallback order and choose the default for artists without a profile of their own. The rules are the ones above: a unique name, at least one quality, a cutoff among the accepted qualities. A profile that's the default or in use can't be deleted. The built-in default is **Lossy (MP3 320)**, which falls back to **Lossless (FLAC)**. Choose an artist's profile when adding it, or later on the artist's page. See [music.md](./music.md#quality).

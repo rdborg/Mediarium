@@ -2,7 +2,7 @@
 
 An import list is a list somewhere else (on Trakt, TMDB, IMDb, MDBList, Simkl or Letterboxd, or an RSS feed) that Mediarium reads on a schedule. Whatever is new on it is added to your library, with the quality profile, folder, monitoring and tags you chose for that list. It is the same idea as Lists in Radarr and Sonarr.
 
-You find it under **Settings > Info, lists and subtitles > Import lists**. It is for administrators. Nothing is added until you add a list yourself.
+You find it under **Settings > Library and files > Import lists**. It is for administrators. Nothing is added until you add a list yourself.
 
 ## The rules every list follows
 
@@ -76,14 +76,14 @@ Any RSS or Atom feed: an indexer's own RSS feed, a tracker's, or a site that pos
 
 ### Plex watchlists
 
-The Plex watchlists accounts have connected (**Settings > Account & Access > Linked services > Plex watchlist**) show in the same view, each with **Check now**. They work as before: every 20 minutes, new titles are added, or asked for when the account has to ask. They are managed by the account that connected them.
+The Plex watchlists accounts have connected (**Settings > People and access > Linked services > Plex watchlist**) show in the same view, each with **Check now**. They work as before: every 20 minutes, new titles are added, or asked for when the account has to ask. They are managed by the account that connected them.
 
 ## What a list has done: its History
 
 Under each list, **History** opens a summary of what that list has brought in, so you can tell which lists are worth keeping:
 
 - **Titles added**, and how many of them **have a file now**. A list that adds a lot that never gets downloaded is not doing much for you.
-- **Downloads it started**: the releases an RSS feed list grabbed, and the searches that ran for what a list just added. Downloads you cleared from the history are no longer counted.
+- **Downloads it started**: the releases an RSS feed list grabbed, and the searches that ran for what a list just added. Downloads you cleared from the history are no longer counted. The count belongs to the list itself: renaming the list keeps it, and two lists with the same name each have their own. Downloads from before Mediarium kept this are matched by name, where only one list has that name.
 - **Last added**: when it last brought something in.
 - What it **skipped**, by reason: already in the library, on the list when it was first read, on your Not interested list, below the minimum rating or year, not found on TMDB, or couldn't be added.
 - A list of the titles it added, newest first (up to 300), each with the date and whether it has a file. A title you removed from the library afterwards says so.

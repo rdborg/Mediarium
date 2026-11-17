@@ -277,11 +277,18 @@ func (s *Server) withMovieIDs(ctx context.Context, m library.Movie) context.Cont
 	if m.TMDBID <= 0 {
 		return ctx
 	}
-	tmdb := m.TMDBID
-	// Asked only when an indexer lists imdbid, and then once per search.
+	return indexers.WithIDs(ctx, indexers.IDs{TMDB: m.TMDBID, Movie: true, LookupIMDB: s.movieIMDbLookup(m.TMDBID)})
+}
+
+// movieIMDbLookup finds a film's IMDb id, asked only when an indexer lists
+// imdbid and then once per search. Every indexer of the search shares the one
+// answer, so the lookup does not stop when the indexer that happened to ask
+// first is cancelled or times out: it keeps the caller's values but runs on
+// its own short timeout.
+func (s *Server) movieIMDbLookup(tmdb int) func(context.Context) string {
 	var once sync.Once
 	var imdb string
-	lookup := func(lctx context.Context) string {
+	return func(lctx context.Context) string {
 		once.Do(func() {
 			if v, ok := movieIMDbIDs.Load(tmdb); ok {
 				imdb, _ = v.(string)
@@ -291,7 +298,7 @@ func (s *Server) withMovieIDs(ctx context.Context, m library.Movie) context.Cont
 			if t == nil {
 				return
 			}
-			tctx, cancel := context.WithTimeout(lctx, 5*time.Second)
+			tctx, cancel := context.WithTimeout(context.WithoutCancel(lctx), 5*time.Second)
 			defer cancel()
 			if d, err := t.GetMovieDetail(tctx, tmdb); err == nil && d.IMDBID != "" {
 				imdb = d.IMDBID
@@ -300,7 +307,6 @@ func (s *Server) withMovieIDs(ctx context.Context, m library.Movie) context.Cont
 		})
 		return imdb
 	}
-	return indexers.WithIDs(ctx, indexers.IDs{TMDB: tmdb, Movie: true, LookupIMDB: lookup})
 }
 
 // movieIMDbIDs remembers the IMDb id of each film (TMDB id -> "tt...").

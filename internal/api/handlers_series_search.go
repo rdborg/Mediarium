@@ -254,19 +254,30 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	keeps := s.tvImportKeeps(series, season, episode)
 	out := []searchResultPayload{}
 	var found []indexers.Result
+	// What was left out, for the "Searches used" part: releases of another show
+	// or another season or episode, and in the list for the whole series the
+	// ones of this show that are not a pack of several seasons.
+	var ignored ignoredReleases
+	notAPack := filteredCount{Reason: notMultiSeasonPack}
 	for _, res := range merged {
 		parsed := res.Parsed()
 		if complete && custom == "" {
 			// Only packs of more than one season, or of the whole series, belong in this list.
-			if _, _, ok := parsed.SeasonSpan(); !ok || !matchesShowRel(parsed, series) || untaggedForOtherShow(parsed, series) {
+			if !matchesShowRel(parsed, series) || untaggedForOtherShow(parsed, series) {
+				ignored.add(res.Title)
+				continue
+			}
+			if _, _, ok := parsed.SeasonSpan(); !ok {
+				notAPack.Count++
 				continue
 			}
 		} else if custom == "" && (!matchesShowForRel(parsed, series, season) || !coversTarget(mapped(mapper, parsed), season, episode)) {
+			ignored.add(res.Title)
 			continue
 		}
 		payload := s.toSearchResultPayload(res)
 		payload.MatchedTitle = matchedOtherTitle(res.Title, series.Title, series.AltTitles)
-		payload.Blocklisted = blocklist.Blocked(blocked, res.Title, blocklist.Scope{SeriesID: series.ID})
+		payload.Blocklisted = releaseBlocked(blocked, res, blocklist.Scope{SeriesID: series.ID})
 		payload.addReasonList(rejectionReasonsFor(res.Title, profile, keeps != keepsNothing, "", "", keeps))
 		payload.addReasons("size", sizeReasons(res.Title, res.SizeBytes))
 		payload.addStateReasons()
@@ -277,8 +288,12 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	markBestMatch(out, found, profile)
 	s.markCachedPayloads(r.Context(), out)
-	writeSearchAll(w, r, out, len(instances), outcomes, notAsked, instances)
+	writeSearchIgnoring(w, r, out, len(instances), outcomes, notAsked, instances, ignored, releaseFiltered(ignored, out, notAPack))
 }
+
+// notMultiSeasonPack is why a release of the show is not in the list for the
+// whole series.
+const notMultiSeasonPack = "Not a pack of several seasons or of the whole show."
 
 // coversTarget reports whether a parsed release satisfies a season/episode
 // request: for an episode, that episode itself, a multi-episode release

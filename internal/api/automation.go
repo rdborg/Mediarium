@@ -269,7 +269,7 @@ func (s *Server) huntMovie(ctx context.Context, m library.Movie, instances []ind
 		if best == nil {
 			return false
 		}
-		if _, err := s.grabMovie(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(force)); err != nil {
+		if _, err := s.grabMovieBy(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(force), grabByFrom(ctx)); err != nil {
 			log.Printf("automation: hunt: grab %q for %q: %v", best.Title, m.Title, err)
 			return false
 		}
@@ -293,7 +293,7 @@ func (s *Server) huntMovie(ctx context.Context, m library.Movie, instances []ind
 		if best == nil {
 			return false
 		}
-		if _, err := s.grabMovie(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(force)); err != nil {
+		if _, err := s.grabMovieBy(m, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(force), grabByFrom(ctx)); err != nil {
 			log.Printf("automation: hunt: upgrade grab %q for %q: %v", best.Title, m.Title, err)
 			return false
 		}

@@ -180,3 +180,40 @@ func TestSetEpisodeOrderRefusals(t *testing.T) {
 		t.Errorf("a refused change must leave the order alone, got %q", got.EpisodeOrder)
 	}
 }
+
+// A show's page says whether a TheTVDB key is saved, so the episode order
+// picker works for managers who can't read the TheTVDB settings.
+func TestSeriesDetailSaysWhetherATheTVDBKeyIsSaved(t *testing.T) {
+	s := newBareServer(t)
+	sr, _ := s.MovieRepo.AddSeries(library.Series{TMDBID: 1, Title: "Show", Monitored: true}, nil)
+	get := func() bool {
+		t.Helper()
+		id := strconv.FormatInt(sr.ID, 10)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/series/"+id, nil)
+		r.SetPathValue("id", id)
+		s.handleGetSeries(w, r)
+		var out struct {
+			Key *bool `json:"thetvdbKey"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil || out.Key == nil {
+			t.Fatalf("no thetvdbKey in %s (%v)", w.Body.String(), err)
+		}
+		return *out.Key
+	}
+	tests := []struct {
+		name, key string
+		want      bool
+	}{
+		{"no key", "", false},
+		{"a key", "good", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_ = s.Settings.Set(settings.KeyTVDBAPIKey, tc.key, true)
+			if got := get(); got != tc.want {
+				t.Fatalf("thetvdbKey = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

@@ -197,11 +197,11 @@ More answers: [install guide troubleshooting](./INSTALL.md#troubleshooting). Sti
 
 ## Adding music, ebooks or audiobooks later
 
-Music, ebooks and audiobooks each switch on under **Settings, Media types**. If your movies, TV and downloads share one folder (like `/data`), Mediarium offers to create the new folder inside it for you, so often you don't need to change the project at all.
+Music, ebooks and audiobooks each switch on under **Settings, Basics, Media types**. If your movies, TV and downloads share one folder (like `/data`), Mediarium offers to create the new folder inside it for you, so often you don't need to change the project at all.
 
 - **Inside your one shared folder:** create the folder (for example `Music`), add `MUSIC_DIR=/data/Music`, `EBOOKS_DIR=/data/Ebooks` or `AUDIOBOOKS_DIR=/data/Audiobooks` to the `environment:` lines, then stop the project, choose **Action, Build** and **Start**. Nothing else to map.
 - **A folder somewhere else:** add a line under `volumes:`, for example `- /volume1/music:/music`, and rebuild the same way. No `environment:` line is needed when the right side is `/music`, `/ebooks` or `/audiobooks`.
-- Then switch the type on in **Settings, Media types** and check the folder in **Settings, Library, Folders**.
+- Then switch the type on in **Settings, Basics, Media types** and check the folder in **Settings, Library and files and files, Folders**.
 
 ## Reach it from outside your home
 
@@ -234,7 +234,7 @@ You can keep Radarr, Sonarr and SABnzbd running while you try Mediarium. They sh
 - **Bring your settings over:** [Move from Radarr, Sonarr, Prowlarr, SABnzbd and other apps](./migrate.md) imports your indexers, Usenet servers and library, so you don't type everything again.
 - **Let only one app download each title.** If Radarr and Mediarium both search for the same movie, you can download it twice. While you try Mediarium, add only new titles to it, or turn off monitoring in Radarr and Sonarr for the titles Mediarium looks after.
 - **Give Mediarium its own downloads folder.** Mediarium tidies up leftovers in its own download folder, so it must not share one with SABnzbd or qBittorrent. If your other apps use `/volume1/Media/downloads`, use `DOWNLOADS_DIR=/data/downloads/mediarium` instead. Mediarium creates that folder.
-- **Plex, Jellyfin and Emby** keep working as before. Connect them under **Settings, Connections, Media servers** so they refresh when Mediarium adds something ([media-servers.md](./media-servers.md)).
+- **Plex, Jellyfin and Emby** keep working as before. Connect them under **Settings, Media servers and apps, Media servers** so they refresh when Mediarium adds something ([media-servers.md](./media-servers.md)).
 - **Usenet connections:** Mediarium and SABnzbd both count against your provider's connection limit. If a download stops with "too many connections", stop SABnzbd or lower the number in one of them. Mediarium lowers its own number by itself when the provider says so (see [downloads.md](./downloads.md#usenet-connections)).
 
 When Mediarium does everything you need, stop the old containers (**Container Manager, Container, select them, Action, Stop**) and leave them stopped for a few weeks before you delete them. Your library isn't touched: the movies and TV folders belong to you, not to the apps.
@@ -257,7 +257,7 @@ sudo docker compose up -d
 
 Your settings and library are kept, and Mediarium updates its database when it starts. Read the [changelog](../CHANGELOG.md) first and back up before a big update.
 
-When a new version is out, administrators see a card on the dashboard and on **Settings > General**. If the release is signed, the card also has an **Update now** button, which installs it without using Container Manager. See [Update now](./INSTALL.md#update-now-docker-image).
+When a new version is out, administrators see a card on the dashboard and on **Settings > Basics > General**. If the release is signed, the card also has an **Update now** button, which installs it without using Container Manager. See [Update now](./INSTALL.md#update-now-docker-image).
 
 ## Backing up
 

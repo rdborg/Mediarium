@@ -1078,7 +1078,7 @@ func (s *Server) arrCommand(app arrApp) http.HandlerFunc {
 		case "artistsearch":
 			if req.ArtistID > 0 {
 				id := req.ArtistID
-				jobs = append(jobs, func() { s.searchArtistAlbums(id) })
+				jobs = append(jobs, func() { s.searchArtistAlbums(context.Background(), id) })
 			}
 		case "albumsearch":
 			for _, id := range req.AlbumIDs {

@@ -13,7 +13,7 @@ It follows the phone as you turn it or open and close the fold. The closed outer
 
 ## Settings
 
-Settings > General > Foldable and dual-screen:
+Settings > Basics > General > Foldable and dual-screen:
 
 - **Foldable layout:** Automatic (the default) turns it on when the installed app runs on a near-square screen that shows a system strip, or on an iPhone with a near-square screen (it draws its clock group without reporting a safe area). On forces it on, Off keeps the normal layout. The choice is kept in this browser, so you can set it differently on each device.
 - **Space kept free for the system icons:** two sliders, one for the top strip (the width taken by the clock, signal and battery) and one for the side strip (the height taken by them). If the icons touch a button, move the slider until they don't.

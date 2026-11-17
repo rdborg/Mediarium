@@ -72,6 +72,12 @@ type Client struct {
 	// pages caches Discover list and browse pages for a few minutes.
 	pages pageCache
 
+	// provs caches where each title can be watched, and hides remembers
+	// where the pages of each filtered list start (see hidelist.go).
+	provs     pageCache
+	provsInit sync.Once
+	hides     hideStates
+
 	// now is the clock "upcoming" lists count from; nil means time.Now.
 	now func() time.Time
 }

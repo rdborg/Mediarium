@@ -1,6 +1,6 @@
 # Media types (modules)
 
-Mediarium looks after several kinds of media, and each kind is a module. **Settings > Media types** (administrators only) is where you switch them on and off. A module that's off disappears from the menu and does nothing in the background.
+Mediarium looks after several kinds of media, and each kind is a module. **Settings > Basics > Media types** (administrators only) is where you switch them on and off. A module that's off disappears from the menu and does nothing in the background.
 
 | Module | Default | State |
 |---|---|---|
@@ -14,9 +14,9 @@ Mediarium looks after several kinds of media, and each kind is a module. **Setti
 
 ![The Media types page: cards for Movies, TV shows, Music, Ebooks and Audiobooks, all switched on](images/settings-modules.png)
 
-*Settings > Media types. All five kinds are switched on. The Settings entry in the sidebar is open.*
+*Settings > Basics > Media types. All five kinds are switched on. The Settings entry in the sidebar is open.*
 
-**Settings > Media types** is the first page in Settings, and the one administrators land on. Each kind of media has a card with a switch, side by side and all the same height. A card says in a line what that kind does, with a short list of what you get. There's no Save button, and a small message confirms the change. If the server refuses it, the switch goes back and the reason is shown.
+**Settings > Basics > Media types** is the first page in Settings, and the one administrators land on. Each kind of media has a card with a switch, side by side and all the same height. A card says in a line what that kind does, with a short list of what you get. There's no Save button, and a small message confirms the change. If the server refuses it, the switch goes back and the reason is shown.
 
 - **Movies**, **TV shows** and **Music** can be switched on and off.
 - **Ebooks** and **Audiobooks** switch on and off like the others (see [books.md](./books.md)).
@@ -50,7 +50,7 @@ Some new features start off, so an update never changes how Mediarium behaves by
 - **Not now** asks again after the next update.
 - **Never** stops asking.
 
-The same list is under the module cards on **Settings > Media types** as **New things you can switch on**, for whatever is still off, also after a **Never**. **Offer it again after updates** takes a Never back. The answers are kept on the server, so every browser you use agrees. Every one that is a single switch or key is also in the setup wizard where it fits: the anime library on the Media types step, TheTVDB on the services step, UDP trackers and DHT on the VPN step. The ones set up per indexer or per list (where torrents go, RSS feed lists, the link to Prowlarr) are offered after updates and on this page only. Scripts: `GET`/`PUT /api/feature-offers` (`{"id": "anime", "choice": "never" | "later" | "clear", "version": "4.0.0"}`).
+The same list is under the module cards on **Settings > Basics > Media types** as **New things you can switch on**, for whatever is still off, also after a **Never**. **Offer it again after updates** takes a Never back. The answers are kept on the server, so every browser you use agrees. Every one that is a single switch or key is also in the setup wizard where it fits: the anime library on the Media types step, TheTVDB on the services step, UDP trackers and DHT on the VPN step. The ones set up per indexer or per list (where torrents go, RSS feed lists, the link to Prowlarr) are offered after updates and on this page only. Scripts: `GET`/`PUT /api/feature-offers` (`{"id": "anime", "choice": "never" | "later" | "clear", "version": "4.0.0"}`).
 
 ## Folders for each module
 
@@ -68,13 +68,13 @@ Downloads use `DOWNLOADS_DIR` (`/downloads`, setting `library.downloads_path`). 
 
 ### Adding music, ebooks or audiobooks later
 
-**The easy way:** if your movies, TV and downloads already share one mapped folder (for example `/data/Movies`, `/data/tv` and `/data/downloads`), there's nothing to change in your compose file. Under **Settings > Library > Folders**, a folder that isn't found offers **Use /data/Ebooks** (or Music, Audiobooks), which creates it next to the others and fills in the box. Then press **Save**. A missing folder inside a mapped one also gets a **Create this folder** button, and the setup wizard offers **create it now**. Mediarium only creates a folder one level inside a folder that is mapped to your device and writable, so nothing ends up inside the container where an update would lose it.
+**The easy way:** if your movies, TV and downloads already share one mapped folder (for example `/data/Movies`, `/data/tv` and `/data/downloads`), there's nothing to change in your compose file. Under **Settings > Library and files and files > Folders**, a folder that isn't found offers **Use /data/Ebooks** (or Music, Audiobooks), which creates it next to the others and fills in the box. Then press **Save**. A missing folder inside a mapped one also gets a **Create this folder** button, and the setup wizard offers **create it now**. Mediarium only creates a folder one level inside a folder that is mapped to your device and writable, so nothing ends up inside the container where an update would lose it.
 
 **Otherwise:**
 
 1. Create the folder on your server (on a NAS, before the next step, or Docker won't start).
 2. Give it to the container: either a `*_DIR` line in `environment` pointing inside your `/data` folder (for example `MUSIC_DIR=/data/music`), or a `volumes` line such as `- /path/to/music:/music`. Then recreate the container ([INSTALL.md](./INSTALL.md#optional-folders-music-ebooks-and-audiobooks)).
-3. Switch the type on under **Settings > Media types** (music today), and check the folder under **Settings > Library > Folders**, which shows whether it's **Mapped to your device**.
+3. Switch the type on under **Settings > Basics > Media types** (music today), and check the folder under **Settings > Library and files and files > Folders**, which shows whether it's **Mapped to your device**.
 
 ## On the dashboard
 
@@ -98,7 +98,7 @@ The numbers come from `GET /api/system/stats` (administrators only).
 
 - Its pages are hidden, for basic users too.
 - Automation skips it: no scheduled searches, no RSS sync and no automatic retries for that kind of media.
-- Adding a title of that kind is refused with `409` and "Movies are switched off. Switch them on in Settings > Media types." (for TV: "TV is switched off. Switch it on in Settings > Media types."). That includes grabbing a release from the search page that would add one.
+- Adding a title of that kind is refused with `409` and "Movies are switched off. Switch them on in Settings > Basics > Media types." (for TV: "TV is switched off. Switch it on in Settings > Basics > Media types."). That includes grabbing a release from the search page that would add one.
 - **Nothing is deleted.** Your movies, shows, artists, files and settings stay as they are. Downloads already running finish. Switch the module on again and everything carries on.
 
 At least one kind of media must stay on. A change that would switch every available module off is refused.

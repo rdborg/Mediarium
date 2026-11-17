@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -13,6 +12,7 @@ import (
 	"github.com/rdborg/mediarium/internal/blocklist"
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -63,19 +63,11 @@ func searchAlbumQueries(ctx context.Context, instances []indexers.Instance, quer
 // albumFilteredCounts tallies the reasons automation would skip the releases
 // of an interactive album search, for the "Searches used" part of the page.
 func albumFilteredCounts(list []musicReleasePayload) []filteredCount {
-	var out []filteredCount
+	reasons := make([][]string, 0, len(list))
 	for _, p := range list {
-		for _, why := range p.Rejections {
-			i := slices.IndexFunc(out, func(c filteredCount) bool { return c.Reason == why })
-			if i < 0 {
-				out = append(out, filteredCount{Reason: why})
-				i = len(out) - 1
-			}
-			out[i].Count++
-		}
+		reasons = append(reasons, p.Rejections)
 	}
-	slices.SortStableFunc(out, func(a, b filteredCount) int { return b.Count - a.Count })
-	return out
+	return tallyReasons(nil, reasons)
 }
 
 // soulseekWords turns a name into the words Soulseek matches: letters and
@@ -105,9 +97,12 @@ func soulseekWords(name string) string {
 }
 
 // soulseekQueries lists what to ask Soulseek for an album, from the most
-// exact to the widest: artist and title, then the title alone (a soundtrack
-// or a "Various Artists" album is shared under many artist names), then the
-// artist and the first words of a long title. Repeats are dropped.
+// exact to the widest: artist and title, the same with German umlauts written
+// out ("fuer" for "für") when that is different, because many shared folders
+// are named without umlauts (#193), then the title alone (a soundtrack or a
+// "Various Artists" album is shared under many artist names), then the artist
+// and the first words of a long title. Repeats are dropped, so there are at
+// most four, and the umlaut spelling is the only one added for umlauts.
 func soulseekQueries(artist music.Artist, album music.Album) []string {
 	name := soulseekWords(artist.Name)
 	if strings.EqualFold(name, "various artists") || strings.EqualFold(name, "various") {
@@ -131,6 +126,7 @@ func soulseekQueries(artist music.Artist, album music.Album) []string {
 		out = append(out, q)
 	}
 	add(name + " " + title)
+	add(music.SpellUmlauts(name + " " + title))
 	add(title)
 	if w := strings.Fields(title); len(w) > 3 {
 		add(name + " " + strings.Join(w[:3], " "))
@@ -283,13 +279,13 @@ func (s *Server) handleAlbumSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	outcomes := searchAlbumQueries(indexers.AsManual(r.Context()), asked, queries)
 	for _, res := range indexers.MergeResults(outcomes) {
-		rel := music.ParseRelease(res.Title)
+		rel := music.ParseReleaseFor(res.Title, artist.Name)
 		p := musicReleasePayload{
 			Title: res.Title, IndexerName: res.IndexerName, Protocol: string(res.Protocol), DownloadURL: s.offered.ref(res.DownloadURL), InfoURL: indexers.SafeInfoURL(res.InfoURL, res.DownloadURL),
 			SizeBytes: res.SizeBytes, Seeders: res.Seeders, Peers: res.Peers, Discount: res.Discount,
 			Artist: rel.Artist, Album: rel.Album, Year: rel.Year, Format: string(rel.Format), Bitrate: rel.Bitrate, BitDepth: rel.BitDepth,
 			Source: rel.Source, Discography: rel.Discography, Quality: string(rel.Tier()),
-			Blocklisted: blocklist.Blocked(blocked, res.Title, blocklist.Scope{AlbumID: album.ID}),
+			Blocklisted: releaseBlocked(blocked, res, blocklist.Scope{AlbumID: album.ID}),
 			Rejections:  s.musicRejections(res, rel, artist, album, profile, sources),
 			AcceptedBy:  musicAcceptedBy(profile, rel.Tier()),
 		}
@@ -327,7 +323,7 @@ func (s *Server) handleAlbumGrab(w http.ResponseWriter, r *http.Request) {
 	if !s.checkGrabURL(w, r, &req.DownloadURL) {
 		return
 	}
-	queueID, err := s.grabAlbum(artist, album, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.musicProtocol(), grabPicked)
+	queueID, err := s.grabAlbum(artist, album, req.ReleaseTitle, req.DownloadURL, req.SizeBytes, req.musicProtocol(), grabPicked, userOrigin(r, origin.Manual))
 	if err != nil {
 		writeGrabError(w, err, http.StatusInternalServerError)
 		return
@@ -355,7 +351,8 @@ func (s *Server) handleAlbumSearchNow(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if s.huntAlbum(r.Context(), artist, album, profile, instances, s.searchSkipKeys(), true) {
+	// The download it starts is the person's search, not the schedule's.
+	if s.huntAlbum(withGrabBy(r.Context(), userOrigin(r, origin.Search)), artist, album, profile, instances, s.searchSkipKeys(), true) {
 		writeJSON(w, http.StatusOK, searchNowResponse{Grabbed: 1, Message: "Started a download. Follow it in Activity."})
 		return
 	}
@@ -367,7 +364,8 @@ func (s *Server) handleAlbumSearchNow(w http.ResponseWriter, r *http.Request) {
 // that, the first fallback profile that accepts something), for a
 // downloaded one only a real upgrade. Unless force is set, the album must
 // be monitored and wanted. It records the search in the album's activity
-// and reports whether something was grabbed.
+// and reports whether something was grabbed. The download is credited to who
+// is behind the run (see withGrabBy), or to the scheduled search.
 func (s *Server) huntAlbum(ctx context.Context, artist music.Artist, album music.Album, profile music.Profile, instances []indexers.Instance, blocked map[string]bool, force bool) bool {
 	current := albumCurrentTier(album)
 	switch album.Status {
@@ -416,7 +414,7 @@ func (s *Server) huntAlbum(ctx context.Context, artist music.Artist, album music
 	if best == nil {
 		return false
 	}
-	if _, err := s.grabAlbum(artist, album, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(force)); err != nil {
+	if _, err := s.grabAlbum(artist, album, best.Title, best.DownloadURL, best.SizeBytes, best.Protocol, searchKind(force), grabByFrom(ctx)); err != nil {
 		slog.Info("music: automatic grab refused", "album", album.Title, "artist", artist.Name, "release", best.Title, "err", err)
 		return false
 	}
@@ -438,10 +436,10 @@ func pickMusicRelease(results []indexers.Result, blocked map[string]bool, source
 	var cands []candidate
 	for i := range results {
 		res := &results[i]
-		rel := music.ParseRelease(res.Title)
+		rel := music.ParseReleaseFor(res.Title, artist.Name)
 		tier := rel.Tier()
 		switch {
-		case blocklist.Blocked(blocked, res.Title, blocklist.Scope{AlbumID: album.ID}):
+		case releaseBlocked(blocked, *res, blocklist.Scope{AlbumID: album.ID}):
 			v.reject("blocklisted")
 			continue
 		case sources != sourcesBoth && sources != "" && res.Protocol != indexers.Protocol(sources):
@@ -559,8 +557,9 @@ func (s *Server) huntMusic(ctx context.Context, instances []indexers.Instance) {
 }
 
 // searchArtistAlbums searches right away for every wanted album of one
-// artist (after adding it with "search now").
-func (s *Server) searchArtistAlbums(artistID int64) {
+// artist (after adding it with "search now"). The downloads are credited to
+// who is behind ctx (see withGrabBy).
+func (s *Server) searchArtistAlbums(ctx context.Context, artistID int64) {
 	instances, err := s.searchableIndexers()
 	if err != nil || len(instances) == 0 {
 		return
@@ -578,7 +577,7 @@ func (s *Server) searchArtistAlbums(artistID int64) {
 		if searched++; searched > maxMusicSearchesPerHunt {
 			return // the scheduled hunt takes care of the rest
 		}
-		s.huntAlbum(context.Background(), wa.artist, wa.album, wa.profile, instances, blocked, false)
+		s.huntAlbum(ctx, wa.artist, wa.album, wa.profile, instances, blocked, false)
 	}
 }
 

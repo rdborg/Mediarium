@@ -9,12 +9,14 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // countingMusicBrainz answers every request with an error and counts them, so
@@ -232,4 +234,60 @@ func TestManualBookAdd(t *testing.T) {
 	if got["coverUrl"] == "" || got["description"] != "Typed in." {
 		t.Fatalf("book after cover: %v", got)
 	}
+}
+
+// The cover given to an album added by hand goes when its artist is removed;
+// another artist's cover stays.
+func TestManualCoverIsRemovedWithItsArtist(t *testing.T) {
+	e := newMusicEnv(t)
+	add := func(artist, album string) int64 {
+		got := postJSON[map[string]any](t, e.client, e.base+"/api/music/manual", map[string]any{"artist": artist, "album": album}, http.StatusCreated)
+		id := int64(got["albumId"].(float64))
+		uploadFile(t, e.client, fmt.Sprintf("%s/api/music/albums/%d/cover", e.base, id), tinyPNG(t), http.StatusOK)
+		return id
+	}
+	first, second, other := add("Hand Band", "Handmade"), add("Hand Band", "Second Hand"), add("Other Band", "Kept")
+	artist := getJSON[map[string]any](t, e.client, fmt.Sprintf("%s/api/music/albums/%d", e.base, first))["artistId"]
+	if status, body := doStatus(t, e.client, http.MethodDelete, fmt.Sprintf("%s/api/music/artists/%v", e.base, artist)); status != http.StatusOK && status != http.StatusNoContent {
+		t.Fatalf("remove artist: %d %s", status, body)
+	}
+	for _, c := range []struct {
+		name string
+		id   int64
+		kept bool
+	}{
+		{"first album of the removed artist", first, false},
+		{"second album of the removed artist", second, false},
+		{"album of another artist", other, true},
+	} {
+		_, err := os.Stat(e.server.TestManualCoverPath(c.id))
+		if kept := err == nil; kept != c.kept {
+			t.Errorf("%s: cover kept = %v, want %v (%v)", c.name, kept, c.kept, err)
+		}
+	}
+}
+
+// Adding an album by hand to an artist already in the library needs the
+// manage permission, as adding an album from the artist's page does. A new
+// artist only needs the right to add music.
+func TestManualAlbumForAnExistingArtistNeedsManage(t *testing.T) {
+	e := newMusicEnv(t)
+	url := e.base + "/api/music/manual"
+	postJSON[map[string]any](t, e.client, url, map[string]any{"artist": "Hand Band", "album": "Handmade"}, http.StatusCreated)
+	postJSON[map[string]any](t, e.client, e.base+"/api/users", map[string]any{
+		"username": "pat", "password": "pat-password-1", "role": "member",
+		"permissions": map[string]any{"manage": false, "music": true, "addDirect": true},
+	}, http.StatusCreated)
+	jar, _ := cookiejar.New(nil)
+	pat := &http.Client{Jar: jar, Timeout: 20 * time.Second}
+	postJSON[map[string]any](t, pat, e.base+"/api/auth/login", map[string]string{"username": "pat", "password": "pat-password-1"}, http.StatusOK)
+
+	got := postJSON[map[string]any](t, pat, url, map[string]any{"artist": "hand band", "album": "More Handmade"}, http.StatusForbidden)
+	if msg, _ := got["error"].(string); !strings.Contains(msg, "already in your library") {
+		t.Fatalf("the refusal should say why: %v", got)
+	}
+	if added := postJSON[map[string]any](t, pat, url, map[string]any{"artist": "Other Band", "album": "Fresh"}, http.StatusCreated); added["newArtist"] != true {
+		t.Fatalf("a new artist is still fine: %v", added)
+	}
+	postJSON[map[string]any](t, e.client, url, map[string]any{"artist": "Hand Band", "album": "More Handmade"}, http.StatusCreated)
 }

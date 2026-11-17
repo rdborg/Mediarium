@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/rdborg/mediarium/internal/auth"
@@ -47,6 +46,16 @@ type originView struct {
 	User *userRef `json:"user,omitempty"`
 }
 
+// adminOrigin is v for an administrator and nil for anyone else: how a title
+// came in (the list's name, the person who added it) is for administrators
+// only, like the line under a download.
+func adminOrigin(r *http.Request, v *originView) *originView {
+	if !isAdminRequest(r) {
+		return nil
+	}
+	return v
+}
+
 // originOut turns a stored origin into what the API returns: nil when nothing
 // was recorded. A title's person is looked up from the account that added it
 // (who); a download carries its own, so a removed account still shows.
@@ -61,39 +70,40 @@ func originOut(o origin.Origin, who *userRef) *originView {
 	return v
 }
 
-// hintKey names a title in the hints below.
-func hintKey(tv bool, id int64) string {
-	if tv {
-		return fmt.Sprintf("tv:%d", id)
-	}
-	return fmt.Sprintf("movie:%d", id)
+// origin is what the list adds and starts: its name as it is now, and its id,
+// which is what its history counts by (the name can change, or be shared).
+func (l importList) origin() origin.Origin {
+	return origin.Origin{Kind: origin.List, Name: l.Name, ListID: l.ID}
 }
 
-// hintGrabs says who is behind the searches that run for a title until the
-// returned function is called: the downloads they start are attributed to o
-// instead of the scheduled search. A search a person starts, or an import list
-// starts for what it just added, is not a scheduled one.
-func (s *Server) hintGrabs(tv bool, id int64, o origin.Origin) (done func()) {
-	key := hintKey(tv, id)
-	s.grabHints.Store(key, o)
-	return func() { s.grabHints.Delete(key) }
+type grabByCtxKey struct{}
+
+// withGrabBy says who is behind the search run under ctx: the downloads that
+// run starts are attributed to o instead of the scheduled search. A search a
+// person starts, or an import list starts for what it just added, is not a
+// scheduled one. It travels with the run itself, so two runs for the same
+// title at once each keep their own, and a scheduled search or RSS check that
+// happens meanwhile is not credited to either.
+func withGrabBy(ctx context.Context, o origin.Origin) context.Context {
+	return context.WithValue(ctx, grabByCtxKey{}, o)
+}
+
+// grabByFrom is who withGrabBy put on ctx; empty when nobody did.
+func grabByFrom(ctx context.Context) origin.Origin {
+	o, _ := ctx.Value(grabByCtxKey{}).(origin.Origin)
+	return o
 }
 
 // grabOrigin works out the origin of a download. When the caller knows who
-// asked (by), that is it. Otherwise a release a person picked is a manual one,
-// and anything else is attributed to whoever asked for the search, when that
-// is known (see hintGrabs), or to the scheduled job.
-func (s *Server) grabOrigin(kind grabKind, by origin.Origin, tv bool, titleID int64, job string) origin.Origin {
+// asked (by: the person, the list or the job behind the run), that is it.
+// Otherwise a release a person picked is a manual one, a search started by
+// hand is a search, and anything else is the scheduled job's.
+func (s *Server) grabOrigin(kind grabKind, by origin.Origin, job string) origin.Origin {
 	if by.Known() {
 		return by
 	}
 	if kind == grabPicked {
 		return origin.Origin{Kind: origin.Manual}
-	}
-	if v, ok := s.grabHints.Load(hintKey(tv, titleID)); ok {
-		if o, ok := v.(origin.Origin); ok {
-			return o
-		}
 	}
 	if kind == grabSearchNow {
 		return origin.Origin{Kind: origin.Search, UserID: by.UserID, User: by.User}

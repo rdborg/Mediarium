@@ -40,6 +40,7 @@
 .music-artist .album-card.dim .sleeve-disc { filter: grayscale(0.8) brightness(0.7); }
 .music-artist .album-info h3 { font-family: var(--font-display); font-size: 1.08rem; letter-spacing: -0.015em; }
 .music-artist .album-sub { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-faint); }
+.music-artist .album-origin { margin: 2px 0 0; font-size: 0.74rem; color: var(--text-faint); text-wrap: balance; }
 .music-artist .album-actions .btn-sm { border-radius: 4px 10px 10px 10px; }
 .music-artist .album-section .rail-head h2 { font-size: 1.3rem; letter-spacing: -0.02em; }
 .music-artist .album-section .rail-head h2 small { font-family: var(--font-mono); font-size: 0.8rem; }

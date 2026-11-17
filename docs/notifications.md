@@ -1,6 +1,6 @@
 # Notifications
 
-Notifications tell you when something happens: a download started or finished, a download failed, Mediarium needs a decision, a subtitle arrived, a connection to your Usenet provider or an indexer broke, a download client went down or came back, an error was added to Logs and errors, or a new version of Mediarium is out. Administrators set them up under **Settings > Connections > Notifications**.
+Notifications tell you when something happens: a download started or finished, a download failed, Mediarium needs a decision, a subtitle arrived, a connection to your Usenet provider or an indexer broke, a download client went down or came back, an error was added to Logs and errors, or a new version of Mediarium is out. Administrators set them up under **Settings > Media servers and apps > Notifications**.
 
 ## The page
 
@@ -9,7 +9,7 @@ Notifications tell you when something happens: a download started or finished, a
 
 ![The Notifications page with three notifications set up (ntfy, Discord and email) and the list of methods to add](images/settings-notifications.png)
 
-*Settings > Connections > Notifications: the notifications you have set up, each with its switch, Test, Edit and Remove, and the ways to add another below.*
+*Settings > Media servers and apps > Notifications: the notifications you have set up, each with its switch, Test, Edit and Remove, and the ways to add another below.*
 
 ## Ways to be notified
 
@@ -146,7 +146,7 @@ Push sends notifications to a phone or computer through its own browser, like a 
 
 1. Open Mediarium **on the device** that should get the notifications, at its secure address (https). Browsers only allow push on secure pages, or at `localhost` on the server itself. If you open Mediarium at `http://192.168.x.x:8264`, put it behind a reverse proxy with https first.
 2. **iPhone and iPad** (iOS 16.4 or later): tap Share > **Add to Home Screen**, then open Mediarium from the new icon. Push only works from there, not in Safari itself.
-3. Go to Settings > Connections > Notifications, choose **Push to this device**, press **Allow notifications on this device** and allow it when the browser asks. The name is filled in with the kind of device, such as "iPhone"; change it if you like.
+3. Go to Settings > Media servers and apps > Notifications, choose **Push to this device**, press **Allow notifications on this device** and allow it when the browser asks. The name is filled in with the kind of device, such as "iPhone"; change it if you like.
 4. Pick when it should tell you, press **Send a test**, then **Add**.
 
 Do this on each device you want notified: each one is its own entry in the list. Tapping a notification opens Mediarium at that title when **Link in messages** is set, otherwise at the dashboard.

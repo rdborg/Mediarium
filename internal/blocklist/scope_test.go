@@ -120,6 +120,30 @@ func TestItemOnlyNarrowsTheGlobalEntryOfTheSameTitle(t *testing.T) {
 	}
 }
 
+// An entry for everywhere that is tied to no title (a person blocked a
+// download that was for no title) is a block on purpose: blocking the same
+// release for one title later leaves it in place.
+func TestItemOnlyKeepsAGlobalEntryTiedToNoTitle(t *testing.T) {
+	repo, movies := newRepos(t)
+	one, _ := movies.Add(library.Movie{TMDBID: 1, Title: "One", Monitored: true})
+	two, _ := movies.Add(library.Movie{TMDBID: 2, Title: "Two", Monitored: true})
+	if err := repo.Add(blocklist.Entry{ReleaseTitle: "Release.C"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Add(blocklist.Entry{ReleaseTitle: "Release.C", MovieID: one.ID, ItemOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	keys, _ := repo.Keys()
+	for _, sc := range []blocklist.Scope{{MovieID: one.ID}, {MovieID: two.ID}, {}} {
+		if !blocklist.Blocked(keys, "Release.C", sc) {
+			t.Errorf("Release.C is still blocked everywhere, but not for %+v", sc)
+		}
+	}
+	if list, _ := repo.List(); len(list) != 2 {
+		t.Fatalf("want both entries, got %+v", list)
+	}
+}
+
 func TestSetScopeSwitchesBothWays(t *testing.T) {
 	repo, movies := newRepos(t)
 	one, _ := movies.Add(library.Movie{TMDBID: 1, Title: "One", Monitored: true})

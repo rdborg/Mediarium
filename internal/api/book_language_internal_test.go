@@ -20,6 +20,13 @@ func TestLanguageInCategory(t *testing.T) {
 		"Hörbücher (FR)":         "French",
 		"Ebook (de)":             "German", // in brackets, any case
 		"Books mit deutscher UT": "",
+		"Books - DE / Ebook":     "German", // a capital code between separators (#128)
+		"DE / Ebook":             "German",
+		"Books - FR":             "French",
+		"Books - IT / Ebook":     "", // could be computers: needs brackets
+		"Books - Ebook / EN":     "English",
+		"Books - De / Ebook":     "",
+		"IT Books - Ebook":       "",
 	}
 	for name, want := range cases {
 		if got := languageInCategory(name); got != want {

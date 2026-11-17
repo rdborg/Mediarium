@@ -44,7 +44,17 @@ func SafeInfoURL(raw, downloadURL string) string {
 	if u.User != nil || u.Hostname() == "" {
 		return ""
 	}
-	for key, values := range u.Query() {
+	// A query Go can't read cleanly is refused: u.Query() would silently drop
+	// the pieces it doesn't understand (a ";" or a bad escape), and a key in
+	// one of those pieces would slip through.
+	if strings.Contains(u.RawQuery, ";") {
+		return ""
+	}
+	query, err := url.ParseQuery(u.RawQuery)
+	if err != nil {
+		return ""
+	}
+	for key, values := range query {
 		k := strings.ToLower(key)
 		if secretParams[k] || strings.Contains(k, "apikey") || strings.Contains(k, "passkey") || strings.Contains(k, "token") {
 			return ""

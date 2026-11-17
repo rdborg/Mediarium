@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"strconv"
 	"strings"
@@ -245,4 +246,75 @@ func (s *Server) handleDiscoverBrowse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.showPagePayload(ctx, page))
+}
+
+// discoverServicesPayload is a person's streaming services for Discover.
+// Saved is false until they have picked once (so the app may move over what
+// an older version kept in the browser); Account is false when nobody is
+// signed in (sign-in switched off), where nothing can be kept on the server.
+type discoverServicesPayload struct {
+	Services []string `json:"services"`
+	On       bool     `json:"on"`
+	Saved    bool     `json:"saved"`
+	Account  bool     `json:"account"`
+}
+
+// handleGetDiscoverServices answers GET /api/auth/discover-services.
+func (s *Server) handleGetDiscoverServices(w http.ResponseWriter, r *http.Request) {
+	uid, _ := requester(r)
+	out := discoverServicesPayload{Services: []string{}}
+	if uid == 0 {
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+	out.Account = true
+	var csv sql.NullString
+	var on int
+	err := s.db.QueryRow(`SELECT discover_services, discover_hide FROM users WHERE id = ?`, uid).Scan(&csv, &on)
+	if err != nil && err != sql.ErrNoRows {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if csv.Valid {
+		out.Saved = true
+		if keys, ok := metadata.ParseServices(csv.String); ok && keys != nil {
+			out.Services = keys
+		}
+		out.On = on != 0 && len(out.Services) > 0
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handlePutDiscoverServices answers PUT /api/auth/discover-services
+// {"services": ["netflix"], "on": true}. The switch cannot be on with no
+// service picked.
+func (s *Server) handlePutDiscoverServices(w http.ResponseWriter, r *http.Request) {
+	uid, _ := requester(r)
+	if uid == 0 {
+		writeError(w, http.StatusBadRequest, "Sign in to keep your streaming services with your account.")
+		return
+	}
+	var body struct {
+		Services []string `json:"services"`
+		On       bool     `json:"on"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "Couldn't read that. Reload the page and try again.")
+		return
+	}
+	keys, ok := metadata.ParseServices(strings.Join(body.Services, ","))
+	if !ok {
+		names := make([]string, 0, 8)
+		for _, svc := range metadata.StreamingServices() {
+			names = append(names, svc.Key)
+		}
+		writeError(w, http.StatusBadRequest, "services must be streaming service names: "+strings.Join(names, ", "))
+		return
+	}
+	on := body.On && len(keys) > 0
+	if _, err := s.db.Exec(`UPDATE users SET discover_services = ?, discover_hide = ? WHERE id = ?`, strings.Join(keys, ","), b2i(on), uid); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.handleGetDiscoverServices(w, r)
 }

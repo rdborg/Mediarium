@@ -178,7 +178,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	out := make([]searchResultPayload, len(merged))
 	for i, res := range merged {
 		out[i] = s.toSearchResultPayload(res)
-		out[i].Blocklisted = blocklist.Blocked(blocked, res.Title, blocklist.Scope{})
+		out[i].Blocklisted = releaseBlocked(blocked, res, blocklist.Scope{})
 	}
 	s.markCachedPayloads(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
@@ -268,6 +268,7 @@ func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
 	short := s.incompleteNow().movies
 	for i, m := range list {
 		out[i] = toMoviePayload(m, who)
+		out[i].Origin = adminOrigin(r, out[i].Origin)
 		out[i].Title, out[i].PosterURL = s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 		out[i].Overview = s.shownOverview("movie", m.TMDBID, m.Overview)
 		if e, ok := short[m.ID]; ok && e.Path == m.FilePath {
@@ -307,6 +308,7 @@ func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := toMoviePayload(m, s.accountNames())
+	out.Origin = adminOrigin(r, out.Origin)
 	out.Title, out.PosterURL = s.shownFace("movie", m.TMDBID, m.Title, m.PosterPath)
 	out.Overview = s.shownOverview("movie", m.TMDBID, m.Overview)
 	out.FilePath = fileLabel(r, m.FilePath)
@@ -501,12 +503,10 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	go s.rememberDisplayFace("movie", created.TMDBID, created.Title, created.PosterPath, created.Overview)
 	if req.SearchNow {
 		by := userOrigin(r, origin.Search)
-		go func() {
-			defer s.hintGrabs(false, created.ID, by)()
-			s.searchMovieInBackground(created.ID)
-		}()
+		go s.searchMovieInBackgroundBy(created.ID, by)
 	}
 	added := toMoviePayload(created, s.accountNames())
+	added.Origin = adminOrigin(r, added.Origin)
 	added.RootPath = folderShown(r, s.movieFolders(), created.RootPath)
 	writeJSON(w, http.StatusCreated, added)
 }
@@ -514,6 +514,12 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 // searchMovieInBackground runs the automatic search for a just-added movie,
 // ignoring the monitored flag (the person asked for it explicitly).
 func (s *Server) searchMovieInBackground(movieID int64) {
+	s.searchMovieInBackgroundBy(movieID, origin.Origin{})
+}
+
+// searchMovieInBackgroundBy is searchMovieInBackground for a search someone
+// asked for: its downloads are attributed to by.
+func (s *Server) searchMovieInBackgroundBy(movieID int64, by origin.Origin) {
 	m, err := s.MovieRepo.Get(movieID)
 	if err != nil {
 		return
@@ -530,7 +536,7 @@ func (s *Server) searchMovieInBackground(movieID int64) {
 		s.noteHomeHold(m, note) // still only in cinemas: the "Search now" button looks anyway
 		return
 	}
-	s.huntMovie(context.Background(), m, instances, profiles, s.searchSkipKeys(), true)
+	s.huntMovie(withGrabBy(context.Background(), by), m, instances, profiles, s.searchSkipKeys(), true)
 }
 
 // discoverPayload mirrors moviePayload's shape but for titles not yet in

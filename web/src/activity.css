@@ -22,6 +22,8 @@
 .add-download .row-fields, .add-by-hand .row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .add-download select[size] { width: 100%; }
 @media (max-width: 520px) { .add-download .row-fields, .add-by-hand .row-fields { grid-template-columns: 1fr; } }
+/* Every field of the by-hand dialog takes the whole row, so a lone Title or ID box is not left half-empty. */
+.add-by-hand .grid-form > label { grid-column: 1 / -1; }
 
 /* ---- Board ------------------------------------------------------------ */
 /* Each box sits in a cell so its "i" can sit in the corner without being inside the link. */
@@ -194,6 +196,18 @@
 .act-table td:first-child { border-radius: 4px 0 0 12px; }
 .act-table td:last-child { border-radius: 0 12px 12px 0; text-align: right; }
 .act-table .mono-cell { font-family: var(--font-mono); font-size: 0.78rem; overflow-wrap: anywhere; }
+/* Blocklist: "Only for <title>" may wrap (balanced) and the buttons stack on a
+   phone, so the table fits without the page scrolling sideways. */
+.blocklist-table .bl-scope { font-size: 0.85rem; text-wrap: balance; min-width: 7em; }
+.blocklist-table .bl-actions { display: flex; gap: 8px; justify-content: flex-end; }
+@media (max-width: 640px) {
+  /* Each entry becomes a card, so the buttons are never cut off at the edge of the screen. */
+  .blocklist-table, .blocklist-table tbody { display: block; }
+  .blocklist-table thead { display: none; }
+  .blocklist-table tr { display: grid; gap: 4px; margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface); }
+  .blocklist-table td, .blocklist-table td:first-child, .blocklist-table td:last-child { display: block; padding: 0; border-radius: 0; background: none; text-align: left; min-width: 0; }
+  .blocklist-table .bl-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: 4px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ab-live.on::after, .activity-page .qprogress .bar.active > span::after, .activity-page .waiting-list li { animation: none; }

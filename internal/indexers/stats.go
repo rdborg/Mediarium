@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/problems"
@@ -120,7 +121,7 @@ func (t *Tracker) remember(id int64, results []Result) {
 	for _, r := range results {
 		if r.DownloadURL != "" {
 			exp := now.Add(sourceTTL)
-			t.sources[r.DownloadURL] = sourceNote{id: id, expiry: exp}
+			t.sources[r.DownloadURL] = sourceNote{id: id, guid: strings.TrimSpace(r.GUID), expiry: exp}
 			t.order = append(t.order, sourceKey{url: r.DownloadURL, expiry: exp})
 		}
 	}
@@ -165,6 +166,21 @@ func (t *Tracker) SourceOf(url string) (id int64, ok bool) {
 		return 0, false
 	}
 	return n.id, true
+}
+
+// GUIDOf is the guid the indexer gave the release at url, when a search in the
+// last day found it and the indexer said one ("" otherwise).
+func (t *Tracker) GUIDOf(url string) string {
+	if t == nil || url == "" {
+		return ""
+	}
+	t.mu.Lock()
+	n, found := t.sources[url]
+	t.mu.Unlock()
+	if !found || t.now().After(n.expiry) {
+		return ""
+	}
+	return n.guid
 }
 
 // NoteGrab counts a grab for the indexer that gave the release at url, with

@@ -14,6 +14,7 @@ import (
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/notify"
 	"github.com/rdborg/mediarium/internal/organizer"
+	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/queue"
 )
@@ -180,11 +181,11 @@ func (s *Server) runBookPipeline(queueID int64, b books.Book, f books.Format, re
 			s.notifyItem("failed", notify.Item{Media: string(f), Title: b.Title, Year: b.Year, Reason: plain, Release: releaseTitle, LinkPath: bookLink(b.ID)})
 		}
 		if isBadRelease(stepErr) {
-			if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: releaseTitle, Protocol: string(protocol), Reason: stepErr.Error()}); err == nil {
+			if err := s.Blocklist.Add(blocklist.Entry{ReleaseTitle: releaseTitle, Protocol: string(protocol), Reason: stepErr.Error(), BookID: b.ID, ReleaseID: s.queueReleaseID(queueID)}); err == nil {
 				// The same daily budget as movies and shows: an indexer that
 				// keeps handing out bad releases can't empty a book's list.
 				if n, ok := bookRetriesOf(s).allow(b.ID, f, time.Now()); ok {
-					s.background(func() { s.searchBook(b.ID, f, true) })
+					s.background(func() { s.searchBook(b.ID, f, true, origin.Origin{}) })
 				} else {
 					_ = s.QueueRepo.LogActivity(0, "failed", fmt.Sprintf("%s (%s): %s", label, f, retryPausedMessage(n)))
 				}

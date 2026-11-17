@@ -2,7 +2,7 @@
 
 Many apps were made to work with Radarr, Sonarr and Lidarr: request apps (Overseerr, Jellyseerr), dashboards (Homepage, Homarr) and phone apps (nzb360, LunaSea, Ruddarr). Mediarium answers the same requests, so you can add it in those apps as if it were Radarr (for movies), Sonarr (for TV) or Lidarr (for music).
 
-The page **Settings > Connections > Other apps** shows the addresses to use and makes the key.
+The page **Settings > Media servers and apps > Other apps** shows the addresses to use and makes the key.
 
 Chat programs and voice assistants that support MCP connect in a different way, with their own address and switch. See [mcp.md](./mcp.md).
 
@@ -22,7 +22,7 @@ Each app gets its own address, because Radarr and Sonarr use the same paths:
 - **URL base** is `/radarr`, `/sonarr` or `/lidarr`. Apps that ask for one full address take the full address instead.
 - **API key**: an administrator's Mediarium API key. Press **Make a key for other apps** on the Other apps page, or make one under **Accounts > API keys**. The apps send it as the `X-Api-Key` header or the `apikey` parameter; both work. A key of a basic account is refused.
 
-Each part only answers while its media type is switched on (**Settings > Media types**). Lidarr, for example, answers once music is on.
+Each part only answers while its media type is switched on (**Settings > Basics > Media types**). Lidarr, for example, answers once music is on.
 
 If Mediarium sits behind a reverse proxy under a sub-path (the `URL_BASE` setting, see [INSTALL.md](./INSTALL.md#running-under-a-sub-path-url-base)), put that path in front: the URL base becomes `/mediarium/radarr` and the full address `https://home.example.com/mediarium/radarr`. The Other apps page shows them that way.
 
@@ -47,7 +47,7 @@ Tdarr and similar apps change a file after it was imported (a new codec, sometim
 
 ## Add-ons
 
-**Settings > Connections > Add-ons** keeps links to other programs you run next to Mediarium: a channel guide, a dashboard, a library tool of your own. Each has a name, an address and a way to open: **In a new tab**, or **Inside Mediarium**, which shows the program in a frame on its own page (`/apps/...`). Everyone who can sign in sees the ones that are switched on in the players menu (the play button at the bottom of the sidebar); only an administrator edits the list.
+**Settings > Media servers and apps > Add-ons** keeps links to other programs you run next to Mediarium: a channel guide, a dashboard, a library tool of your own. Each has a name, an address and a way to open: **In a new tab**, or **Inside Mediarium**, which shows the program in a frame on its own page (`/apps/...`). Everyone who can sign in sees the ones that are switched on in the players menu (the play button at the bottom of the sidebar); only an administrator edits the list.
 
 - Mediarium doesn't run these programs or load their code. They are separate projects with their own licences and rules, and Mediarium is not responsible for what they do.
 - For **Inside Mediarium**, Mediarium allows exactly the addresses of the add-ons you set to open that way to be shown in a frame, and nothing else. An add-on on the same address as Mediarium itself (for example behind the same reverse proxy under `/tdarr/`) cannot be set to open inside Mediarium, because a frame would not keep it apart from your signed-in session: open it in a new tab. A program that refuses to be framed (many send `X-Frame-Options`) has to open in a new tab. An add-on's address must be a plain `http://` or `https://` address with a host name or IP address and maybe a port: spaces, quotes and semicolons are refused.

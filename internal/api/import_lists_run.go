@@ -18,7 +18,6 @@ import (
 	"github.com/rdborg/mediarium/internal/importlists"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
-	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/simkl"
 	"github.com/rdborg/mediarium/internal/trakt"
@@ -839,16 +838,14 @@ func (s *Server) searchListAdditions(l importList, res listRunResult) {
 			return
 		}
 		blocked := s.searchSkipKeys()
-		by := origin.Origin{Kind: origin.List, Name: l.Name}
+		by := l.origin()
 		for _, id := range res.searchMovies {
 			if !s.autoGrabRoom() {
 				holdBack("import-list")
 				return
 			}
 			if m, err := s.MovieRepo.Get(id); err == nil && s.moviesEnabled() {
-				done := s.hintGrabs(false, id, by)
-				s.huntMovie(ctx, m, instances, profiles, blocked, false)
-				done()
+				s.huntMovie(withGrabBy(ctx, by), m, instances, profiles, blocked, false)
 			}
 		}
 		for _, id := range res.searchSeries {
@@ -857,9 +854,7 @@ func (s *Server) searchListAdditions(l importList, res listRunResult) {
 				return
 			}
 			if s.tvEnabled() {
-				done := s.hintGrabs(true, id, by)
-				s.autoGrabTV(s.targetedTVSearcher(ctx, instances, maxTVSearchesPerHunt, false), "import-list", profiles, tvScope{seriesID: id})
-				done()
+				s.autoGrabTV(s.targetedTVSearcher(ctx, instances, maxTVSearchesPerHunt, false), "import-list", profiles, tvScope{seriesID: id, by: by})
 			}
 		}
 	})
@@ -896,7 +891,7 @@ func (s *Server) addListTitle(ctx context.Context, l importList, user *auth.User
 		payload = map[string]any{"tmdbId": tmdbID, "profileId": l.ProfileID, "monitored": l.Monitored, "searchNow": searchNow, "rootPath": l.MovieRoot}
 	}
 	body, _ := json.Marshal(payload)
-	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body)).WithContext(withOrigin(auth.WithUser(ctx, user), origin.Origin{Kind: origin.List, Name: l.Name}))
+	inner := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body)).WithContext(withOrigin(auth.WithUser(ctx, user), l.origin()))
 	inner.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler(rec, inner)

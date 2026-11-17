@@ -1,7 +1,8 @@
 import type { IconName } from './components/Icon'
 import { t, tc } from './i18n.ts'
 
-// The settings pages, in the order they appear under Settings in the sidebar.
+// The settings pages, in the order they appear under Settings in the sidebar
+// (the order of the groups below, page by page).
 // Each has its own soft colour so the list is easy to scan. Pages marked
 // `member` are open to every account; the rest are for administrators only.
 // `notViewer` pages are left out of the list for view-only accounts, which
@@ -12,16 +13,16 @@ export const SETTINGS_NAV: { to: string; label: string; icon: IconName; color: s
   { to: '/settings/modules', label: t('Media types'), icon: 'grid', color: '#ff9f6b', blurb: t('Switch movies, shows, music, ebooks and audiobooks on or off.'), help: 'getting-started#media-types' },
   { to: '/settings/media', label: t('Folders'), icon: 'folder', color: '#7cc4f8', blurb: t('Where your movies, shows, music, books and downloads are kept.'), help: 'install-docker#why-one-data-folder-hardlinks' },
   { to: '/settings/naming', label: t('File names and importing'), icon: 'list', color: '#7cc4f8', blurb: t('How imported files are named, the info files saved next to them, and what runs after an import.'), help: 'library#file-names' },
+  { to: '/settings/metadata', label: t('Movie and show info'), icon: 'globe', color: '#c1acf7', blurb: t('Where titles, posters, episode numbers and trailers come from.') },
+  { to: '/settings/lists', label: t('Import lists'), icon: 'list', color: '#c1acf7', blurb: t('Add movies and shows by themselves from lists on Trakt, TMDB, IMDb, MDBList and Letterboxd.'), help: 'adding#import-lists' },
+  { to: '/settings/subtitles', label: t('Subtitles'), icon: 'chat', color: '#f4a3c8', blurb: t('Where subtitles come from and which languages to keep.'), help: 'subtitles' },
+  { to: '/settings/indexers', label: t('Indexers & Search'), icon: 'search', color: '#a5b4fc', blurb: t('The sites Mediarium searches for releases.'), help: 'indexers' },
   { to: '/settings/quality', label: t('Quality'), icon: 'star', color: '#f5c76a', blurb: t('What counts as good enough, which release wins, and which audio language you want.'), help: 'quality' },
   { to: '/settings/automation', label: t('Automatic searching'), icon: 'sliders', color: '#f0b46a', blurb: t('When Mediarium looks for things by itself, and whether it waits for Usenet or torrents.'), help: 'quality#automatic-searching' },
-  { to: '/settings/indexers', label: t('Indexers & Search'), icon: 'search', color: '#a5b4fc', blurb: t('The sites Mediarium searches for releases.'), help: 'indexers' },
   { to: '/settings/usenet', label: t('Usenet'), icon: 'server', color: '#86dca4', blurb: t('Your Usenet provider and the built-in downloader.'), help: 'downloads#usenet-connections' },
   { to: '/settings/torrents', label: t('Torrents'), icon: 'magnet', color: '#86dca4', blurb: t('The built-in torrent client and its options, a debrid service, or a client you already run.'), help: 'downloads#controls-of-the-built-in-torrent-client' },
   { to: '/settings/vpn', label: t('VPN and proxy'), icon: 'shield', color: '#6fd6c8', blurb: t('Keep torrent traffic behind a VPN, or send it through a proxy.'), help: 'downloads#vpn-protection' },
   { to: '/settings/download-rules', label: t('Download rules'), icon: 'download', color: '#86dca4', blurb: t('Where to download from, how many at once, how fast and when, and which releases to skip.'), help: 'downloads#checks-on-releases' },
-  { to: '/settings/metadata', label: t('Movie and show info'), icon: 'globe', color: '#c1acf7', blurb: t('Where titles, posters, episode numbers and trailers come from.') },
-  { to: '/settings/lists', label: t('Import lists'), icon: 'list', color: '#c1acf7', blurb: t('Add movies and shows by themselves from lists on Trakt, TMDB, IMDb, MDBList and Letterboxd.'), help: 'adding#import-lists' },
-  { to: '/settings/subtitles', label: t('Subtitles'), icon: 'chat', color: '#f4a3c8', blurb: t('Where subtitles come from and which languages to keep.'), help: 'subtitles' },
   { to: '/settings/media-servers', label: t('Media servers'), icon: 'monitor', color: '#f2c14e', blurb: t('Plex, Jellyfin and the rest: scan after a download and link to them.'), help: 'media-servers' },
   { to: '/settings/notifications', label: t('Notifications'), icon: 'mail', color: '#f7b27a', blurb: t('Messages when something is added, downloaded or goes wrong.'), help: 'notifications' },
   { to: '/settings/other-apps', label: t('Other apps'), icon: 'server', color: '#9fd4a8', blurb: t('Let Overseerr, Homepage and phone apps talk to Mediarium.'), help: 'media-servers#overseerr-dashboards-and-phone-apps' },
@@ -60,24 +61,26 @@ type NavPage = (typeof SETTINGS_NAV)[number]
 export interface SettingsGroup {
   key: string
   label: string
+  blurb: string
   icon: IconName
   color: string
   pages: NavPage[]
 }
 
-// Settings pages on the same topic share one sidebar entry. The entries stay
-// open in the sidebar; one entry at a time shows its pages as indented items
-// underneath, so the sidebar stays short.
-const GROUPS: { key: string; label: string; icon: IconName; color: string; pages: string[] }[] = [
-  { key: 'general', label: t('General'), icon: 'sliders', color: '#e7a6f2', pages: ['/settings/general'] },
-  { key: 'modules', label: t('Media types'), icon: 'grid', color: '#ff9f6b', pages: ['/settings/modules'] },
-  { key: 'library', label: t('Library'), icon: 'folder', color: '#7cc4f8', pages: ['/settings/media', '/settings/naming', '/settings/quality', '/settings/automation'] },
-  { key: 'indexers', label: t('Indexers & Search'), icon: 'search', color: '#a5b4fc', pages: ['/settings/indexers'] },
-  { key: 'downloads', label: tc('section', 'Downloading'), icon: 'download', color: '#86dca4', pages: ['/settings/usenet', '/settings/torrents', '/settings/vpn', '/settings/download-rules'] },
-  { key: 'metadata', label: t('Info, lists and subtitles'), icon: 'globe', color: '#c1acf7', pages: ['/settings/metadata', '/settings/lists', '/settings/subtitles'] },
-  { key: 'connections', label: t('Connections'), icon: 'monitor', color: '#f2c14e', pages: ['/settings/media-servers', '/settings/notifications', '/settings/other-apps', '/settings/addons'] },
-  { key: 'profile', label: t('Account & Access'), icon: 'user', color: '#8fb8f5', pages: ['/settings/profile', '/settings/security', '/settings/services', '/settings/accounts', '/settings/requests', '/settings/sign-in'] },
-  { key: 'system', label: t('System'), icon: 'hard', color: '#b4bfcc', pages: ['/settings/system', '/settings/backup', '/settings/statistics', '/settings/logs', '/settings/migrate', '/settings/about'] },
+// Settings pages are grouped in the order a person sets things up: the basics,
+// then the library, then finding and downloading releases, then the apps around
+// Mediarium, then people, then the system itself. Each group is one sidebar
+// entry. The entries stay open in the sidebar; one entry at a time shows its
+// pages as indented items underneath, so the sidebar stays short. `blurb` is
+// the line shown for the group on the Settings overview.
+const GROUPS: { key: string; label: string; blurb: string; icon: IconName; color: string; pages: string[] }[] = [
+  { key: 'basics', label: t('Basics'), blurb: t('Language, look, address and which media types you use.'), icon: 'sliders', color: '#e7a6f2', pages: ['/settings/general', '/settings/modules'] },
+  { key: 'library', label: t('Library and files'), blurb: t('Folders, file names, movie and show info, import lists and subtitles.'), icon: 'folder', color: '#7cc4f8', pages: ['/settings/media', '/settings/naming', '/settings/metadata', '/settings/lists', '/settings/subtitles'] },
+  { key: 'releases', label: t('Finding releases'), blurb: t('Indexers, quality profiles and when Mediarium searches by itself.'), icon: 'search', color: '#a5b4fc', pages: ['/settings/indexers', '/settings/quality', '/settings/automation'] },
+  { key: 'downloads', label: tc('section', 'Downloading'), blurb: t('Usenet, torrents, a VPN and the rules for downloads.'), icon: 'download', color: '#86dca4', pages: ['/settings/usenet', '/settings/torrents', '/settings/vpn', '/settings/download-rules'] },
+  { key: 'connections', label: t('Media servers and apps'), blurb: t('Plex, Jellyfin, notifications and the apps that connect to Mediarium.'), icon: 'monitor', color: '#f2c14e', pages: ['/settings/media-servers', '/settings/notifications', '/settings/other-apps', '/settings/addons'] },
+  { key: 'profile', label: t('People and access'), blurb: t('Your profile, sign-in security, accounts and requests.'), icon: 'user', color: '#8fb8f5', pages: ['/settings/profile', '/settings/security', '/settings/services', '/settings/accounts', '/settings/requests', '/settings/sign-in'] },
+  { key: 'system', label: t('System'), blurb: t('The server, backups, statistics, logs and moving from other apps.'), icon: 'hard', color: '#b4bfcc', pages: ['/settings/system', '/settings/backup', '/settings/statistics', '/settings/logs', '/settings/migrate', '/settings/about'] },
 ]
 
 export const inPage = (pathname: string, to: string) => pathname === to || pathname.startsWith(to + '/')

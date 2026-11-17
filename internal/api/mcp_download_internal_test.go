@@ -94,3 +94,46 @@ func TestMCPDownloadOffers(t *testing.T) {
 		t.Fatalf("%d releases kept, at most %d", len(d.offers), mcpOfferMax)
 	}
 }
+
+// The caps are per account: one account filling its room never pushes out the
+// releases or the tokens another account is holding.
+func TestMCPDownloadCapsArePerAccount(t *testing.T) {
+	now := time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
+	d := &mcpDownloads{now: func() time.Time { return now }}
+	anna := d.addOffer(mcpOffer{userID: 1, release: "Anna.Release"})
+	annaToken, _ := d.mint(1, anna)
+	for i := 0; i < mcpOfferMax+10; i++ {
+		now = now.Add(time.Millisecond)
+		o := d.addOffer(mcpOffer{userID: 2})
+		if i < mcpTokenMax+10 {
+			d.mint(2, o)
+		}
+	}
+	mine := map[int64]int{}
+	for _, o := range d.offers {
+		mine[o.userID]++
+	}
+	tokens := map[int64]int{}
+	for _, tk := range d.tokens {
+		tokens[tk.userID]++
+	}
+	tests := []struct {
+		name      string
+		got, want int
+	}{
+		{"the busy account keeps at most its own cap of releases", mine[2], mcpOfferMax},
+		{"the busy account keeps at most its own cap of tokens", tokens[2], mcpTokenMax},
+		{"the other account still has its release", mine[1], 1},
+		{"the other account still has its token", tokens[1], 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.got != tc.want {
+				t.Fatalf("got %d, want %d", tc.got, tc.want)
+			}
+		})
+	}
+	if !d.redeem(1, anna, annaToken) {
+		t.Fatal("the other account's token must still work")
+	}
+}

@@ -2,6 +2,7 @@ package mediaservers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -15,10 +16,40 @@ import (
 // API key (Admin > API keys) sent as "Authorization: Bearer sa_…". Silo also
 // has a Jellyfin-compatible port, but that one has no full-library scan and
 // can't look titles up by their TMDB id, so it isn't used.
+//
+// Current Silo builds answer every /api/v1 call with 410 Gone and moved the
+// API to /api/v2 (docs/scan-api.md, docs/admin-system-api.md and
+// contracts/api/v2/openapi.json in github.com/silo-server/silo-server).
+// Mediarium tries v2 first and falls back to v1 for older builds, see siloTry.
+//
+// Confirmed in the v2 contract: GET /api/v2/admin/system/build, GET
+// /api/v2/libraries ({items, page}, string ids) and POST /api/v2/scan
+// (library_id as a string, or path), all with the same Bearer key and no
+// profile header for an API key. Not confirmed, so it stays on v1: the catalog
+// lookup behind "Watch in Silo" (v2 GET /api/v2/catalog/items/{id} needs an
+// X-Profile-Id and its content ids are not documented in the movie-tmdb-...
+// form). Mediarium has no watched sync for Silo.
 const KindSilo Kind = "silo"
 
+// siloID is a library id: a number on Silo's v1 API, a string on v2.
+type siloID string
+
+func (i *siloID) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*i = siloID(s)
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(b, &n); err != nil {
+		return err
+	}
+	*i = siloID(n.String())
+	return nil
+}
+
 type siloLibrary struct {
-	ID      int      `json:"id"`
+	ID      siloID   `json:"id"`
 	Name    string   `json:"name"`
 	Type    string   `json:"type"`
 	Paths   []string `json:"paths"`
@@ -30,17 +61,33 @@ type siloBuild struct {
 	BuildNumber int    `json:"build_number"`
 }
 
+// siloLibraries lists the libraries over whichever API the server speaks.
 func (c *Client) siloLibraries(ctx context.Context, s Server) ([]siloLibrary, error) {
-	var libs []siloLibrary
-	if err := c.do(ctx, s, http.MethodGet, "/api/v1/libraries/", nil, nil, &libs); err != nil {
+	var v1 []siloLibrary
+	var v2 struct {
+		Items []siloLibrary `json:"items"`
+	}
+	ver, err := c.siloTry(ctx, s, siloCall{
+		method: http.MethodGet,
+		v1:     siloReq{path: "/api/v1/libraries/", out: &v1},
+		v2:     siloReq{path: "/api/v2/libraries", out: &v2},
+	})
+	if err != nil {
 		return nil, explain(s, err)
 	}
-	return libs, nil
+	if ver == siloV2 {
+		return v2.Items, nil
+	}
+	return v1, nil
 }
 
 func (c *Client) siloTest(ctx context.Context, s Server) (TestResult, error) {
 	var build siloBuild
-	err := c.do(ctx, s, http.MethodGet, "/api/v1/admin/system/build", nil, nil, &build)
+	_, err := c.siloTry(ctx, s, siloCall{
+		method: http.MethodGet,
+		v1:     siloReq{path: "/api/v1/admin/system/build", out: &build},
+		v2:     siloReq{path: "/api/v2/admin/system/build", out: &build},
+	})
 	if errors.Is(err, errNotFound) {
 		// The Jellyfin-compatible port answers /System/Info but not Silo's own API.
 		var info embySystemInfo
@@ -70,13 +117,34 @@ func (c *Client) siloTest(ctx context.Context, s Server) (TestResult, error) {
 		if locs == nil {
 			locs = []string{}
 		}
-		res.Libraries = append(res.Libraries, Library{ID: strconv.Itoa(l.ID), Title: l.Name, Type: l.Type, Locations: locs})
+		res.Libraries = append(res.Libraries, Library{ID: string(l.ID), Title: l.Name, Type: l.Type, Locations: locs})
 	}
 	return res, nil
 }
 
-func (c *Client) siloScanLibrary(ctx context.Context, s Server, id int) error {
-	return explain(s, c.do(ctx, s, http.MethodPost, "/api/v1/scan", nil, map[string]any{"library_id": id}, nil))
+func (c *Client) siloScanLibrary(ctx context.Context, s Server, id siloID) error {
+	// v1 wants the id as a number, v2 as a string.
+	var v1ID any = string(id)
+	if n, err := strconv.Atoi(string(id)); err == nil {
+		v1ID = n
+	}
+	_, err := c.siloTry(ctx, s, siloCall{
+		method: http.MethodPost,
+		v1:     siloReq{path: "/api/v1/scan", body: map[string]any{"library_id": v1ID}},
+		v2:     siloReq{path: "/api/v2/scan", body: map[string]any{"library_id": string(id)}},
+	})
+	return explain(s, err)
+}
+
+// siloScanPath asks Silo to scan one folder.
+func (c *Client) siloScanPath(ctx context.Context, s Server, p string) error {
+	body := map[string]any{"path": p}
+	_, err := c.siloTry(ctx, s, siloCall{
+		method: http.MethodPost,
+		v1:     siloReq{path: "/api/v1/scan", body: body},
+		v2:     siloReq{path: "/api/v2/scan", body: body},
+	})
+	return explain(s, err)
 }
 
 func (c *Client) siloRefreshAll(ctx context.Context, s Server) error {
@@ -125,8 +193,8 @@ func (c *Client) siloRefreshFolders(ctx context.Context, s Server, kind MediaKin
 			}
 			continue
 		}
-		if err := c.do(ctx, s, http.MethodPost, "/api/v1/scan", nil, map[string]any{"path": p}, nil); err != nil {
-			return done, explain(s, err)
+		if err := c.siloScanPath(ctx, s, p); err != nil {
+			return done, err
 		}
 		done = append(done, p)
 	}
@@ -174,6 +242,13 @@ func (c *Client) siloFind(ctx context.Context, s Server, kind MediaKind, tmdbID 
 		if errors.Is(err, errNotFound) {
 			continue
 		}
+		var se *statusError
+		if errors.As(err, &se) && se.code == http.StatusGone {
+			// A current Silo build has retired this v1 lookup and its v2 one is
+			// not confirmed (see KindSilo), so there is no link to offer.
+			slog.Debug("media server: this Silo build no longer answers the title lookup", "server", s.Name)
+			return Item{}, false, nil
+		}
 		if err != nil {
 			return Item{}, false, explain(s, err)
 		}
@@ -183,4 +258,54 @@ func (c *Client) siloFind(ctx context.Context, s Server, kind MediaKind, tmdbID 
 		return Item{ID: item.ContentID, URL: s.WebURL() + "/item/" + url.PathEscape(item.ContentID)}, true, nil
 	}
 	return Item{}, false, nil
+}
+
+// Silo API generations.
+const (
+	siloV1 = 1
+	siloV2 = 2
+)
+
+// siloReq is one request on one API generation.
+type siloReq struct {
+	path string
+	body any
+	out  any
+}
+
+// siloCall is the same operation on both API generations.
+type siloCall struct {
+	method string
+	v1, v2 siloReq
+}
+
+// siloTry runs a call on the API generation this server last answered on, or
+// v2 when that is not known yet, and on the other generation when the first
+// says 404 or 410 (Gone: current builds retire v1 that way, old builds have
+// no v2). A 401 or any other answer is final: it means the route exists. The
+// generation that worked is remembered per server address for as long as
+// Mediarium runs, so a server that was updated or downgraded is found again
+// through the fallback. It returns the generation that answered.
+func (c *Client) siloTry(ctx context.Context, s Server, call siloCall) (int, error) {
+	order := [2]int{siloV2, siloV1}
+	if v, ok := c.siloAPI.Load(s.BaseURL); ok && v.(int) == siloV1 {
+		order = [2]int{siloV1, siloV2}
+	}
+	var err error
+	for _, ver := range order {
+		r := call.v2
+		if ver == siloV1 {
+			r = call.v1
+		}
+		err = c.do(ctx, s, call.method, r.path, nil, r.body, r.out)
+		if err == nil {
+			c.siloAPI.Store(s.BaseURL, ver)
+			return ver, nil
+		}
+		var se *statusError
+		if !errors.Is(err, errNotFound) && !(errors.As(err, &se) && se.code == http.StatusGone) {
+			return ver, err
+		}
+	}
+	return 0, err
 }

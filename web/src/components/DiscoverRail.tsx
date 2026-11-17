@@ -108,6 +108,9 @@ export default function DiscoverRail({ title, hint, kind, owned, onAdd, source, 
   const [totalPages, setTotalPages] = useState(1)
   const [failed, setFailed] = useState(false)
   const busy = useRef(false)
+  // Empty pages in a row. The server can answer an empty page that still says
+  // more follow (a filtered list catching up), so a few are allowed before giving up.
+  const emptyRun = useRef(0)
   const [hideOwned] = useHideOwned()
   const ownedMap = kind === 'movie' ? owned.movies : owned.shows
   // With "Hide what I have" on, titles in the library are left out and more
@@ -128,7 +131,9 @@ export default function DiscoverRail({ title, hint, kind, owned, onAdd, source, 
           const seen = new Set(cur.map((x) => x.tmdbId))
           return [...cur, ...r.results.filter((x) => !seen.has(x.tmdbId))]
         })
-        setTotalPages(r.results.length === 0 ? page + 1 : r.totalPages)
+        emptyRun.current = r.results.length === 0 ? emptyRun.current + 1 : 0
+        const ended = r.results.length === 0 && (r.totalPages <= page + 1 || emptyRun.current >= 3)
+        setTotalPages(ended ? page + 1 : r.totalPages)
         setPage(page + 1)
       })
       .catch(() => setFailed(true))

@@ -239,7 +239,7 @@ func judgeSearchLimited(results []indexers.Result, blocked map[string]bool, sc b
 	}
 	for _, res := range results {
 		switch {
-		case blocklist.Blocked(blocked, res.Title, sc):
+		case releaseBlocked(blocked, res, sc):
 			v.reject("blocklisted")
 			continue
 		case sources != sourcesBoth && sources != "" && res.Protocol != indexers.Protocol(sources):

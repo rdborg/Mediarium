@@ -36,6 +36,7 @@ const (
 	stepGroup
 	stepCached
 	stepScore
+	stepNewer
 	stepIndexer
 	stepProtocol
 	stepDebrid
@@ -60,6 +61,8 @@ func rankStepOf(profile quality.Profile, hi *indexers.Result, lo *indexers.Resul
 		return stepCached, hk, lk
 	case hk.score != lk.score:
 		return stepScore, hk, lk
+	case newerSameName(hi, lo) == hi:
+		return stepNewer, hk, lk
 	case indexerRank(hi.Priority) < indexerRank(lo.Priority):
 		return stepIndexer, hk, lk
 	case indexerRank(hi.Priority) == indexerRank(lo.Priority) && hi.Protocol == preferredProtocol() && lo.Protocol != preferredProtocol():
@@ -90,6 +93,8 @@ func whyAboveNext(profile quality.Profile, hi, lo *indexers.Result) releaseReaso
 		text = "It ranks above the next release because it is cached at your debrid service."
 	case stepScore:
 		text = fmt.Sprintf("It ranks above the next release because its score is higher: %d against %d.", hk.score, lk.score)
+	case stepNewer:
+		text = "It ranks above the next release because it has the same name and was posted later. When a name is uploaded again, the newer one is usually the fixed one."
 	case stepIndexer:
 		text = "It ranks above the next release because it comes from an indexer with a higher priority."
 	case stepProtocol:

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rdborg/mediarium/internal/origin"
@@ -15,47 +16,53 @@ func TestGrabOrigin(t *testing.T) {
 		name string
 		kind grabKind
 		by   origin.Origin
-		hint *origin.Origin // set for movie 7 while the grab runs
 		want origin.Origin
 	}{
-		{"a release a person picked", grabPicked, anna, nil, anna},
-		{"picked, person unknown", grabPicked, origin.Origin{}, nil, origin.Origin{Kind: origin.Manual}},
-		{"a search a person started", grabSearchNow, annaSearch, nil, annaSearch},
-		{"a search started by hand, person unknown", grabSearchNow, origin.Origin{}, nil, origin.Origin{Kind: origin.Search}},
-		{"the scheduled search", grabAutomatic, origin.Origin{}, nil, origin.Origin{Kind: origin.Auto, Name: origin.JobSearch}},
-		{"the RSS check says so itself", grabAutomatic, rss, nil, rss},
-		{"a list's search is the list's", grabAutomatic, origin.Origin{}, &list, list},
-		{"a person's search beats the schedule", grabSearchNow, origin.Origin{}, &annaSearch, annaSearch},
-		{"what the caller says beats a hint", grabAutomatic, rss, &list, rss},
+		{"a release a person picked", grabPicked, anna, anna},
+		{"picked, person unknown", grabPicked, origin.Origin{}, origin.Origin{Kind: origin.Manual}},
+		{"a search a person started", grabSearchNow, annaSearch, annaSearch},
+		{"a search started by hand, person unknown", grabSearchNow, origin.Origin{}, origin.Origin{Kind: origin.Search}},
+		{"the scheduled search", grabAutomatic, origin.Origin{}, origin.Origin{Kind: origin.Auto, Name: origin.JobSearch}},
+		{"the RSS check says so itself", grabAutomatic, rss, rss},
+		{"a list's search is the list's", grabAutomatic, list, list},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &Server{}
-			if tc.hint != nil {
-				defer s.hintGrabs(false, 7, *tc.hint)()
-			}
-			if got := s.grabOrigin(tc.kind, tc.by, false, 7, ""); got != tc.want {
+			if got := s.grabOrigin(tc.kind, tc.by, ""); got != tc.want {
 				t.Fatalf("grabOrigin = %+v, want %+v", got, tc.want)
-			}
-			// A hint for a movie is not a hint for a show with the same id.
-			if tc.hint != nil && !tc.by.Known() {
-				if got := s.grabOrigin(tc.kind, tc.by, true, 7, ""); got == *tc.hint {
-					t.Fatalf("a movie's hint reached a show: %+v", got)
-				}
 			}
 		})
 	}
 }
 
-func TestHintGrabsEnds(t *testing.T) {
+// Who is behind a run travels with that run: two runs for the same title at
+// once each keep their own, one ending takes nothing from the other, and a
+// scheduled search running meanwhile is not credited to either.
+func TestGrabByIsPerRun(t *testing.T) {
 	s := &Server{}
-	done := s.hintGrabs(true, 4, origin.Origin{Kind: origin.List, Name: "A"})
-	if got := s.grabOrigin(grabAutomatic, origin.Origin{}, true, 4, ""); got.Kind != origin.List {
-		t.Fatalf("during the search: %+v", got)
+	listA := origin.Origin{Kind: origin.List, Name: "A"}
+	anna := origin.Origin{Kind: origin.Search, UserID: 3, User: "Anna"}
+	runA, cancelA := context.WithCancel(withGrabBy(context.Background(), listA))
+	runAnna := withGrabBy(context.Background(), anna)
+	scheduled := context.Background()
+	cancelA() // the list's run is over
+	tests := []struct {
+		name string
+		ctx  context.Context
+		kind grabKind
+		want origin.Origin
+	}{
+		{"the list's run", runA, grabAutomatic, listA},
+		{"Anna's search for the same title", runAnna, grabSearchNow, anna},
+		{"the scheduled search meanwhile", scheduled, grabAutomatic, origin.Origin{Kind: origin.Auto, Name: origin.JobSearch}},
 	}
-	done()
-	if got := s.grabOrigin(grabAutomatic, origin.Origin{}, true, 4, ""); got.Kind != origin.Auto {
-		t.Fatalf("after the search: %+v", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := s.grabOrigin(tc.kind, grabByFrom(tc.ctx), ""); got != tc.want {
+				t.Fatalf("grabOrigin = %+v, want %+v", got, tc.want)
+			}
+		})
 	}
 }
 

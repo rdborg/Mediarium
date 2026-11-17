@@ -50,6 +50,10 @@ func TestSafeInfoURL(t *testing.T) {
 		{"the download link itself, slash differs", "https://tracker.example/t/1/", "https://tracker.example/t/1", ""},
 		{"control character", "https://tracker.example/t/1\x00", "", ""},
 		{"inner space", "https://tracker.example/t /1", "", ""},
+		{"key hidden behind a semicolon", "https://tracker.example/t.php?id=1&a=b;apikey=SECRET", "", ""},
+		{"semicolon alone", "https://tracker.example/t.php?id=1;x", "", ""},
+		{"key after a bad escape", "https://tracker.example/t.php?id=%zz&apikey=SECRET", "", ""},
+		{"bad escape alone", "https://tracker.example/t.php?q=%G1", "", ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

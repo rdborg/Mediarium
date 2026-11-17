@@ -166,6 +166,7 @@ type sourceKey struct {
 
 type sourceNote struct {
 	id     int64
+	guid   string // the id the indexer gave the release ("" when none)
 	expiry time.Time
 }
 

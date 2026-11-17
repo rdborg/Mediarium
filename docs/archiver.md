@@ -1,6 +1,6 @@
 # Channel archiver
 
-The Channel archiver follows YouTube channels and playlists and keeps their videos in a folder of your own, or just the sound if you want music. It is **off** until you switch it on under **Settings > Media types**, and it needs a copy of **yt-dlp** that you supply.
+The Channel archiver follows YouTube channels and playlists and keeps their videos in a folder of your own, or just the sound if you want music. It is **off** until you switch it on under **Settings > Basics > Media types**, and it needs a copy of **yt-dlp** that you supply.
 
 ## Read this first
 
@@ -9,7 +9,7 @@ Downloading from YouTube may break YouTube's terms of service. You are responsib
 ## Setting it up
 
 1. **Get yt-dlp yourself** from [its own project](https://github.com/yt-dlp/yt-dlp). Audio only (mp3, m4a) and merging video need `ffmpeg` too, on the same machine or in the same container.
-2. Under **Settings > Media types**, the **Channel archiver** card has these fields:
+2. Under **Settings > Basics > Media types**, the **Channel archiver** card has these fields:
    - **The yt-dlp file**: the full path, for example `/usr/local/bin/yt-dlp`. **Test** runs `yt-dlp --version` and shows the version it prints.
    - **Download folder**: where the videos go. Mediarium makes it if it is missing and checks that it can write there.
    - **Format** for new channels: **Video, up to 1080p** (mp4), **Audio only, mp3** or **Audio only, m4a**. Each channel can have its own.

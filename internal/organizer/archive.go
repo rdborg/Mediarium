@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -17,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 
@@ -1040,7 +1042,9 @@ func (x *extraction) writeFile(name string, declared int64, r io.Reader) error {
 		copyErr = x.wbuf.Flush()
 	}
 	if copyErr == nil {
-		copyErr = f.Chmod(0o644)
+		// Only a nicety: a network share or NAS mount that refuses chmod
+		// still holds the file, so a refusal must not fail the unpack.
+		chmodBestEffort(f.Name(), func() error { return chmodFile(f, 0o644) })
 	}
 	closeErr := f.Close()
 	x.budget = lw.left
@@ -1061,6 +1065,31 @@ func (x *extraction) writeFile(name string, declared int64, r io.Reader) error {
 }
 
 var errLimitExceeded = errors.New("size limit exceeded")
+
+// chmodFile sets a mode on an open file. A variable so tests can stand in for a
+// file system that refuses chmod.
+var chmodFile = func(f *os.File, mode os.FileMode) error { return f.Chmod(mode) }
+
+// chmodRefused reports whether err is a file system saying it does not do
+// permissions: not permitted, not supported or invalid on this mount (SMB and
+// NFS shares, some NAS boxes, NTFS and exFAT mounts).
+func chmodRefused(err error) bool {
+	return errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EPERM) ||
+		errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.ENOTSUP) ||
+		errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.ENOSYS) ||
+		errors.Is(err, errors.ErrUnsupported)
+}
+
+// chmodBestEffort runs a chmod on a file Mediarium just made. Any failure is
+// logged at debug and carried on from: the mode is cosmetic, and the file is
+// already written, so even a failure the check above does not know is no reason
+// to throw the unpacked data away.
+func chmodBestEffort(name string, do func() error) {
+	if err := do(); err != nil {
+		slog.Debug("couldn't set the permissions on an unpacked file, carrying on",
+			"path", name, "refused", chmodRefused(err), "err", err)
+	}
+}
 
 // limitedWriter fails once more than left bytes have been written.
 type limitedWriter struct {

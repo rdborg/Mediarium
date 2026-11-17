@@ -213,11 +213,13 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 		// "If a file already exists" said to keep the file that is there (or the
 		// new one is not better): that is a decision, not a failure, so no
 		// "failed" notification and nothing in Logs and errors.
+		// The kept file is recorded before the row is marked completed, so a
+		// reader that sees "completed" also sees which file was kept.
+		data := s.discardWorkDirReport(incompleteDir, protocol)
+		s.recordKept(queueID, existing, data)
 		if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, keptExistingMessage); err != nil {
 			return fail(err)
 		}
-		data := s.discardWorkDirReport(incompleteDir, protocol)
-		s.recordKept(queueID, existing, data)
 		_ = s.MovieRepo.SetStatus(movieID, restoreStatus, "", "")
 		_ = s.QueueRepo.LogActivity(movieID, "kept", fmt.Sprintf("%s: a file is already at %s, so Mediarium kept it and did not import %s.", movieTitle, existing, releaseTitle))
 		s.logKeptData(movieID, 0, data, releaseTitle)
@@ -849,15 +851,16 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 	}
 
 	if !overwrite {
+		// The download is not wanted: its working folder goes (a torrent
+		// still seeding keeps it until its seeding goal is met). Nothing was
+		// imported, so a torrent in an external client is left there.
+		// What was kept is recorded before the row is marked completed.
+		data := s.discardWorkDirReport(s.workDirFor(queueID), indexers.Protocol(item.Protocol))
+		s.recordKept(queueID, item.DestPath, data)
 		if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, keptExistingMessage); err != nil {
 			return err
 		}
 		_ = s.QueueRepo.LogActivity(item.MovieID, "kept", fmt.Sprintf("You chose to keep the file at %s, so %s was not imported.", item.DestPath, item.ReleaseTitle))
-		// The download is not wanted: its working folder goes (a torrent
-		// still seeding keeps it until its seeding goal is met). Nothing was
-		// imported, so a torrent in an external client is left there.
-		data := s.discardWorkDirReport(s.workDirFor(queueID), indexers.Protocol(item.Protocol))
-		s.recordKept(queueID, item.DestPath, data)
 		s.logKeptData(item.MovieID, 0, data, item.ReleaseTitle)
 		// The movie keeps the file it has: downloaded when that is still
 		// there, missing otherwise.

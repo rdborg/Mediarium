@@ -450,11 +450,13 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 		if skipped > 0 {
 			// "If a file already exists" said to keep what is there: a decision,
 			// not a failure (no "failed" notification, nothing in Logs and errors).
+			// The kept file is recorded before the row is marked completed, so a
+			// reader that sees "completed" also sees which file was kept.
+			data := s.discardWorkDirReport(dir, protocol)
+			s.recordKept(queueID, keptFile, data)
 			if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, keptExistingMessage); err != nil {
 				return fail(err)
 			}
-			data := s.discardWorkDirReport(dir, protocol)
-			s.recordKept(queueID, keptFile, data)
 			_ = s.QueueRepo.LogSeriesActivity(series.ID, "kept", fmt.Sprintf("%s: the files of %s are already in your library, so Mediarium kept them and imported nothing.", series.Title, releaseTitle))
 			s.logKeptData(0, series.ID, data, releaseTitle)
 			return nil

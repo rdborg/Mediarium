@@ -55,7 +55,6 @@ for (const [path, title] of PAGES) {
 const MOVED: [string, string][] = [
   ['/settings/downloads', '/settings/usenet'],
   ['/settings/language', '/settings/general'],
-  ['/settings', '/settings/general'],
 ]
 for (const [from, to] of MOVED) {
   test(`${from} opens ${to}`, async ({ page }) => {
@@ -63,6 +62,12 @@ for (const [from, to] of MOVED) {
     await expect(page).toHaveURL(new RegExp(`${to}$`))
   })
 }
+
+test('/settings is the overview of every group', async ({ page }) => {
+  await page.goto('/settings')
+  await expect(page).toHaveURL(/\/settings$/)
+  await expect(page.locator('.settings-overview')).toBeVisible()
+})
 
 test('the Library and Settings menus open only on a click, and only one at a time', async ({ page }) => {
   await page.goto('/')
@@ -82,6 +87,7 @@ test('the Library and Settings menus open only on a click, and only one at a tim
   await expect(settings).toHaveAttribute('aria-expanded', 'true')
   await expect(library).toHaveAttribute('aria-expanded', 'false')
   // a reload starts with both closed, even on a page inside a group
+  await page.goto('/settings/general')
   await page.reload()
   await openNav(page)
   await expect(library).toHaveAttribute('aria-expanded', 'false')

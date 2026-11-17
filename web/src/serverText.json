@@ -1350,6 +1350,7 @@
  "The file is only {0} min long. This looks like a fake or broken release.",
  "The file mode isn't valid: {0}.",
  "The file mode {0} is world-writable. That lets every user on this machine change or delete the files (the last digit is 2, 3, 6 or 7). Tick \"I understand\" to save it anyway. 664 and 775 are the usual choice when a group needs to write.",
+ "The file {0} is a {1} archive, not a video: the release was never unpacked. This looks like a broken release.",
  "The files already downloaded didn't pass the check ({0}). Downloading again.",
  "The files are being written already. Wait for it to finish, or stop it first.",
  "The files were deleted too.",
@@ -1784,7 +1785,7 @@
  "{0}: a second copy in {1} was added",
  "{0}: found the file {1} in its folder and added it.",
  "{0}: its file {1} is not there any more, so the movie is wanted again.",
- "{0}: its file {1} was deleted{2} because it looks incomplete. The movie is wanted again.",
+ "{0}: its file {1} was deleted{2} {3}. The movie is wanted again.",
  "{0}: its file {1} was deleted{2}. The movie is wanted again.",
  "{0}: read the folder {1} and found {2} of {3} episodes.",
  "{0}: removed {1}, which the new file replaced",
@@ -1797,5 +1798,6 @@
  "{0}: the file {1} was left out because it looks like a fake or broken release (it is only {2} min long).",
  "{0}: the files of {1} are already in your library, so Mediarium kept them and imported nothing.",
  "{0}: you put video files in its folder yourself, and {1} of them were added to episodes.",
+ "{0}: {1} It was left out.",
  "{0}: {1} episode file(s) are not on the disk any more, so those episodes are wanted again."
 ]

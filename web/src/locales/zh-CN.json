@@ -8517,5 +8517,8 @@
   "Everything you can change, grouped in the order most people set it up.": "所有可以更改的设置，按大多数人配置的顺序排列。",
   "Can't find a setting? Press {keys} or use the search bar.": "找不到某个设置？按 {keys}，或使用搜索栏。",
   "Want better versions to replace what you have? Each profile below has a switch to keep looking for better versions and a quality where it stops. When and how often Mediarium searches is under {link}.": "想用更好的版本替换现有的？下面每个配置都有一个“继续寻找更好版本”的开关，以及停止的质量。Mediarium 何时、多久搜索一次，在{link}中设置。",
-  "Looking for automatic quality upgrades? Whether a profile keeps looking for better versions, and where it stops, is set in each profile under {link}. A title can also be set to keep looking when you add it, and on its own page.": "在找自动质量升级？配置是否继续寻找更好的版本、到哪个质量为止，在{link}的每个配置中设置。单个影视也可以在添加时和它自己的页面里设为继续寻找。"
+  "Looking for automatic quality upgrades? Whether a profile keeps looking for better versions, and where it stops, is set in each profile under {link}. A title can also be set to keep looking when you add it, and on its own page.": "在找自动质量升级？配置是否继续寻找更好的版本、到哪个质量为止，在{link}的每个配置中设置。单个影视也可以在添加时和它自己的页面里设为继续寻找。",
+  "The file {0} is a {1} archive, not a video: the release was never unpacked. This looks like a broken release.": "文件 {0} 是 {1} 压缩包，不是视频：该发行版从未被解压。这看起来是一个损坏的发行版。",
+  "{0}: its file {1} was deleted{2} {3}. The movie is wanted again.": "{0}：其文件 {1} 已被删除{2} {3}。这部电影重新进入待找列表。",
+  "{0}: {1} It was left out.": "{0}：{1} 已被排除。"
 }

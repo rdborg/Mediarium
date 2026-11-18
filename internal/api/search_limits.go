@@ -80,7 +80,7 @@ func (s *Server) sizeRejections(table quality.SizeLimits, minutes float64, profi
 	var out []string
 	tier := quality.Classify(parser.Parse(title))
 	if !builtinSizeOK(tier, size, episodes, minutes) {
-		out = append(out, fmt.Sprintf("smaller than a real %s release is likely to be (you can turn this check off in Settings > Library > Quality)", tier))
+		out = append(out, fmt.Sprintf("smaller than a real %s release is likely to be (you can turn this check off in Settings > Finding releases > Quality)", tier))
 	}
 	if !profile.SizeAllowed(size) {
 		out = append(out, fmt.Sprintf("larger than the %q profile's limit of %s GB", profile.Name, trimFloat(profile.MaxSizeGB)))

@@ -14,7 +14,7 @@ import (
 	"github.com/rdborg/mediarium/internal/simkl"
 )
 
-// Connecting a Simkl account (Settings > Info, lists and subtitles > Import
+// Connecting a Simkl account (Settings > Library and files > Import
 // lists). The person gets a short code, enters it on Simkl's site, and
 // Mediarium collects the access token. No password reaches Mediarium. The
 // token is kept encrypted in the settings and never sent to the browser; only

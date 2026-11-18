@@ -374,15 +374,15 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
           </div>
           <div className="grid-form">
             <label>
-              <TipLabel text={t('What to do when an import would replace a file already in your library. Ask me parks the download in Activity until you decide.')}>{t('If a file already exists')}</TipLabel>
+              <TipLabel text={t('What to do when an import would replace a file already in your library. Ask me parks a movie download in Activity until you decide. A show or a season pack is never parked: Mediarium keeps the file you have, like Skip.')}>{t('If a file already exists')}</TipLabel>
               <select value={importConflictPolicy} onChange={(e) => setImportConflictPolicy(e.target.value)}>
                 <option value="skip">{t('Skip (leave the existing file alone)')}</option>
                 <option value="overwrite">{t('Always overwrite')}</option>
                 <option value="overwrite_if_better">{t('Overwrite only if the new file is better')}</option>
-                <option value="ask">{t('Ask me each time (in Activity)')}</option>
+                <option value="ask">{t('Ask me each time (movies only, in Activity)')}</option>
               </select>
             </label>
-            <small style={{ color: 'var(--text-dim)' }}>{t('What to do when a download would replace a file already in your library. With Skip, a title that looks for better versions still takes a better file in place of the old one.')}</small>
+            <small style={{ color: 'var(--text-dim)' }}>{t('What to do when a download would replace a file already in your library. With Skip, a title that looks for better versions still takes a better file in place of the old one. Ask me only waits for you with movies; for shows and season packs it keeps the file you have, like Skip.')}</small>
           </div>
           <div className="grid-form">
             <label className="check-row">
@@ -414,7 +414,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
   )
 }
 
-// Settings > Library > Folders: where the files live.
+// Settings > Library and files > Folders: where the files live.
 export default function MediaSettings() {
   return (
     <div className="settings-stack">
@@ -424,7 +424,7 @@ export default function MediaSettings() {
   )
 }
 
-// Settings > Library > File names and importing: how files are named and what
+// Settings > Library and files > File names and importing: how files are named and what
 // happens after a download, including the script that can run afterwards.
 export function NamingSettings() {
   const [keepNames, setKeepNames] = useState(false)

@@ -128,7 +128,7 @@ func (s *Server) handleCreateRootMarker(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !slices.Contains(s.writableRoots(), root) {
-		writeError(w, http.StatusBadRequest, "That is not one of your library folders. Add it in Settings > Library > Folders first.")
+		writeError(w, http.StatusBadRequest, "That is not one of your library folders. Add it in Settings > Library and files > Folders first.")
 		return
 	}
 	if !fsinfo.RootReachable(root) {

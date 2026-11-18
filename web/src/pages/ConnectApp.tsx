@@ -103,7 +103,7 @@ export default function ConnectApp() {
                     {t('Deny')}
                   </button>
                 </div>
-                <p className="connect-note">{t('You can disconnect it again under Settings > Other apps.')}</p>
+                <p className="connect-note">{t('You can disconnect it again under Settings > Media servers and apps > Other apps.')}</p>
               </>
             ) : (
               <>

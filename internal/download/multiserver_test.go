@@ -165,6 +165,9 @@ func TestMissingArticleWithoutPar2StopsAtOnce(t *testing.T) {
 	if !strings.Contains(err.Error(), "couldn't be found on your Usenet servers") || !strings.Contains(err.Error(), "no PAR2") {
 		t.Fatalf("unexpected message: %v", err)
 	}
+	if !strings.HasPrefix(err.Error(), "1 article couldn't") {
+		t.Fatalf("one missing article is not \"1 articles\": %v", err)
+	}
 }
 
 // More is gone than the PAR2 files could ever rebuild: also stopped at once.

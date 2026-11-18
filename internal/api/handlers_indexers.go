@@ -308,7 +308,7 @@ func siteAddressAllowed(w http.ResponseWriter, sum indexers.DefinitionSummary, a
 		case indexers.AddrTooLong:
 			writeError(w, http.StatusBadRequest, "The address is too long. It can have at most 200 characters.")
 		case indexers.AddrUserInfo:
-			writeError(w, http.StatusBadRequest, "Leave the user name and password out of the address. Sign-in details go in the site's settings.")
+			writeError(w, http.StatusBadRequest, "Leave the username and password out of the address. Sign-in details go in the site's settings.")
 		case indexers.AddrQuery:
 			writeError(w, http.StatusBadRequest, fmt.Sprintf("Leave everything after a ? or # out of the address. Use only the server and the port, for example %s.", localSiteExample))
 		default:

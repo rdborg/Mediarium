@@ -3,7 +3,7 @@ import Icon from './Icon'
 import { currentInstallKind, installNow, onInstallChange } from '../pwa'
 import { t } from '../i18n'
 
-// Settings > General > Install as an app. A browser that can install shows a
+// Settings > Basics > General > Install as an app. A browser that can install shows a
 // button; Safari has no button, so it shows the steps. Nothing shows once
 // Mediarium already runs as an app.
 export default function InstallCard() {

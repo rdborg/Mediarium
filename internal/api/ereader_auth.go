@@ -173,7 +173,7 @@ func (s *Server) opdsFailed(r *http.Request, rt *ereaderRuntime, ipKey, userKey 
 
 func challenge(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Basic realm="Mediarium books", charset="UTF-8"`)
-	http.Error(w, "Sign in with your user name and your e-reader password.", http.StatusUnauthorized)
+	http.Error(w, "Sign in with your username and your e-reader password.", http.StatusUnauthorized)
 }
 
 var hostPattern = regexp.MustCompile(`^[a-z0-9.\-]+(:[0-9]{1,5})?$|^\[[0-9a-f:.]+\](:[0-9]{1,5})?$`)

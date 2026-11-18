@@ -11,7 +11,7 @@ import (
 // Where a title goes when it is added without a folder choice: by a Plex
 // watchlist, an import list, a request, the Radarr or Sonarr compatible API,
 // a collection that is followed, or the Add dialog left on its default. One
-// rule per kind (Settings > Library > Folders): the main folder, one of the
+// rule per kind (Settings > Library and files > Folders): the main folder, one of the
 // extra folders, or whichever folder has the most room at the time (two
 // drives filling up side by side). The rule is read when a title is added and
 // the folder is stored on the title, so changing the rule later never moves a
@@ -120,7 +120,7 @@ func (s *Server) checkFolderSetting(want string, offered []string, what string) 
 			return f, ""
 		}
 	}
-	return "", "Pick one of your " + what + " folders from the list. They are set in Settings > Library > Folders."
+	return "", "Pick one of your " + what + " folders from the list. They are set in Settings > Library and files > Folders."
 }
 
 // newTitleFolderPayload says where a title added now goes, for the dialogs.

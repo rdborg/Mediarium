@@ -67,7 +67,7 @@ body:
     attributes:
       label: Support report
       description: |
-        In Mediarium go to **Settings > System > Server and backup**, find **Help and support**, press **Copy for support** and paste the text here. It has your version, how the database is doing, the setup warnings, the latest problems from **Logs and errors** and the last 500 lines of the log. Passwords, keys and tokens are left out.
+        In Mediarium go to **Settings > System > Logs and errors**, press **Copy for support** and paste the text here. It has your version, how the database is doing, the setup warnings, the latest problems from **Logs and errors** and the last 500 lines of the log. Passwords, keys and tokens are left out.
         If the pages do not open, leave this empty and fill in the Log box below instead.
       render: text
 

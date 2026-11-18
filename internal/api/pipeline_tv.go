@@ -390,6 +390,11 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 			if keptFile == "" {
 				keptFile = destPath
 			}
+			for _, ep := range eps {
+				if s.adoptKeptEpisodeFile(series, ep, destPath) {
+					handled[ep.ID] = true
+				}
+			}
 			continue
 		}
 		if n := s.copiedFromTempNote(file, result); n != "" {
@@ -643,10 +648,10 @@ func multiEpisodeNaming(eps []library.Episode) (first library.Episode, more []in
 func (s *Server) buildTVDestPathFor(series library.Series, eps []library.Episode, release parser.Release, releaseTitle, videoFile string, releaseMayName bool) (string, nameSource, error) {
 	root := s.seriesRootFor(series)
 	if root == "" && series.CopyOf != 0 {
-		return "", namedByPreset, fmt.Errorf("the folder for second copies isn't set. Choose one in Settings > Library > Folders")
+		return "", namedByPreset, fmt.Errorf("the folder for second copies isn't set. Choose one in Settings > Library and files > Folders")
 	}
 	if root == "" {
-		return "", namedByPreset, fmt.Errorf("the TV folder isn't set. Choose one in Settings > Library > Folders")
+		return "", namedByPreset, fmt.Errorf("the TV folder isn't set. Choose one in Settings > Library and files > Folders")
 	}
 
 	preset, _ := s.Settings.Get(settings.KeyNamingPreset)

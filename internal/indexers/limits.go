@@ -35,6 +35,13 @@ const (
 // indexer, whatever the schedule of the monitor is.
 const ProbeInterval = 6 * time.Hour
 
+// PausedProbeInterval is the least time between two checks of an indexer that
+// is paused after failures (other than being asked too often). The check is the
+// small "what do you support" question, and when it works the pause is lifted,
+// so an indexer that came back, or whose key was refused for a while, does not
+// stay left out for hours until a person presses Test.
+const PausedProbeInterval = 30 * time.Minute
+
 // DailyLimit is what an indexer's "limit reached" answer says.
 type DailyLimit struct {
 	Used   int       // requests used today, 0 when the answer does not say
@@ -402,6 +409,10 @@ func (t *Tracker) ProbeAdvice(id int64, setLimit int) Probe {
 		return ProbeSkipWait
 	}
 	now := t.now()
+	interval := ProbeInterval
+	if h, _ := t.Health(id); h.Paused(now) && !strings.Contains(h.Reason, "too many requests") {
+		interval = PausedProbeInterval
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.limits.init()
@@ -409,7 +420,7 @@ func (t *Tracker) ProbeAdvice(id int64, setLimit int) Probe {
 	if !ok.IsZero() && ok.After(probed) && !failed.After(ok) && now.Sub(ok) < ProbeInterval {
 		return ProbeSkipWorks
 	}
-	if !probed.IsZero() && now.Sub(probed) < ProbeInterval {
+	if !probed.IsZero() && now.Sub(probed) < interval {
 		return ProbeSkipWait
 	}
 	return ProbeNow

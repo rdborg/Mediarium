@@ -5,6 +5,7 @@ import { api, can, isRequested, isViewer, type BookFormat, type BookFound } from
 import { useAuth } from '../AuthContext'
 import { useModules } from '../ModulesContext'
 import { useFocusTrap } from '../useFocusTrap'
+import { useAddSearchNow } from '../useAddSearchNow'
 import { useGridColumns } from '../useGridColumns'
 import { useHideOwned } from '../useHideOwned'
 import { useNearViewport } from '../useNearViewport'
@@ -241,6 +242,7 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const { searchNow, setSearchNow } = useAddSearchNow()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
@@ -276,7 +278,7 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
         googleId: target.googleId,
         ebook: chosen.has('ebook'),
         audiobook: chosen.has('audiobook'),
-        searchNow: true,
+        searchNow,
       })
       if (isRequested(b)) {
         toast.success(st(b.message))
@@ -284,7 +286,7 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
         return
       }
       window.dispatchEvent(new CustomEvent('mediarium:book-added', { detail: { key: target.key, id: b.id } }))
-      toast.success(t('{title} added. Mediarium is looking for it now.', { title: b.title }))
+      toast.success(searchNow ? t('{title} added. Mediarium is looking for it now.', { title: b.title }) : t('{title} added.', { title: b.title }))
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -325,6 +327,11 @@ function AddDialog({ target, onClose, prefer }: { target: BookFound; onClose: ()
                 </button>
               ))}
             </div>
+          )}
+          {formats.length > 0 && (
+            <label className="check-row">
+              <input type="checkbox" checked={searchNow} onChange={(e) => setSearchNow(e.target.checked)} disabled={busy} /> {t('Start searching for it now')}
+            </label>
           )}
           {error && <p className="error-text">{error}</p>}
         </div>

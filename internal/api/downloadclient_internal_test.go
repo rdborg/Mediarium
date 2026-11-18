@@ -21,6 +21,8 @@ func TestMapClientPath(t *testing.T) {
 		{"root", "/Movie", "/", "/data", "/data/Movie"},
 		{"windows client", `D:\Torrents\Movie\a.mkv`, `D:\Torrents`, "/data/torrents", "/data/torrents/Movie/a.mkv"},
 		{"windows any case", `d:\torrents\Movie`, `D:\Torrents`, "/data/torrents", "/data/torrents/Movie"},
+		{"spaces around the settings", "/downloads/Movie", " /downloads ", " /data/torrents ", "/data/torrents/Movie"},
+		{"a path that climbs out is not mapped", "/downloads/../etc/passwd", "/downloads", "/data/torrents", "/etc/passwd"},
 		{"linux is case sensitive", "/Downloads/Movie", "/downloads", "/data/torrents", "/Downloads/Movie"},
 	}
 	for _, tc := range cases {

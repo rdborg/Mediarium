@@ -294,13 +294,16 @@ func matchingAltTitle(parsedTitle string, alts []string) string {
 	if len(keys) == 0 {
 		return ""
 	}
+	// Apostrophes and dots count as spaces in a key, and a release name may
+	// leave them out ("Oceans.Eleven" for "Ocean's Eleven"), so compare the keys
+	// without their spaces.
 	for _, alt := range alts {
 		for _, w := range metadata.TitleKeys(alt) {
 			if !altKeyLongEnough(w) {
 				continue
 			}
 			for _, r := range keys {
-				if r == w {
+				if r == w || strings.ReplaceAll(r, " ", "") == strings.ReplaceAll(w, " ", "") {
 					return alt
 				}
 			}

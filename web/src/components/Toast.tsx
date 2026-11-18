@@ -36,8 +36,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback((kind: ToastItem['kind'], message: string, action?: ToastAction) => {
     const id = nextId.current++
     setItems((cur) => [...cur.slice(-3), { id, kind, message, action }])
-    // A toast with a button stays long enough to be read and pressed.
-    hold.current.set(id, { kind, timer: setTimeout(() => drop(id), action ? 12000 : kind === 'error' ? 6000 : 2600) })
+    // A toast with a button stays long enough to be read and pressed; a longer sentence stays longer than a short one.
+    const reading = Math.min(10000, 2600 + message.length * 45)
+    hold.current.set(id, { kind, timer: setTimeout(() => drop(id), action ? 12000 : kind === 'error' ? Math.max(6000, reading) : reading) })
   }, [drop])
 
   // Pointing at a toast keeps it on screen; it goes shortly after the
@@ -71,7 +72,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toast-stack" role="status" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className={`toast toast-${t.kind}`} role={t.kind === 'error' ? 'alert' : undefined} onMouseEnter={() => pause(t.id)} onMouseLeave={() => resume(t.id)}>
+          <div key={t.id} className={`toast toast-${t.kind}`} role={t.kind === 'error' ? 'alert' : undefined} onMouseEnter={() => pause(t.id)} onMouseLeave={() => resume(t.id)} onFocus={() => pause(t.id)} onBlur={() => resume(t.id)}>
             <span className="toast-icon" aria-hidden="true">
               {t.kind === 'success' ? '✓' : t.kind === 'error' ? '!' : 'i'}
             </span>

@@ -30,7 +30,7 @@ var errNoSubtitle = errors.New("no subtitle found")
 
 // errSubtitlesOff means subtitles are switched off in Settings, so nothing is
 // searched for or downloaded.
-var errSubtitlesOff = errors.New("Subtitles are switched off. Turn them on in Settings > Info, lists and subtitles > Subtitles.")
+var errSubtitlesOff = errors.New("Subtitles are switched off. Turn them on in Settings > Library and files > Subtitles.")
 
 func pathBase(p string) string { return filepath.Base(p) }
 func sortSubtitleResults(r []subtitleResultPayload) {

@@ -458,7 +458,7 @@ func TestCardigannCloudflareWithoutFlareSolverr(t *testing.T) {
 	if !errors.Is(err, ErrCloudflare) {
 		t.Fatalf("expected ErrCloudflare, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "Set up FlareSolverr (see Settings > Indexers & Search)") {
+	if !strings.Contains(err.Error(), "Set up FlareSolverr (see Settings > Finding releases > Indexers & Search)") {
 		t.Errorf("message should tell the user what to do: %v", err)
 	}
 }

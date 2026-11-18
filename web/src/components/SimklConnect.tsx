@@ -8,7 +8,7 @@ import Icon from './Icon'
 import TestButton from './TestButton'
 import { useToast } from './Toast'
 
-// Settings > Info, lists and subtitles > Import lists: connect the Simkl
+// Settings > Library and files > Import lists: connect the Simkl
 // account whose lists a Simkl import list reads. The person enters a short
 // code on Simkl's site (the server works out which of Simkl's two sign-ins the
 // app uses); the sign-in itself is kept on the server and never sent to the

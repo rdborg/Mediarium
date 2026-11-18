@@ -57,7 +57,7 @@ export function failureHelp(error: string | undefined, protocol: 'usenet' | 'tor
     return { why: t('The indexer did not hand over the download file.'), tips: [t('Press Retry in a few minutes: indexers are sometimes busy or limit downloads per day.'), t('Or press Blocklist & search again to take a release from another indexer.')] }
   }
   if (has(msg, 'already exist')) {
-    return { why: t('A file for this title is already in your library, so nothing was imported.'), tips: [t('Nothing to fix if you are happy with the file you have. To replace it, change "If a file already exists" in Settings > Library > File names and importing.')] }
+    return { why: t('A file for this title is already in your library, so nothing was imported.'), tips: [t('Nothing to fix if you are happy with the file you have. To replace it, change "If a file already exists" in Settings > Library and files > File names and importing.')] }
   }
   return {
     why: protocol === 'torrent' ? t('The torrent could not be finished.') : t('The download could not be finished.'),

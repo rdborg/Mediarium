@@ -201,14 +201,14 @@ func usenetClientError(kind string, err error) error {
 // and that it is not the same NZB as an earlier download of this title.
 func (s *Server) fetchCheckedNZB(ctx context.Context, queueID int64, nzbURL string) (*download.NZB, []byte, error) {
 	if isMagnetURI(nzbURL) {
-		return nil, nil, errors.New("this is a torrent (a magnet link), but its indexer is set up as a Usenet indexer. Open Settings > Indexers & Search, remove it and add it again on the Torrent tab")
+		return nil, nil, errors.New("this is a torrent (a magnet link), but its indexer is set up as a Usenet indexer. Open Settings > Finding releases > Indexers & Search, remove it and add it again on the Torrent tab")
 	}
 	nzbBytes, err := s.fetchRelease(ctx, nzbURL)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get the NZB file: %w", err)
 	}
 	if looksLikeTorrentFile(nzbBytes) {
-		return nil, nil, errors.New("this is a .torrent file, but its indexer is set up as a Usenet indexer. Open Settings > Indexers & Search, remove it and add it again on the Torrent tab")
+		return nil, nil, errors.New("this is a .torrent file, but its indexer is set up as a Usenet indexer. Open Settings > Finding releases > Indexers & Search, remove it and add it again on the Torrent tab")
 	}
 	// An indexer at its daily limit, or showing a login or maintenance page,
 	// sends something that is not an NZB: that says nothing about the release,

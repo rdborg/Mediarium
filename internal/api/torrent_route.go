@@ -13,7 +13,7 @@ import (
 // Where a torrent is downloaded. Usually the first of these that is set up:
 // the download client (qBittorrent and the like), a debrid service, the
 // built-in client. An indexer can send its torrents to one of them instead
-// (Settings > Indexers & Search, "Torrents go to"), so a private tracker's
+// (Settings > Finding releases > Indexers & Search, "Torrents go to"), so a private tracker's
 // torrents seed in qBittorrent while public ones go to debrid (#166).
 
 // torrentRouteFile remembers in a download's folder where its torrent went, so

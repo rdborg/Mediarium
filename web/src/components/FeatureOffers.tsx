@@ -65,7 +65,7 @@ function useOfferState(enabled: boolean) {
 }
 
 // The rows of offers: in the What's new window after an update (mode
-// "update"), and under Settings > Media types (mode "settings"), where a Never
+// "update"), and under Settings > Basics > Media types (mode "settings"), where a Never
 // can be taken back. Administrators only; nothing shows for anyone else.
 export default function FeatureOffers({ mode, version, lastSeen, onOpen }: { mode: 'update' | 'settings'; version: string; lastSeen?: string | null; onOpen?: () => void }) {
   const admin = isAdmin(useAuth().user)

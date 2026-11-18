@@ -12,7 +12,7 @@ import (
 )
 
 // The parts of the MCP sign-in that talk to the screen: the consent page and
-// the connected-apps card in Settings > Other apps. They live apart from
+// the connected-apps card in Settings > Media servers and apps > Other apps. They live apart from
 // mcp_oauth.go because their sentences are translated (see tools/msgextract,
 // which leaves out the mcp*.go files).
 

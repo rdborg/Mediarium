@@ -305,7 +305,7 @@ func (s *Server) handleWatchlistItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
-		writeError(w, http.StatusNotFound, "Connect your Plex account first (Settings > Accounts > Linked services).")
+		writeError(w, http.StatusNotFound, "Connect your Plex account first (Settings > People and access > Linked services).")
 		return
 	}
 	p, err := s.watchlistPlexTV()

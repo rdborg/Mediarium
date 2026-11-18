@@ -12,20 +12,17 @@ import (
 // tie-breaks. The search list shows it first with a "Best match" label.
 // payloads and found run in step; nothing is marked when no release qualifies.
 func markBestMatch(payloads []searchResultPayload, found []indexers.Result, profile quality.Profile) {
-	best := -1
-	var bestKey pickKey
+	var pk picker
 	for i := range payloads {
 		payloads[i].setPreferredHits(profile, found[i].Title)
 		payloads[i].Checks = explainChecks(payloads[i], found[i], profile)
 		if !bestCandidate(payloads[i], found[i], profile) {
 			continue
 		}
-		key := keyFor(profile, found[i].Parsed(), &found[i])
-		if best < 0 || key.above(bestKey) || (key == bestKey && preferOver(&found[best], &found[i])) {
-			best, bestKey = i, key
-		}
+		pk.add(i, keyFor(profile, found[i].Parsed(), &found[i]), &found[i])
 	}
-	if best < 0 {
+	best, ok := pk.best()
+	if !ok {
 		return
 	}
 	payloads[best].Best = true

@@ -201,14 +201,14 @@ func blocklistedByYou(releaseTitle string, itemOnly bool) string {
 func feedLine(format string, args ...any) string { return fmt.Sprintf(format, args...) }
 
 // blocklistTitle names the title an entry is tied to.
-func (s *Server) blocklistTitle(e blocklist.Entry) (kind string, id int64, title string) {
+func (s *Server) blocklistTitle(e blocklist.Entry, movies, shows map[int64]library.TitleBrief) (kind string, id int64, title string) {
 	switch {
 	case e.MovieID != 0:
-		if m, err := s.MovieRepo.Get(e.MovieID); err == nil {
+		if m, ok := movies[e.MovieID]; ok {
 			return "movie", e.MovieID, m.Title
 		}
 	case e.SeriesID != 0:
-		if sr, err := s.MovieRepo.GetSeries(e.SeriesID); err == nil {
+		if sr, ok := shows[e.SeriesID]; ok {
 			return "series", e.SeriesID, sr.Title
 		}
 	case e.AlbumID != 0:
@@ -247,13 +247,25 @@ func (s *Server) handleListBlocklist(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// The movies and shows the entries belong to are read together, not one
+	// query for each entry: the whole blocklist can be thousands long.
+	var movieIDs, showIDs []int64
+	for _, e := range entries {
+		if e.MovieID != 0 {
+			movieIDs = append(movieIDs, e.MovieID)
+		} else if e.SeriesID != 0 {
+			showIDs = append(showIDs, e.SeriesID)
+		}
+	}
+	movies, _ := s.MovieRepo.MovieBriefs(movieIDs)
+	shows, _ := s.MovieRepo.SeriesBriefs(showIDs)
 	out := []blocklistPayload{}
 	for _, e := range entries {
 		p := blocklistPayload{ID: e.ID, ReleaseTitle: e.ReleaseTitle, Protocol: e.Protocol, Reason: e.Reason, Scope: blocklist.ScopeAll}
 		if e.ItemOnly {
 			p.Scope = blocklist.ScopeItem
 		}
-		p.ItemKind, p.ItemID, p.ItemTitle = s.blocklistTitle(e)
+		p.ItemKind, p.ItemID, p.ItemTitle = s.blocklistTitle(e, movies, shows)
 		if !e.CreatedAt.IsZero() {
 			p.CreatedAt = e.CreatedAt.Format(time.RFC3339)
 		}

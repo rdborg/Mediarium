@@ -11,7 +11,7 @@ A profile has:
 - **Accepted qualities**: the quality tiers it accepts, such as `WEBDL-1080p` or `Bluray-2160p`. A release in any other tier is skipped.
 - **Stop upgrading once this quality is reached** (the *cutoff*): once a title has a file at or above this tier, Mediarium stops searching for upgrades.
 - Optionally your own **Quality order and groups**: rank the qualities your way and put several in a group that counts as one rank (see [Quality order and groups](#quality-order-and-groups) below). Without it the usual order is used.
-- **Keep looking for better versions after it is downloaded** (shown as *Better versions* in the list, `upgradeAllowed` in the API): a title with a file below the cutoff keeps being searched for a better allowed release. Left off, the first acceptable release is kept. A new profile starts with it off.
+- **Keep looking for better versions after it is downloaded** (shown as *Better versions* in the list, `upgradeAllowed` in the API): a title with a file below the cutoff keeps being searched for a better allowed release. Left off, the first acceptable release is kept. A new profile starts with it off. On a new install, the profile you pick in the setup wizard gets it switched on, unless you switch **Keep looking for better versions** off there.
 - Optional **Release restrictions & preferred terms**: words a release name must contain at least one of, words it must not contain any of, and preferred words with a score. One term per line, matched anywhere in the release name, ignoring capitals, with dots and dashes counting as spaces.
 - Optional fallback profiles (**If nothing is found at this quality, also try**): other profiles to try, in order, when nothing found is acceptable to this one (see below).
 - **Skip bad releases** (`skipBadReleases`), on unless you switch it off: leaves out releases nobody wants to watch at home, so you get good downloads without any extra setup. These are whole Blu-ray discs (BDMV, BD50, "COMPLETE BLURAY"), 3D releases (SBS, OU, MVC), upscaled copies, subtitles burned into the picture (HC, HARDSUB, KORSUB) and groups known for poor re-encodes (YIFY/YTS, aXXo and a few others). Between two releases of the same quality it also prefers a group's fixed release (PROPER, REPACK). When the same release name was uploaded more than once, an automatic search takes the newest upload (a copy on another indexer has to be posted at least two hours later to count as a new upload, so one release showing up on two indexers is not mistaken for a repost). The release lists show every upload. A release left out says why in interactive search, for example "is a 3D release, which "Skip bad releases" leaves out", and you can still grab it by hand.
@@ -37,13 +37,13 @@ To shrink a movie you already have, use **Replace with a smaller version** on it
 3. Mediarium searches your indexers for the best release that the movie's current profile accepts, that is not a higher quality than your file, and that is at least a tenth smaller. If it finds one it downloads it like any other release.
 4. Only when the new file is downloaded and in your library is the old file removed. If nothing suitable is found, or the download fails, your old file stays and the movie stays downloaded. Nothing is deleted first.
 
-The new file goes through the usual import, so **If a file already exists** (Settings > Library and files and files > File names and importing) is respected for the name of the new file. If the movie's file changed while the download was running, nothing is removed. For TV shows there is no such button yet: change the profile and the episodes that are already below it are looked for again, but a file above the profile is left alone.
+The new file goes through the usual import, so **If a file already exists** (Settings > Library and files > File names and importing) is respected for the name of the new file. If the movie's file changed while the download was running, nothing is removed. For TV shows there is no such button yet: change the profile and the episodes that are already below it are looked for again, but a file above the profile is left alone.
 
 The same thing through the API: `POST /api/movies/{id}/replace-smaller` for one movie, and `POST /api/library/bulk/replace-smaller` with `{"items": [{"kind": "movie", "id": 1}]}` for a selection (administrators, at most 25 at a time).
 
 ## The built-in presets
 
-Mediarium comes with five presets, loosely based on the [TRaSH Guides](https://trash-guides.info/) recommendations. All five start with better versions off, so a title is downloaded once and then left alone. The cutoff in the table is where a profile stops if you switch better versions on. They're listed from lowest to best, with Any last.
+Mediarium comes with five presets, loosely based on the [TRaSH Guides](https://trash-guides.info/) recommendations. All five are stored with better versions off, so a title is downloaded once and then left alone. The exception is a new install: the setup wizard's **Keep looking for better versions** switch is on at first and turns it on for the profile you pick. The cutoff in the table is where a profile stops if you switch better versions on. They're listed from lowest to best, with Any last.
 
 | Preset | Allowed qualities | Cutoff | Good for |
 |---|---|---|---|
@@ -144,6 +144,10 @@ Under the switch are two numbers:
 
 A new number is used from the next wait on, with no restart. A number outside these limits is refused and the old one stays.
 
+The **When you add a title** card on the same page sets what the add dialog starts with: **Monitor new titles by default**, **Start searching when a title is added** and **Keep looking for better versions on new titles**. The last one also decides what a title gets when an import list or a script adds it without saying (`library.add_keep_better`, or `addKeepBetter` in `PUT /api/settings`). A title only swaps its file when the quality profile has better versions on as well, and a title that is already in your library keeps its own choice. It starts on for an install set up with the wizard, and off for one that was set up before it existed, so an update changes nothing for you.
+
+![The Automatic searching page: the Automation card on the left and the When you add a title card on the right, with the switches for monitoring new titles, searching when a title is added and keeping looking for better versions](images/settings-automatic-searching.png)
+
 Each scheduled search handles a limited number of titles so a big library doesn't use up an indexer's searches for the day in one go: 50 movies, 25 show searches, 25 albums and 10 books. The next run carries on where this one stopped (movies, books and albums) or starts with the shows that were searched for longest ago, so every title gets its turn. Inside a show, the episodes not searched for yet (or longest ago) come first, so a show with more missing episodes than one run can search gets through all of them over a few runs. A film whose name brings more releases than a search reads ("Dune", "Halloween") is searched again with its year, so its own releases are not lost among those of other films with the same name. The check for new releases still looks at everything. When every indexer is paused or at its daily limit, a scheduled search is skipped and nothing is written to the titles' activity.
 
 When a torrent indexer says a release has no seeders, Mediarium only picks it when nothing alive is left, and between two otherwise equal torrents it takes the one with more seeders. A release whose seeders the indexer doesn't say is treated as normal.
@@ -194,6 +198,8 @@ Scripts: `GET` and `PUT /api/search/delay` with `{"preferredProtocol": "usenet",
 With more than one language, a release is taken when it suits any of them, and one that suits an earlier language is chosen over one that only suits a later language. A release with two or more audio tracks counts when one of its languages is on your list.
 
 How a release with several audio languages ranks depends on how many languages you listed. With **one** language, a release that names only that language is preferred over a multi-language one (`MULTi`, `DUAL` or `DL`). With **several** languages, such as `German,English`, a multi-language release that has the first language is preferred over a plain release in that language, because it also carries the others, which you said you want. A German scene release tagged `DL` (dual language), such as `German.DL.1080p` or `German.BDRip.DL`, counts as German plus the original language, wherever `DL` sits in the name. `WEB-DL` is a source, not a language tag. When Mediarium explains why another release won, it says "The best match names your languages better." in this case.
+
+If you would rather not have that order at all, turn on **Extra languages don't change the ranking** under the list (`quality.language_ignore_extra`, or `qualityLanguageIgnoreExtra` in `GET` and `PUT /api/settings`, `true` or `false`, off by default). Then only the language on your list that a release has counts, the first one best. A release in German only, a `German.DL` one and a `MULTi.GERMAN.ENG` one are equal for the language, so the quality, the cached option and your preferred terms decide between them, in that order. The releases that are taken do not change: one still has to be in one of your languages.
 
 Add **Original language of the title** to the list and Mediarium puts each film's or show's own language there (Japanese for an anime, Korean for a Korean drama), as TMDB lists it. A title whose original language TMDB doesn't give just uses the other languages on your list.
 Mediarium reads the language tags in a release name (`ITA`, `ITALIAN`, `GER`, `GERMAN`, `FR`, `FRENCH`, `TRUEFRENCH`, `VFF`, `ESP`, `SPANISH`, `RUS`, `ENG`, `HRV` and `CROATIAN`, `SRB` and `SERBIAN`, `BOSNIAN`, `SLOVENIAN`, `BUL` and `BULGARIAN`, `MULTi`, `DUAL`, `German.DL` and more). Tags are only read after the title, so a film called "The Italian Job" isn't taken for an Italian release. A release with no language tag is taken to be English. Subtitle tags such as `VOSTFR` and `SUBBED` don't change the audio language.
@@ -308,6 +314,8 @@ The **Custom formats** card, the **Size limits** card and the **Music** card on 
 
 A custom format spots something in a release name: HDR, Dolby Vision, a codec, a streaming service, a release group, a remux, an edition. Each quality profile gives the formats it cares about a score. A release's **format score** is the total of the scores of every format it matches. Formats work the way they do in Radarr and Sonarr, so formats from either, and from the [TRaSH Guides](https://trash-guides.info/), work unchanged, including their patterns.
 
+![The Custom formats card on the Quality page, with a list of formats such as HDR, x265 (HD) and Remux Tier 01, each marked for movies or TV, with how many conditions it has and which profiles score it](images/custom-formats.png)
+
 What the score does:
 
 - Between releases of the same quality, the higher score wins. Preferred terms still count and are added to it. The order is the same in automatic searches and when Mediarium picks a release for an upgrade: first the language, then the quality (a higher quality always beats a higher score), then the score, and only then the usual tie-breaks (Usenet before torrents, a cached torrent, more seeders).
@@ -352,6 +360,64 @@ To hear about it without opening the page, tick **TRaSH Guides sync applied** on
 What an update changes: the conditions of the formats that came from the guides, and a profile's score for such a format **only when that score is still the one TRaSH gave last time**. A score you changed yourself stays as you set it. Formats you pasted or made yourself are never touched, and neither is a format's name. A format the guides no longer list stays as it is. A profile made with **Create profile** from a TRaSH profile that uses a score set other than the default keeps its own scores, because they aren't the default ones. Formats that were added before Mediarium remembered TRaSH's score get their conditions updated but no score is changed for them until the guides change a score again.
 
 A language condition set to **Original** (Radarr's and Sonarr's "Original", used by several TRaSH formats) means the language the film or show was made in, as TMDB lists it. It matches a release in that language, and its "not" form (negate) matches a release in another one. When TMDB doesn't give the original language, neither form matches. Conditions Mediarium understands: release title, release group, edition, source, resolution, quality modifier, language, release type (single episode, multi-episode, season pack) and size. Indexer flags (such as freeleech) aren't passed on by the indexers, so a condition on them never matches, and the format says so.
+
+### Using Recyclarr
+
+[Recyclarr](https://recyclarr.dev) (MIT licence) syncs the TRaSH Guides into Radarr and Sonarr from a YAML file. Mediarium answers the same requests, so you can point Recyclarr at it as if it were Radarr (for movies) and Sonarr (for TV). Quality profiles, custom formats with their scores, quality sizes and the naming formats then arrive in Mediarium's own pages, and the next sync updates them. It was tested with Recyclarr 8.8.
+
+1. Make the key on **Settings > Media servers and apps > Other apps**. It has to be an administrator's key and not a read-only one, because Recyclarr writes.
+2. Add Mediarium to your Recyclarr file as a Radarr and a Sonarr instance. The address is Mediarium's address with `/radarr` or `/sonarr` at the end (see [Connecting apps made for Radarr and Sonarr](other-apps.md)):
+
+```yaml
+radarr:
+  movies:
+    base_url: http://192.168.1.20:8264/radarr
+    api_key: YOUR_MEDIARIUM_KEY
+    delete_old_custom_formats: true
+    quality_definition:
+      type: movie
+    media_naming:
+      folder: plex-tmdb
+      movie:
+        rename: true
+        standard: plex-tmdb
+    quality_profiles:
+      - trash_id: d1d67249d3890e49bc12e275d989a7e9   # HD Bluray + WEB
+        reset_unmatched_scores:
+          enabled: true
+    custom_formats:
+      - trash_ids:
+          - ed27ebfef2f323e964fb1f61391bcb35        # HD Bluray Tier 01
+          - c20f169ef63c5f40c2def54abaf4438e        # WEB Tier 01
+        assign_scores_to:
+          - trash_id: d1d67249d3890e49bc12e275d989a7e9
+
+sonarr:
+  shows:
+    base_url: http://192.168.1.20:8264/sonarr
+    api_key: YOUR_MEDIARIUM_KEY
+    quality_definition:
+      type: series
+    quality_profiles:
+      - trash_id: 72dae194fc92bf828f32cde7744e51a1   # WEB-1080p
+    custom_formats:
+      - trash_ids:
+          - e6258996055b9fbab7e9cb2f75819294        # WEB Tier 01
+        assign_scores_to:
+          - trash_id: 72dae194fc92bf828f32cde7744e51a1
+```
+
+3. Run `recyclarr sync`. Run it again to see that nothing changes.
+
+What happens to each part:
+
+- **Quality profiles** (from the guides, or your own with `qualities`, groups, `upgrade` and `min_format_score`) become profiles on this page, with the allowed qualities, their order and groups, the cutoff, the minimum score, the upgrade-until score and the score of each format. A profile with the same name is updated, not doubled. WEBRip counts as WEBDL, as everywhere in Mediarium, so a group of both is one quality. Raw-HD, BR-DISK and other qualities Mediarium has no use for are accepted and left out. The cutoff, the language and the minimum upgrade score are given back as Recyclarr sent them (Mediarium has no use for the last two). A profile you change here after a sync shows what you changed, not what Recyclarr sent, until the next sync.
+- **Custom formats** are stored with all their conditions, in the Custom formats card, where **Your formats** shows them like any other. A format is Radarr's or Sonarr's, so a name both guides use (HDR, x265 (HD)) is two formats, one for each of `/radarr` and `/sonarr`. They are never touched by **Update from TRaSH**. With `delete_old_custom_formats: true` a format you take out of the Recyclarr file is deleted, and its score leaves every profile.
+- **Quality definitions** go to the [size table](#size-limits-per-quality): `movie` to the movie table and `series` or `anime` to the table for shows. Sending sizes switches that table on. The largest size at the end of the slider (2000 for movies, 1000 for shows) means no limit. The preferred size is kept and shown back, nothing here uses it.
+- **Media naming** sets the Custom naming style of Settings > Library and files > Folders: the movie and show file formats and folder formats from the guides are taken as they are, including `{Episode CleanTitle:90}`. The anime format is used when the anime module is on. The daily episode format, the season folder, whether to rename and a few more are taken and shown back but change nothing. A format without the title in it (the guides' `original` choice, `{Original Title}` alone) is refused with the reason.
+- **Media management** (propers and repacks) is taken and shown back, nothing more.
+
+Left out, and never an error: indexer flags (a condition on one is stored but never matches, and the Custom formats card says so), the second name of a quality, and the other settings Recyclarr does not sync here. Lidarr is not synced. Recyclarr's `--preview` only reads and works as well.
 
 ### For scripts
 

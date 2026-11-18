@@ -315,6 +315,12 @@ func fetchOnce(ctx context.Context, hc *http.Client, f File, dir string, progres
 	}
 	if st, err := os.Stat(part); err == nil {
 		have = st.Size()
+		if f.Size > 0 && have > f.Size {
+			// More than the whole file: a leftover of something else. Asking
+			// for the bytes after the end could only be refused.
+			_ = os.Remove(part)
+			have = 0
+		}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.URL, nil)
 	if err != nil {
@@ -345,7 +351,7 @@ func fetchOnce(ctx context.Context, hc *http.Client, f File, dir string, progres
 			return false, os.Rename(part, dest)
 		}
 		_ = os.Remove(part)
-		return false, fmt.Errorf("download %s: the server refused to carry on; it will start again on the next try", filepath.Base(dest))
+		return true, fmt.Errorf("download %s: the server refused to carry on; it will start again on the next try", filepath.Base(dest))
 	default:
 		c := resp.StatusCode
 		// An expired or refused link (401, 403, 404, 410), a busy service or a

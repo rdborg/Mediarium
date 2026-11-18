@@ -4,7 +4,7 @@ import { t, tx } from '../i18n'
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
-// Settings > Connections > Notifications: hours when everyday messages wait.
+// Settings > Media servers and apps > Notifications: hours when everyday messages wait.
 // Problems are always sent straight away.
 export default function QuietHours() {
   const quiet = useAutosaveSetting<string>(

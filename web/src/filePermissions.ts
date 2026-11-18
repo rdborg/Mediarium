@@ -1,5 +1,5 @@
 // The checks and wording for the file and folder permission boxes in
-// Settings > Library > Folders and file names. The server checks the same
+// Settings > Library and files > Folders. The server checks the same
 // rules (internal/fileperms); this only gives the answer while typing.
 import { t } from './i18n.ts'
 

@@ -27,7 +27,7 @@ Every kind has a fixed name (a code, such as `usenet.too_many_connections`). The
 
 ![The Logs and errors page: counts of errors and warnings, filters, and a list of problems with the top one opened to show what happened, what to try and the technical detail](images/settings-logs.png)
 
-*Settings > System > Logs and errors, with one problem opened.*
+*Settings > System > Logs and errors, with one problem opened: a notification that could not be delivered, what to try and where to go to fix it.*
 
 - **Cards** at the top count errors and warnings today (since midnight) and in the last 7 days. An error is something that failed and didn't fix itself. A warning is something that went wrong but Mediarium worked around, or that may pass by itself.
 - **Filters** narrow the list by level, by part of the app, by time (a preset or your own dates), by words (**Search the log** looks in the message, the technical detail and the name of the movie or show) and to **Only unread**. **Clear filters** puts them back.
@@ -77,7 +77,7 @@ Lists that come from outside services don't raise it: Discover (TMDB, MusicBrain
 
 **"Could not get a file from an indexer."** A download was chosen, but the indexer didn't hand over the file that starts it (the NZB or torrent). This is filed under **Indexers**, not Usenet, because your Usenet provider was never asked. Use **Test** on the indexer. If it works, retry the download in **Activity**.
 
-**"The disk is full."** Free some space, or run **Clean up now** on **Settings > System > Server**. Then open **Activity** and retry the download.
+**"The disk is full."** Free some space, or run **Clean up now** on **Settings > System > Server**. Then open **Activity** and retry the download. A Usenet release or a built-in torrent that is bigger than the free space is refused before it starts ("there is not enough free disk space in the downloads folder for this release"), and Mediarium tries it again by itself later.
 
 **"Mediarium may not write to a folder."** Give the user Mediarium runs as (the `PUID` and `PGID` you set) read and write access to the folder. On a Synology, check the permissions of the shared folder.
 

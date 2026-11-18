@@ -237,6 +237,11 @@ function NotInterestedList() {
 }
 
 function DiscoverPage() {
+  // Movies and shows need a TMDB key. Without one the lists are empty, so say why and where it goes.
+  const [noKey, setNoKey] = useState(false)
+  useEffect(() => {
+    api.getSettings().then((st) => setNoKey(st.hasTmdbApiKey === false)).catch(() => undefined)
+  }, [])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const owned = useOwned()
   const [includeOlder, setIncludeOlder] = useIncludeOlder()
@@ -384,6 +389,11 @@ function DiscoverPage() {
 
   return (
     <div>
+      {noKey && titleKind && (
+        <div className="notice notice-warn" style={{ marginBottom: 14 }}>
+          {t('Add your TMDB API key first (Settings > Library and files > Movie and show info).')} <Link to="/settings/metadata">{t('Movie and show info')}</Link>
+        </div>
+      )}
       <div className={`toolbar filter-bar collapsible${filtersOpen ? ' filters-open' : ''}`}>
         {switcher}
         <FilterToggle open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)} active={filtering} />
@@ -427,7 +437,7 @@ function DiscoverPage() {
                 value={extra.language}
                 onChange={(v) => patchUi({ language: v })}
                 disabled={browseMissing}
-                title={t('The language the title was first made in. This is separate from the language Mediarium shows names and summaries in, which you pick under Settings > Info, lists and subtitles > Movie and show info.')}
+                title={t('The language the title was first made in. This is separate from the language Mediarium shows names and summaries in, which you pick under Settings > Library and files > Movie and show info.')}
                 options={languageOptions(t('Original language: any'))}
               />
               <Dropdown
@@ -464,7 +474,7 @@ function DiscoverPage() {
           <h2>{t('Import a Trakt list')}</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', margin: 0 }}>
             {tx('Paste the address of any public Trakt list to see everything on it here. Trakt is a free site where people keep lists of what they watch. See {link}.', {
-              link: <Link to="/settings/metadata">{t('Settings > Info, lists and subtitles > Movie and show info')}</Link>,
+              link: <Link to="/settings/metadata">{t('Settings > Library and files > Movie and show info')}</Link>,
             })}
           </p>
           <input value={listUrl} onChange={(e) => setListUrl(e.target.value)} placeholder="trakt.tv/users/…/lists/…" aria-label={t('Trakt list address')} {...v.bind('listUrl', listUrl, setListUrl)} />

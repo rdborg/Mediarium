@@ -49,7 +49,7 @@ type metaKindChoice struct {
 func (c metaKindChoice) want() metafiles.Want { return metafiles.Want{NFO: c.NFO, Artwork: c.Artwork} }
 func (c metaKindChoice) any() bool            { return c.NFO || c.Artwork }
 
-// metaFilesSettings is what Settings > Library says: which kinds of file to
+// metaFilesSettings is what Settings > Library and files says: which kinds of file to
 // write for movies and for shows, and whether a file that is there may be
 // replaced.
 type metaFilesSettings struct {
@@ -555,7 +555,7 @@ func (s *Server) handleRunMetadataFiles(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !req.DryRun && !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	titles, err := s.metaTitles(req.Kind, cfg)

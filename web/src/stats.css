@@ -59,3 +59,11 @@
   .stats-page .bar-row { grid-template-columns: minmax(0, 1fr) auto; }
   .stats-page .bar-track { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* Narrow screens: the label and the numbers share the first line, the bar runs under them across the full width. */
+@media (max-width: 560px) {
+  .stats-page .bar-row { grid-template-columns: minmax(0, 1fr) max-content; gap: 4px 12px; }
+  .stats-page .bar-row .bar-track { grid-column: 1 / -1; grid-row: 2; }
+  .stats-page .bar-row .bar-value { grid-column: 2; grid-row: 1; }
+  .stats-page .bar-row .bar-label { grid-column: 1; grid-row: 1; }
+}

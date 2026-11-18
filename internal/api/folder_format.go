@@ -10,7 +10,7 @@ import (
 )
 
 // The folder a new movie or show gets is named by the folder formats under
-// Settings > Library > File names and importing. They are only used with the
+// Settings > Library and files > File names and importing. They are only used with the
 // Custom naming style; every other style keeps the folders it always had.
 // A title that already has files keeps the folder they are in, whatever the
 // format says now, so changing a format never splits a show in two.

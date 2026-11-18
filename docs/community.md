@@ -65,6 +65,6 @@ Mediarium gets better because people who use it say what's missing or what broke
 - **From inside Mediarium:** the bug button at the bottom of the sidebar sends a problem or an idea, privately or as a GitHub issue. See [Report a problem or share an idea](report-a-problem.md).
 - **Questions:** [GitHub Discussions](https://github.com/rdborg/Mediarium/discussions).
 - **Chat and show your setup:** the [Mediarium community on Reddit](https://www.reddit.com/r/Mediarium/). Replies can be slow there, and bugs are fixed fastest when they are also reported on GitHub.
-- **Something broken:** [open an issue](https://github.com/rdborg/Mediarium/issues/new/choose) with the text from **Settings > System > Copy for support**.
+- **Something broken:** [open an issue](https://github.com/rdborg/Mediarium/issues/new/choose) with the text from **Settings > System > Logs and errors > Copy for support**.
 
 When an idea or a fix makes it into a release, the changelog line says who it came from, and you're added here. Rather not be named? Say so in the issue or comment and you'll be left out.

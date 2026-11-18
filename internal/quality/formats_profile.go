@@ -207,7 +207,7 @@ func (r *FormatRepo) scan(scan func(dest ...any) error) (CustomFormat, error) {
 	var f CustomFormat
 	var app, specs string
 	var trashScore sql.NullInt64
-	if err := scan(&f.ID, &f.Name, &app, &f.TrashID, &specs, &trashScore); err != nil {
+	if err := scan(&f.ID, &f.Name, &app, &f.TrashID, &specs, &trashScore, &f.IncludeInName); err != nil {
 		return CustomFormat{}, err
 	}
 	if trashScore.Valid {
@@ -222,7 +222,7 @@ func (r *FormatRepo) scan(scan func(dest ...any) error) (CustomFormat, error) {
 	return f, nil
 }
 
-const selectFormat = `SELECT id, name, app, trash_id, specs, trash_score FROM custom_formats`
+const selectFormat = `SELECT id, name, app, trash_id, specs, trash_score, include_in_name FROM custom_formats`
 
 // List returns every custom format, by name.
 func (r *FormatRepo) List() ([]CustomFormat, error) {
@@ -246,8 +246,8 @@ func (r *FormatRepo) Get(id int64) (CustomFormat, error) {
 	return r.scan(r.db.QueryRow(selectFormat+` WHERE id = ?`, id).Scan)
 }
 
-// Save stores a new format, or replaces the one with the same name (or, for
-// a TRaSH format, the same TRaSH id) so importing again updates it. It
+// Save stores a new format, or replaces the one with the same name for the
+// same app (or, for a TRaSH format, the same TRaSH id) so importing again updates it. It
 // returns the stored format and whether it was new.
 func (r *FormatRepo) Save(f CustomFormat) (CustomFormat, bool, error) {
 	specs, err := json.Marshal(f.Specs)
@@ -255,10 +255,10 @@ func (r *FormatRepo) Save(f CustomFormat) (CustomFormat, bool, error) {
 		return CustomFormat{}, false, err
 	}
 	var id int64
-	err = r.db.QueryRow(`SELECT id FROM custom_formats WHERE (trash_id != '' AND trash_id = ?) OR name = ? COLLATE NOCASE ORDER BY trash_id = ? DESC LIMIT 1`, f.TrashID, f.Name, f.TrashID).Scan(&id)
+	err = r.db.QueryRow(`SELECT id FROM custom_formats WHERE (trash_id != '' AND trash_id = ?) OR (name = ? COLLATE NOCASE AND app = ?) ORDER BY trash_id = ? DESC LIMIT 1`, f.TrashID, f.Name, string(f.App), f.TrashID).Scan(&id)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		res, err := r.db.Exec(`INSERT INTO custom_formats (name, app, trash_id, specs, trash_score) VALUES (?, ?, ?, ?, ?)`, f.Name, string(f.App), f.TrashID, string(specs), f.TrashScore)
+		res, err := r.db.Exec(`INSERT INTO custom_formats (name, app, trash_id, specs, trash_score, include_in_name) VALUES (?, ?, ?, ?, ?, ?)`, f.Name, string(f.App), f.TrashID, string(specs), f.TrashScore, f.IncludeInName)
 		if err != nil {
 			return CustomFormat{}, false, fmt.Errorf("save custom format %q: %w", f.Name, err)
 		}
@@ -267,7 +267,7 @@ func (r *FormatRepo) Save(f CustomFormat) (CustomFormat, bool, error) {
 	case err != nil:
 		return CustomFormat{}, false, err
 	}
-	if _, err := r.db.Exec(`UPDATE custom_formats SET name = ?, app = ?, trash_id = ?, specs = ?, trash_score = ? WHERE id = ?`, f.Name, string(f.App), f.TrashID, string(specs), f.TrashScore, id); err != nil {
+	if _, err := r.db.Exec(`UPDATE custom_formats SET name = ?, app = ?, trash_id = ?, specs = ?, trash_score = ?, include_in_name = ? WHERE id = ?`, f.Name, string(f.App), f.TrashID, string(specs), f.TrashScore, f.IncludeInName, id); err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return CustomFormat{}, false, ErrFormatName
 		}
@@ -275,6 +275,46 @@ func (r *FormatRepo) Save(f CustomFormat) (CustomFormat, bool, error) {
 	}
 	f.ID = id
 	return f, false, nil
+}
+
+// Create stores a new format and fails with ErrFormatName when the name is
+// taken, unlike Save, which replaces the format of that name.
+func (r *FormatRepo) Create(f CustomFormat) (CustomFormat, error) {
+	specs, err := json.Marshal(f.Specs)
+	if err != nil {
+		return CustomFormat{}, err
+	}
+	res, err := r.db.Exec(`INSERT INTO custom_formats (name, app, trash_id, specs, trash_score, include_in_name) VALUES (?, ?, ?, ?, ?, ?)`, f.Name, string(f.App), f.TrashID, string(specs), f.TrashScore, f.IncludeInName)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return CustomFormat{}, ErrFormatName
+		}
+		return CustomFormat{}, fmt.Errorf("save custom format %q: %w", f.Name, err)
+	}
+	f.ID, _ = res.LastInsertId()
+	return f, nil
+}
+
+// Replace gives the format with this id the name, conditions and switches of
+// f. Where the format came from (its TRaSH id and score) stays as it was.
+// sql.ErrNoRows means there is no such format, ErrFormatName that another one
+// has the name.
+func (r *FormatRepo) Replace(id int64, f CustomFormat) (CustomFormat, error) {
+	specs, err := json.Marshal(f.Specs)
+	if err != nil {
+		return CustomFormat{}, err
+	}
+	res, err := r.db.Exec(`UPDATE custom_formats SET name = ?, app = ?, specs = ?, include_in_name = ? WHERE id = ?`, f.Name, string(f.App), string(specs), f.IncludeInName, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return CustomFormat{}, ErrFormatName
+		}
+		return CustomFormat{}, fmt.Errorf("update custom format %q: %w", f.Name, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return CustomFormat{}, sql.ErrNoRows
+	}
+	return r.Get(id)
 }
 
 // UpdateFromTrash gives a format that came from the TRaSH Guides their current

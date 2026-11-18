@@ -83,7 +83,7 @@ func CheckFolderFormat(format string, kind TokenKind) string {
 			return msg
 		}
 	}
-	titles := []string{"series title", "series cleantitle", "series titleyear", "series cleantitleyear", "series titlethe"}
+	titles := []string{"series title", "series cleantitle", "series titleyear", "series cleantitleyear", "series titlethe", "series titlewithoutyear", "series cleantitlewithoutyear"}
 	if kind == TokenMovie {
 		titles = []string{"movie title", "movie cleantitle", "movie titlethe", "movie cleantitlethe"}
 	}

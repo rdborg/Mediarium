@@ -223,7 +223,7 @@ export function TorrentSettings() {
                 )}
               </h2>
               <p style={{ color: 'var(--text-dim)' }}>
-                {t("Built in too, so there's nothing to install and no login. Torrents come from the indexers you add under Settings > Indexers & Search.")}
+                {t("Built in too, so there's nothing to install and no login. Torrents come from the indexers you add under Settings > Finding releases > Indexers & Search.")}
                 {status?.torrent.vpnRequired && (
                   <>
                     {' '}

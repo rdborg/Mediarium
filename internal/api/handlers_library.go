@@ -143,7 +143,7 @@ func (s *Server) toSearchResultPayload(res indexers.Result) searchResultPayload 
 	if belowMinSeeders(res) {
 		payload.BelowMinSeeders, payload.MinSeeders = true, res.MinSeeders
 	}
-	payload.setLanguage(quality.FitLanguageOnly(release, s.preferredLanguage(), s.languageOnly()))
+	payload.setLanguage(quality.FitLanguageWith(release, s.preferredLanguage(), s.languageOnly(), s.languageIgnoreExtra()))
 	// A Usenet post older than the retention is shown with the reason; the
 	// automatic searches leave it out.
 	if why := s.retentionRejection(res); why != "" {
@@ -419,11 +419,13 @@ type addMovieRequest struct {
 	Sources   string `json:"sources"`   // "", usenet, torrent or both
 	SearchNow bool   `json:"searchNow"` // look for a release straight away
 	// NoUpgrade leaves the movie alone once it is downloaded, so it is not
-	// swapped for a better version later. On when left out: better versions
-	// are something the person asks for.
+	// swapped for a better version later. When left out it follows "Keep
+	// looking for better versions" under Settings > Finding releases > Automatic
+	// searching, which is off unless switched on: better versions are
+	// something the person asks for.
 	NoUpgrade *bool `json:"noUpgrade"`
 	// RootPath is the movie folder to keep it in; left out = where new movies
-	// go (Settings > Library > Folders).
+	// go (Settings > Library and files > Folders).
 	RootPath string `json:"rootPath"`
 }
 
@@ -447,7 +449,7 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	if !validSourcePref(req.Sources) {
@@ -481,7 +483,7 @@ func (s *Server) handleAddMovie(w http.ResponseWriter, r *http.Request) {
 	created, err := s.MovieRepo.Add(library.Movie{
 		TMDBID: tmdbMovie.TMDBID, Title: tmdbMovie.Title, Year: tmdbMovie.Year(),
 		Overview: tmdbMovie.Overview, PosterPath: tmdbMovie.PosterPath, Monitored: monitored, ReleaseDate: tmdbMovie.ReleaseDate,
-		NoUpgrade: boolOr(req.NoUpgrade, true), AddedBy: userID, Genres: s.TMDB().MovieGenres(r.Context(), *tmdbMovie),
+		NoUpgrade: boolOr(req.NoUpgrade, s.noUpgradeByDefault()), AddedBy: userID, Genres: s.TMDB().MovieGenres(r.Context(), *tmdbMovie),
 		RootPath: rootPath, Origin: addOrigin(r),
 	})
 	if err != nil {
@@ -665,7 +667,7 @@ func (s *Server) handleImportList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.Trakt().HasClientID() {
-		writeError(w, http.StatusPreconditionFailed, "Add your Trakt client ID first (Settings > Info, lists and subtitles > Import lists).")
+		writeError(w, http.StatusPreconditionFailed, "Add your Trakt client ID first (Settings > Library and files > Import lists).")
 		return
 	}
 	user, listID, err := trakt.ParseListURL(listURL)

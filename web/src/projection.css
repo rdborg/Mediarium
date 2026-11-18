@@ -455,7 +455,7 @@ code, kbd, .mono { font-family: var(--font-mono); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .title-info { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55); } }
 :root[data-theme='dark'] .title-info { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55); }
 .title-info h1 { font-size: clamp(2.4rem, 5.6vw, 5rem); line-height: 0.93; letter-spacing: -0.04em; font-weight: 800; text-wrap: balance; }
-.title-year { font-family: var(--font-mono); font-size: 0.28em; letter-spacing: 0.08em; color: var(--text-faint); vertical-align: 0.7em; white-space: nowrap; }
+.title-year { font-family: var(--font-mono); font-size: max(0.28em, 11px); letter-spacing: 0.08em; color: var(--text-faint); vertical-align: 0.7em; white-space: nowrap; }
 .title-tagline { font-style: normal; font-size: 1.15rem; color: var(--text-dim); }
 .title-chips > span, .link-pill, .title-hero .kind-tag, .title-hero .state-tag { border-radius: 8px; backdrop-filter: blur(8px); background-color: color-mix(in srgb, var(--bg) 62%, transparent); }
 .chip-rate { color: var(--text); border: 1px solid color-mix(in srgb, #f5c542 55%, transparent); font-family: var(--font-mono); }
@@ -1117,7 +1117,7 @@ a:hover .ico .ln, button:hover .ico .ln, .tile:hover .tile-ico .ico .ln, .mod-ca
 @media (min-width: 901px) {
   .topbar, .topbar:has(.back-btn) { display: flex; align-items: center; gap: 12px; grid-template-columns: none; }
   .topbar .top-title { flex: 0 1 auto; min-width: 7.2em; }
-  .topbar .top-search { flex: 1 1 380px; max-width: 780px; min-width: 150px; margin: 0 auto; }
+  .topbar .top-search { flex: 1 1 240px; max-width: 780px; min-width: 150px; margin: 0 auto; }
   .topbar .searchbox { width: 100%; max-width: none; min-width: 160px; }
   .topbar .top-actions { flex: none; margin-left: auto; }
 }
@@ -1638,3 +1638,12 @@ fieldset.group { border-radius: 6px 26px 26px 26px; }
 /* Settings group names such as "Media servers and apps" fit on one line:
    a slightly smaller size instead of a second line. */
 .sidebar .subnav .sn-head .nav-label { white-space: nowrap; font-size: 0.77rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Touch screens have no hover, so the card actions stay visible. On book, audiobook and music cards the bar used to sit in the flow under the cover and covered the title; it now lies over the bottom of the cover, where it shows on hover on a computer. */
+@media (hover: none) {
+  .pcard.kind-book .pcard-actions, .pcard.kind-audiobook .pcard-actions, .pcard.kind-music .pcard-actions { position: absolute; inset: auto 8px 8px 8px; padding: 0; background: none; border-top: 0; }
+  .pcard.kind-book .pcard-actions .icon-btn, .pcard.kind-audiobook .pcard-actions .icon-btn, .pcard.kind-music .pcard-actions .icon-btn { background: rgba(15, 18, 24, 0.86); color: #fff; border-color: rgba(255, 255, 255, 0.14); }
+}
+
+/* Light theme: the kind colours are dark, so the labels on them are white (the dark text read at 2.8:1). */
+:root[data-theme='light'] .pcard-ribbon.tone-ebook, :root[data-theme='light'] .pcard-ribbon.tone-audio, :root[data-theme='light'] .pcard-ribbon.tone-both { color: #fff; }

@@ -27,7 +27,7 @@ import (
 // no session, no stream the server opens by itself and no extra program: it is
 // written by hand on net/http, so it adds nothing to the build.
 //
-// It is off until an administrator switches it on in Settings > Other apps, and
+// It is off until an administrator switches it on in Settings > Media servers and apps > Other apps, and
 // only an administrator's API key opens it (a read-only key gets the read
 // tools). The tools live in mcp_tools.go and mcp_write.go; they call the same
 // code the web app calls, so a change made here is checked exactly like one
@@ -138,7 +138,7 @@ func mcpReply(w http.ResponseWriter, status int, message string) {
 // handleMCP is POST /mcp.
 func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	if !s.mcpEnabled() {
-		mcpReply(w, http.StatusNotFound, "MCP is switched off. An administrator can turn on Let AI assistants connect (MCP) in Settings > Other apps.")
+		mcpReply(w, http.StatusNotFound, "MCP is switched off. An administrator can turn on Let AI assistants connect (MCP) in Settings > Media servers and apps > Other apps.")
 		return
 	}
 	if r.Method == http.MethodOptions {

@@ -94,7 +94,7 @@ func (s *Server) musicRoot() string {
 // module off through a forgotten check.
 func (s *Server) moduleRouteOpen(w http.ResponseWriter, r *http.Request) bool {
 	if (strings.HasPrefix(r.URL.Path, "/api/books") || strings.HasPrefix(r.URL.Path, "/api/book-")) && !s.booksEnabled() {
-		writeError(w, http.StatusNotFound, "Ebooks and audiobooks are switched off. Switch them on in Settings > Media types.")
+		writeError(w, http.StatusNotFound, "Ebooks and audiobooks are switched off. Switch them on in Settings > Basics > Media types.")
 		return false
 	}
 	return s.musicRouteOpen(w, r)

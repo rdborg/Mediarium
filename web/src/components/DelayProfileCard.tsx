@@ -16,7 +16,7 @@ function waitText(minutes: number): string {
   return plural(minutes, '1 minute', '{n} minutes')
 }
 
-// Settings > Library > Languages and automation: how long Mediarium's own
+// Settings > Finding releases > Automatic searching: how long Mediarium's own
 // searches wait for the protocol you like better before taking a release from
 // the other one. Searches you start yourself never wait.
 export default function DelayProfileCard() {

@@ -2,8 +2,8 @@ package metadata
 
 import "slices"
 
-// ReleaseCountries are the countries offered for release dates (Settings >
-// Info, lists and subtitles): the ISO 3166-1 codes TMDB lists dates under,
+// ReleaseCountries are the countries offered for release dates (Settings > Library and
+// files > Movie and show info): the ISO 3166-1 codes TMDB lists dates under,
 // limited to the ones most people live in. The screen writes the names in the
 // person's language.
 var ReleaseCountries = []string{

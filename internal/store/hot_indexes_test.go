@@ -27,6 +27,12 @@ func TestHotLookupsUseTheirIndexes(t *testing.T) {
 		{"queue of a show", `SELECT id FROM download_queue WHERE series_id = ?`, "idx_download_queue_episode"},
 		{"queue of an album", `SELECT COUNT(*) FROM download_queue WHERE album_id = ? AND status IN ('queued', 'downloading')`, "idx_download_queue_album"},
 		{"queue of a book", `SELECT COUNT(*) FROM download_queue WHERE book_id = ? AND book_format = ? AND status IN ('queued')`, "idx_download_queue_book"},
+		{"blocklist of a movie", `DELETE FROM blocklist WHERE movie_id = ?`, "idx_blocklist_movie"},
+		{"blocklist of a show", `DELETE FROM blocklist WHERE series_id = ?`, "idx_blocklist_series"},
+		{"blocklist of an album", `DELETE FROM blocklist WHERE album_id = ?`, "idx_blocklist_album"},
+		{"blocklist of a book", `DELETE FROM blocklist WHERE book_id = ?`, "idx_blocklist_book"},
+		{"playlists holding a track", `DELETE FROM music_playlist_tracks WHERE track_id = ?`, "idx_music_playlist_tracks_track"},
+		{"reading progress of a book", `DELETE FROM book_progress WHERE book_id = ?`, "idx_book_progress_book"},
 	} {
 		args := make([]any, strings.Count(c.query, "?"))
 		for i := range args {

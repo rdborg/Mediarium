@@ -128,6 +128,13 @@ func doJSONSend(ctx context.Context, client *http.Client, method, target string,
 		}
 	}
 	defer resp.Body.Close()
+	// A redirect that turned the message into a plain GET (301, 302 or 303: a
+	// login page in front of the service, a moved address) delivers nothing, yet
+	// the page it ends on answers 200. That is not a sent message.
+	if resp.Request != nil && resp.Request.Method != method {
+		steps.Add(false, "%s sent Mediarium on to another page instead of accepting the message", host)
+		return errors.New("the address sent Mediarium on to another page (often a login page, or an address that has moved) instead of accepting the message, so nothing was delivered. Use the address the service gives for incoming messages")
+	}
 	if resp.StatusCode >= 300 {
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		steps.Add(false, "%s", statusText(resp.StatusCode, string(snippet)))

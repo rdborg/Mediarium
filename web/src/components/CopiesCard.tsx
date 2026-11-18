@@ -141,7 +141,7 @@ export default function CopiesCard({ kind, id, admin }: { kind: 'movie' | 'serie
       {admin &&
         (!data.folder ? (
           <p className="field-hint">
-            {tx('To keep second copies, first choose a folder for them in {link}.', { link: <Link to="/settings/media">{t('Settings > Library > Folders')}</Link> })}
+            {tx('To keep second copies, first choose a folder for them in {link}.', { link: <Link to="/settings/media">{t('Settings > Library and files > Folders')}</Link> })}
           </p>
         ) : choices.length === 0 ? (
           <p className="field-hint">{t("There's a copy in every quality profile you have.")}</p>

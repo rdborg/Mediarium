@@ -6,7 +6,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigationType } fr
 import { scrollToTop } from '../scrollTop'
 import { api, isAdmin, type AppLink, type WatchLink } from '../api'
 import { useAuth } from '../AuthContext'
-import { demoEnabled } from '../demo'
+import { demoEnabled } from '../demoFlag'
 import { titleFor, useSpecificTitle } from '../documentTitle'
 import { sectionFor, type SectionKey } from '../sections'
 import { inPage, pageParts, pageTitle, settingsGroupsFor } from '../settingsNav'
@@ -78,6 +78,29 @@ export default function AppShell() {
     <MusicPlayerProvider>
       <Shell />
     </MusicPlayerProvider>
+  )
+}
+
+// The page you are on, named beside a closed group in the side menu. It is shown only when the whole
+// name fits in the room the row has left; a cut-off name ("Ordn...") says nothing, and the page name
+// is in the top bar anyway. The room differs per language, so it is measured, not counted.
+function NavHere({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [fits, setFits] = useState(true)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () => setFits(el.scrollWidth <= el.clientWidth + 1)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(measure)
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [text])
+  return (
+    <span ref={ref} className="nav-here" title={text} aria-hidden={!fits || undefined} style={fits ? undefined : { visibility: 'hidden' }}>
+      {text}
+    </span>
   )
 }
 
@@ -158,7 +181,7 @@ function Shell() {
   const inUpcoming = location.pathname.startsWith('/wanted') || location.pathname.startsWith('/calendar')
   // Errors from the last day that nobody has marked as read (administrators only).
   const unreadErrors = useUnreadErrors(admin)
-  const errorDot = <span className="nav-dot" role="img" aria-label={t('New errors')} title={t('New errors. See Settings, System, Logs and errors.')} />
+  const errorDot = <span className="nav-dot" role="img" aria-label={t('New errors')} title={t('New errors. See Settings > System > Logs and errors.')} />
 
   // Close the mobile drawer whenever the page changes (a Library line only changes the address's query).
   useEffect(() => {
@@ -411,7 +434,7 @@ function Shell() {
             </span>
             <span className="nav-label">{n.label}</span>
             {n.to === '/queue' && active > 0 && <span className="nav-count">{active}</span>}
-            {group && !isOpen && here[group] && <span className="nav-here">{here[group]}</span>}
+            {group && !isOpen && here[group] && <NavHere text={here[group]} />}
             {group && (
               <span className="nav-chev" style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }}>
                 <Icon name="open" size={12} />

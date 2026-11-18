@@ -22,7 +22,7 @@ const forbiddenMessage = "Only an administrator can do this."
 
 // notAllowedMessage is the 403 body for a basic account calling a route its
 // permissions leave out.
-const notAllowedMessage = "Your account isn't allowed to do this. An administrator can change that in Settings > Accounts > All accounts."
+const notAllowedMessage = "Your account isn't allowed to do this. An administrator can change that in Settings > People and access > All accounts."
 
 // readOnlyMessage is the 403 body when a viewer account, or an API key made
 // read-only, tries to change something.

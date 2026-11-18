@@ -130,7 +130,7 @@ func (s *Server) handleGetCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	col, err := s.displayTMDB().GetCollection(r.Context(), id)
@@ -266,7 +266,7 @@ func (s *Server) handleAddCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	if !validSourcePref(req.Sources) {
@@ -415,7 +415,7 @@ func (s *Server) handleFollowCollection(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	col, err := s.displayTMDB().GetCollection(r.Context(), id)

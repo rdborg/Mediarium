@@ -263,6 +263,7 @@ func importPlace(src, destPath string, policy ConflictPolicy, isBetter func() bo
 	// Each import gets a staging name of its own, so two imports to the same
 	// place can't remove or overwrite each other's file.
 	_ = os.Remove(destPath + stagingSuffix) // left by an older version that crashed; ours by name
+	removeStaleStaging(destPath, time.Now())
 	staging := stagingPath(destPath)
 
 	target := destPath
@@ -305,6 +306,44 @@ func stagingPath(destPath string) string {
 	suffix := "." + hex.EncodeToString(b[:]) + stagingSuffix
 	dir, base := filepath.Split(destPath)
 	return filepath.Join(dir, truncateName(base, 255-len(suffix))+suffix)
+}
+
+// staleStagingAfter is how long a staging file may sit untouched before it is
+// taken to be left over from a copy that never finished. A copy that is still
+// running keeps changing the file, so only a dead one gets this old.
+const staleStagingAfter = time.Hour
+
+// stagingName matches the random part of a staging name (see stagingPath).
+var stagingName = regexp.MustCompile(`^\.[0-9a-f]{8}` + regexp.QuoteMeta(stagingSuffix) + `$`)
+
+// removeStaleStaging deletes the staging files that an earlier import of
+// destPath left beside it when Mediarium was stopped or the power went in the
+// middle of a copy. Each retry stages under a new random name, so without this
+// the half-copied files of every attempt would stay in the library for ever
+// (the size of a movie each). Only files of this destination that nothing has
+// written to for staleStagingAfter are removed, so an import that is still
+// running is never touched.
+func removeStaleStaging(destPath string, now time.Time) {
+	dir, base := filepath.Split(destPath)
+	if dir == "" {
+		dir = "."
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	prefix := truncateName(base, 255-len("."+strings.Repeat("0", 8)+stagingSuffix))
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, prefix) || !e.Type().IsRegular() || !stagingName.MatchString(name[len(prefix):]) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || now.Sub(info.ModTime()) < staleStagingAfter {
+			continue
+		}
+		_ = os.Remove(filepath.Join(dir, name))
+	}
 }
 
 // finishReplace renames the staged file over the existing one.

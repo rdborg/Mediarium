@@ -17,16 +17,23 @@ export default function TipLabel({ children, text, learnMore, help, label }: { c
   const button = help ? <HelpLink topic={help} label={label} /> : <InfoTip text={text ?? ''} learnMore={learnMore} label={label} />
   if (typeof children === 'string') {
     const m = /^([\s\S]*?)(\S+)\s*$/.exec(children)
-    if (m && m[1]) {
-      return (
-        <span className="has-tip">
-          {m[1]}
-          <span className="tip-last">
-            {m[2]}
-            {button}
+    if (m) {
+      // Chinese and Japanese have no spaces: a whole sentence is one "word", and keeping it on one line would
+      // push the page wider than a phone. Only its last character stays with the button.
+      const letters = Array.from(m[2])
+      const long = letters.length > 16
+      if (m[1] || long) {
+        return (
+          <span className="has-tip">
+            {m[1]}
+            {long && letters.slice(0, -1).join('')}
+            <span className="tip-last">
+              {long ? letters[letters.length - 1] : m[2]}
+              {button}
+            </span>
           </span>
-        </span>
-      )
+        )
+      }
     }
   }
   return (

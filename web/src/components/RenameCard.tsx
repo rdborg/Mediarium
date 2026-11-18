@@ -4,7 +4,7 @@ import Icon from './Icon'
 import { plural, t } from '../i18n'
 import { useToast } from './Toast'
 
-// Settings > Library: rename the files already in the library so they match
+// Settings > Library and files: rename the files already in the library so they match
 // the naming preset. A preview first; only ticked files are renamed. While
 // files keep their original names there is nothing to rename to.
 export default function RenameCard({ keepOriginalNames = false }: { keepOriginalNames?: boolean }) {

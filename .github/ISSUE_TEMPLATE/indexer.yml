@@ -47,6 +47,6 @@ body:
     attributes:
       label: Support report or log
       description: |
-        Press **Copy for support** under Settings > System > Server and backup > Help and support and paste the text here, or paste the lines from the container log about this indexer.
+        Press **Copy for support** under Settings > System > Logs and errors and paste the text here, or paste the lines from the container log about this indexer.
         **Remove API keys, passkeys, cookies and passwords first.**
       render: text

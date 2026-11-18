@@ -39,6 +39,11 @@ var languageTags = map[string]string{
 	"KOREAN": "Korean", "KOR": "Korean",
 	"CHINESE": "Chinese", "MANDARIN": "Chinese", "CANTONESE": "Chinese",
 	"THAI": "Thai", "VIETNAMESE": "Vietnamese",
+	// The three-letter codes (ISO 639-2) that multi-language names list.
+	"SPA": "Spanish", "POR": "Portuguese", "POL": "Polish", "HUN": "Hungarian", "CZE": "Czech", "CES": "Czech",
+	"DUT": "Dutch", "NLD": "Dutch", "SWE": "Swedish", "NOR": "Norwegian", "FIN": "Finnish", "TUR": "Turkish",
+	"ARA": "Arabic", "HIN": "Hindi", "GRE": "Greek", "UKR": "Ukrainian", "JAP": "Japanese", "DAN": "Danish",
+
 	"CROATIAN": "Croatian", "HRV": "Croatian", "SERBIAN": "Serbian", "SRB": "Serbian", "BOSNIAN": "Bosnian",
 	"SLOVENIAN": "Slovenian", "SLOVENE": "Slovenian", "BULGARIAN": "Bulgarian", "BUL": "Bulgarian",
 }
@@ -54,6 +59,19 @@ var subbedTags = map[string]bool{
 	"VOSTFR": true, "SUBBED": true, "SUBFRENCH": true, "NLSUBBED": true, "MULTISUB": true, "MULTISUBS": true, "HARDSUB": true, "HARDSUBS": true,
 }
 
+// subtitleWords say that what stands before them is about subtitles.
+var subtitleWords = map[string]bool{"SUB": true, "SUBS": true, "SUBTITLE": true, "SUBTITLES": true}
+
+func dropLang(langs []string, name string) []string {
+	out := langs[:0]
+	for _, l := range langs {
+		if l != name {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
 var languageSplit = regexp.MustCompile(`[\s._\-\[\]()+,{}]+`)
 
 // detectLanguages reads the language tags out of the part of a release name
@@ -64,6 +82,7 @@ var languageSplit = regexp.MustCompile(`[\s._\-\[\]()+,{}]+`)
 func detectLanguages(tail string) (langs []string, multi, subbed bool) {
 	seen := map[string]bool{}
 	dual, prev := false, ""
+	multiBefore, pendingLang := false, ""
 	for _, raw := range languageSplit.Split(tail, -1) {
 		if raw == "" {
 			continue
@@ -72,8 +91,20 @@ func detectLanguages(tail string) (langs []string, multi, subbed bool) {
 		switch {
 		case subbedTags[tag]:
 			subbed = true
+		case subtitleWords[tag]:
+			// "Multi-Subs", "ENG.SUBS": the languages before it are for reading.
+			subbed = true
+			if multiBefore {
+				multi = false
+				multiBefore = false
+			}
+			if pendingLang != "" {
+				delete(seen, pendingLang)
+				langs = dropLang(langs, pendingLang)
+			}
 		case multiTags[tag]:
 			multi = true
+			multiBefore = tag == "MULTI"
 		case tag == "DL":
 			// WEB-DL is a source, not "dual language".
 			if prev != "WEB" && prev != "WEBDL" {
@@ -85,6 +116,13 @@ func detectLanguages(tail string) (langs []string, multi, subbed bool) {
 				seen[name] = true
 				langs = append(langs, name)
 			}
+		}
+		pendingLang = ""
+		if name := languageTags[tag]; name != "" && !subbedTags[tag] && !multiTags[tag] {
+			pendingLang = name
+		}
+		if !multiTags[tag] {
+			multiBefore = false
 		}
 		prev = tag
 	}

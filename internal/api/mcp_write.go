@@ -56,15 +56,23 @@ func writeTool[T any](name, desc string, schema map[string]any, plan func(c *mcp
 	}}
 }
 
+// startsDownloads marks a change tool that can end in a download without the
+// person choosing a release: it is only there while an administrator has
+// allowed assistants to start downloads, like grab_release.
+func startsDownloads(t *mcpTool) *mcpTool {
+	t.download = true
+	return t
+}
+
 func mcpWriteTools() []*mcpTool {
 	return []*mcpTool{
-		writeTool("add_movie", "Add a movie to the library by its TMDB id (find it with lookup_title). profile is a profile name or id (profiles_list); left out, the default is used. It is searched for right away unless search_now is false.",
-			schemaOf(props{"tmdb_id": pInt("The movie's TMDB id."), "profile": pStr("Quality profile name or id."), "search_now": pBool("Search for it straight away. Default true."), "monitored": pBool("Keep looking for it. Default true.")}, "tmdb_id"), planAddMovie),
-		writeTool("add_series", "Add a show to the library by its TMDB id or TVDB id (find it with lookup_title). monitor is all (default), future or none. profile is a profile name or id.",
+		startsDownloads(writeTool("add_movie", "Add a movie to the library by its TMDB id (find it with lookup_title). profile is a profile name or id (profiles_list); left out, the default is used. It is searched for right away unless search_now is false.",
+			schemaOf(props{"tmdb_id": pInt("The movie's TMDB id."), "profile": pStr("Quality profile name or id."), "search_now": pBool("Search for it straight away. Default true."), "monitored": pBool("Keep looking for it. Default true.")}, "tmdb_id"), planAddMovie)),
+		startsDownloads(writeTool("add_series", "Add a show to the library by its TMDB id or TVDB id (find it with lookup_title). monitor is all (default), future or none. profile is a profile name or id.",
 			schemaOf(props{"tmdb_id": pInt("The show's TMDB id."), "tvdb_id": pInt("The show's TVDB id, when the TMDB id isn't known."), "profile": pStr("Quality profile name or id."),
-				"monitor": pEnum("Which episodes to look for: all, future or none.", "all", "future", "none"), "search_now": pBool("Search for it straight away. Default true.")}), planAddSeries),
-		writeTool("search_now", "Start a search for a release right now for movies, shows or single episodes that are in the library (at most 20 in one call). Use the ids from library_search or series_details.",
-			schemaOf(props{"movie_ids": pInts("Movie ids."), "series_ids": pInts("Show ids (whole show)."), "episode_ids": pInts("Episode ids.")}), planSearchNow),
+				"monitor": pEnum("Which episodes to look for: all, future or none.", "all", "future", "none"), "search_now": pBool("Search for it straight away. Default true.")}), planAddSeries)),
+		startsDownloads(writeTool("search_now", "Start a search for a release right now for movies, shows or single episodes that are in the library (at most 20 in one call). Use the ids from library_search or series_details.",
+			schemaOf(props{"movie_ids": pInts("Movie ids."), "series_ids": pInts("Show ids (whole show)."), "episode_ids": pInts("Episode ids.")}), planSearchNow)),
 		writeTool("set_movie_profile", "Put a movie on another quality profile, for example to upgrade it to 4K. If its file is below what the new profile wants, a search for a better version starts. profile is a name or id (profiles_list).",
 			schemaOf(props{"movie_id": pInt("The movie's id."), "profile": pStr("Quality profile name or id.")}, "movie_id", "profile"), planSetMovieProfile),
 		writeTool("set_series_profile", "Put a show on another quality profile. profile is a name or id (profiles_list).",

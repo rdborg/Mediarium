@@ -21,4 +21,6 @@ What they cover: the setup wizard from a fresh install, signing in (a wrong pass
 
 `urlbase.check.mjs` is a separate script (not part of the run above) that checks Mediarium under a URL base such as `/mediarium`, or at the root. Start a container with an empty config folder and `URL_BASE=/mediarium`, then run `URL_BASE=/mediarium MEDIARIUM_URL=http://localhost:8315 node e2e/urlbase.check.mjs` from the `web` folder. It signs in, opens the main pages, and fails if any request leaves the prefix.
 
+`../tools/docshots.mjs` is not a test: it retakes the screenshots in `docs/images` (dark, 1440 px, no version bubble, the demo account called Mediarium). Point it at a throwaway copy with made-up data (`MEDIARIUM_URL`, `SHOT_USER`, `SHOT_PASSWORD`, optionally `PW_CHANNEL=chrome`), give it the names of the shots to retake, and let `SHOT_OUT` send them to a scratch folder first so you can look at them before they replace the ones in the docs.
+
 CI runs them on every push (the `browser` job in `.github/workflows/ci.yml`) against a freshly built server.

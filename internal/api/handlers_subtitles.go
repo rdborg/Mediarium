@@ -223,7 +223,7 @@ func (s *Server) downloadSubtitle(w http.ResponseWriter, r *http.Request, kind s
 	// A source switched off is never asked, not even to hand over a subtitle an
 	// earlier search listed.
 	if on, name := s.sourceOnFor(req.Source); !on {
-		writeError(w, http.StatusConflict, fmt.Sprintf("%s switched off, so that subtitle can't be downloaded. Switch it on in Settings > Info, lists and subtitles > Subtitles, or search again.", name))
+		writeError(w, http.StatusConflict, fmt.Sprintf("%s switched off, so that subtitle can't be downloaded. Switch it on in Settings > Library and files > Subtitles, or search again.", name))
 		return
 	}
 	path, err := s.writeSubtitle(r.Context(), it, req.Language, subtitlePick{fileID: req.FileID, source: req.Source, link: req.Link, chosen: true, videoHash: videoHash(it.filePath), variant: variant})

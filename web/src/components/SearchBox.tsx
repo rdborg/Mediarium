@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, isAdmin, isViewer, type BookFound, type MusicArtistResult, type TitleResult } from '../api'
 import { useAuth } from '../AuthContext'
 import { useModules } from '../ModulesContext'
-import AddMusicDialog from './AddMusicDialog'
-import { BookAddDialog } from './BookDiscover'
 import { artistKind } from './artistKind'
 import { libraryFirst } from '../searchOrder'
 import Icon from './Icon'
@@ -14,6 +12,10 @@ import { isTypingTarget } from '../shortcuts'
 import { buildSettingsIndex, searchSettings, type SettingsEntry } from '../settingsIndex'
 import { effectiveTab, planSettings, readSearchTab, rememberSearchTab, type SearchTab } from '../searchGroups'
 import { t } from '../i18n'
+
+// The two add dialogs are fetched when one is opened, not with every page.
+const AddMusicDialog = lazy(() => import('./AddMusicDialog'))
+const BookAddDialog = lazy(() => import('./BookDiscover').then((m) => ({ default: m.BookAddDialog })))
 
 // The always-visible search bar. It searches the movie and TV databases live
 // as you type and lists matches right under the box, with posters, so you can
@@ -27,6 +29,7 @@ export default function SearchBox() {
   const navigate = useNavigate()
   const location = useLocation()
   const [q, setQ] = useState('')
+  const noKeyMessage = t('Searching movies and shows needs a TMDB API key. An administrator can add one under Settings > Library and files > Movie and show info.')
   const [results, setResults] = useState<TitleResult[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -35,7 +38,7 @@ export default function SearchBox() {
   const box = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const panel = useRef<HTMLDivElement>(null)
-  const { on } = useModules()
+  const { on, tmdbOn } = useModules()
   const { user } = useAuth()
   const musicOn = on('music')
   const titlesOn = on('movies') || on('tv')
@@ -65,6 +68,13 @@ export default function SearchBox() {
       setLoading(false)
       return
     }
+    if (!tmdbOn) {
+      // No TMDB key: the movie and show search can't answer, so say so instead of asking.
+      setResults([])
+      setError(noKeyMessage)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const ctl = new AbortController()
     const t = setTimeout(() => {
@@ -87,7 +97,7 @@ export default function SearchBox() {
       clearTimeout(t)
       ctl.abort()
     }
-  }, [q, titlesOn])
+  }, [q, titlesOn, tmdbOn, noKeyMessage])
 
   // Artists come from MusicBrainz, which allows about one lookup a second, so
   // they are asked for a little later than titles.
@@ -495,7 +505,8 @@ export default function SearchBox() {
           )}
         </div>
       )}
-      <BookAddDialog target={addingBook} onClose={() => setAddingBook(null)} />
+      <Suspense fallback={null}>
+        {addingBook && <BookAddDialog target={addingBook} onClose={() => setAddingBook(null)} />}
       {addingArtist && (
         <AddMusicDialog
           target={{ kind: 'artist', mbid: addingArtist.mbid, name: addingArtist.name, type: addingArtist.type, country: addingArtist.country, disambiguation: addingArtist.disambiguation }}
@@ -507,6 +518,7 @@ export default function SearchBox() {
           }}
         />
       )}
+      </Suspense>
     </div>
   )
 }

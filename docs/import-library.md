@@ -11,7 +11,7 @@ Open **Library** and press **Import existing** (or **Import what you already hav
 3. **Choose what happens next** (see below), or just press **Import**.
 4. **Confirm.** This answers in about a second, however many titles you chose. Every title is added to the library straight away with what the scan already knows: its name, year, the file, and the quality read from the file name. The titles show in the Library at once, with a "Getting details..." mark until their posters and summaries arrive.
 
-![The import review: the folder box, the two-line summary of what will happen, and a table of what was found on disk with the match for each](images/import-review.png)
+![The import review: the folder box, the switch to watch titles for better versions with what happens next, and a table of what was found on disk with the match for each](images/import-review.png)
 
 *The review step for a movie folder. Confident matches are ticked.*
 

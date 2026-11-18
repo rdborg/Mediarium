@@ -14,7 +14,7 @@ Mediarium is one Docker image, and every platform below runs that same image wit
 | Raspberry Pi 3, 4 or 5 with a **64-bit** OS | Docker Compose | [linux.md](./linux.md#raspberry-pi) |
 | Windows or Mac with Docker Desktop | Docker Compose, fine for trying it out | [INSTALL.md](./INSTALL.md#using-a-docker-app) |
 
-The image is `ghcr.io/rdborg/mediarium:latest` (also on Docker Hub as `rdborg/mediarium:latest`), built for `linux/amd64` and `linux/arm64`. `ghcr.io/rdborg/mediarium:latest-full` is the same with a Cloudflare helper built in (see [INSTALL.md](./INSTALL.md#optional-getting-past-cloudflare-checks)). Every release also has tags with its version number, for example `:3.0.0` and `:3.0` (and `:3.0.0-full` and `:3.0-full`): see [Updating](./INSTALL.md#updating).
+The image is `ghcr.io/rdborg/mediarium:latest` (also on Docker Hub as `rdborg/mediarium:latest`), built for `linux/amd64` and `linux/arm64`. `ghcr.io/rdborg/mediarium:latest-full` is the same with a Cloudflare helper built in (see [INSTALL.md](./INSTALL.md#optional-getting-past-cloudflare-checks)). Every release also has tags with its version number, for example `:4.1.0` and `:4.1` (and `:4.1.0-full` and `:4.1-full`): see [Updating](./INSTALL.md#updating).
 
 ## Not available
 

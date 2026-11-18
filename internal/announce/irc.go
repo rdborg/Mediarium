@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"net"
 	"net/netip"
@@ -520,7 +521,20 @@ func parseIRC(line string) (ircMessage, bool) {
 	return m, true
 }
 
-func (s *session) handle(line string) error {
+// handle reads one line from the server. A line that makes the reader crash
+// ends this connection with an error, so it is opened again; it must not end
+// the program, which a panic in this goroutine would.
+func (s *session) handle(line string) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			slog.Error("announce: a line from the server crashed the reader", "panic", fmt.Sprint(p))
+			err = errors.New("the server sent a line Mediarium could not read, so the connection was closed and is opened again")
+		}
+	}()
+	return s.handleLine(line)
+}
+
+func (s *session) handleLine(line string) error {
 	m, ok := parseIRC(line)
 	if !ok {
 		return nil

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import LoadFailed from '../components/LoadFailed'
 import AddDialog from '../components/AddDialog'
 import Icon from '../components/Icon'
 import InfoTip from '../components/InfoTip'
@@ -307,7 +308,7 @@ function MoviePage() {
     }
   }
 
-  if (error && !movie) return <p className="error-text">{error}</p>
+  if (error && !movie) return <LoadFailed message={error} />
   if (!movie) return <div className="skeleton" style={{ height: 380, borderRadius: 22 }} />
 
   const inLibrary = !!movie.libraryId

@@ -71,7 +71,7 @@ func notAVideo(path string) error {
 }
 
 // checkDurationOn says whether the length check is on (it is, unless switched
-// off in Settings > Library).
+// off in Settings > Library and files).
 func (s *Server) checkDurationOn() bool {
 	raw, _ := s.Settings.Get(settings.KeyImportCheckDuration)
 	return raw != "0"

@@ -4,7 +4,7 @@ import { useToast } from './Toast'
 import Switch from './Switch'
 import { t, tx } from '../i18n'
 
-// Settings > Info, lists and subtitles: an optional TheTVDB key, as a second
+// Settings > Library and files: an optional TheTVDB key, as a second
 // source for shows whose TMDB page is missing seasons or episodes. TMDB stays
 // the source of every show; TheTVDB only fills in what TMDB doesn't list.
 export default function TheTVDBCard() {

@@ -1,6 +1,6 @@
 // "Switch this on?" offers (V4 A7): new things that start off, offered to an
 // administrator after the update that brings them (in the What's new window)
-// and listed under Settings > Media types, with Switch on, Not now and Never.
+// and listed under Settings > Basics > Media types, with Switch on, Not now and Never.
 // Every one is also in the setup wizard, so a new install gets the same choice.
 // The server remembers the answers (GET/PUT /api/feature-offers).
 //

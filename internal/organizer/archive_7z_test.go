@@ -187,6 +187,30 @@ func TestExtract7zUnpacksRegularFiles(t *testing.T) {
 	}
 }
 
+// A share that refuses to set file attributes makes 7z exit with an error after
+// the data is written; when that is the only complaint the files are used (#189).
+func TestExtract7zAcceptsAttributeOnlyErrors(t *testing.T) {
+	ex := fake7z(t, listing7z("show.mkv|4|A -rw-r--r--"),
+		"printf data > show.mkv; echo 'ERROR: Cannot set file attribute : errno=1 : Operation not permitted : show.mkv'; exit 2")
+	archive, dest := fresh7zDest(t)
+	if err := ex.Extract(archive, dest); err != nil {
+		t.Fatalf("attribute-only errors should not fail the unpack: %v", err)
+	}
+	if got := readTestFile(t, filepath.Join(dest, "show.mkv")); got != "data" {
+		t.Errorf("show.mkv = %q", got)
+	}
+}
+
+// Any other 7z error still fails the unpack, also next to attribute errors.
+func TestExtract7zStillFailsOnRealErrors(t *testing.T) {
+	ex := fake7z(t, listing7z("show.mkv|4|A -rw-r--r--"),
+		"printf da > show.mkv; echo 'ERROR: Cannot set file attribute : errno=1 : x'; echo 'ERROR: CRC Failed : show.mkv'; exit 2")
+	archive, dest := fresh7zDest(t)
+	if err := ex.Extract(archive, dest); err == nil {
+		t.Fatal("a CRC error must fail the unpack")
+	}
+}
+
 // A slow or hung 7z is stopped.
 func TestExtract7zStopsAfterTheTimeout(t *testing.T) {
 	ex := fake7z(t, listing7z("a.mkv|1|A -rw-r--r--"), "sleep 30")

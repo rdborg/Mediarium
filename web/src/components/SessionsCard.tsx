@@ -19,7 +19,7 @@ function how(method: string): string {
   }
 }
 
-// Settings > Security: where this account is signed in, and a way to end every
+// Settings > People and access > Security: where this account is signed in, and a way to end every
 // other browser or app at once (a lost phone, a shared computer).
 export default function SessionsCard() {
   const toast = useToast()

@@ -14,7 +14,7 @@ import { useToast } from './Toast'
 import { useFocusTrap } from '../useFocusTrap'
 import { t, st } from '../i18n'
 import { defaultProfileFor } from '../profileDefaults'
-import { addStart } from '../addDefaults'
+import { addStart, keepBetterStart } from '../addDefaults'
 import InfoTip from './InfoTip'
 import { collectionBodyFor, offersCollectionAdd } from '../collectionAdd'
 
@@ -28,14 +28,17 @@ export interface AddTarget {
 }
 
 // Whether a new title keeps being searched for better versions after it is
-// downloaded. Off unless the person turns it on; remembered in this browser.
+// downloaded. It starts from what this browser remembered, else from the setting
+// under Automatic searching (off unless switched on).
 const BETTER_KEY = 'mediarium.add.keepLookingForBetter'
 
-function savedBetter(): boolean {
+// null when this browser has not remembered a choice yet.
+function savedBetter(): boolean | null {
   try {
-    return localStorage.getItem(BETTER_KEY) === '1'
+    const v = localStorage.getItem(BETTER_KEY)
+    return v === null ? null : v === '1'
   } catch {
-    return false
+    return null
   }
 }
 
@@ -86,7 +89,7 @@ function AddForm({
   const [sources, setSources] = useState<SourcePref>('')
   const [searchNow, setSearchNow] = useState(true)
   // Settings sets the starting state of the monitoring and search choices; a choice made here before it loads wins.
-  const edited = useRef({ monitored: false, searchNow: false })
+  const edited = useRef({ monitored: false, searchNow: false, better: false })
   // The library folders to choose from, when more than one is set up (the main one first).
   const [folders, setFolders] = useState<string[]>([])
   const [rootPath, setRootPath] = useState('')
@@ -99,7 +102,8 @@ function AddForm({
       .then((l) => setKnownTags(l.map((x) => x.name)))
       .catch(() => undefined)
   }, [])
-  const [keepBetter, setKeepBetter] = useState(savedBetter)
+  const remembered = useRef(savedBetter())
+  const [keepBetter, setKeepBetter] = useState(remembered.current ?? false)
   // The TMDB collection this film belongs to, if any (administrators can add the rest of it too).
   const admin = isAdmin(useAuth().user)
   const [collection, setCollection] = useState<{ id: number; name: string } | null>(null)
@@ -136,6 +140,7 @@ function AddForm({
         setMonitor(start.monitor)
       }
       if (!edited.current.searchNow) setSearchNow(start.searchNow)
+      if (!edited.current.better) setKeepBetter(keepBetterStart(r, remembered.current))
     }).catch(() => undefined)
     api
       .libraryFolders()
@@ -315,6 +320,7 @@ function AddForm({
               type="checkbox"
               checked={keepBetter}
               onChange={(e) => {
+                edited.current.better = true
                 setKeepBetter(e.target.checked)
                 saveBetter(e.target.checked)
               }}
@@ -322,10 +328,10 @@ function AddForm({
             <span>
               <span className="has-tip">
                 {t('Keep looking for better versions after it is downloaded')}
-                <InfoTip text={t('Mediarium swaps the file for a better release when your quality profile allows it. Left unticked, the title stays as first downloaded.')} />
+                <InfoTip text={t('Mediarium swaps the file for a better release when a better one turns up and the quality profile allows it. Left unticked, the title stays as first downloaded. What counts as better, and where it stops, is set in the quality profile (Settings > Finding releases > Quality).')} />
               </span>
               <small style={{ display: 'block', color: 'var(--text-dim)', fontWeight: 400 }}>
-                {t('You can change this on its page later.')}
+                {t("Remembered in this browser for the next titles you add. You can change it on the title's page later.")}
               </small>
             </span>
           </label>
@@ -360,7 +366,7 @@ function AddForm({
 
           {cannotSearch && (
             <div className="notice notice-warn">
-              <strong>{t('No indexer yet.')}</strong> {t('It will be added and searched once you add one (Settings > Indexers & Search).')}
+              <strong>{t('No indexer yet.')}</strong> {t('It will be added and searched once you add one (Settings > Finding releases > Indexers & Search).')}
             </div>
           )}
           {dash && dash.indexers > 0 && effectiveSources !== 'torrent' && dash.usenetServers === 0 && (

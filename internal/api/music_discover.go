@@ -114,8 +114,14 @@ func pageParams(r *http.Request) (page, size int) {
 // pageBounds returns the slice [from, to) of page out of total items, and
 // the number of pages (at least 1).
 func pageBounds(total, page, size int) (from, to, pages int) {
+	size = max(size, 1)
 	pages = max(1, (total+size-1)/size)
-	from = (page - 1) * size
+	// A huge page number must not overflow the offset: it is past the end.
+	if page-1 > total/size {
+		from = total
+	} else {
+		from = max(page-1, 0) * size
+	}
 	if from > total {
 		from = total
 	}

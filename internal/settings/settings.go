@@ -6,6 +6,7 @@ package settings
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"github.com/rdborg/mediarium/internal/crypto"
 )
@@ -119,6 +120,7 @@ const (
 	KeyDefaultSources        = "library.default_sources"          // usenet | torrent | both (default both)
 	KeyAddMonitored          = "library.add_monitored"            // "0" starts the add dialog with monitoring off; unset or "1" leaves it on (each title can still be changed when it is added)
 	KeyAddSearchNow          = "library.add_search_now"           // "0" starts the add dialog with "start searching now" off; unset or "1" leaves it on
+	KeyAddKeepBetter         = "library.add_keep_better"          // "1": a title added without saying otherwise (the add dialog, an import list, a script) keeps being searched for better versions; unset or "0" leaves it alone once downloaded (the setup wizard turns it on for a new install)
 	KeySeasonPacks           = "library.season_packs"             // "1" looks for a season pack once a season has ended (a show can say otherwise for itself); unset or "0" leaves it off
 	KeyDefaultProfileID      = "library.default_profile_id"       // id of the stored quality profile used by items with no profile of their own
 	KeyDefaultTVProfileID    = "library.default_profile_id_tv"    // id of the quality profile shows with none of their own use; unset = the same default as movies
@@ -129,7 +131,8 @@ const (
 	KeyFoldersInInfoLanguage = "naming.folders_in_info_language" // "1" names new movie and show folders and files with the title in the info language; unset or "0" keeps the English title
 
 	// "Only take releases in these languages", next to quality.language.
-	KeyQualityLanguageOnly = "quality.language_only" // "1" takes only releases that say they are in a wanted audio language (no untagged, English-only or bare multi releases unless English is wanted); unset or "0" keeps those as a lower-ranked fallback
+	KeyQualityLanguageIgnoreExtra = "quality.language_ignore_extra" // "1" ranks a release that has a wanted language the same whether or not it carries other languages too; unset or "0" ranks a multi-language release above or below a plain one as before
+	KeyQualityLanguageOnly        = "quality.language_only"         // "1" takes only releases that say they are in a wanted audio language (no untagged, English-only or bare multi releases unless English is wanted); unset or "0" keeps those as a lower-ranked fallback
 
 	// Phase 4 — subtitles module.
 	KeySubtitlesEnabled      = "subtitles.enabled"                // the master switch: "1" turns downloading subtitles on; unset or "0" leaves it off (upgrades from a version that had subtitles in use are switched on once, by a migration)
@@ -207,7 +210,7 @@ const (
 	// the historical behavior before this setting existed, so upgrading
 	// doesn't change anyone's existing import behavior underneath them.
 	KeyImportConflictPolicy = "library.import_conflict_policy" // "skip" | "overwrite" | "overwrite_if_better" | "ask"
-	KeyImportCheckDuration  = "import.check_duration"          // "0" turns off the check that a video is about as long as its episode or movie before it is imported (Settings > Library > File names and importing); anything else, including unset, leaves it on
+	KeyImportCheckDuration  = "import.check_duration"          // "0" turns off the check that a video is about as long as its episode or movie before it is imported (Settings > Library and files > File names and importing); anything else, including unset, leaves it on
 
 	// Connectivity monitor: minutes between checks of every Usenet server and
 	// indexer. Unset means 30; 0 turns it off; anything under 5 is raised to 5.
@@ -290,7 +293,7 @@ const (
 	KeyEbooksPath     = "ebooks.path"     // ebooks library folder; falls back to the EBOOKS_DIR env default (/ebooks) when unset
 	KeyAudiobooksPath = "audiobooks.path" // audiobooks library folder; falls back to the AUDIOBOOKS_DIR env default (/audiobooks) when unset
 
-	// Modules switchboard (Settings > Media types): which kinds of media are on.
+	// Modules switchboard (Settings > Basics > Media types): which kinds of media are on.
 	KeyModulesMovies     = "modules.movies"     // "0" switches movies off; anything else (including unset) leaves them on
 	KeyModulesTV         = "modules.tv"         // "0" switches TV off; anything else (including unset) leaves it on
 	KeyModulesMusic      = "modules.music"      // "1" switches music on; unset or "0" leaves it off (unset falls back to music.enabled)
@@ -316,10 +319,10 @@ const (
 	KeyMCPDownloads       = "mcp.downloads"                  // "1" lets an AI assistant that is connected over MCP search for releases and start the download of one, after a second confirming call; unset or "0" keeps those two tools away. Only a signed-in browser session can switch it on, not an API key
 	KeyMCPEnabled         = "mcp.enabled"                    // "1" lets AI assistants connect to the MCP address (POST /mcp) with an administrator's API key; unset or "0" keeps it off. Only a signed-in browser session can switch it on, not an API key
 
-	// The SABnzbd and qBittorrent look-alike addresses for phone apps (Settings > Other apps). Off by default.
+	// The SABnzbd and qBittorrent look-alike addresses for phone apps (Settings > Media servers and apps > Other apps). Off by default.
 	KeyDownloaderAPIEnabled = "compat.downloader_api" // "1" lets phone apps such as nzb360 use the SABnzbd-style address (/sabnzbd/api) and the qBittorrent-style address (/qbittorrent/api/v2) of the built-in downloaders, with an administrator's API key; unset or "0" keeps both off. Only a signed-in browser session can switch it on, not an API key
 
-	// Watched status and cleanup rules (Settings > Connections > Media servers). Both off by default.
+	// Watched status and cleanup rules (Settings > Media servers and apps > Media servers). Both off by default.
 	KeyWatchedSync      = "watched.sync"      // "1" reads what's been watched from Plex, Jellyfin and Emby every six hours; unset or "0" leaves it off
 	KeyWatchedStatus    = "watched.status"    // the last read and cleanup (JSON; set by the app, not user-editable)
 	KeyLifecycleRules   = "lifecycle.rules"   // the library lifecycle rules (JSON: days per rule, graceDays, keepTags, actForReal); nothing is removed unless actForReal is true
@@ -329,12 +332,12 @@ const (
 	KeyArchiverConfig   = "archiver.config"   // the Channel archiver's settings (JSON: yt-dlp path, folder, format, limits, other websites, the ticked warning)
 	KeyCleanupRules     = "cleanup.rules"     // the cleanup rules (JSON: enabled, moviesWatchedDays, moviesUnwatchedDays, episodesWatchedDays, keepTags); off unless enabled is true
 
-	// Sign-in through a reverse proxy (Settings > Accounts). See docs/security.md.
+	// Sign-in through a reverse proxy (Settings > People and access > Ways to sign in). See docs/security.md.
 	KeyAuthProxyHeader    = "auth.proxy_header"    // the header a trusted reverse proxy puts the signed-in user name in (for example Remote-User); unset or empty leaves it off. Only a signed-in browser session can set it, not an API key
 	KeyAuthProxyAddresses = "auth.proxy_addresses" // where that proxy connects from: IP addresses or CIDR ranges, comma-separated ("private" is refused). The header is only believed from these
 	KeyAuthOutsideSignIn  = "auth.outside_signin"  // when someone last signed in from outside the home network (RFC 3339; set by the app). Two-step sign-in is suggested for 30 days after
 
-	// Other ways to sign in (Settings > Accounts). All off until switched on. See docs/security.md.
+	// Other ways to sign in (Settings > People and access > Ways to sign in). All off until switched on. See docs/security.md.
 	KeyAuthOIDC        = "auth.oidc"         // encrypted; single sign-on with an OpenID Connect provider (JSON: enabled, name, issuer, client id and secret, scopes, claim names, account rules). Off unless enabled is true. Only a signed-in browser session can read or set it, not an API key. MEDIARIUM_DISABLE_SSO=1 overrides it
 	KeyAuthLDAP        = "auth.ldap"         // encrypted; sign-in with a directory (LDAP or Active Directory) (JSON: enabled, server, bind account and password, filters, attribute names, account rules). Off unless enabled is true. Only a signed-in browser session can read or set it, not an API key. MEDIARIUM_DISABLE_SSO=1 overrides it
 	KeyAuthIdleDays    = "auth.idle_days"    // browser sessions not used for this many days (1 to 7) end and the person signs in again. Unset or "0" leaves it off. API keys, calendar feeds and e-reader passwords are not affected
@@ -346,10 +349,10 @@ const (
 	KeyScriptAfterImport = "scripts.after_import" // JSON: script (a file name in /config/scripts; empty = off) and timeoutSec (default 300). Only a signed-in browser session can set it, not an API key
 	KeyScriptLastRun     = "scripts.last_run"     // what the last run did (JSON; set by the app, not user-editable)
 
-	// Search and quality (Settings > Library). Both off until switched on.
+	// Search and quality (Settings > Library and files). Both off until switched on.
 	KeySearchDelay    = "search.delay_profile"   // delay profile (JSON: preferredProtocol, usenetMinutes, torrentMinutes, bypassIfHighestQuality): automatic searches hold back releases of the less liked protocol for that many minutes; unset or 0 minutes = no wait
-	KeyMinSizeCheck   = "search.min_size_check"  // "0" turns the built-in minimum size per quality off (Settings > Library > Quality > Size limits); anything else, including unset, leaves it on
-	KeyHoldUnreleased = "search.hold_unreleased" // "0" lets automatic searches look for a movie before its release date and an episode before it airs; anything else, including unset, leaves them waiting (Settings > Library > Quality > Automation)
+	KeyMinSizeCheck   = "search.min_size_check"  // "0" turns the built-in minimum size per quality off (Settings > Finding releases > Quality > Size limits); anything else, including unset, leaves it on
+	KeyHoldUnreleased = "search.hold_unreleased" // "0" lets automatic searches look for a movie before its release date and an episode before it airs; anything else, including unset, leaves them waiting (Settings > Finding releases > Quality)
 	KeySizeLimits     = "quality.size_limits"    // size limits per quality for movies in MB per minute of runtime (JSON: enabled, limits); applied only while enabled is true
 
 	// The same table for shows (it started as a copy of the movie table).
@@ -359,37 +362,58 @@ const (
 	KeyMovieFolderFormat  = "library.movie_folder_format"  // token string; unset = "{Movie Title} ({Year})"
 	KeySeriesFolderFormat = "library.series_folder_format" // the same for a new show; unset = "{Series Title} ({Year})"
 
-	// The request portal (Settings > Accounts > All accounts). Everything is off or unlimited until set.
+	// The request portal (Settings > People and access > All accounts). Everything is off or unlimited until set.
 	KeyRequestOptions = "requests.options" // JSON: notifyRequester (tell people when their request or report is answered), quotaCount (requests per period, 0 = no limit), quotaPeriod (day or week), fourK (let people ask for a 4K copy), fourKProfileId (the quality profile of that copy), reports (let people report a problem with a title)
-	// Permissions of what Mediarium creates in the library (Settings > Library > Folders).
+	// Permissions of what Mediarium creates in the library (Settings > Library and files > Folders).
 	KeyFileMode   = "library.file_mode"   // three octal digits like "664" applied to files Mediarium puts in the library; unset = leave it to the container's umask
 	KeyFolderMode = "library.folder_mode" // the same for the folders it creates, like "775"
 
-	// NFO and artwork files for media servers (Settings > Library > Folders). All off by default.
+	// NFO and artwork files for media servers (Settings > Library and files > Folders). All off by default.
 	KeyMetadataFiles = "library.metadata_files" // JSON: movies and tv, each {nfo, artwork}, and replace (true replaces files Mediarium wrote earlier); unset = nothing is written
+
+	// Recyclarr and other apps built for Radarr and Sonarr write naming and media management settings Mediarium has no use for (the daily episode format, the season folder, propers and repacks, ...). They are only given back on the next read, so the app sees no change.
+	KeyArrConfigEcho = "arr.config_echo" // JSON: the values the API of those apps was last sent for settings Mediarium does not use; set by the app, not user-editable
 )
 
 type Store struct {
 	db  *sql.DB
 	box *crypto.Box
+
+	// Plain (not encrypted) values are kept here once read, so the many
+	// handlers that ask for the same few settings for every title in a list
+	// do not each go to the database. Set is the only writer, and it updates
+	// the entry; an unset key is remembered as "". gen counts the writes, so
+	// a read that raced with one never puts the older value back.
+	mu    sync.RWMutex
+	cache map[string]string
+	gen   uint64
 }
 
 func New(db *sql.DB, box *crypto.Box) *Store {
-	return &Store{db: db, box: box}
+	return &Store{db: db, box: box, cache: map[string]string{}}
 }
 
 // Get returns the raw (decrypted, if applicable) value, or "" if unset.
 func (s *Store) Get(key string) (string, error) {
+	s.mu.RLock()
+	v, ok := s.cache[key]
+	gen := s.gen
+	s.mu.RUnlock()
+	if ok {
+		return v, nil
+	}
 	var value string
 	var encrypted bool
 	err := s.db.QueryRow(`SELECT value, encrypted FROM settings WHERE key = ?`, key).Scan(&value, &encrypted)
 	if err == sql.ErrNoRows {
+		s.remember(key, "", gen)
 		return "", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("get setting %s: %w", key, err)
 	}
 	if !encrypted {
+		s.remember(key, value, gen)
 		return value, nil
 	}
 	plain, err := s.box.Decrypt(value)
@@ -414,10 +438,24 @@ func (s *Store) Set(key, value string, encrypt bool) error {
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, encrypted = excluded.encrypted`,
 		key, stored, encrypt,
 	)
+	s.mu.Lock()
+	s.gen++
+	delete(s.cache, key)
+	s.mu.Unlock()
 	if err != nil {
 		return fmt.Errorf("set setting %s: %w", key, err)
 	}
 	return nil
+}
+
+// remember keeps a value read at write count gen, unless a write has happened
+// since.
+func (s *Store) remember(key, value string, gen uint64) {
+	s.mu.Lock()
+	if s.gen == gen {
+		s.cache[key] = value
+	}
+	s.mu.Unlock()
 }
 
 // GetBool is a convenience for flag-style settings ("1"/"" ).

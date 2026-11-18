@@ -14,7 +14,7 @@ function ruleKey(r: LifecycleRules): string {
   return `${r.moviesWatchedDays}/${r.moviesUnwatchedDays}/${r.episodesWatchedDays}/${tags.join(',')}`
 }
 
-// Settings > Media types, under the cards while the library lifecycle module
+// Settings > Basics > Media types, under the cards while the library lifecycle module
 // is on: the rules, a dry run that only lists what would go, and "Act for
 // real", which can only be switched on after a dry run with these rules.
 export default function LifecycleSettingsCard() {
@@ -63,7 +63,7 @@ export default function LifecycleSettingsCard() {
     <section className="card lifecycle-card" style={{ ['--mc' as string]: 'var(--c-settings)' }}>
       <h2>{t('Library lifecycle')}</h2>
       <p style={{ color: 'var(--text-dim)' }}>{t('A title that matches a rule goes on the Leaving soon shelf. Its files are removed after the days below, unless someone keeps it.')}</p>
-      {!st.watchFresh && <p className="error-text">{t("Needs what's been watched. Read it under Connections > Media servers.")}</p>}
+      {!st.watchFresh && <p className="error-text">{t("Needs what's been watched. Read it under Settings > Media servers and apps > Media servers.")}</p>}
       <DaysRule label={t('Movies watched a while ago')} hint={t('Remove a movie once it was last watched this many days ago.')} value={rules.moviesWatchedDays} onChange={(v) => setRules({ ...rules, moviesWatchedDays: v })} disabled={lock} />
       <DaysRule label={t('Movies nobody watched')} hint={t('Remove a movie that was never watched, this many days after it was added.')} value={rules.moviesUnwatchedDays} onChange={(v) => setRules({ ...rules, moviesUnwatchedDays: v })} disabled={lock} />
       <DaysRule label={t('Episodes watched a while ago')} hint={t('Remove an episode once it was last watched this many days ago.')} value={rules.episodesWatchedDays} onChange={(v) => setRules({ ...rules, episodesWatchedDays: v })} disabled={lock} />
@@ -142,7 +142,7 @@ export default function LifecycleSettingsCard() {
               </ul>
             </>
           )}
-          {!dry.fresh && <p className="error-text">{t("Needs what's been watched. Read it under Connections > Media servers.")}</p>}
+          {!dry.fresh && <p className="error-text">{t("Needs what's been watched. Read it under Settings > Media servers and apps > Media servers.")}</p>}
         </div>
       )}
       {st.keeps.length > 0 && (

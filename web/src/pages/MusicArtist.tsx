@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { albumRescanNote, type AlbumRescanReport } from '../albumRescan'
 import { api, can, isAdmin, type MusicAlbum, type MusicArtist as MusicArtistData, type MusicHiddenAlbum, type MusicProfile, type MusicRelease, type QueueItem, type SearchResult } from '../api'
 import { useAuth } from '../AuthContext'
+import LoadFailed from '../components/LoadFailed'
 import { useConfirm } from '../components/ConfirmProvider'
 import AddDownloadDialog from '../components/AddDownloadDialog'
 import Cover from '../components/Cover'
@@ -283,12 +284,12 @@ function ArtistPage() {
       <div className="empty-state">
         <Icon name="music" size={44} />
         <p>
-          {t('Music is switched off.')} {admin ? <Link to="/settings/modules">{t('Switch it on in Settings > Media types.')}</Link> : t('Ask an administrator to switch it on.')}
+          {t('Music is switched off.')} {admin ? <Link to="/settings/modules">{t('Switch it on in Settings > Basics > Media types.')}</Link> : t('Ask an administrator to switch it on.')}
         </p>
       </div>
     )
   }
-  if (error && !artist) return <p className="error-text">{error}</p>
+  if (error && !artist) return <LoadFailed message={error} />
   if (!artist) return <div className="skeleton" style={{ height: 320, borderRadius: 22 }} />
 
   const state = artistState(artist)

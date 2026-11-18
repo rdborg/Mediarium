@@ -30,6 +30,7 @@ import (
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/music"
 	"github.com/rdborg/mediarium/internal/origin"
+	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -184,6 +185,10 @@ type releaseInfo struct {
 	name  string   // the release's own name (a torrent's name), "" for an NZB
 	size  int64    // total size in bytes, 0 when unknown
 	files []string // the names of the files inside
+	// inside is a release name read from inside the file: the name in an NZB's
+	// head or the name of its biggest file, or the name of a torrent's biggest
+	// file. "" when it says nothing.
+	inside string
 }
 
 func (k releaseKind) protocol() indexers.Protocol {
@@ -214,7 +219,7 @@ func inspectRelease(data []byte) (releaseInfo, error) {
 			}
 			return releaseInfo{}, errors.New("That isn't a working NZB file. Check that you chose the right file.")
 		}
-		return releaseInfo{kind: kindNZB, size: nzb.TotalBytes(), files: nzb.FileNames()}, nil
+		return releaseInfo{kind: kindNZB, size: nzb.TotalBytes(), files: nzb.FileNames(), inside: nzb.ReleaseName()}, nil
 	case 'd':
 		// An uploaded file is untrusted: the library's decoder has no limit on
 		// nesting, so a crafted one is turned away before it gets there.
@@ -230,8 +235,13 @@ func inspectRelease(data []byte) (releaseInfo, error) {
 			return releaseInfo{}, errors.New("That isn't a working .torrent file. Check that you chose the right file.")
 		}
 		var names []string
+		var biggest string
+		var biggestSize int64 = -1
 		for _, f := range info.UpvertedFiles() {
 			names = append(names, strings.Join(f.BestPath(), "/"))
+			if path := f.BestPath(); f.Length > biggestSize && len(path) > 0 {
+				biggest, biggestSize = path[len(path)-1], f.Length
+			}
 		}
 		if len(names) == 0 || info.TotalLength() <= 0 {
 			return releaseInfo{}, errors.New("That torrent has no files in it.")
@@ -242,9 +252,19 @@ func inspectRelease(data []byte) (releaseInfo, error) {
 				names[i] = info.BestName()
 			}
 		}
-		return releaseInfo{kind: kindTorrent, name: info.BestName(), size: info.TotalLength(), files: names}, nil
+		return releaseInfo{kind: kindTorrent, name: info.BestName(), size: info.TotalLength(), files: names, inside: withoutMediaExt(biggest)}, nil
 	}
 	return releaseInfo{}, errNotARelease
+}
+
+// withoutMediaExt is a file name without the ending of a video, an audio file or a
+// book, so a release name is not read with ".mkv" on the end.
+func withoutMediaExt(file string) string {
+	switch strings.ToLower(filepath.Ext(file)) {
+	case ".mkv", ".mp4", ".avi", ".m4v", ".ts", ".m2ts", ".wmv", ".mov", ".mpg", ".mpeg", ".iso", ".flac", ".mp3", ".m4a", ".m4b", ".ogg", ".opus", ".epub", ".mobi", ".azw3", ".pdf", ".cbz", ".cbr":
+		return strings.TrimSuffix(file, filepath.Ext(file))
+	}
+	return file
 }
 
 // magnetInfo checks a magnet link and returns the name it carries.
@@ -306,17 +326,45 @@ func nameFromAddress(raw string) string {
 }
 
 // chooseReleaseName picks the name the download goes by: the one the person
-// typed, else a name found in the file or address, else a plain placeholder.
+// typed, else the best of the names found in the file or address, else a plain
+// placeholder. The names are given in the order to prefer when they are equally
+// good.
 func chooseReleaseName(typed string, candidates ...string) string {
 	if n := cleanReleaseName(typed); n != "" {
 		return n
 	}
+	best, bestScore := "", -1
 	for _, c := range candidates {
-		if n := cleanReleaseName(c); n != "" {
-			return n
+		n := cleanReleaseName(c)
+		if n == "" {
+			continue
+		}
+		if score := releaseNameScore(n); score > bestScore {
+			best, bestScore = n, score
 		}
 	}
+	if best != "" {
+		return best
+	}
 	return "Download added by hand"
+}
+
+// releaseNameScore says how much a name tells about a release: the quality, the
+// source, the year, the season and episode and the group each count. A file
+// called "m2" scores nothing, a real release name scores a lot, so the name
+// read from inside an NZB beats a file name like that.
+func releaseNameScore(name string) int {
+	r := parser.Parse(name)
+	score := 0
+	for _, has := range []bool{
+		r.Resolution != "", r.Source != "", r.Codec != "", r.Year > 0,
+		r.Season > 0 || len(r.Episodes) > 0 || r.AirDate != "", r.Group != "", r.AudioCodec != "",
+	} {
+		if has {
+			score++
+		}
+	}
+	return score
 }
 
 // --- the request ---
@@ -672,7 +720,9 @@ func (s *Server) acceptFile(data []byte, fileName, typedName string) (manualSour
 	if info.kind == kindNZB && len(info.files) > 0 {
 		fallback = stemOf(info.files[0])
 	}
-	title := chooseReleaseName(typedName, info.name, fileName, fallback)
+	// A torrent's own name comes first; an NZB's file name and what is inside it compete,
+	// so "m2.nzb" does not hide the release it holds.
+	title := chooseReleaseName(typedName, info.name, fileName, info.inside, fallback)
 	ref, err := s.saveUpload(data, string(info.kind))
 	if err != nil {
 		slog.Error("api: save an uploaded release", "err", err)

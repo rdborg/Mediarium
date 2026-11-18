@@ -42,7 +42,7 @@ func (s *Server) tvCopiesRoot() string {
 }
 
 // extraFolders are the folders added next to the main one for a kind of media
-// (Settings > Library > Folders), tidied and without repeats.
+// (Settings > Library and files > Folders), tidied and without repeats.
 func (s *Server) extraFolders(key, main string) []string {
 	v, _ := s.Settings.Get(key)
 	if strings.TrimSpace(v) == "" {

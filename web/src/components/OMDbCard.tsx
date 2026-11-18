@@ -3,7 +3,7 @@ import { api } from '../api'
 import { useToast } from './Toast'
 import { t, tx } from '../i18n'
 
-// Settings > Info, lists and subtitles: an optional OMDb key, for the IMDb,
+// Settings > Library and files: an optional OMDb key, for the IMDb,
 // Rotten Tomatoes and Metacritic scores on title pages and Discover cards (#169).
 export default function OMDbCard() {
   const toast = useToast()

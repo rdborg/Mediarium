@@ -1,7 +1,7 @@
 // Package announce listens to the IRC channels where trackers announce new
 // releases, reads each announcement with a template, and hands what it found
-// to the caller to decide on. It is the engine behind Settings > Indexers &
-// Search > IRC announce.
+// to the caller to decide on. It is the engine behind Settings > Finding releases >
+// Indexers & Search > IRC announce.
 //
 // The package knows nothing about the library: internal/api decides whether a
 // release is wanted and grabs it. Everything that arrives from the network is

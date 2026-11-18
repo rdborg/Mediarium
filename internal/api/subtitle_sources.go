@@ -33,10 +33,10 @@ func (s *Server) useAddons() bool        { return s.subtitleSources().Addons.On(
 func (s *Server) hasSubtitleSource() bool { return s.subtitleSources().Any() || s.wizdomOn() }
 
 // errNoSubtitleSource is the setup hint while no source is set up.
-const errNoSubtitleSource = "Add an OpenSubtitles or SubDL API key, or a subtitle add-on, first (Settings > Info, lists and subtitles > Subtitles)."
+const errNoSubtitleSource = "Add an OpenSubtitles or SubDL API key, or a subtitle add-on, first (Settings > Library and files > Subtitles)."
 
 // errAllSubtitleSourcesOff is the hint while sources are set up but all switched off.
-const errAllSubtitleSourcesOff = "No subtitle source is switched on. Switch one on in Settings > Info, lists and subtitles > Subtitles."
+const errAllSubtitleSourcesOff = "No subtitle source is switched on. Switch one on in Settings > Library and files > Subtitles."
 
 // noSubtitleSourceMessage says why nothing can be searched: nothing is set up
 // yet, or everything that is has been switched off.

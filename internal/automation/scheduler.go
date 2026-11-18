@@ -11,6 +11,7 @@ package automation
 import (
 	"context"
 	"log"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -102,7 +103,7 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 	runSafely := func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("automation: job %s panicked: %v", job.Name, r)
+				log.Printf("automation: job %s panicked: %v\n%s", job.Name, r, debug.Stack())
 			}
 		}()
 		job.Run(ctx)
@@ -136,8 +137,16 @@ func (j Job) interval() time.Duration {
 			return d
 		}
 	}
+	if j.Interval <= 0 {
+		return fallbackInterval
+	}
 	return j.Interval
 }
+
+// fallbackInterval is the wait of a job that has no usable interval at all
+// (zero or negative, from a bad setting). Without it such a job would run
+// again the moment it finished, in a loop that never rests.
+const fallbackInterval = time.Minute
 
 // waitInterval waits until the job's next run is due, counted from now. It
 // reports false when ctx ended first.

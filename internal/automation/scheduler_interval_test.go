@@ -44,6 +44,8 @@ func TestJobIntervalFallsBack(t *testing.T) {
 		{"from the function", Job{Interval: time.Minute, IntervalFunc: func() time.Duration { return time.Hour }}, time.Hour},
 		{"function gives zero", Job{Interval: time.Minute, IntervalFunc: func() time.Duration { return 0 }}, time.Minute},
 		{"function gives negative", Job{Interval: time.Minute, IntervalFunc: func() time.Duration { return -time.Second }}, time.Minute},
+		{"no interval at all", Job{}, fallbackInterval},
+		{"negative interval", Job{Interval: -time.Second}, fallbackInterval},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -62,5 +64,16 @@ func waitFor(t *testing.T, ok func() bool) {
 			t.Fatal("timed out waiting")
 		}
 		time.Sleep(2 * time.Millisecond)
+	}
+}
+
+func TestJobWithoutIntervalDoesNotSpin(t *testing.T) {
+	var runs atomic.Int64
+	s := NewScheduler(Job{Name: "bad", Run: func(context.Context) { runs.Add(1) }})
+	s.Start()
+	time.Sleep(150 * time.Millisecond)
+	s.Stop()
+	if got := runs.Load(); got != 1 {
+		t.Fatalf("a job with no interval ran %d times in 150ms, want 1", got)
 	}
 }

@@ -37,9 +37,9 @@ It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Baza
 - **Search for the complete series** on a show that has ended: season packs first, then one pack of the whole series.
 - **Ratings** from IMDb, Rotten Tomatoes and Metacritic on film and show pages, with your own free OMDb key.
 - **Built-in downloaders** for Usenet and torrents, with repair and unpacking. Each torrent indexer can send its torrents to your client, to debrid or to the built-in one.
-- **Works with your phone apps.** Mediarium can answer like SABnzbd and qBittorrent, so nzb360 and similar apps show speed, time left and the queue (off until you switch it on), and Radarr and Sonarr apps such as LunaSea and Ruddarr connect as before.
+- **Works with your phone apps.** Mediarium can answer like SABnzbd and qBittorrent, so nzb360 and similar apps show speed, time left and the queue (off until you switch it on), and Radarr and Sonarr apps such as LunaSea, Ruddarr and Recyclarr connect as before.
 - **Built-in VPN** for torrents (WireGuard), with no special container permissions.
-- **Quality profiles** with upgrades and fallbacks, automatic searching and retries.
+- **Quality profiles** with upgrades and fallbacks, custom formats, automatic searching and retries. **Recyclarr** can sync the TRaSH Guides into them, and a new install keeps looking for better versions.
 - **Family accounts with permissions and requests**: choose what each person can do, and anyone who can't add titles sends a request for you to approve.
 - **Subtitles** picked to match your exact file, with a timing fix when one is out of sync.
 - **What's been watched**, read from Plex, Jellyfin and Emby, with watch statistics and optional cleanup rules (all off until you switch them on).
@@ -52,7 +52,7 @@ It does the jobs of Radarr, Sonarr, Prowlarr, SABnzbd, a torrent client and Baza
 
 **Privacy:** there are no ads, and Mediarium sends nothing about you or your library anywhere. It asks once whether you want to share a small anonymous message a day (a random ID, the version and rough device sizes) so the project can see which devices are popular: it is off until you say Yes, the numbers are public at [mediarium.app/stats](https://mediarium.app/stats/), and the code is open. [What exactly is sent](docs/usage-stats.md).
 
-Mediarium 4.0 is out. Movies and TV work end to end, and so do music, ebooks and audiobooks once you switch them on. It's used daily, but expect some rough edges. [FEATURES.md](docs/FEATURES.md) says what works and what doesn't yet.
+Mediarium 4.1 is out. Movies and TV work end to end, and so do music, ebooks and audiobooks once you switch them on. It's used daily, but expect some rough edges. [FEATURES.md](docs/FEATURES.md) says what works and what doesn't yet.
 
 ## Screenshots
 
@@ -114,7 +114,7 @@ Everything is in [`docs/`](docs/README.md): installing, indexers, downloads and 
 
 ## Getting help
 
-- **Something not working?** Check [troubleshooting](docs/INSTALL.md#troubleshooting), then [open an issue](https://github.com/rdborg/Mediarium/issues/new/choose). Include your version (Settings > System > About and credits), or better, the text that **Copy for support** puts on your clipboard (Settings > System > Server and updates > Help and support). It has no passwords or keys in it.
+- **Something not working?** Check [troubleshooting](docs/INSTALL.md#troubleshooting), then [open an issue](https://github.com/rdborg/Mediarium/issues/new/choose). Include your version (Settings > System > About and credits), or better, the text that **Copy for support** puts on your clipboard (Settings > System > Logs and errors). It has no passwords or keys in it.
 - **Security problem?** Report it privately, as described in [SECURITY.md](.github/SECURITY.md).
 - **Ideas and feature requests** are welcome as [issues](https://github.com/rdborg/Mediarium/issues/new/choose).
 

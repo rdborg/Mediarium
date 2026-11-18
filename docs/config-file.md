@@ -10,21 +10,21 @@ One block for each Settings page that holds a single set of values:
 
 | Block | Where it is in Mediarium |
 |---|---|
-| `settings` | General, Library, Downloading, Info, lists and subtitles, and the rest of Settings that is one set of values (folders, naming, schedules, languages, subtitles, retention...) |
+| `settings` | Most Settings pages, the ones that are one set of values (folders, file names, schedules, languages, subtitles, retention...) |
 | `downloadClient` | Settings > Downloading > Torrents > **Use your own torrent client** (qBittorrent, Transmission, RDT-Client, Decypharr) |
 | `debrid` | Settings > Downloading > Torrents > **Debrid service** |
-| `proxy` | The SOCKS5 or HTTP proxy for Usenet, indexers and torrents ([vpn.md](./vpn.md#a-socks5-or-http-proxy-instead)) |
-| `systemOptions` | The update options under Settings > System (daily check, overnight install, restart when stuck) |
+| `proxy` | Settings > Downloading > VPN and proxy: the SOCKS5 or HTTP proxy for Usenet, indexers and torrents ([vpn.md](./vpn.md#a-socks5-or-http-proxy-instead)) |
+| `systemOptions` | The update options under Settings > Basics > General (daily check, overnight install, restart when stuck) |
 
 Things you add several of are **lists**. Each item has a `name`, and Mediarium finds the one you mean by that name (capital letters don't matter):
 
 | List | Where it is in Mediarium |
 |---|---|
-| `indexers` | Settings > Indexers (Newznab, Torznab and the sites from the site list) |
-| `usenetServers` | Settings > Downloading > Usenet servers |
-| `mediaServers` | Settings > Media servers (Plex, Jellyfin, Emby, Kodi) |
-| `qualityProfiles` | Settings > Profiles |
-| `notifications` | Settings > Notifications (the `config:` lines are the fields of that kind of channel) |
+| `indexers` | Settings > Finding releases > Indexers & Search (Newznab, Torznab and the sites from the site list) |
+| `usenetServers` | Settings > Downloading > Usenet |
+| `mediaServers` | Settings > Media servers and apps > Media servers (Plex, Jellyfin, Emby, Kodi) |
+| `qualityProfiles` | Settings > Finding releases > Quality |
+| `notifications` | Settings > Media servers and apps > Notifications (the `config:` lines are the fields of that kind of channel) |
 
 An item Mediarium doesn't have is **added**, one it has is **changed** to match the file, and one that is not in the file is **left alone**. Nothing is ever deleted by the file: delete on the Settings page.
 

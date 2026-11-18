@@ -8,9 +8,9 @@ Indexers are the sites Mediarium asks when it looks for releases. You'll find th
 | **Torznab** (torrents) | The same API for torrent sites, offered by some trackers and by Prowlarr or Jackett if you already run them. | The Torznab address and API key. |
 | **Sites from the definition list** (torrents) | Torrent sites without an API, driven by a community-maintained definition that describes how to search the site and read its pages. Prowlarr and Jackett use the same approach ("Cardigann"). It's built into Mediarium, so you don't need an extra container. | Nothing for public sites. Your login or browser cookie for private ones. |
 
-![The Indexers page: the Add an indexer form on the left, the indexers you added in the middle and the Cloudflare sites helper card on the right](images/settings-indexers.png)
+![The Indexers page: the Add an indexer form with its Usenet and Torrent tabs, and below it the list of the indexers you added](images/settings-indexers.png)
 
-*Settings > Finding releases > Indexers & Search: add an indexer on the left, your indexers in the middle (with Test, Edit, Disable and Remove) and the optional Cloudflare helper (FlareSolverr) card on the right. The addresses shown are examples.*
+*Settings > Finding releases > Indexers & Search: add an indexer at the top, with your indexers below it (each with Test, Edit, Disable and Remove). The optional Cloudflare helper (FlareSolverr) card is further down. The indexers and addresses shown are made-up examples.*
 
 ## Searching for a release by name
 
@@ -56,11 +56,11 @@ An indexer that is down, blocks you or limits your requests would otherwise slow
 
 While an indexer is paused:
 
-- its card says "Paused until 14:20 after 3 failures in a row, because it could not be reached", and has a **Try again now** button;
+- its card shows a **Paused** tag next to its name, says "Paused until 14:20 after 3 failures in a row, because it could not be reached", and has a **Try again now** button;
 - **Health** lists it as a warning;
 - searches skip it without an error, and a release list that you open says which indexer was skipped.
 
-The first answer that works clears the count, and so does **Try again now**, a **Test** that passes, or editing the indexer. When a pause ends, the next search asks the indexer again; if that fails too, the next pause is longer. The pauses are kept across restarts. A search that you cancel yourself is never counted as a failure.
+The first answer that works clears the count, and so does **Try again now**, a **Test** that passes, or editing the indexer. Mediarium also checks a paused indexer by itself: about every half hour it asks it the small "what do you support" question (one request, not a search), and when it answers the pause is lifted, so an indexer that came back, or whose key was refused for a while, is not left out for hours. An indexer that said you made too many requests is not checked early, so it is not asked again while it is cooling down. When a pause ends, the next search asks the indexer again; if that fails too, the next pause is longer. The pauses are kept across restarts. A search that you cancel yourself is never counted as a failure.
 
 Searches on one indexer are also spaced out, a second and a half apart (six seconds for one that recently said you made too many requests), so a search of the whole library never sends a burst. When so many searches are already lined up for an indexer that a new one would wait more than 10 minutes, the new one skips that indexer instead of waiting; this isn't counted as a failure. A movie or show with other titles in the languages you want ([Releases named in your language](./quality-profiles.md#releases-named-in-your-language)) is one more search for each title, at most four more for a movie and two for a season or episode, spaced the same way.
 
@@ -129,7 +129,7 @@ Mediarium reads the same site definitions Prowlarr's sites are written in, but s
 - **What stays yours.** The priority, minimum seeders, where torrents go, the seeding rules and extra categories you set on an indexer here stay through every sync. Change an indexer's name, address or on/off switch in Prowlarr instead; its card says **From Prowlarr**. Removing one here doesn't stick: the next sync adds it again, so switch it off in Prowlarr.
 - **Unlink** forgets the link and leaves the indexers as they are.
 
-Scripts: `GET`/`PUT /api/settings/prowlarr` (`url`, `apiKey`, `sync`, `remove`) and `POST /api/settings/prowlarr/sync`; `fromProwlarr` on an indexer in `GET /api/indexers`. The one-time import (Settings > Import from other apps) is still there if you want to leave Prowlarr behind (#134, mx4k).
+Scripts: `GET`/`PUT /api/settings/prowlarr` (`url`, `apiKey`, `sync`, `remove`) and `POST /api/settings/prowlarr/sync`; `fromProwlarr` on an indexer in `GET /api/indexers`. The one-time import (Settings > System > Move from other apps) is still there if you want to leave Prowlarr behind (#134, mx4k).
 
 ## How each indexer is doing
 

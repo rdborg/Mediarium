@@ -289,11 +289,12 @@ type addSeriesRequest struct {
 	Monitor   string `json:"monitor"`
 	Sources   string `json:"sources"`
 	SearchNow bool   `json:"searchNow"`
-	// NoUpgrade leaves the episodes alone once they are downloaded. On when
-	// left out: better versions are something the person asks for.
+	// NoUpgrade leaves the episodes alone once they are downloaded. When left
+	// out it follows "Keep looking for better versions" under Settings > Finding
+	// releases > Automatic searching (off unless switched on).
 	NoUpgrade *bool `json:"noUpgrade"`
 	// RootPath is the TV folder to keep it in; left out = where new shows go
-	// (Settings > Library > Folders).
+	// (Settings > Library and files > Folders).
 	RootPath string `json:"rootPath"`
 	// Episode asks for one episode instead of the whole show: the show is
 	// added with nothing monitored but that episode, which is searched for.
@@ -318,7 +319,7 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	if !s.mayAskForAge(w, r, "tv", req.TMDBID) {
@@ -367,7 +368,7 @@ func (s *Server) handleAddSeries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, byline := requester(r)
-	created, err := s.addSeriesFromTMDB(r.Context(), req.TMDBID, userID, boolOr(req.NoUpgrade, true), rootPath, addOrigin(r))
+	created, err := s.addSeriesFromTMDB(r.Context(), req.TMDBID, userID, boolOr(req.NoUpgrade, s.noUpgradeByDefault()), rootPath, addOrigin(r))
 	if err != nil {
 		writeUpstreamError(w, "add that show", err)
 		return

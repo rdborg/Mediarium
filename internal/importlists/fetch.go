@@ -43,6 +43,8 @@ func retryAfter(h http.Header) time.Duration {
 	if secs < 0 {
 		secs = 0
 	}
+	// A day at most: a huge number would overflow the duration into nonsense.
+	secs = min(secs, 24*60*60)
 	return time.Duration(secs) * time.Second
 }
 

@@ -121,19 +121,29 @@ func FitLanguage(r parser.Release, preferred string) LanguageFit {
 // tagged English only, and so is a MULTi or DUAL release that does not name a
 // wanted language. A release in a wanted language is judged as usual.
 func FitLanguageOnly(r parser.Release, preferred string, only bool) LanguageFit {
+	return FitLanguageWith(r, preferred, only, false)
+}
+
+// FitLanguageWith is FitLanguageOnly with the switch "Extra languages don't
+// change the ranking". With ignoreExtra true, only the wanted language a
+// release has decides its rank: a release that names it alone, one that names
+// it next to other languages and a multi-language release that has it all rank
+// the same, so quality and the preferred terms settle which one is picked.
+// Which wanted language it matches still counts, the earlier the better.
+func FitLanguageWith(r parser.Release, preferred string, only, ignoreExtra bool) LanguageFit {
 	langs := ParseLanguages(preferred)
 	if len(langs) <= 1 {
 		one := ""
 		if len(langs) == 1 && !strings.EqualFold(langs[0], OriginalLanguage) {
 			one = langs[0]
 		}
-		return fitOneLanguage(r, one, only)
+		return fitOneLanguage(r, one, only, ignoreExtra)
 	}
 	for i, l := range langs {
 		if strings.EqualFold(l, OriginalLanguage) {
 			continue
 		}
-		if fit := fitOneLanguage(r, l, only); fit.Accepted {
+		if fit := fitOneLanguage(r, l, only, ignoreExtra); fit.Accepted {
 			// Wanting several languages means wanting them together: a
 			// multi-language release that has this one also carries the
 			// others, so it goes above the release that has only this one.
@@ -145,12 +155,12 @@ func FitLanguageOnly(r parser.Release, preferred string, only bool) LanguageFit 
 			return fit
 		}
 	}
-	fit := fitOneLanguage(r, langs[0], only)
+	fit := fitOneLanguage(r, langs[0], only, ignoreExtra)
 	fit.Rank, fit.Accepted = 0, false
 	return fit
 }
 
-func fitOneLanguage(r parser.Release, preferred string, only bool) LanguageFit {
+func fitOneLanguage(r parser.Release, preferred string, only, ignoreExtra bool) LanguageFit {
 	fit := LanguageFit{Accepted: true, Rank: 3, Label: languageLabel(r)}
 	if preferred == "" {
 		return fit
@@ -167,6 +177,8 @@ func fitOneLanguage(r parser.Release, preferred string, only bool) LanguageFit {
 	assumedEnglish := strings.EqualFold(preferred, parser.English)
 
 	switch {
+	case ignoreExtra && has:
+		fit.Rank = 3 // the wanted language is there: what else the release carries does not matter
 	case r.Multi && has:
 		fit.Rank = 2
 	case r.Multi && only:
@@ -221,17 +233,17 @@ func languageLabel(r parser.Release) string {
 	return label
 }
 
-// LanguageRank is the rank FitLanguageOnly gives a release under this
-// profile's Language and LanguageOnly.
+// LanguageRank is the rank FitLanguageWith gives a release under this
+// profile's Language, LanguageOnly and IgnoreExtraLanguages.
 func (p Profile) LanguageRank(r parser.Release) int {
-	return FitLanguageOnly(r, p.Language, p.LanguageOnly).Rank
+	return FitLanguageWith(r, p.Language, p.LanguageOnly, p.IgnoreExtraLanguages).Rank
 }
 
 // LanguageOK reports whether a release's audio language suits the language
 // this profile was loaded with (Language, and LanguageOnly). It is true when
 // none is set.
 func (p Profile) LanguageOK(r parser.Release) bool {
-	return FitLanguageOnly(r, p.Language, p.LanguageOnly).Accepted
+	return FitLanguageWith(r, p.Language, p.LanguageOnly, p.IgnoreExtraLanguages).Accepted
 }
 
 // LanguageReason explains, in plain words, why a release was turned down for

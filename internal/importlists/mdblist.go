@@ -142,7 +142,9 @@ func (c *MDBListClient) Items(ctx context.Context, apiKey, user, list string) ([
 		for _, e := range page.Shows {
 			out = appendMDB(out, e, "tv")
 		}
-		if len(page.Movies) < mdbPageSize && len(page.Shows) < mdbPageSize {
+		// The limit may count movies and shows together (a page of 120 movies and
+		// 80 shows is a full page), so the page counts as full by what it holds in all.
+		if len(page.Movies)+len(page.Shows) < mdbPageSize {
 			break
 		}
 	}

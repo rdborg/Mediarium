@@ -6,7 +6,7 @@ import SimklConnect from '../../components/SimklConnect'
 import { t } from '../../i18n'
 import { SIMKL_COPY, TRAKT_COPY } from '../../components/serviceCopy'
 
-// Settings > Info, lists and subtitles > Import lists: the lists, and the
+// Settings > Library and files > Import lists: the lists, and the
 // Trakt Client ID that reading Trakt lists needs, and the Simkl Client ID and
 // account that reading a person's own Simkl lists needs.
 export default function ListsSettings() {

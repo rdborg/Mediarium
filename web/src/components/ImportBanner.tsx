@@ -27,7 +27,9 @@ function Banners() {
       .catch(() => undefined)
   }, [])
   useEffect(() => load(), [load])
-  useLive(load, 3000)
+  // Every 3 seconds while an import is working, once in a while when none is (it was every 3 seconds on every page, always).
+  const working = !!active && (active.jobs.some((j) => j.phase === 'scanning' || j.phase === 'matching' || j.phase === 'importing') || active.batches.some((b) => b.running))
+  useLive(load, working ? 3000 : 20000)
 
   if (!active) return null
   // Scans that are still reading the folder. Once a scan is waiting to be

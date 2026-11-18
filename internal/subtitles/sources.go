@@ -16,7 +16,7 @@ const (
 
 // ErrNoSource means every source that is set up has been switched off, or none
 // is set up at all.
-var ErrNoSource = errors.New("No subtitle source is switched on. Switch one on in Settings > Info, lists and subtitles > Subtitles.")
+var ErrNoSource = errors.New("No subtitle source is switched on. Switch one on in Settings > Library and files > Subtitles.")
 
 // SourceSetup is what one source has to go on.
 type SourceSetup struct {

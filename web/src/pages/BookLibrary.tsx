@@ -12,6 +12,7 @@ import { useToast } from '../components/Toast'
 import FilterToggle from '../components/FilterToggle'
 import { t } from '../i18n'
 import { useUrlState } from '../useUrlState'
+import { useAddSearchNow } from '../useAddSearchNow'
 import { useModules } from '../ModulesContext'
 import { looseIncludes } from '../looseText'
 
@@ -210,6 +211,8 @@ function AddBook({ format, onAdded }: { format: BookFormat; onAdded: () => void 
   const [both, setBoth] = useState(false)
   const [asked, setAsked] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState('')
+  // Searching when a book is added follows Settings > Finding releases > Automatic searching.
+  const { searchNow } = useAddSearchNow()
 
   useEffect(() => {
     const term = q.trim()
@@ -247,14 +250,14 @@ function AddBook({ format, onAdded }: { format: BookFormat; onAdded: () => void 
         googleId: f.googleId,
         ebook: format === 'ebook' || wantOther,
         audiobook: format === 'audiobook' || wantOther,
-        searchNow: true,
+        searchNow,
       })
       if (isRequested(b)) {
         toast.success(b.message)
         setAsked((s) => new Set(s).add(f.key)) // the button stays off, so the same request isn't sent twice
         return
       }
-      toast.success(t('{title} added. Mediarium is looking for it now.', { title: b.title }))
+      toast.success(searchNow ? t('{title} added. Mediarium is looking for it now.', { title: b.title }) : t('{title} added.', { title: b.title }))
       setResults((r) => r?.map((x) => (x.key === f.key ? { ...x, libraryId: b.id } : x)) ?? r)
       onAdded()
     } catch (e) {

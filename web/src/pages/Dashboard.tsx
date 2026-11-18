@@ -234,7 +234,7 @@ function FolderCard({ f }: { f: DashFolder }) {
           </>
         )}
         {f.newTitles && (
-          <span className="badge downloading" title={t('A title added without a folder choice goes here (Settings > Library > Folders).')}>
+          <span className="badge downloading" title={t('A title added without a folder choice goes here (Settings > Library and files > Folders).')}>
             {t('new titles go here')}
           </span>
         )}
@@ -640,7 +640,7 @@ export default function Dashboard() {
           ) : (
             <ul className="mini-list compact">
               {data.upcoming.map((e) => (
-                <li key={`${e.kind}-${e.id}`}>
+                <li key={`${e.kind}-${e.id}-${e.release ?? ''}-${e.releaseDate}`}>
                   <Link className="mini-link" to={e.kind === 'movie' ? `/title/${e.tmdbId}` : e.kind === 'episode' ? `/series/${e.seriesId}` : `/music/artist/${e.artistId}`}>
                   <span className="date-chip">
                     <b>{chipDay(e).getDate()}</b>

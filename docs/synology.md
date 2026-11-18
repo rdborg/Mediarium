@@ -201,7 +201,7 @@ Music, ebooks and audiobooks each switch on under **Settings, Basics, Media type
 
 - **Inside your one shared folder:** create the folder (for example `Music`), add `MUSIC_DIR=/data/Music`, `EBOOKS_DIR=/data/Ebooks` or `AUDIOBOOKS_DIR=/data/Audiobooks` to the `environment:` lines, then stop the project, choose **Action, Build** and **Start**. Nothing else to map.
 - **A folder somewhere else:** add a line under `volumes:`, for example `- /volume1/music:/music`, and rebuild the same way. No `environment:` line is needed when the right side is `/music`, `/ebooks` or `/audiobooks`.
-- Then switch the type on in **Settings, Basics, Media types** and check the folder in **Settings, Library and files and files, Folders**.
+- Then switch the type on in **Settings, Basics, Media types** and check the folder in **Settings, Library and files, Folders**.
 
 ## Reach it from outside your home
 

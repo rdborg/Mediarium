@@ -235,9 +235,9 @@ func (s *Server) handleListPasskeys(w http.ResponseWriter, r *http.Request) {
 	reason := ""
 	switch {
 	case switchedOn && origin == "":
-		reason = "Passkeys need the address you open Mediarium at, starting with https:// and with a name (not an IP address). An administrator can set it under Settings > General > Address of Mediarium."
+		reason = "Passkeys need the address you open Mediarium at, starting with https:// and with a name (not an IP address). An administrator can set it under Settings > Basics > General > Address of Mediarium."
 	case !s.passkeysActive():
-		reason = "Passkeys aren't switched on. An administrator can switch them on under Settings > Accounts > Ways to sign in."
+		reason = "Passkeys aren't switched on. An administrator can switch them on under Settings > People and access > Ways to sign in."
 	case !user.IsLocal():
 		reason = "Your account signs in through single sign-on or the directory, so it can't have passkeys here."
 	}

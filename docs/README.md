@@ -26,6 +26,7 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 | Reach Mediarium from the internet safely (reverse proxy checklist, trusted proxies, what the app protects) | [security.md](./security.md) |
 | Seed the same files on more than one tracker (cross-seeding) next to Mediarium, with Qui or cross-seed | [cross-seeding.md](./cross-seeding.md) |
 | Choose a quality profile (the built-in presets, cutoffs, upgrades, fallback profiles) | [quality-profiles.md](./quality-profiles.md) |
+| Sync the TRaSH Guides profiles, custom formats and sizes into Mediarium with Recyclarr | [quality-profiles.md](./quality-profiles.md#using-recyclarr) |
 | Use Mediarium in Spanish, German, French, Italian, Dutch, Polish, Russian, Ukrainian, Simplified Chinese or Portuguese (Brazil or Portugal), or help with a translation | [languages.md](./languages.md) |
 | Report a problem or share an idea from inside Mediarium, privately or on GitHub, with a screenshot and the support report | [report-a-problem.md](./report-a-problem.md) |
 | Know what the optional anonymous usage numbers are, what is sent, where it goes, and how to switch it off or use the survey instead | [usage-stats.md](./usage-stats.md) |

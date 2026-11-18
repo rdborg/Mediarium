@@ -284,3 +284,63 @@ func TestResolveOriginal(t *testing.T) {
 		}
 	}
 }
+
+// With "Extra languages don't change the ranking" on, a release that has a
+// wanted language ranks the same whether it names only that language, adds
+// others or is a multi-language release holding it. The order of the wanted
+// languages still counts.
+func TestFitLanguageIgnoreExtra(t *testing.T) {
+	const (
+		plain   = "Movie.2020.GERMAN.1080p.BluRay.x264-GRP"
+		dual    = "Movie.2020.German.DL.1080p.BluRay.x264-GRP"
+		multi   = "Movie.2020.MULTi.GERMAN.ENG.1080p.BluRay.x264-GRP"
+		english = "Movie.2020.ENG.1080p.BluRay.x264-GRP"
+		italian = "Movie.2020.ITA.1080p.BluRay.x264-GRP"
+	)
+	rank := func(title, preferred string, ignore bool) int {
+		return quality.FitLanguageWith(parser.Parse(title), preferred, false, ignore).Rank
+	}
+	tests := []struct {
+		name      string
+		preferred string
+		a, b      string
+		ignore    bool
+		// want is the sign of rank(a) - rank(b): 1, 0 or -1.
+		want int
+	}{
+		{"one language, off: plain above multi", "German", plain, multi, false, 1},
+		{"one language, on: plain and multi tie", "German", plain, multi, true, 0},
+		{"one language, on: plain and dual tie", "German", plain, dual, true, 0},
+		{"several, off: multi above plain", "German,English", multi, plain, false, 1},
+		{"several, on: multi and plain tie", "German,English", multi, plain, true, 0},
+		{"several, on: dual and plain tie", "German,English", dual, plain, true, 0},
+		{"several, on: the first language still wins", "German,English", plain, english, true, 1},
+		{"several, on: a later language ranks below", "German,Italian", italian, multi, true, -1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a, b := rank(tc.a, tc.preferred, tc.ignore), rank(tc.b, tc.preferred, tc.ignore)
+			got := 0
+			if a > b {
+				got = 1
+			} else if a < b {
+				got = -1
+			}
+			if got != tc.want {
+				t.Fatalf("rank(%q)=%d rank(%q)=%d, want sign %d", tc.a, a, tc.b, b, tc.want)
+			}
+		})
+	}
+	// The switch changes ranking only: what is accepted stays the same.
+	for _, title := range []string{plain, dual, multi, english, italian} {
+		on := quality.FitLanguageWith(parser.Parse(title), "German,English", false, true).Accepted
+		off := quality.FitLanguageWith(parser.Parse(title), "German,English", false, false).Accepted
+		if on != off {
+			t.Errorf("%q accepted %v with the switch on, %v off", title, on, off)
+		}
+	}
+	p := quality.Profile{Language: "German,English", IgnoreExtraLanguages: true}
+	if p.LanguageRank(parser.Parse(multi)) != p.LanguageRank(parser.Parse(plain)) {
+		t.Error("Profile.LanguageRank ignores the switch")
+	}
+}

@@ -5,18 +5,18 @@
 //
 // The file has one block per settings page that holds a single set of values:
 //
-//	settings:        # Settings > General, Library, Downloading, Info, ...
+//	settings:        # most Settings pages (the ones that are one set of values)
 //	downloadClient:  # Settings > Downloading > Torrents > Use your own torrent client
 //	debrid:          # Settings > Downloading > Torrents > Debrid service
-//	proxy:           # Settings > Downloading > Proxy
-//	systemOptions:   # Settings > System > Updates
+//	proxy:           # Settings > Downloading > VPN and proxy
+//	systemOptions:   # Settings > Basics > General
 //
 // Things you add several of are lists, matched by their name:
 //
-//	indexers:        # Settings > Indexers
-//	usenetServers:   # Settings > Downloading > Usenet servers
-//	mediaServers:    # Settings > Media servers
-//	qualityProfiles: # Settings > Profiles
+//	indexers:        # Settings > Finding releases > Indexers & Search
+//	usenetServers:   # Settings > Downloading > Usenet
+//	mediaServers:    # Settings > Media servers and apps > Media servers
+//	qualityProfiles: # Settings > Finding releases > Quality
 //
 // A list item that Mediarium doesn't have yet is added, one it has is changed
 // to match, and one that is not in the file is left alone.

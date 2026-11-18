@@ -56,7 +56,9 @@ type mcpTool struct {
 	name  string
 	desc  string
 	write bool
-	// download marks the two tools that pick a release and start its download.
+	// download marks the tools that pick a release and start its download
+	// (find_releases, grab_release) and the ones that add a title or search
+	// for it, which ends in a download (add_movie, add_series, search_now).
 	// Like write tools they need a key that is not read-only, and they are only
 	// there while an administrator has switched on downloads for assistants.
 	download bool
@@ -171,7 +173,7 @@ func (c *mcpCtx) callTool(params json.RawMessage) (any, *rpcError) {
 	case (tool.write || tool.download) && c.user.ReadOnly():
 		err = toolErr("This API key is read-only, so it can't change anything. Use an administrator's key that is not read-only for this tool.")
 	case tool.download && !c.s.mcpDownloadsOn():
-		err = toolErr("Downloads are not allowed for AI assistants. An administrator can turn on Let assistants pick releases and start downloads under Settings > Other apps. Nothing has been downloaded.")
+		err = toolErr("Downloads are not allowed for AI assistants, and this tool can start one. An administrator can turn on Let assistants pick releases and start downloads under Settings > Media servers and apps > Other apps. Nothing was added, searched for or downloaded.")
 	default:
 		out, err = c.runTool(tool, coerceArgs(p.Arguments, tool.schema))
 	}

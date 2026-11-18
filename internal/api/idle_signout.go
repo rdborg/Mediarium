@@ -12,7 +12,7 @@ import (
 	"github.com/rdborg/mediarium/internal/settings"
 )
 
-// Signing out browsers that sit unused. Settings > Account & Access > Security
+// Signing out browsers that sit unused. Settings > People and access > Security
 // has a number of days; a browser session not used for that long ends. 0 (the
 // default) leaves it off. API keys, calendar feeds and the e-reader passwords
 // are not browser sessions and are not touched.

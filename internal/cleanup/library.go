@@ -171,6 +171,9 @@ func PruneEmptyFolders(root, dir string) {
 		if err != nil || !info.IsDir() {
 			return
 		}
+		if !strings.HasPrefix(cur, absRoot+string(os.PathSeparator)) { // never remove the root itself or anything outside it
+			return
+		}
 		if os.Remove(cur) != nil { // only succeeds on an empty folder
 			return
 		}

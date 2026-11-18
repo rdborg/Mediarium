@@ -76,8 +76,8 @@ func arrEmptyPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // arrMediaManagementConfig answers GET /config/mediamanagement.
-func arrMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
+func (s *Server) arrMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
+	out := map[string]any{
 		"id": 1, "autoUnmonitorPreviouslyDownloadedMovies": false, "recycleBin": "", "recycleBinCleanupDays": 7,
 		"downloadPropersAndRepacks": "preferAndUpgrade", "createEmptyMovieFolders": false, "deleteEmptyFolders": false,
 		"fileDate": "none", "rescanAfterRefresh": "always", "setPermissionsLinux": false, "chmodFolder": "755",
@@ -85,19 +85,11 @@ func arrMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
 		"copyUsingHardlinks": true, "useScriptImport": false, "scriptImportPath": "", "importExtraFiles": false,
 		"extraFileExtensions": "srt", "enableMediaInfo": true, "autoRenameFolders": false, "pathsDefaultStatic": false,
 		"autoUnmonitorPreviouslyDownloadedEpisodes": false, "watchLibraryForChanges": true,
-	})
-}
-
-// arrNamingConfig answers GET /config/naming.
-func arrNamingConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"id": 1, "renameMovies": true, "renameEpisodes": true, "replaceIllegalCharacters": true,
-		"colonReplacementFormat": "delete", "standardMovieFormat": "{Movie Title} ({Release Year})",
-		"movieFolderFormat": "{Movie Title} ({Release Year})", "standardEpisodeFormat": "{Series Title} - S{season:00}E{episode:00} - {Episode Title}",
-		"dailyEpisodeFormat": "{Series Title} - {Air-Date} - {Episode Title}", "animeEpisodeFormat": "{Series Title} - S{season:00}E{episode:00} - {Episode Title}",
-		"seriesFolderFormat": "{Series Title}", "seasonFolderFormat": "Season {season}", "specialsFolderFormat": "Specials",
-		"multiEpisodeStyle": 5, "includeSeriesTitle": false,
-	})
+	}
+	if v, ok := s.arrConfigEcho()["downloadPropersAndRepacks"].(string); ok {
+		out["downloadPropersAndRepacks"] = v
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // arrDownloadClientConfig answers GET /config/downloadclient.
@@ -130,8 +122,12 @@ func (a arrApp) extraRoutes(s *Server, h func(method, path string, fn http.Handl
 	h("GET", "/exclusions/paged", arrEmptyPage)
 	h("GET", "/importexclusion/paged", arrEmptyPage)
 	h("GET", "/importlistexclusion/paged", arrEmptyPage)
-	h("GET", "/config/mediamanagement", arrMediaManagementConfig)
-	h("GET", "/config/naming", arrNamingConfig)
+	h("GET", "/config/mediamanagement", s.arrMediaManagementConfig)
+	h("GET", "/config/naming", s.arrNamingConfig)
+	if a != arrLidarr {
+		h("PUT", "/config/naming/{id}", s.arrUpdateNamingConfig(a))
+		h("PUT", "/config/mediamanagement/{id}", s.arrUpdateMediaManagement)
+	}
 	h("GET", "/config/downloadclient", arrDownloadClientConfig)
 	h("GET", "/config/indexer", arrIndexerConfig)
 	h("GET", "/delayprofile", arrDelayProfiles)

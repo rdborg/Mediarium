@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api, type PersonCredit, type PersonPage } from '../api'
+import LoadFailed from '../components/LoadFailed'
 import AddDialog, { type AddTarget } from '../components/AddDialog'
 import { DiscoverCards } from '../components/DiscoverRail'
 import Icon from '../components/Icon'
@@ -54,7 +55,7 @@ export default function Person() {
   const movies = useMemo(() => filterByRole(person?.movies ?? [], role), [person, role])
   const shows = useMemo(() => filterByRole(person?.shows ?? [], role), [person, role])
 
-  if (error) return <p className="error-text">{error}</p>
+  if (error) return <LoadFailed message={error} />
   if (!person) return <div className="skeleton" style={{ height: 320, borderRadius: 22 }} />
 
   const age = ageOf(person.birthday, person.deathday)

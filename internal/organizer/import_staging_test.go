@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Two imports to the same place each stage under a name of their own, so one
@@ -56,5 +57,46 @@ func TestImportSeesADanglingLinkAtTheDestination(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(dir, "gone.mkv")); !os.IsNotExist(err) {
 		t.Fatalf("nothing is written through the link: %v", err)
+	}
+}
+
+// A copy cut short by a restart or a power cut leaves its staging file in the
+// library. The next import of that title clears the old ones away, and leaves
+// alone a recent one (a copy that may still be running), other titles' files
+// and anything that is not a staging file.
+func TestImportClearsStaleStagingFiles(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "Movie (2020).mkv")
+	old := time.Now().Add(-3 * time.Hour)
+	put := func(name string, mod time.Time) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("half"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, mod, mod); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	stale := put("Movie (2020).mkv.0badc0de"+stagingSuffix, old)
+	recent := put("Movie (2020).mkv.1badc0de"+stagingSuffix, time.Now())
+	other := put("Other (2021).mkv.2badc0de"+stagingSuffix, old)
+	notStaging := put("Movie (2020).mkv.nfo", old)
+	badName := put("Movie (2020).mkv.zz"+stagingSuffix, old)
+
+	src := filepath.Join(dir, "download.mkv")
+	if err := os.WriteFile(src, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ImportCopy(src, dest, ConflictSkip, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("the old staging file should be gone: %v", err)
+	}
+	for name, p := range map[string]string{"recent staging file": recent, "other title's": other, "sidecar": notStaging, "odd name": badName} {
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("the %s should stay: %v", name, err)
+		}
 	}
 }

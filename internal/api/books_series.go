@@ -246,7 +246,7 @@ func (s *Server) handleFollowSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if (req.Ebook && !s.ebooksEnabled()) || (req.Audiobook && !s.audiobooksEnabled()) {
-		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Basics > Media types.")
 		return
 	}
 	f := books.FollowedSeries{Source: source, Key: key, Name: strings.TrimSpace(req.Name), WantEbook: req.Ebook, WantAudiobook: req.Audiobook}
@@ -370,7 +370,7 @@ func (s *Server) huntSeries(ctx context.Context) {
 	}
 }
 
-// ---- The Hardcover token (Settings > Info, lists and subtitles)
+// ---- The Hardcover token (Settings > Library and files)
 
 type hardcoverTokenState struct {
 	Set      bool   `json:"set"`

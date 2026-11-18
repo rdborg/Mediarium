@@ -57,7 +57,7 @@ docker compose pull
 docker compose up -d
 ```
 
-When a new version is out, administrators see a card on the dashboard and on **Settings → General**. If the release is signed, the card also has an **Update now** button. See [Update now](./INSTALL.md#update-now-docker-image).
+When a new version is out, administrators see a card on the dashboard and on **Settings → Basics → General**. If the release is signed, the card also has an **Update now** button. See [Update now](./INSTALL.md#update-now-docker-image).
 
 ## Starting at boot
 

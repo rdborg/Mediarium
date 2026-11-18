@@ -69,11 +69,11 @@ Add one more **Variable** for each kind of media you use. The folder must exist 
 | Variable | Ebooks folder | `EBOOKS_DIR` | `/data/media/ebooks` |
 | Variable | Audiobooks folder | `AUDIOBOOKS_DIR` | `/data/media/audiobooks` |
 
-Music, ebooks and audiobooks each switch on under **Settings → Media types**. If a folder lives in another share, add a **Path** instead: Container Path `/music` (or `/ebooks`, `/audiobooks`) and the Host Path of that share, and skip the variable.
+Music, ebooks and audiobooks each switch on under **Settings → Basics → Media types**. If a folder lives in another share, add a **Path** instead: Container Path `/music` (or `/ebooks`, `/audiobooks`) and the Host Path of that share, and skip the variable.
 
 ### Adding one later
 
-Edit the container (Docker tab → the icon → **Edit**), add the variable or path, and **Apply**. Then switch the type on in Mediarium under **Settings → Media types** and check the folder under **Settings → Library → Folders**.
+Edit the container (Docker tab → the icon → **Edit**), add the variable or path, and **Apply**. Then switch the type on in Mediarium under **Settings → Basics → Media types** and check the folder under **Settings → Library and files → Folders**.
 
 ## Running next to Radarr, Sonarr and SABnzbd
 
@@ -83,7 +83,7 @@ Mediarium runs beside your current apps. It has its own port (8264) and its own 
 
 On the **Docker** tab, click **Check for Updates** at the bottom. When Mediarium shows **update ready**, click it (or the icon → **Update**). Your settings and library are kept. Read the [changelog](../CHANGELOG.md) first and back up before a big update.
 
-When a new version is out, administrators see a card on the dashboard and on **Settings → General**. If the release is signed, the card also has an **Update now** button. See [Update now](./INSTALL.md#update-now-docker-image).
+When a new version is out, administrators see a card on the dashboard and on **Settings → Basics → General**. If the release is signed, the card also has an **Update now** button. See [Update now](./INSTALL.md#update-now-docker-image).
 
 ## Backing up
 

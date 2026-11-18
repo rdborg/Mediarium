@@ -160,7 +160,10 @@ func TestSABnzbdLookAlike(t *testing.T) {
 	if slots[1].(map[string]any)["status"] != "Paused" {
 		t.Fatalf("second slot: %v", slots[1])
 	}
-	for _, k := range []string{"kbpersec", "speed", "paused", "size", "sizeleft", "timeleft", "diskspace1", "diskspace2", "mb", "mbleft", "version"} {
+	if snap["status"] != "Downloading" {
+		t.Errorf("queue status = %v, want Downloading (Home Assistant shows it)", snap["status"])
+	}
+	for _, k := range []string{"kbpersec", "speed", "paused", "size", "sizeleft", "timeleft", "diskspace1", "diskspace2", "mb", "mbleft", "version", "status"} {
 		if _, ok := snap[k]; !ok {
 			t.Errorf("queue lacks %q", k)
 		}

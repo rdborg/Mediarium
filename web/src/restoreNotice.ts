@@ -1,4 +1,4 @@
-// After a restore from Settings > Backup the app restarts on the restored
+// After a restore from Settings > System > Backup and restore the app restarts on the restored
 // database, which doesn't hold this browser's session, so the next thing the
 // person sees is the sign-in page. This remembers, for this tab only, that a
 // restore was just started, so the sign-in page can say it worked.

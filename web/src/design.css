@@ -1021,7 +1021,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--sec, var(--accen
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.req-badge.required { color: #fff; background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent); }
+.req-badge.required { color: var(--on-danger); background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent); }
 .req-badge.optional { color: var(--info); background: color-mix(in srgb, var(--info) 16%, transparent); border: 1.5px solid var(--info); }
 .service-card.is-required { border-top: 4px solid var(--danger); }
 .service-card.is-optional { border-top: 4px solid var(--info); }
@@ -1169,6 +1169,12 @@ details.own-key[open] summary { margin-bottom: 6px; }
 .wizard-nav > .btn-back { justify-self: start; grid-column: 1; }
 .wizard-nav > button.primary { justify-self: center; grid-column: 2; }
 .wizard-nav > button:not(.primary):not(.btn-back) { justify-self: end; grid-column: 3; }
+.wizard-nav > button { white-space: nowrap; }
+/* On a phone three buttons do not fit side by side in a long language: they wrap as whole buttons instead of breaking inside a word. */
+@media (max-width: 560px) {
+  .wizard-nav { display: flex; flex-wrap: wrap; justify-content: center; }
+  .wizard-nav > .btn-back, .wizard-nav > button.primary, .wizard-nav > button:not(.primary):not(.btn-back) { justify-self: auto; grid-column: auto; }
+}
 
 /* ---- Radio choice cards (wizard naming step, etc.) --------------------- */
 .choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
@@ -1425,6 +1431,7 @@ fieldset.group .card, fieldset.group table { max-width: 100%; }
 .file-ico.kind-subtitle { background: color-mix(in srgb, #f4a3c8 18%, transparent); color: #f4a3c8; }
 .file-name { display: grid; min-width: 0; flex: 1; }
 .file-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9rem; }
+.file-name span.file-when { white-space: normal; overflow: visible; }
 .file-name small { color: var(--text-dim); font-size: 0.78rem; }
 .files-card summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
 .files-card summary::-webkit-details-marker { display: none; }
@@ -1584,7 +1591,7 @@ fieldset.group .card, fieldset.group table { max-width: 100%; }
 
 /* In-app confirmations (ConfirmProvider) */
 .confirm-dialog.is-danger .confirm-ico { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
-.btn-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.btn-danger-solid { background: var(--danger); border-color: var(--danger); color: var(--on-danger); font-weight: 600; }
 .btn-danger-solid:hover { filter: brightness(1.08); }
 .confirm-break { overflow-wrap: anywhere; }
 .confirm-option { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
@@ -2545,7 +2552,8 @@ button.pl-head:hover { background: transparent; }
 .pl-head-top { display: flex; align-items: center; gap: 8px; }
 .pl-level { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: var(--rc); background: color-mix(in srgb, var(--rc) 15%, transparent); }
 .pl-title { min-width: 0; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
-.pl-new { padding: 1px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; background: var(--rc); }
+.pl-new { padding: 1px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #1a0a0a; background: var(--rc); }
+:root[data-theme='light'] .pl-new { color: #fff; }
 .pl-meta { display: inline-flex; flex: 1 1 0; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; color: var(--text-dim); font-size: 0.84rem; }
 .pl-area { padding: 1px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 0.78rem; }
 .pl-times { padding: 1px 9px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: var(--text); background: color-mix(in srgb, var(--rc) 14%, transparent); }
@@ -2581,7 +2589,7 @@ pre.pl-detail { margin: 0; max-height: 240px; overflow: auto; padding: 10px 12px
 .nav-dot { flex: none; width: 9px; height: 9px; margin-left: auto; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); animation: pulse-soft 1.8s ease-in-out infinite; }
 .sn-head .nav-dot { margin-left: 6px; }
 
-.sn-count { flex: none; margin-left: auto; min-width: 18px; padding: 0 6px; border-radius: 999px; text-align: center; font-size: 0.68rem; font-weight: 700; color: #fff; background: var(--danger); }
+.sn-count { flex: none; margin-left: auto; min-width: 18px; padding: 0 6px; border-radius: 999px; text-align: center; font-size: 0.68rem; font-weight: 700; color: var(--on-danger); background: var(--danger); }
 
 @media (max-width: 720px) {
   .pl-actions { width: 100%; }
@@ -2973,7 +2981,7 @@ a.bar-label:hover { color: var(--accent); }
 .pcard-ribbon.tone-ebook { background: var(--c-book); }
 .pcard-ribbon.tone-audio { background: var(--c-audiobook); }
 .pcard-ribbon.tone-both { background: linear-gradient(90deg, var(--c-book), var(--c-audiobook)); }
-.pcard-ribbon.tone-ended { top: 15px; right: -33px; width: 110px; padding: 2px 0; font-size: 0.62rem; font-weight: 700; background: color-mix(in srgb, var(--surface) 88%, #000); color: var(--text-dim); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.pcard-ribbon.tone-ended { top: 15px; right: -33px; width: 110px; padding: 2px 0; font-size: 0.62rem; font-weight: 700; background: color-mix(in srgb, var(--surface) 88%, #000); color: var(--text); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 /* The main action (Add) has its label and lights up as soon as the card is hovered */
 .pcard-actions .icon-btn.primary-act { width: auto; padding: 0 14px; gap: 6px; font-weight: 700; font-size: 0.85rem; }
 .pcard:hover .pcard-actions .icon-btn.primary-act,
@@ -3419,10 +3427,11 @@ img[data-broken] { visibility: hidden; }
 .sidebar .sn-collapse-inner { min-height: 0; overflow: hidden; }
 .sidebar .sn-collapse:not(.open) .sn-collapse-inner { visibility: hidden; transition: visibility 0s linear 0.24s; }
 .sidebar .sn-collapse .subnav { animation: none; }
-.sidebar a .nav-here { margin-left: auto; min-width: 0; max-width: 40%; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; font-weight: 500; color: var(--text-dim); }
+.sidebar a .nav-here { margin-left: auto; min-width: 0; max-width: 55%; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; font-weight: 500; color: var(--text-dim); }
 .sidebar a .nav-here + .nav-chev { margin-left: 0; }
 /* The group's own name stays whole; the page named next to it is what gets shortened. */
 .sidebar a:has(.nav-here) .nav-label { flex: none; }
+.sidebar a:has(.nav-here) { gap: 7px; }
 .sidebar a[aria-expanded] .nav-chev { transition: transform 0.24s var(--ease); }
 @media (prefers-reduced-motion: reduce) {
   .sidebar .sn-collapse, .sidebar .sn-collapse:not(.open) .sn-collapse-inner, .sidebar a[aria-expanded] .nav-chev { transition: none; }
@@ -3520,3 +3529,8 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
 .add-songs-list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .add-songs-list .len { color: var(--text-dim); font-variant-numeric: tabular-nums; flex: none; }
 .add-songs-list li.is-picked .name { color: var(--accent); font-weight: 600; }
+
+/* A page that could not load: the message, then buttons for what to do next. */
+.load-failed { display: grid; gap: 14px; justify-items: start; margin-top: 8px; }
+.load-failed .error-text { margin: 0; }
+.load-failed-actions { display: flex; flex-wrap: wrap; gap: 10px; }

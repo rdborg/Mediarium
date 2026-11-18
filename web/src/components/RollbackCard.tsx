@@ -8,7 +8,7 @@ import Icon from './Icon'
 import TipLabel from './TipLabel'
 import { useToast } from './Toast'
 
-// Settings > General: going back after an update that went wrong. Before an
+// Settings > Basics > General: going back after an update that went wrong. Before an
 // update changes the database, Mediarium keeps a copy of it; putting that copy
 // back (and the program from before, when an update was installed from here)
 // is what an older version needs to run again. Hidden while there is nothing

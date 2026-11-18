@@ -334,15 +334,21 @@ func PurgeTrash(root string, cutoff time.Time) (int, int64, error) {
 		return 0, 0, err
 	}
 	n, freed := 0, int64(0)
+	var first error
 	for _, e := range entries {
 		if !e.DeletedAt.Before(cutoff) {
 			continue
 		}
+		// One entry that cannot be deleted (a file in use, a permission) must not
+		// keep the older ones behind it in the bin for ever.
 		if err := DeleteTrash(root, e.ID); err != nil {
-			return n, freed, err
+			if first == nil {
+				first = err
+			}
+			continue
 		}
 		n++
 		freed += e.Size
 	}
-	return n, freed, nil
+	return n, freed, first
 }

@@ -1,5 +1,5 @@
 // Package fileperms holds the file and folder modes Mediarium gives to what it
-// creates in the library (Settings > Library > Folders), and the
+// creates in the library (Settings > Library and files > Folders), and the
 // small helpers that apply them.
 //
 // With no mode set (the default) nothing is changed: files and folders get

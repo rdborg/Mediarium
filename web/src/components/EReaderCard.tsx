@@ -62,12 +62,12 @@ export default function EReaderCard() {
       <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>
         {t('Get the ebooks in your library onto an e-reader. Both ways below are off until you turn them on, and each only lets the e-reader read books.')}
       </p>
-      {!access.ebooks && <p className="error-text">{t('Ebooks are switched off, so nothing will show up on an e-reader yet. An administrator can switch them on under Settings > Media types.')}</p>}
+      {!access.ebooks && <p className="error-text">{t('Ebooks are switched off, so nothing will show up on an e-reader yet. An administrator can switch them on under Settings > Basics > Media types.')}</p>}
       {access.ebooks && !access.allowed && <p className="error-text">{t("Your account isn't allowed to read books, so an e-reader will be turned away. Ask an administrator.")}</p>}
 
-      <h3 style={{ margin: '16px 0 6px', fontSize: '1rem' }}>{t('Reading apps (OPDS)')}</h3>
+      <h3 aria-level={2} style={{ margin: '16px 0 6px', fontSize: '1rem' }}>{t('Reading apps (OPDS)')}</h3>
       <p style={{ color: 'var(--text-dim)', margin: '0 0 8px' }}>
-        {t('For KOReader, Moon+ Reader, Librera, Marvin, Foliate and other apps that can connect to an OPDS catalogue. Add a catalogue in the app with this address, your user name and an e-reader password. It is not your sign-in password.')}
+        {t('For KOReader, Moon+ Reader, Librera, Marvin, Foliate and other apps that can connect to an OPDS catalogue. Add a catalogue in the app with this address, your username and an e-reader password. It is not your sign-in password.')}
       </p>
       {access.opds.on ? (
         <>

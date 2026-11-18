@@ -75,7 +75,7 @@ const defaultUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KH
 
 // ErrCloudflare is returned when a site shows a Cloudflare browser check
 // and no FlareSolverr is configured to pass it.
-var ErrCloudflare = errors.New("This site is behind a Cloudflare check. Set up FlareSolverr (see Settings > Indexers & Search) to use it.")
+var ErrCloudflare = errors.New("This site is behind a Cloudflare check. Set up FlareSolverr (see Settings > Finding releases > Indexers & Search) to use it.")
 
 // NewCardigannManager returns a manager reading definitions from store.
 func NewCardigannManager(store *DefinitionStore, flareSolverrURL func() string) *CardigannManager {

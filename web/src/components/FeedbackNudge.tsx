@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { demoEnabled } from '../demo'
+import { demoEnabled } from '../demoFlag'
 import { REPO_URL } from '../docs'
 import { openReport } from '../report'
 import { t } from '../i18n'

@@ -39,6 +39,9 @@ var (
 	// ErrBadKey is returned when slskd turns the API key down, or the key is
 	// read-only (searching and downloading need a read-write key).
 	ErrBadKey = errors.New("slskd didn't accept the API key")
+	// ErrNotSlskd is returned when the address answers with a web page: a login
+	// page of a proxy in front of it, or another program on that port.
+	ErrNotSlskd = errors.New("that address answered with a web page, not slskd's API. Check the address and port (slskd's web port is usually 5030) and any login a proxy puts in front of it")
 	// ErrUserOffline is returned when the user who has the files is gone.
 	ErrUserOffline = errors.New("that Soulseek user is offline")
 	// ErrBusy is returned when slskd asks to wait (another search is starting).
@@ -94,6 +97,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) (in
 	}
 	if out != nil && len(data) > 0 {
 		if err := json.Unmarshal(data, out); err != nil {
+			if head := bytes.TrimSpace(data[:min(len(data), 64)]); bytes.HasPrefix(head, []byte("<")) {
+				return resp.StatusCode, ErrNotSlskd
+			}
 			return resp.StatusCode, fmt.Errorf("slskd: read the answer to %s %s: %w", method, path, err)
 		}
 	}

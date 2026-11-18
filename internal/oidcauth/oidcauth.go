@@ -572,7 +572,7 @@ func (c Config) EmailAllowed(email string) bool {
 func RedirectURL(publicURL string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(publicURL))
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		return "", errors.New("set the address you open Mediarium at (Settings > General > Address of Mediarium) first, for example https://mediarium.example.com")
+		return "", errors.New("set the address you open Mediarium at (Settings > Basics > General > Address of Mediarium) first, for example https://mediarium.example.com")
 	}
 	u.RawQuery, u.Fragment, u.User = "", "", nil
 	return strings.TrimRight(u.String(), "/") + "/api/auth/oidc/callback", nil

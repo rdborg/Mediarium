@@ -19,9 +19,13 @@ export function useLive(refresh: () => unknown, ms: number, enabled = true) {
       if (timer !== undefined) clearInterval(timer)
       timer = undefined
     }
+    // Coming back to a tab fires both "visible" and "focus"; one refresh is enough.
+    let lastBack = 0
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        void fn.current()
+        const now = Date.now()
+        if (now - lastBack > 400) void fn.current()
+        lastBack = now
         start()
       } else {
         stop()

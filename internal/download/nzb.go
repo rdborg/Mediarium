@@ -23,6 +23,9 @@ type NZB struct {
 	// Password is the archive password the poster put in the NZB's head
 	// (<meta type="password">), or empty.
 	Password string
+	// Title is the name the poster put in the NZB's head (<meta type="name"> or
+	// "title"), or empty.
+	Title string
 }
 
 type NZBFile struct {
@@ -101,6 +104,9 @@ func ParseNZB(data []byte) (*NZB, error) {
 	for _, m := range raw.Head.Meta {
 		if strings.EqualFold(m.Type, "password") && nzb.Password == "" {
 			nzb.Password = cleanArchivePassword(m.Value)
+		}
+		if (strings.EqualFold(m.Type, "name") || strings.EqualFold(m.Type, "title")) && nzb.Title == "" {
+			nzb.Title = metaTitle(m.Value)
 		}
 	}
 	for i, rf := range raw.Files {

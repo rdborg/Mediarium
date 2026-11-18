@@ -10,7 +10,7 @@ import TipLabel from './TipLabel'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-// Settings > Your profile: the passkeys of the signed-in account. A passkey
+// Settings > People and access > Your profile: the passkeys of the signed-in account. A passkey
 // signs in without typing a password, with the fingerprint, face or PIN of the
 // device. Off until an administrator switches passkeys on (which needs the
 // public address of Mediarium); then each person adds as many as they like.

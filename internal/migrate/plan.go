@@ -569,7 +569,7 @@ func (im *Importer) planIndexer(ctx context.Context, x prowlarrIndexer, d *prowl
 			if masked(key) {
 				ipl.masked = true
 				key = ""
-				notes = append(notes, "Prowlarr hid its API key: added switched off, enter the key under Settings > Indexers & Search")
+				notes = append(notes, "Prowlarr hid its API key: added switched off, enter the key under Settings > Finding releases > Indexers & Search")
 			}
 			ipl.inst = indexers.Instance{Name: x.Name, Kind: kind, BaseURL: addr, APIKey: strings.TrimSpace(key), Protocol: protocol, Enabled: x.Enable && !ipl.masked, Priority: x.Priority}
 		}
@@ -711,7 +711,7 @@ func (im *Importer) planSiteIndexer(ctx context.Context, x prowlarrIndexer, d *p
 	}
 	if hidden {
 		ipl.masked = true
-		*notes = append(*notes, "Prowlarr hid its password or cookie: added switched off, enter it under Settings > Indexers & Search")
+		*notes = append(*notes, "Prowlarr hid its password or cookie: added switched off, enter it under Settings > Finding releases > Indexers & Search")
 	}
 	seenDef[strings.ToLower(sum.ID)] = true
 	item.Action = ActionAdd

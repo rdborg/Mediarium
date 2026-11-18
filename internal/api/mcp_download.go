@@ -13,8 +13,10 @@ import (
 	"time"
 )
 
-// The two tools that let an assistant choose a release and start its download:
-// find_releases and grab_release. They are off until an administrator switches
+// The tools that let an assistant choose a release and start its download:
+// find_releases and grab_release, and with them add_movie, add_series and
+// search_now, which end in a search that downloads by itself. They are off
+// until an administrator switches
 // on Let assistants pick releases and start downloads (setting mcp.downloads),
 // and like every change they need a key that is not read-only.
 //
@@ -295,20 +297,24 @@ func (c *mcpCtx) findReleases(movieID, seriesID int64, season *int, episode int,
 		return nil, err
 	}
 	type release struct {
-		ReleaseID  string   `json:"release_id"`
-		Title      string   `json:"title"`
-		Indexer    string   `json:"indexer"`
-		Protocol   string   `json:"protocol"`
-		SizeGB     float64  `json:"size_gb"`
-		Resolution string   `json:"resolution,omitempty"`
-		Source     string   `json:"source,omitempty"`
-		Codec      string   `json:"codec,omitempty"`
-		Group      string   `json:"group,omitempty"`
-		Seeders    int      `json:"seeders,omitempty"`
-		Season     int      `json:"season,omitempty"`
-		Episodes   []int    `json:"episodes,omitempty"`
-		Best       bool     `json:"best_match,omitempty"`
-		Problems   []string `json:"problems,omitempty"`
+		ReleaseID  string  `json:"release_id"`
+		Title      string  `json:"title"`
+		Indexer    string  `json:"indexer"`
+		Protocol   string  `json:"protocol"`
+		SizeGB     float64 `json:"size_gb"`
+		Resolution string  `json:"resolution,omitempty"`
+		Source     string  `json:"source,omitempty"`
+		Codec      string  `json:"codec,omitempty"`
+		Group      string  `json:"group,omitempty"`
+		Seeders    int     `json:"seeders,omitempty"`
+		// Freeleech is true when the tracker does not count the download at
+		// all; DiscountPercent is the share it leaves out (50 is half price).
+		Freeleech       bool     `json:"freeleech,omitempty"`
+		DiscountPercent int      `json:"discount_percent,omitempty"`
+		Season          int      `json:"season,omitempty"`
+		Episodes        []int    `json:"episodes,omitempty"`
+		Best            bool     `json:"best_match,omitempty"`
+		Problems        []string `json:"problems,omitempty"`
 	}
 	out := []release{}
 	skipped := 0
@@ -331,7 +337,7 @@ func (c *mcpCtx) findReleases(movieID, seriesID int64, season *int, episode int,
 		out = append(out, release{
 			ReleaseID: c.s.mcp.dl.addOffer(offer), Title: r.Title, Indexer: r.IndexerName, Protocol: r.Protocol,
 			SizeGB: float64(r.SizeBytes) / (1 << 30), Resolution: r.Resolution, Source: r.Source, Codec: r.Codec, Group: r.Group,
-			Seeders: r.Seeders, Season: r.Season, Episodes: r.Episodes, Best: r.Best, Problems: problems,
+			Seeders: r.Seeders, Freeleech: r.Discount >= 100, DiscountPercent: r.Discount, Season: r.Season, Episodes: r.Episodes, Best: r.Best, Problems: problems,
 		})
 	}
 	res := map[string]any{"title": label, "found": len(found), "releases": out}

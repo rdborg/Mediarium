@@ -207,7 +207,7 @@ If your internet is slow, a download can make the picture stutter. On the media 
 
 ## NFO and artwork files
 
-Kodi, Jellyfin and Emby read small files that sit next to your videos: an **NFO file** with the title, plot, cast and the ids of the title on TMDB, IMDb and TheTVDB, and pictures for the poster and the background. Mediarium can write them. It is **off by default**, and you choose it separately for movies and for TV shows under **Settings > Library and files and files > Folders > NFO and artwork files**: one switch for the NFO files and one for the artwork, for each kind. Nothing changes for an install until you switch something on.
+Kodi, Jellyfin and Emby read small files that sit next to your videos: an **NFO file** with the title, plot, cast and the ids of the title on TMDB, IMDb and TheTVDB, and pictures for the poster and the background. Mediarium can write them. It is **off by default**, and you choose it separately for movies and for TV shows under **Settings > Library and files > Folders > NFO and artwork files**: one switch for the NFO files and one for the artwork, for each kind. Nothing changes for an install until you switch something on.
 
 What is written:
 

@@ -52,6 +52,33 @@ func stageName(dest string) string {
 	return filepath.Join(filepath.Dir(dest), prefix+base+suffix)
 }
 
+// removeStaleStages deletes the temporary files an earlier swap of dest left
+// beside it when Mediarium stopped part-way (see stageName). Only ones nothing
+// has written to for an hour go, so a swap that is still running is not hurt.
+func removeStaleStages(dest string, now time.Time) {
+	dir := filepath.Dir(dest)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	// What stageName makes for this dest, without the random part.
+	want := filepath.Base(stageName(dest))
+	const randLen = 8
+	for _, e := range entries {
+		name := e.Name()
+		if len(name) != len(want) || !e.Type().IsRegular() || name[0] != '.' || name[1+randLen] != '-' || name[2+randLen:] != want[2+randLen:] {
+			continue
+		}
+		if _, err := hex.DecodeString(name[1 : 1+randLen]); err != nil {
+			continue
+		}
+		if info, err := e.Info(); err != nil || now.Sub(info.ModTime()) < time.Hour {
+			continue
+		}
+		_ = os.Remove(filepath.Join(dir, name))
+	}
+}
+
 func lastRune(s string) (rune, int) {
 	r := []rune(s)
 	if len(r) == 0 {
@@ -105,6 +132,7 @@ func (s *Server) importSwapping(root, src, dest, label string, movieID int64, ep
 	if owner := otherFileOwner(s.trackedFileOwners(), dest, movieID, episodeIDs); owner != "" {
 		return organizer.ImportResult{}, false, errFileOfAnother(owner, dest)
 	}
+	removeStaleStages(dest, time.Now())
 	stage := stageName(dest)
 	res, err := s.importDownloaded(src, stage, organizer.ConflictSkip, nil)
 	if err == nil && res.Skipped {

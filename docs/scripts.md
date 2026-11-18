@@ -9,7 +9,7 @@ It is off until you pick a script.
 1. Put the script in the `scripts` folder inside your config folder. In the container that is `/config/scripts`; on the host it is the folder you mapped to `/config`, for example `/volume1/docker/mediarium/config/scripts` on a Synology. Mediarium creates the folder the first time you open the page.
 2. Make it executable: `chmod +x /path/to/config/scripts/myscript.sh`. It must also be readable by the user Mediarium runs as (`PUID`/`PGID`).
 3. Start it with a line naming what runs it. The container has a plain shell, so `#!/bin/sh` works. It has no Python or Bash; a script that needs them won't start.
-4. In Mediarium go to **Settings > Library and files and files > File names and importing > Run a script after each import**, pick the script, and press **Save**. **Try it** runs it once straight away with a made-up movie, so you can see that it works.
+4. In Mediarium go to **Settings > Library and files > File names and importing > Run a script after each import**, pick the script, and press **Save**. **Try it** runs it once straight away with a made-up movie, so you can see that it works.
 
 Only files in that folder can be picked, and only from that page while signed in. An API key can't choose or run a script, because choosing what runs is the same as being able to run anything as Mediarium's user. Files whose name starts with a dot, folders, and links that lead out of the folder are not offered.
 

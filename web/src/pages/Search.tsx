@@ -28,7 +28,7 @@ import '../search.css'
 export default function Search() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
-  const { on } = useModules()
+  const { on, tmdbOn } = useModules()
   const me = useAuth().user
   const [byHand, setByHand] = useState<ByHandKind | null>(null) // the add-by-hand dialog, when open
   const titlesOn = on('movies') || on('tv')
@@ -76,7 +76,11 @@ export default function Search() {
     const ctl = new AbortController()
     const timer = setTimeout(() => {
       setError('')
-      if (titlesOn) {
+      if (titlesOn && !tmdbOn) {
+        // No TMDB key: the search can't answer, so don't ask. The Books and Music tabs are not held up by it.
+        setResults([])
+        setError(t('Searching movies and shows needs a TMDB API key. An administrator can add one under Settings > Library and files > Movie and show info.'))
+      } else if (titlesOn) {
         api
           .discoverSearch(term, ctl.signal)
           .then(setResults)
@@ -94,7 +98,7 @@ export default function Search() {
       ctl.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q])
+  }, [q, tmdbOn])
 
   // Books come from Open Library, a little after the titles, whichever tab is
   // open, so the Books tab can say how many it found.

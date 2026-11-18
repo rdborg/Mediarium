@@ -74,6 +74,11 @@ func TestDecodeYencChecksumKinds(t *testing.T) {
 		{"single part, no checksum", "=ybegin line=128 size=5 name=a\r\n" + body + "=yend size=5\r\n", false},
 		{"part, right pcrc32", "=ybegin part=1 line=128 size=10 name=a\r\n=ypart begin=1 end=5\r\n" + body + "=yend size=5 part=1 pcrc32=" + good + " crc32=deadbeef\r\n", false},
 		{"part, wrong pcrc32", "=ybegin part=1 line=128 size=10 name=a\r\n=ypart begin=1 end=5\r\n" + body + "=yend size=5 part=1 pcrc32=deadbeef\r\n", true},
+		{"cut short, no checksum, size from =yend", "=ybegin line=128 size=9 name=a\r\n" + body + "=yend size=9\r\n", true},
+		{"cut short, no checksum, size from =ypart", "=ybegin part=1 line=128 size=20 name=a\r\n=ypart begin=1 end=9\r\n" + body + "=yend part=1\r\n", true},
+		{"empty with a checksum of nothing", "=ybegin part=1 line=128 size=20 name=a\r\n=ypart begin=1 end=5\r\n=yend size=5 pcrc32=00000000\r\n", true},
+		{"empty, no checksum", "=ybegin line=128 size=5 name=a\r\n=yend size=5\r\n", true},
+		{"right checksum settles an odd header", "=ybegin part=1 line=128 size=20 name=a\r\n=ypart begin=1 end=9\r\n" + body + "=yend size=9 pcrc32=" + good + "\r\n", false},
 		{"part, only the file's crc32", "=ybegin part=1 line=128 size=10 name=a\r\n=ypart begin=1 end=5\r\n" + body + "=yend size=5 part=1 crc32=deadbeef\r\n", false},
 	}
 	for _, tt := range tests {

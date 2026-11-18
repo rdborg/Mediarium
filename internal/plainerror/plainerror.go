@@ -40,7 +40,7 @@ var rawStart = regexp.MustCompile(`(?i)^(` +
 	`|dial (tcp|udp|unix)` +
 	`|lookup [^ ]+` +
 	`|(read|write) (tcp|udp|unix)` +
-	`|(open|mkdir|mkdirall|stat|lstat|rename|remove|readdir|readdirent|chmod|chown|symlink|link|truncate|copy|create|write|read) [^ ]*[/\\]` +
+	`|(open|mkdir|mkdirall|stat|lstat|rename|remove|readdir|readdirent|chmod|chown|symlink|link|truncate|copy|create|write|read|sync|fsync|fdatasync|readlink|chtimes) [^ ]*[/\\]` +
 	`|context (canceled|deadline exceeded)` +
 	`|tls:|x509:|net/http:|http2:` +
 	`|i/o timeout|no such host|connection (refused|reset)|unexpected eof|eof$` +
@@ -124,10 +124,14 @@ func reasonFor(raw string, err error) string {
 	switch {
 	case is(context.Canceled) || has("context canceled"):
 		return "It was stopped before it finished."
-	case is(syscall.ENOSPC) || has("no space left", "disk full", "not enough space", "disk quota exceeded"):
+	case is(syscall.ENOSPC) || has("no space left", "disk full", "disk is full", "not enough space", "disk quota exceeded"):
 		return "The disk is full. Free up some space and try again."
-	case is(fs.ErrPermission) || has("permission denied", "access is denied", "operation not permitted", "read-only file system"):
+	case is(fs.ErrPermission) || has("permission denied", "access is denied", "operation not permitted", "read-only file system", "readonly database", "read-only database"):
 		return "Mediarium is not allowed to use that file or folder. Check its permissions."
+	case has("used by another process", "sharing violation", "text file busy"):
+		return "Another program is using that file. Close it there, or wait until it is done, and try again."
+	case has("input/output error", "stale nfs file handle", "stale file handle"):
+		return "The drive or network share reported a read or write error. Check that it is connected and healthy."
 	case has("no such host", "server misbehaving", "temporary failure in name resolution", "name or service not known", "no address associated"):
 		return "The address could not be found. Check the address and your internet connection."
 	case has("connection refused"):
@@ -185,6 +189,13 @@ func ForResponse(msg string) (string, bool) {
 		return out, true
 	}
 	low := strings.ToLower(msg)
+	// The database says these in its own words, with no file path in front.
+	if strings.Contains(low, "database or disk is full") || strings.Contains(low, "readonly database") || strings.Contains(low, "read-only database") || strings.Contains(low, "disk i/o error") {
+		if reason := reasonFor(msg, nil); reason != "" {
+			return reason, true
+		}
+		return "Mediarium could not write to its database. Check that the disk has free space and that the config folder is writable.", true
+	}
 	for _, m := range internalMarkers {
 		if strings.Contains(low, m) {
 			return Generic, true

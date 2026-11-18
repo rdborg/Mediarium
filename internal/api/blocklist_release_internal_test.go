@@ -143,7 +143,7 @@ func TestFailedDownloadBlocksOnlyItsGUID(t *testing.T) {
 	}{
 		{"the upload that failed", badURL, true},
 		{"same name and size, other guid", goodURL, false},
-		{"same name and size, no guid known", noGUIDURL, false},
+		{"same name and size, no guid known: the same upload as far as can be told", noGUIDURL, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -159,8 +159,20 @@ func TestFailedDownloadBlocksOnlyItsGUID(t *testing.T) {
 	results := []indexers.Result{
 		{Title: name, IndexerID: inst.ID, SizeBytes: 8000, GUID: "guid-bad", DownloadURL: badURL},
 		{Title: name, IndexerID: inst.ID, SizeBytes: 8000, GUID: "guid-good", DownloadURL: goodURL},
+		{Title: name, IndexerID: inst.ID, SizeBytes: 8000, DownloadURL: noGUIDURL},
+		{Title: name, IndexerID: inst.ID, SizeBytes: 9000, DownloadURL: noGUIDURL + "2"},
 	}
-	if got := dropBlocked(results, s.searchSkipKeys(), sc); len(got) != 1 || got[0].GUID != "guid-good" {
-		t.Fatalf("kept %+v, want only the other guid", got)
+	// The one without a guid is told by indexer, name and size: the copy of
+	// the same size is left out, a copy of another size is kept.
+	if got := dropBlocked(results, s.searchSkipKeys(), sc); len(got) != 2 || got[0].GUID != "guid-good" || got[1].SizeBytes != 9000 {
+		t.Fatalf("kept %+v, want the other guid and the other size", got)
+	}
+	// What the list shows is the same as what automation leaves out.
+	if !releaseBlocked(s.searchSkipKeys(), results[2], sc) || releaseBlocked(s.searchSkipKeys(), results[3], sc) {
+		t.Error("the release list disagrees with the search about the copy without a guid")
+	}
+	// The check at grab time agrees.
+	if !s.releaseBlocklistedAny(name, resultReleaseIDs(results[2]), sc) || s.releaseBlocklistedAny(name, resultReleaseIDs(results[3]), sc) {
+		t.Error("the grab-time check disagrees about the copy without a guid")
 	}
 }

@@ -1,6 +1,6 @@
 # Settings file with a check
 
-Settings > System has a **Settings file** card. It writes your setup as one text file, and it puts a file like that back with a check first: you see what would be added, changed or removed before anything is written. Use it to keep your setup in git, to move to a new install, or to see exactly what changed between two files.
+Settings > System > Backup and restore has a **Settings file** card. It writes your setup as one text file, and it puts a file like that back with a check first: you see what would be added, changed or removed before anything is written. Use it to keep your setup in git, to move to a new install, or to see exactly what changed between two files.
 
 The file is YAML and is the same one the command line uses (see [Keep your settings in a file](config-file.md)), so a file from either place works in the other.
 

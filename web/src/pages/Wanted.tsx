@@ -83,7 +83,7 @@ export default function Wanted() {
   const [movies, setMovies] = useState<Movie[]>([])
   const [series, setSeries] = useState<Series[]>([])
   const [sweeping, setSweeping] = useState(false)
-  // Releases held back by the delay profile (Settings > Languages and automation).
+  // Releases held back by the delay profile (Settings > Finding releases > Automatic searching).
   const [waiting, setWaiting] = useState<WaitingRelease[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string | null>(null)

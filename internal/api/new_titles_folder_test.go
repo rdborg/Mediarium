@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Settings > Library > Folders says where a title added without a folder
+// Settings > Library and files > Folders says where a title added without a folder
 // choice goes: the main folder, one of the extra folders, or the folder with
 // the most room. The Add dialog, a request, an import list or the Radarr
 // compatible API all follow it; an explicit choice still wins.

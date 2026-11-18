@@ -135,7 +135,7 @@ func (im *Importer) planJackettIndexer(ctx context.Context, d *jackettData, x ja
 			item.Reason = "added as the site itself, not through Jackett"
 			if private {
 				ipl.masked = true
-				item.Reason += "; it is a private tracker, so it is added switched off: enter your login under Settings > Indexers & Search"
+				item.Reason += "; it is a private tracker, so it is added switched off: enter your login under Settings > Finding releases > Indexers & Search"
 			}
 			ipl.inst = indexers.Instance{
 				Name: name, Kind: indexers.KindCardigann, DefinitionID: sum.ID, BaseURL: sum.Links[0],

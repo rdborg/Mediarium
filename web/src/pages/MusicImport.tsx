@@ -49,7 +49,7 @@ export default function MusicImport() {
   const [starting, setStarting] = useState(false)
   const [stopping, setStopping] = useState(false)
   const v = useValidation({
-    root: required(job?.root || root, t('Set your music folder under Settings > Library > Folders, then come back and scan.')),
+    root: required(job?.root || root, t('Set your music folder under Settings > Library and files > Folders, then come back and scan.')),
   })
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function MusicImport() {
 
       {loaded && !on('music') && (
         <div className="notice notice-warn" style={{ marginBottom: 18 }}>
-          {tx('Music is switched off. {link} first.', { link: <Link to="/settings/modules">{t('Switch it on in Settings > Media types')}</Link> })}
+          {tx('Music is switched off. {link} first.', { link: <Link to="/settings/modules">{t('Switch it on in Settings > Basics > Media types')}</Link> })}
         </div>
       )}
 

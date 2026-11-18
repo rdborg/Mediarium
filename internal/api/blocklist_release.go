@@ -16,12 +16,11 @@ import (
 // indexer is offered. Entries made before the guid was kept (by size or info
 // hash), and those without any id, keep blocking as they did.
 
-// firstID is the id a blocklist entry is saved under: the most exact one.
+// firstID is the id a blocklist entry is saved under: the most exact one. An
+// entry saved under a guid also keeps the size-based id of the same upload, so
+// a later copy that comes without a guid is still recognised (blocklist.PackIDs).
 func firstID(ids []string) string {
-	if len(ids) == 0 {
-		return ""
-	}
-	return ids[0]
+	return blocklist.PackIDs(ids)
 }
 
 // resultReleaseIDs are the ids a search result is known by.

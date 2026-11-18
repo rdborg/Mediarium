@@ -274,7 +274,7 @@ func (s *Server) handleAddBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if (req.Ebook && !s.ebooksEnabled()) || (req.Audiobook && !s.audiobooksEnabled()) {
-		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Basics > Media types.")
 		return
 	}
 	s.finishAddBook(w, r, req)

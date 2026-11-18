@@ -123,6 +123,39 @@ func TestManualNZBUploadForAMovieDownloadsAndImports(t *testing.T) {
 	}
 }
 
+// A file called "m2.nzb" says nothing about the release. The files inside the NZB do,
+// so the download goes by their name and the quality is read from it.
+func TestManualNZBWithAnUnhelpfulFileNameTakesTheNameFromInside(t *testing.T) {
+	env := newChecksEnv(t)
+	env.release("fixture", "inside", []fixtureFile{movieFile})
+	status, body := env.sendManual(t, manualForm{
+		fields:   map[string]string{"movieId": strconv.FormatInt(env.movie.ID, 10)},
+		fileName: "m2.nzb",
+		file:     env.nzbText("fixture"),
+	})
+	if status != http.StatusAccepted {
+		t.Fatalf("status = %d, body %v", status, body)
+	}
+	if body["releaseTitle"] != "The.Fixture.Movie.1999.1080p" {
+		t.Errorf("the name should come from the file inside the NZB, got %v", body["releaseTitle"])
+	}
+}
+
+// A name the person typed still wins over everything, and a file name that is a real
+// release name is not replaced by the one inside.
+func TestManualNZBKeepsTheTypedNameAndAGoodFileName(t *testing.T) {
+	env := newChecksEnv(t)
+	env.release("fixture", "keep", []fixtureFile{movieFile})
+	status, body := env.sendManual(t, manualForm{
+		fields:   map[string]string{"movieId": strconv.FormatInt(env.movie.ID, 10), "name": "My.Own.Name.1999.720p.WEB-DL-ME"},
+		fileName: "m2.nzb",
+		file:     env.nzbText("fixture"),
+	})
+	if status != http.StatusAccepted || body["releaseTitle"] != "My.Own.Name.1999.720p.WEB-DL-ME" {
+		t.Fatalf("typed name: status %d, %v", status, body)
+	}
+}
+
 func TestManualNZBFromAnAddressIsReadOnceAndStored(t *testing.T) {
 	env := newChecksEnv(t)
 	url := env.release("The.Fixture.Movie.1999.720p.WEB-DL.x264-URL", "url", []fixtureFile{movieFile})

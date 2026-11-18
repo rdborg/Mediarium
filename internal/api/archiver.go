@@ -611,7 +611,7 @@ func (s *Server) handleArchiverTest(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) requireArchiver(w http.ResponseWriter) bool {
 	if !s.archiverEnabled() {
-		writeError(w, http.StatusConflict, "The Channel archiver is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "The Channel archiver is switched off. Switch it on in Settings > Basics > Media types.")
 		return false
 	}
 	return true

@@ -22,7 +22,7 @@ import (
 const hardcoverAPI = "https://api.hardcover.app/v1/graphql"
 
 // ErrHardcoverToken is returned when Hardcover refuses the token.
-var ErrHardcoverToken = errors.New("hardcover refused the token: check it under Settings > Info, lists and subtitles")
+var ErrHardcoverToken = errors.New("hardcover refused the token: check it under Settings > Library and files")
 
 // Hardcover talks to the Hardcover API with one person's token.
 type Hardcover struct {

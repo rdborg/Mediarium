@@ -125,6 +125,20 @@ func (s *Server) probeIndexer(ctx context.Context, inst indexers.Instance) error
 		}
 	}
 	tr.NoteProbe(inst.ID)
+	err := s.askIndexer(ctx, inst)
+	if err == nil {
+		// It answered: if it was left out of searches after failures, ask it
+		// again from the next search instead of waiting out the pause.
+		if _, paused := tr.PausedUntil(inst.ID); paused {
+			tr.Succeeded(inst.ID)
+		}
+	}
+	return err
+}
+
+// askIndexer is the question of one connection check, without the schedule.
+func (s *Server) askIndexer(ctx context.Context, inst indexers.Instance) error {
+	tr := inst.Tracker
 	if inst.IsCardigann() {
 		// a site that a definition drives has no capabilities call to ask
 		return runProbe(ctx, s.indexerTestBudget(inst)+5*time.Second, func() connTestResult { return s.testIndexerInstance(ctx, inst) })

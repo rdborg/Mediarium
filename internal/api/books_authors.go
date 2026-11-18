@@ -80,7 +80,7 @@ func (s *Server) handleFollowAuthor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if (req.Ebook && !s.ebooksEnabled()) || (req.Audiobook && !s.audiobooksEnabled()) {
-		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Basics > Media types.")
 		return
 	}
 	if err := s.BookRepo.FollowAuthor(books.Author{Key: key, Name: strings.TrimSpace(req.Name), WantEbook: req.Ebook, WantAudiobook: req.Audiobook}); err != nil {

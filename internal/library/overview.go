@@ -108,7 +108,7 @@ func wantedWhere(mainOnly bool) string {
 }
 
 func wantedShowsQuery(mainOnly bool) string {
-	return `SELECT s.id, s.title, COALESCE(s.year, 0), COALESCE(s.poster_path, ''), COALESCE(s.profile_id, 0), COALESCE(s.copy_of, 0),
+	return `SELECT s.id, s.title, COALESCE(s.year, 0), COALESCE(s.poster_path, ''), COALESCE(s.profile_id, 0), COALESCE(s.copy_of, 0), s.tmdb_id,
 			COUNT(*), COALESCE(SUM(CASE WHEN COALESCE(e.file_path, '') <> '' THEN 1 ELSE 0 END), 0)
 		FROM series s CROSS JOIN episodes e ON e.series_id = s.id
 		WHERE ` + wantedWhere(mainOnly) + `
@@ -128,6 +128,7 @@ type WantedShow struct {
 	PosterPath string
 	ProfileID  int64
 	CopyOf     int64
+	TMDBID     int
 	// Episodes is how many of its episodes are wanted; WithFile how many of
 	// those still name a file, which the caller checks on disk (one that is
 	// there is not wanted).
@@ -147,7 +148,7 @@ func (r *Repo) WantedShows(ctx context.Context, today string, mainOnly bool) ([]
 	var out []WantedShow
 	for rows.Next() {
 		var w WantedShow
-		if err := rows.Scan(&w.ID, &w.Title, &w.Year, &w.PosterPath, &w.ProfileID, &w.CopyOf, &w.Episodes, &w.WithFile); err != nil {
+		if err := rows.Scan(&w.ID, &w.Title, &w.Year, &w.PosterPath, &w.ProfileID, &w.CopyOf, &w.TMDBID, &w.Episodes, &w.WithFile); err != nil {
 			return nil, fmt.Errorf("scan wanted show: %w", err)
 		}
 		out = append(out, w)
@@ -371,7 +372,7 @@ func wantedEpisodesQuery(status Status, seriesID int64) string {
 	}
 	// CROSS JOIN: start from the (few) monitored shows, see wantedEpisodeWhere.
 	return `SELECT e.id, e.series_id, e.season, e.episode, COALESCE(e.title, ''), COALESCE(e.air_date, ''), e.status, COALESCE(e.quality, ''), COALESCE(e.file_path, ''), e.release_title,
-			s.title, COALESCE(s.year, 0), COALESCE(s.poster_path, ''), COALESCE(s.profile_id, 0), s.no_upgrade, COALESCE(s.copy_of, 0)
+			s.title, COALESCE(s.year, 0), COALESCE(s.poster_path, ''), COALESCE(s.profile_id, 0), s.no_upgrade, COALESCE(s.copy_of, 0), s.tmdb_id
 		FROM series s CROSS JOIN episodes e ON e.series_id = s.id
 		WHERE ` + where + `
 		ORDER BY s.added_at DESC, s.id, e.season, e.episode`
@@ -384,6 +385,7 @@ type WantedEpisode struct {
 	SeriesTitle  string
 	SeriesYear   int
 	SeriesPoster string
+	SeriesTMDB   int
 	ProfileID    int64
 	NoUpgrade    bool
 	CopyOf       int64
@@ -417,7 +419,7 @@ func (r *Repo) ListWantedEpisodes(ctx context.Context, status Status, today stri
 		var w WantedEpisode
 		var st string
 		if err := rows.Scan(&w.ID, &w.SeriesID, &w.Season, &w.Episode.Episode, &w.Title, &w.AirDate, &st, &w.Quality, &w.FilePath, &w.ReleaseTitle,
-			&w.SeriesTitle, &w.SeriesYear, &w.SeriesPoster, &w.ProfileID, &w.NoUpgrade, &w.CopyOf); err != nil {
+			&w.SeriesTitle, &w.SeriesYear, &w.SeriesPoster, &w.ProfileID, &w.NoUpgrade, &w.CopyOf, &w.SeriesTMDB); err != nil {
 			return nil, fmt.Errorf("scan wanted episode: %w", err)
 		}
 		w.Status = Status(st)

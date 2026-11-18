@@ -180,7 +180,7 @@ func (s *Server) hasIndexers(w http.ResponseWriter) ([]indexers.Instance, bool) 
 		return nil, false
 	}
 	if len(instances) == 0 {
-		writeError(w, http.StatusPreconditionFailed, "There are no indexers yet. Add one in Settings > Indexers & Search.")
+		writeError(w, http.StatusPreconditionFailed, "There are no indexers yet. Add one in Settings > Finding releases > Indexers & Search.")
 		return nil, false
 	}
 	return instances, true
@@ -218,6 +218,11 @@ func (s *Server) handleMovieSearchNow(w http.ResponseWriter, r *http.Request) {
 	}
 	if s.huntMovie(withGrabBy(r.Context(), userOrigin(r, origin.Search)), m, instances, profiles, s.searchSkipKeys(), true) {
 		writeJSON(w, http.StatusOK, searchNowResponse{Grabbed: 1, Message: "Started a download. Follow it in Activity."})
+		return
+	}
+	if m.Status == library.StatusDownloaded && m.NoUpgrade {
+		// The usual reason a downloaded movie finds no better copy: the switch is off.
+		writeJSON(w, http.StatusOK, searchNowResponse{Message: "Better versions is off for this movie, so it keeps the file it has. Choose Look for better versions below to turn it on."})
 		return
 	}
 	writeJSON(w, http.StatusOK, searchNowResponse{Message: "Nothing suitable was found right now."})
@@ -437,13 +442,11 @@ func (s *Server) wantedEpisodeItems(ctx context.Context, kind string, profiles p
 		if ep.CopyOf != 0 {
 			label = "Second copy · " + label
 		}
-		title, poster := ep.SeriesTitle, wantedPoster(ep.SeriesPoster)
+		var title, poster string
 		if cached, seen := faces[ep.SeriesID]; seen {
 			title, poster = cached[0], cached[1]
 		} else {
-			if sr, err := s.MovieRepo.GetSeries(ep.SeriesID); err == nil {
-				title, poster = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
-			}
+			title, poster = s.shownFace("tv", ep.SeriesTMDB, ep.SeriesTitle, ep.SeriesPoster)
 			faces[ep.SeriesID] = [2]string{title, poster}
 		}
 		item := wantedItemPayload{

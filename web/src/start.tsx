@@ -7,7 +7,7 @@ import './projection.css'
 import './mobile.css'
 import './twopane.css'
 import './fold.css'
-import { demoEnabled, installDemo } from './demo'
+import { demoEnabled } from './demoFlag'
 import App from './App.tsx'
 import { ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmProvider'
@@ -16,7 +16,6 @@ import { BASE_PATH } from './base'
 import { isStaleWorker } from './staleWorker'
 import { watchInstallPrompt } from './pwa'
 
-if (demoEnabled()) installDemo()
 watchInstallPrompt()
 
 // Mediarium's only service worker is push-sw.js. It keeps the built scripts
@@ -49,7 +48,11 @@ if ('serviceWorker' in navigator && window.isSecureContext && !demoEnabled()) {
   })
 }
 
-createRoot(document.getElementById('root')!).render(
+// The made-up data of the demo is fetched only when the demo is on, and installed before the app asks for anything.
+const demoReady = demoEnabled() ? import('./demo').then((m) => m.installDemo()) : Promise.resolve()
+
+void demoReady.then(() =>
+  createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ToastProvider>
       <ConfirmProvider>
@@ -57,4 +60,5 @@ createRoot(document.getElementById('root')!).render(
       </ConfirmProvider>
     </ToastProvider>
   </StrictMode>,
+  ),
 )

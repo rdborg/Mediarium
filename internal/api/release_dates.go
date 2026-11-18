@@ -30,8 +30,8 @@ const (
 	releaseBoth          = "both" // the cinema and digital dates are the same day
 )
 
-// releaseCountrySetting is the country chosen for release dates (Settings >
-// Info, lists and subtitles), or "" when it follows the info language.
+// releaseCountrySetting is the country chosen for release dates (Settings > Library and
+// files > Movie and show info), or "" when it follows the info language.
 func (s *Server) releaseCountrySetting() string {
 	if v, _ := s.Settings.Get(settings.KeyReleaseCountry); metadata.IsReleaseCountry(v) {
 		return v
@@ -40,7 +40,7 @@ func (s *Server) releaseCountrySetting() string {
 }
 
 // releaseRegion is the country release dates are read for: the one chosen in
-// Settings > Info, lists and subtitles, or else the one of the language titles
+// Settings > Library and files, or else the one of the language titles
 // are shown in.
 func (s *Server) releaseRegion() string {
 	if c := s.releaseCountrySetting(); c != "" {

@@ -132,12 +132,12 @@ func (d ircDecider) decideRelease(ctx context.Context, res indexers.Result, o an
 	}
 	if tv {
 		if !s.tvEnabled() {
-			return skipped("Shows are switched off in Settings > Media types.")
+			return skipped("Shows are switched off in Settings > Basics > Media types.")
 		}
 		return d.decideTV(ctx, rel, res, series, profiles, o)
 	}
 	if !s.moviesEnabled() {
-		return skipped("Movies are switched off in Settings > Media types.")
+		return skipped("Movies are switched off in Settings > Basics > Media types.")
 	}
 	return d.decideMovie(ctx, res, movies, profiles, o)
 }

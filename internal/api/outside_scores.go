@@ -332,7 +332,7 @@ func (s *Server) imdbIDFor(ctx context.Context, kind string, tmdb int) (string, 
 	return d.ExternalIDs.IMDBID, nil
 }
 
-// ---- Settings > Info, lists and subtitles: the OMDb key ----
+// ---- Settings > Library and files: the OMDb key ----
 
 type omdbStatePayload struct {
 	Set bool `json:"set"`

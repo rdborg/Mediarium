@@ -47,6 +47,13 @@ func (e *mcpEnv) enable(t *testing.T) {
 	postJSONMethod[map[string]any](t, e.admin, http.MethodPut, e.base+"/api/system/mcp", map[string]any{"enabled": true}, http.StatusOK)
 }
 
+// allowDownloads switches "Let assistants pick releases and start downloads"
+// on or off, as the Settings page does.
+func (e *mcpEnv) allowDownloads(t *testing.T, on bool) {
+	t.Helper()
+	postJSONMethod[map[string]any](t, e.admin, http.MethodPut, e.base+"/api/system/mcp", map[string]any{"downloads": on}, http.StatusOK)
+}
+
 // rpc posts one raw body to /mcp with a key and returns the status and the decoded answer.
 func (e *mcpEnv) rpc(t *testing.T, key, body string, headers ...string) (int, map[string]any, *http.Response) {
 	t.Helper()
@@ -286,6 +293,12 @@ func TestMCPToolList(t *testing.T) {
 		}
 		return got
 	}
+	// The tools that can end in a download are not listed until an administrator
+	// allows downloads for assistants; the other change tools are.
+	if got := names(e.adminKey); got["add_movie"] || got["add_series"] || got["search_now"] || !got["set_movie_profile"] {
+		t.Errorf("with downloads off: add_movie %v, add_series %v, search_now %v, set_movie_profile %v", got["add_movie"], got["add_series"], got["search_now"], got["set_movie_profile"])
+	}
+	e.allowDownloads(t, true)
 	admin, ro := names(e.adminKey), names(e.roKey)
 	reads := []string{"library_search", "library_stats", "lookup_title", "movie_details", "series_details", "wanted_list", "queue_status", "recent_history", "downloads_failed", "health_report", "requests_list", "profiles_list", "release_group_report"}
 	writes := []string{"add_movie", "add_series", "search_now", "set_movie_profile", "set_series_profile", "retry_failed_download", "add_preferred_term"}
@@ -455,6 +468,7 @@ func TestMCPReadTools(t *testing.T) {
 func TestMCPWritesNeedConfirmAndAdmin(t *testing.T) {
 	e := newMCPEnv(t)
 	e.enable(t)
+	e.allowDownloads(t, true)
 	_, other := e.library(t)
 
 	profiles := getJSON[map[string]any](t, e.admin, e.base+"/api/quality-profiles")["profiles"].([]any)
@@ -563,6 +577,7 @@ func TestMCPWritesNeedConfirmAndAdmin(t *testing.T) {
 func TestMCPAddTitles(t *testing.T) {
 	e := newMCPEnv(t) // an empty library: the fake TMDB knows movie 701 and show 9001
 	e.enable(t)
+	e.allowDownloads(t, true)
 
 	count := func(path string) int { return len(getJSON[[]any](t, e.admin, e.base+path)) }
 

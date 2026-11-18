@@ -355,7 +355,7 @@ func (s *Server) handleOIDCLinkStart(w http.ResponseWriter, r *http.Request) {
 	s.sso().starts.RecordFailure(httpsec.LimitKey(s.clientIP(r)))
 	redirect, err := s.oidcRedirect()
 	if err != nil {
-		writeError(w, http.StatusConflict, "Set the address you open Mediarium at first (Settings > General > Address of Mediarium).")
+		writeError(w, http.StatusConflict, "Set the address you open Mediarium at first (Settings > Basics > General > Address of Mediarium).")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
@@ -472,7 +472,7 @@ func (s *Server) handlePutOIDC(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if _, err := oidcauth.RedirectURL(s.configuredPublicURL()); err != nil {
-			writeError(w, http.StatusBadRequest, "Can't switch single sign-on on yet: set the address you open Mediarium at first, under Settings > General > Address of Mediarium, for example https://mediarium.example.com.")
+			writeError(w, http.StatusBadRequest, "Can't switch single sign-on on yet: set the address you open Mediarium at first, under Settings > Basics > General > Address of Mediarium, for example https://mediarium.example.com.")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
@@ -535,7 +535,7 @@ func (s *Server) handleTestOIDC(w http.ResponseWriter, r *http.Request) {
 	redirect, rerr := s.oidcRedirect()
 	var notes []string
 	if rerr != nil {
-		notes = append(notes, "Set the address you open Mediarium at (Settings > General > Address of Mediarium) before switching this on.")
+		notes = append(notes, "Set the address you open Mediarium at (Settings > Basics > General > Address of Mediarium) before switching this on.")
 	}
 	if u, e := url.Parse(c.Issuer); e == nil && u.Scheme == "http" {
 		notes = append(notes, "This provider is reached over http, so the sign-in travels unencrypted on your network.")

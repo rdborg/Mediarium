@@ -190,3 +190,99 @@ func TestBlockedByGUID(t *testing.T) {
 		t.Error("an old name entry has no reason for a guid")
 	}
 }
+
+// An upload that failed while its guid was known is still blocked when it
+// turns up later without a guid (same indexer, same size), and still not when
+// it turns up with another guid. The entry made through PackIDs keeps both.
+func TestBlockedByGUIDFallsBackToSizeWhenTheGUIDIsUnknown(t *testing.T) {
+	repo, movies := newRepos(t)
+	mv, _ := movies.Add(library.Movie{TMDBID: 1, Title: "One", Monitored: true})
+	other, _ := movies.Add(library.Movie{TMDBID: 2, Title: "Two", Monitored: true})
+	const name = "Same.Name.2020.1080p.WEB-DL-GRP"
+	const size = 5000
+	failed := blocklist.ReleaseIDs(3, "guid-bad", size, "")
+	noGUID := blocklist.ReleaseIDs(3, "", size, "")
+	otherGUID := blocklist.ReleaseIDs(3, "guid-good", size, "")
+	otherSize := blocklist.ReleaseIDs(3, "", size+1, "")
+	otherIndexer := blocklist.ReleaseIDs(4, "", size, "")
+
+	packed := blocklist.PackIDs(failed)
+	if packed == failed[0] || blocklist.PackIDs(noGUID) != noGUID[0] || blocklist.PackIDs(nil) != "" {
+		t.Fatalf("PackIDs: %q for a guid, %q without", packed, blocklist.PackIDs(noGUID))
+	}
+	if err := repo.Add(blocklist.Entry{ReleaseTitle: name, ReleaseID: packed, MovieID: mv.ID, Reason: "corrupt"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Add(blocklist.Entry{ReleaseTitle: "Scoped.Name.2020", ReleaseID: packed, MovieID: mv.ID, ItemOnly: true, Reason: "corrupt"}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := repo.List()
+	if err != nil || len(list) != 2 {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+	for _, e := range list {
+		if e.ReleaseID != failed[0] {
+			t.Errorf("entry %q is listed under %q, want the guid %q", e.ReleaseTitle, e.ReleaseID, failed[0])
+		}
+	}
+	keys, err := repo.Keys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := blocklist.Scope{MovieID: mv.ID}
+	tests := []struct {
+		name  string
+		title string
+		ids   []string
+		sc    blocklist.Scope
+		want  bool
+	}{
+		{"the guid that failed", name, failed, sc, true},
+		{"the same upload without a guid", name, noGUID, sc, true},
+		{"the same upload without a guid, another title", name, noGUID, blocklist.Scope{MovieID: other.ID}, true},
+		{"another guid of the same size", name, otherGUID, sc, false},
+		{"another size without a guid", name, otherSize, sc, false},
+		{"another indexer without a guid", name, otherIndexer, sc, false},
+		{"another name without a guid", "Different.Name.2020", noGUID, sc, false},
+		{"nothing known about the upload", name, nil, sc, false},
+		{"scoped: the same upload without a guid, for its title", "Scoped.Name.2020", noGUID, sc, true},
+		{"scoped: not for another title", "Scoped.Name.2020", noGUID, blocklist.Scope{MovieID: other.ID}, false},
+		{"scoped: not for no title", "Scoped.Name.2020", noGUID, blocklist.Scope{}, false},
+		{"scoped: another guid", "Scoped.Name.2020", otherGUID, sc, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := blocklist.BlockedAny(keys, tt.title, tt.ids, tt.sc); got != tt.want {
+				t.Errorf("BlockedAny = %v, want %v", got, tt.want)
+			}
+		})
+	}
+	// The reason is found the same way.
+	if r, ok, err := repo.ReasonOfAny(name, noGUID); err != nil || !ok || r != "corrupt" {
+		t.Errorf("reason of the same upload without a guid = %q %v %v", r, ok, err)
+	}
+	if _, ok, _ := repo.ReasonOfAny(name, otherGUID); ok {
+		t.Error("another guid has a reason")
+	}
+	if _, ok, _ := repo.ReasonOfAny(name, otherSize); ok {
+		t.Error("another size has a reason")
+	}
+
+	// Switching the scope keeps the fallback, and removing the entry drops it.
+	if err := repo.SetScope(list[0].ID, !list[0].ItemOnly); err != nil {
+		t.Fatal(err)
+	}
+	keys, _ = repo.Keys()
+	if !blocklist.BlockedAny(keys, name, noGUID, sc) && !blocklist.BlockedAny(keys, "Scoped.Name.2020", noGUID, sc) {
+		t.Error("the fallback was lost when the scope was switched")
+	}
+	for _, e := range list {
+		if err := repo.Remove(e.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	keys, _ = repo.Keys()
+	if blocklist.BlockedAny(keys, name, noGUID, sc) {
+		t.Error("a removed entry still blocks")
+	}
+}

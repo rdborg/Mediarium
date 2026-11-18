@@ -30,6 +30,12 @@ func newTitleTMDB(t *testing.T) *httptest.Server {
 	mux.HandleFunc("/movie/603", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{"id": 603, "title": "The Matrix", "release_date": "1999-03-31"})
 	})
+	for _, id := range []int{701, 702} {
+		id := id
+		mux.HandleFunc(fmt.Sprintf("/movie/%d", id), func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode(map[string]any{"id": id, "title": fmt.Sprintf("Movie %d", id), "release_date": "2001-01-01"})
+		})
+	}
 	mux.HandleFunc("/movie/700", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{"id": 700, "title": "Coming Soon", "release_date": future})
 	})
@@ -178,4 +184,48 @@ func TestAddSeriesMonitorChoices(t *testing.T) {
 		t.Fatalf("series sources: %+v", added)
 	}
 	putJSONStatus(t, client, fmt.Sprintf("%s/api/series/%d/sources", base, int64(added["id"].(float64))), map[string]any{"sources": ""}, http.StatusOK)
+}
+
+// A title added without saying anything about better versions is left alone, as it
+// always was, until "Keep looking for better versions" is switched on under
+// Automatic searching. A choice in the request always wins, and the titles that are
+// already there keep theirs.
+func TestAddedTitlesFollowTheKeepBetterSetting(t *testing.T) {
+	server, base, client := loginNewServer(t)
+	server.TestSetTMDBBaseURL("k", newTitleTMDB(t).URL)
+	noUpgrade := func(id float64) bool {
+		t.Helper()
+		return getJSON[map[string]any](t, client, fmt.Sprintf("%s/api/movies/%d", base, int64(id)))["noUpgrade"] == true
+	}
+
+	if s := getJSON[map[string]any](t, client, base+"/api/settings"); s["addKeepBetter"] != false {
+		t.Fatalf("a fresh install starts with it off: %+v", s["addKeepBetter"])
+	}
+	first := postJSON[map[string]any](t, client, base+"/api/movies", map[string]any{"tmdbId": 603}, http.StatusCreated)
+	if !noUpgrade(first["id"].(float64)) {
+		t.Fatal("with the setting off a new movie is left alone, like before")
+	}
+
+	putJSONStatus(t, client, base+"/api/settings", map[string]any{"addKeepBetter": true}, http.StatusOK)
+	if p := getJSON[map[string]any](t, client, base+"/api/quality-profiles"); p["addKeepBetter"] != true {
+		t.Fatalf("members read the start of the add dialog from the profile list: %+v", p["addKeepBetter"])
+	}
+	second := postJSON[map[string]any](t, client, base+"/api/movies", map[string]any{"tmdbId": 700}, http.StatusCreated)
+	if noUpgrade(second["id"].(float64)) {
+		t.Error("with the setting on a new movie keeps looking for better versions")
+	}
+	if !noUpgrade(first["id"].(float64)) {
+		t.Error("a movie that was already there keeps its own choice")
+	}
+
+	// What the request says wins over the setting, both ways.
+	explicitOff := postJSON[map[string]any](t, client, base+"/api/movies", map[string]any{"tmdbId": 701, "noUpgrade": true}, http.StatusCreated)
+	if !noUpgrade(explicitOff["id"].(float64)) {
+		t.Error("a request that asks to leave the movie alone is obeyed with the setting on")
+	}
+	putJSONStatus(t, client, base+"/api/settings", map[string]any{"addKeepBetter": false}, http.StatusOK)
+	explicitOn := postJSON[map[string]any](t, client, base+"/api/movies", map[string]any{"tmdbId": 702, "noUpgrade": false}, http.StatusCreated)
+	if noUpgrade(explicitOn["id"].(float64)) {
+		t.Error("a request that asks for better versions is obeyed with the setting off")
+	}
 }

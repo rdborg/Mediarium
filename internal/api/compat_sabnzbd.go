@@ -365,7 +365,7 @@ func (s *Server) sabQueue(w http.ResponseWriter, r *http.Request) {
 	global := paused && !running
 	free1, total1 := s.sabDisk()
 	writeJSON(w, http.StatusOK, map[string]any{"queue": map[string]any{
-		"version": sabVersion, "paused": global, "pause_int": "0", "paused_all": global,
+		"version": sabVersion, "status": sabQueueState(len(all), global, running), "paused": global, "pause_int": "0", "paused_all": global,
 		"diskspace1": free1, "diskspace2": free1, "diskspacetotal1": total1, "diskspacetotal2": total1,
 		"diskspace1_norm": s.sabDiskNorm(), "diskspace2_norm": s.sabDiskNorm(),
 		"speedlimit": "", "speedlimit_abs": "", "have_warnings": "0", "finishaction": nil,
@@ -378,6 +378,20 @@ func (s *Server) sabQueue(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
+// sabQueueState is the word SABnzbd gives the whole queue (Home Assistant and
+// dashboards show it): Paused, Downloading or Idle.
+func sabQueueState(slots int, paused, running bool) string {
+	switch {
+	case slots == 0:
+		return "Idle"
+	case paused:
+		return "Paused"
+	case running:
+		return "Downloading"
+	}
+	return "Idle"
+}
+
 // sabPage reads start and limit (limit 0 is everything).
 func sabPage(r *http.Request, n int) (start, limit int) {
 	start, _ = strconv.Atoi(r.FormValue("start"))
@@ -388,6 +402,9 @@ func sabPage(r *http.Request, n int) (start, limit int) {
 	if limit < 0 {
 		limit = 0
 	}
+	// Nothing past the last item can be asked for, and start+limit then can't
+	// overflow for a huge limit.
+	limit = min(limit, n-start)
 	return start, limit
 }
 

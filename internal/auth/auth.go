@@ -43,7 +43,7 @@ var (
 	ErrUsernameTaken   = errors.New("username already taken")
 	ErrSessionNotFound = errors.New("session not found or expired")
 	// ErrSessionIdle is ErrSessionNotFound for a session that ended because it
-	// was not used for too long (Settings > Account & Access > Security). The
+	// was not used for too long (Settings > People and access > Security). The
 	// sign-in page can then say so.
 	ErrSessionIdle = fmt.Errorf("%w: it was idle for too long", ErrSessionNotFound)
 	// ErrSetupDone is returned by CreateFirstAdmin once any account exists.

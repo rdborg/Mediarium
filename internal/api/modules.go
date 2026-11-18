@@ -113,13 +113,17 @@ type modulesPayload struct {
 	// TrailerSound starts that trailer with its sound on.
 	TrailerSound bool `json:"trailerSound"`
 	// ArtworkProxy says artwork is loaded through this server instead of
-	// straight from the picture host (Settings > Info, lists and subtitles).
+	// straight from the picture host (Settings > Library and files).
 	ArtworkProxy bool `json:"artworkProxy"`
 	// TorrentsOn says whether torrent releases can be downloaded at all (the
 	// built-in client, a debrid service or a download client), so every
 	// account's release lists can say when they can't. Only an administrator
 	// can change it (Settings > Downloading > Torrents).
 	TorrentsOn bool `json:"torrentsOn"`
+	// TMDBKey says whether a TMDB API key is set. Without one the movie and
+	// show search (and Discover's lists of titles) cannot answer, so the pages
+	// say so instead of sending a request that is bound to fail.
+	TMDBKey bool `json:"tmdbKey"`
 }
 
 func (s *Server) modulesPayload() modulesPayload {
@@ -140,6 +144,7 @@ func (s *Server) modulesPayload() modulesPayload {
 		ArtworkProxy:      s.artworkProxy(),
 
 		TorrentsOn: s.torrentReleasesOn(),
+		TMDBKey:    s.TMDB().HasAPIKey(),
 	}
 }
 
@@ -257,22 +262,22 @@ func (s *Server) requireModule(w http.ResponseWriter, module string) bool {
 	switch module {
 	case moduleMovies:
 		if !s.moviesEnabled() {
-			writeError(w, http.StatusConflict, "Movies are switched off. Switch them on in Settings > Media types.")
+			writeError(w, http.StatusConflict, "Movies are switched off. Switch them on in Settings > Basics > Media types.")
 			return false
 		}
 	case moduleTV:
 		if !s.tvEnabled() {
-			writeError(w, http.StatusConflict, "TV is switched off. Switch it on in Settings > Media types.")
+			writeError(w, http.StatusConflict, "TV is switched off. Switch it on in Settings > Basics > Media types.")
 			return false
 		}
 	case moduleEbooks:
 		if !s.ebooksEnabled() {
-			writeError(w, http.StatusConflict, "Ebooks are switched off. Switch them on in Settings > Media types.")
+			writeError(w, http.StatusConflict, "Ebooks are switched off. Switch them on in Settings > Basics > Media types.")
 			return false
 		}
 	case moduleAudiobooks:
 		if !s.audiobooksEnabled() {
-			writeError(w, http.StatusConflict, "Audiobooks are switched off. Switch them on in Settings > Media types.")
+			writeError(w, http.StatusConflict, "Audiobooks are switched off. Switch them on in Settings > Basics > Media types.")
 			return false
 		}
 	}
@@ -280,7 +285,7 @@ func (s *Server) requireModule(w http.ResponseWriter, module string) bool {
 }
 
 // trailerBackground says whether the trailer plays behind movie and show pages
-// for everyone (Settings > Info, lists and subtitles > Movie and show info). It
+// for everyone (Settings > Library and files > Movie and show info). It
 // is on until an administrator switches it off, so it works out of the box; the
 // video comes from YouTube, which the setting and the docs say, and a browser
 // can switch it off for itself with the button on the page.

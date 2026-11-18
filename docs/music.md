@@ -23,7 +23,7 @@ For scripts: `PUT /api/settings` with `{"musicEnabled": true, "musicPath": "/dat
 
 With the module on, music shows up next to movies and TV. Basic users can browse, add artists and grab releases. The buttons that delete things or change settings are for administrators.
 
-![The Music tab of the Library with five artists as cards showing how many albums are downloaded](images/music-library.png)
+![The Music tab of the Library with six artists as cards showing how many albums are downloaded](images/music-library.png)
 
 *Library, Music tab: your artists, with how many of their albums you have.*
 
@@ -115,7 +115,7 @@ Adding a large discography can take a few seconds, because the music database al
 
 ## Choosing what to show
 
-By default an artist's page lists albums, EPs and singles, and leaves out every release that has a secondary type (live, remix, compilation and so on). You can change that for the whole library under **Settings > Quality**, in the card **Music: what to show**, and for one artist on its own page. Changes are saved as you make them.
+By default an artist's page lists albums, EPs and singles, and leaves out every release that has a secondary type (live, remix, compilation and so on). You can change that for the whole library under **Settings > Finding releases > Quality**, in the card **Music: what to show**, and for one artist on its own page. Changes are saved as you make them.
 
 - **Release types to show**: Albums, EPs and Singles. At least one has to stay on.
 - **Kinds to hide**: Live, Remix, Compilation, DJ-mix, Soundtrack, Demo, Mixtape/Street, Spokenword, Interview, Audiobook, Audio drama and Other (any kind the music database adds later). A release is hidden when any of its kinds is ticked. Everything is ticked by default, which is what Mediarium always did. Untick **Live** and live albums are listed.
@@ -167,7 +167,7 @@ After the download is repaired and unpacked (as for movies), Mediarium finds the
 <music folder>/<Artist>/<Album> (<Year>)/2-01 - Title.flac      albums with several discs
 ```
 
-Plex, Jellyfin and Navidrome all read this layout. Files are hardlinked from the downloads folder when both are on the same disk (no extra space), otherwise copied. `cover.jpg` and `folder.jpg` (or `.png`, or `.webp`) are kept beside the tracks. Other files (`.nfo`, `.log`, `.cue`) aren't copied.
+Plex, Jellyfin and Navidrome all read this layout. A name too long for a folder is shortened and the year kept. Two artists with the same name get the second one's disambiguation or the start of its id after the name (`Blue Ruin (US punk)`), and an EP or single that has the same name and year as another release of the artist gets `[EP]` or `[Single]` after the title, so their files never meet in one folder. Folders that already exist keep their names. Files are hardlinked from the downloads folder when both are on the same disk (no extra space), otherwise copied. `cover.jpg` and `folder.jpg` (or `.png`, or `.webp`) are kept beside the tracks. Other files (`.nfo`, `.log`, `.cue`) aren't copied.
 
 Files are matched by disc and track number first (from the file name, or a `CD1`/`Disc 2` folder), then by title, then by number alone. If none of a release's files can be matched, the release is blocklisted as bad and the next-best one is tried, as for movies. Tracks the release doesn't have, and extra files it has, are listed in the album's activity. When an album is upgraded (MP3 to FLAC), the old files are removed once the new ones are in place.
 
@@ -254,7 +254,7 @@ Crossfade and ReplayGain use the browser's Web Audio. It is only switched on whe
 
 ### Sending your plays to ListenBrainz
 
-Each account can send what it plays to its own [ListenBrainz](https://listenbrainz.org) account. In **Settings > Profile > ListenBrainz** copy your user token from listenbrainz.org/settings, paste it and press **Connect**. Mediarium asks ListenBrainz whether the token is good before keeping it. It is stored encrypted, belongs to your account, is never shown again and never written to the log. **Send my plays to ListenBrainz** switches sending on and off without losing the token, and **Disconnect** forgets it.
+Each account can send what it plays to its own [ListenBrainz](https://listenbrainz.org) account. In **Settings > People and access > Linked services > ListenBrainz** copy your user token from listenbrainz.org/settings, paste it and press **Connect**. Mediarium asks ListenBrainz whether the token is good before keeping it. It is stored encrypted, belongs to your account, is never shown again and never written to the log. **Send my plays to ListenBrainz** switches sending on and off without losing the token, and **Disconnect** forgets it.
 
 - When a track starts, ListenBrainz is told what is playing now.
 - A track counts as a listen once you have heard half of it or four minutes, whichever is less (seeking ahead doesn't count as listening). It is sent with the time it started.

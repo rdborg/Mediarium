@@ -43,12 +43,12 @@ const RULES: Rule[] = [
     t('{why}, so it stays on Prowlarr: added as Prowlarr’s own feed for it, with Prowlarr’s API key', { why: why(m[1]) })],
   [/^Mediarium's site list has no (.+?), so it stays on Jackett/, (m) => t('Mediarium’s site list has no {id}, so it stays on Jackett', { id: m[1] })],
   [/^switched off in (\w+), so added switched off/, (m) => t('switched off in {app}, so added switched off', { app: m[1] })],
-  [/^Prowlarr hid its API key: added switched off, enter the key under Settings > Indexers & Search/, () => t('Prowlarr hid its API key: added switched off, enter the key under Settings > Indexers & Search')],
-  [/^Prowlarr hid its password or cookie: added switched off, enter it under Settings > Indexers & Search/, () => t('Prowlarr hid its password or cookie: added switched off, enter it under Settings > Indexers & Search')],
+  [/^Prowlarr hid its API key: added switched off, enter the key under Settings > Finding releases > Indexers & Search/, () => t('Prowlarr hid its API key: added switched off, enter the key under Settings > Finding releases > Indexers & Search')],
+  [/^Prowlarr hid its password or cookie: added switched off, enter it under Settings > Finding releases > Indexers & Search/, () => t('Prowlarr hid its password or cookie: added switched off, enter it under Settings > Finding releases > Indexers & Search')],
   [/^(\w+) did not reveal the password: added switched off, enter it under Settings > Downloading > Usenet/, (m) => t('{app} did not reveal the password: added switched off, enter it under Settings > Downloading > Usenet', { app: m[1] })],
   [/^optional in (\w+); Mediarium tries servers in priority order/, (m) => t('optional in {app}; Mediarium tries servers in priority order', { app: m[1] })],
   [/^added as the site itself, not through Jackett/, () => t('added as the site itself, not through Jackett')],
-  [/^it is a private tracker, so it is added switched off: enter your login under Settings > Indexers & Search/, () => t('it is a private tracker, so it is added switched off: enter your login under Settings > Indexers & Search')],
+  [/^it is a private tracker, so it is added switched off: enter your login under Settings > Finding releases > Indexers & Search/, () => t('it is a private tracker, so it is added switched off: enter your login under Settings > Finding releases > Indexers & Search')],
   [/^added through Jackett's Torznab feed, with Jackett's API key/, () => t('added through Jackett’s Torznab feed, with Jackett’s API key')],
 ]
 

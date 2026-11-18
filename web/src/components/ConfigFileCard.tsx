@@ -9,7 +9,7 @@ import Switch from './Switch'
 import TipLabel from './TipLabel'
 import { useToast } from './Toast'
 
-// Settings > System > Settings file: everything that is not a secret as one
+// Settings > System > Backup and restore > Settings file: everything that is not a secret as one
 // file, and a file put back with a check first. Checking writes nothing; it
 // shows what would be added, changed or removed. Applying saves a copy of the
 // database and is all or nothing.

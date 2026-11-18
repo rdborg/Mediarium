@@ -7,7 +7,7 @@ import Icon from './Icon'
 import { useToast } from './Toast'
 import TipLabel from './TipLabel'
 
-// Settings > Library > Folders and file names: the permissions given to
+// Settings > Library and files > Folders: the permissions given to
 // files and folders Mediarium creates in the library. Empty = leave it to the
 // container (its UMASK), which is how it has always worked.
 export default function FilePermissionsCard() {

@@ -671,7 +671,13 @@ func (e *Extractor) extract7z(archivePath, destDir string) error {
 	meter := e.startMeter(total, true, func() int64 { return dirSize(stage) })
 	defer meter.finish()
 	if out, _, err := e.run7z(ctx, 64<<10, append(e.sevenZipArgs("x", "-y", "-o"+stage), "--", archivePath)...); err != nil {
-		return e.sevenZipError(ctx, name, out, err)
+		// A network share or NAS mount that refuses to set a file's attributes
+		// or times makes 7z exit with an error after it has written the data
+		// (#189). When that is the only complaint, the files are good.
+		if !onlyAttributeErrors(out) {
+			return e.sevenZipError(ctx, name, out, err)
+		}
+		slog.Warn("unpack: 7z could not set file attributes on this folder; the files were written", "archive", name)
 	}
 	if err := moveUnpacked(stage, destDir, e.maxTotal()); err != nil {
 		return fmt.Errorf("extract %s: %w", name, err)
@@ -722,6 +728,26 @@ func (e *Extractor) sevenZipError(ctx context.Context, name string, out []byte, 
 		return fmt.Errorf("extract %s: %w", name, ErrPasswordProtected)
 	}
 	return fmt.Errorf("extract %s: %w: %s", name, err, sevenZipReason(out))
+}
+
+// onlyAttributeErrors reports whether every error 7z printed is about setting
+// a file's attributes, permissions or times (which a file system that does not
+// support them refuses), and there is at least one. The data itself is written
+// before 7z tries to set them.
+func onlyAttributeErrors(out []byte) bool {
+	found := false
+	for _, line := range strings.Split(string(out), string(rune(10))) {
+		l := strings.ToLower(strings.TrimSpace(line))
+		if !strings.HasPrefix(l, "error") {
+			continue
+		}
+		if strings.Contains(l, "cannot set file attribute") || strings.Contains(l, "cannot set file time") || strings.Contains(l, "cannot set file permission") {
+			found = true
+			continue
+		}
+		return false
+	}
+	return found
 }
 
 // sevenZipReason picks the lines of a failed 7z run that say why: the ones it

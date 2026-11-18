@@ -53,6 +53,13 @@ func matchesShowRel(rel parser.Release, series library.Series) bool {
 	if withCountryTag(want, normalizeTitle(series.Title), rel.Year, series.Year) {
 		return true
 	}
+	// "Love.Island.US" for a show called "Love Island USA": the same country,
+	// written two ways.
+	if relBase, relCode := parser.SplitCountryTag(rel.Title); relCode != "" {
+		if serBase, serCode := parser.SplitCountryTag(series.Title); serCode == relCode && normalizeTitle(relBase) != "" && normalizeTitle(relBase) == normalizeTitle(serBase) {
+			return true
+		}
+	}
 	if len(want) < 3 {
 		return false
 	}

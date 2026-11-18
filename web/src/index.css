@@ -31,6 +31,7 @@
   --success: #4ade80;
   --warning: #f5b544;
   --danger: #f87171;
+  --on-danger: #2a0606;
   --info: #60a5fa;
 
   --radius: 8px;
@@ -61,6 +62,7 @@
     --success: #146c35;
     --warning: #a84b06;
     --danger: #c62828;
+    --on-danger: #ffffff;
     --info: #1d4ed8;
   }
 }
@@ -88,6 +90,7 @@
   --success: #146c35;
   --warning: #a84b06;
   --danger: #c62828;
+  --on-danger: #ffffff;
   --info: #1d4ed8;
 }
 
@@ -329,7 +332,7 @@ button:focus-visible {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--surface-2);
-  color: var(--text-dim);
+  color: var(--text);
 }
 
 .badge.downloaded {
@@ -639,6 +642,10 @@ td {
 }
 
 .switch-row.disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* In a form that lays its labels out in columns, a switch still sits beside its words. */
+.grid-form label.switch-row { flex-direction: row; gap: 12px; font-size: inherit; color: inherit; }
+.grid-form > label.switch-row { grid-column: 1 / -1; }
 
 .switch {
   position: relative;
@@ -1636,3 +1643,24 @@ textarea[aria-invalid='true']:focus {
 .palette-label { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
 .palette-hint { margin-left: auto; font-size: 0.8rem; color: var(--text-dim); }
 .palette-list li.palette-empty { cursor: default; }
+
+/* No orphan words: short hints and notes wrap evenly, longer copy never leaves one word alone on its last line. */
+small, .field-hint, .switch-desc, .switch-label, .hint, .field-note, .pcard-meta, .pcard-genres, .pcard-title, .stat-sub, .module-blurb, .notice, summary, button, label, strong, h1, h2, h3, h4 { text-wrap: balance; }
+p, li, dd, figcaption { text-wrap: pretty; }
+
+/* Reduced motion: the cards that rise in as a list loads stay still. */
+@media (prefers-reduced-motion: reduce) {
+  .pcard { animation: none; }
+}
+
+/* High-contrast (forced colours) mode drops background colours, which is how most states are drawn here.
+   The switch, the chosen tab, chip and card and the focus ring are given lines and system colours instead. */
+@media (forced-colors: active) {
+  :focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+  .switch-track { border-color: ButtonText; }
+  .switch-thumb { forced-color-adjust: none; background: ButtonText; }
+  .switch input:checked + .switch-track { forced-color-adjust: none; background: Highlight; border-color: Highlight; }
+  .switch input:checked + .switch-track .switch-thumb { background: HighlightText; }
+  button.active, a.active, .chip.active, .choice-card.active, [aria-selected='true'], [aria-checked='true'], [aria-pressed='true'], [aria-current='page'] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .badge, .chip, .choice-card { border: 1px solid ButtonText; }
+}

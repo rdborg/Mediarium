@@ -68,6 +68,8 @@ func TestParseRetryAfter(t *testing.T) {
 		{"seconds", "120", 2 * time.Minute},
 		{"seconds with spaces", " 30 ", 30 * time.Second},
 		{"negative", "-5", 0},
+		{"too many seconds to hold in a duration", "9000000000000", indexers.MaxBackoff},
+		{"a number too big to read", "99999999999999999999", 0},
 		{"garbage", "soon", 0},
 		{"a date in the future", now.Add(90 * time.Second).UTC().Format(http.TimeFormat), 90 * time.Second},
 		{"a date in the past", now.Add(-time.Hour).UTC().Format(http.TimeFormat), 0},

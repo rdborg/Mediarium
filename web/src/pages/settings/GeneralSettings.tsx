@@ -136,7 +136,7 @@ function LegalCard() {
   )
 }
 
-// Settings > General: what is about the app as a whole. Everyone sees the
+// Settings > Basics > General: what is about the app as a whole. Everyone sees the
 // language and the look; the address of the server, updates and the legal
 // notice are for administrators.
 export default function GeneralSettings() {

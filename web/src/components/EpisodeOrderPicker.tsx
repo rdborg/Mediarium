@@ -31,7 +31,7 @@ export default function EpisodeOrderPicker({ id, value, hasKey, onChanged }: { i
   }
   const keyMissing = !hasKey && value !== 'tvdb'
   return (
-    <label className="inline-field episode-order" title={keyMissing ? t('TheTVDB order needs a TheTVDB key. Save one in Settings, Info, lists and subtitles.') : undefined}>
+    <label className="inline-field episode-order" title={keyMissing ? t('TheTVDB order needs a TheTVDB key. Save one in Settings > Library and files > Movie and show info.') : undefined}>
       <span className="has-tip">
         {t('Episode order')}
         <HelpLink topic="library#episode-order" text={t("Which list this show's seasons follow. TMDB counts a double-length episode as one; TheTVDB counts it as two, as many file names do (The Office season 4 is 14 episodes on TMDB and 19 on TheTVDB). TheTVDB order needs a TheTVDB key. Your files stay on their episodes, and nothing is renamed.")} />

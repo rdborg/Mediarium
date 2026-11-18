@@ -35,7 +35,7 @@ func (r Release) Tier() Tier { return Classify(r) }
 var (
 	reYear      = regexp.MustCompile(`\b(19\d{2}|20\d{2})\b`)
 	reYearRange = regexp.MustCompile(`\b(?:19|20)\d{2}\s*[-–~]\s*(?:19|20)\d{2}\b`)
-	reFormat    = regexp.MustCompile(`(?i)\b(flac|alac|mp3|aac|m4a)\b`)
+	reFormat    = regexp.MustCompile(`(?i)\b(flac|alac|mp3|aac|m4a|webflac)\b`)
 	reBitrateK  = regexp.MustCompile(`(?i)\b(320|256|224|192|160|128)\s?(?:k|kbps|kbit|kbits|kb|kbs)\b`)
 	reBitrate   = regexp.MustCompile(`\b(320|256|192)\b`)
 	reVBR       = regexp.MustCompile(`(?i)\b(v0|v1|v2)\b`)
@@ -50,7 +50,11 @@ var (
 	reGroup     = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 	reCatalog   = regexp.MustCompile(`^\(?[A-Z]{2,}[ -]?\d{2,}[A-Z]?\)?$`)
 	reSpaces    = regexp.MustCompile(`\s+`)
-	reExt       = regexp.MustCompile(`(?i)\.(nzb|torrent)$`)
+	// reLeadingYear is a year, in brackets or not, that starts the text after an
+	// artist and is set off by a dash: "2013 - Album".
+	reLeadingYear = regexp.MustCompile(`^[(\[]?((?:19|20)\d{2})[)\]]?\s+-\s+`)
+	reBareRate    = regexp.MustCompile(`^(?:320|256|192)$`)
+	reExt         = regexp.MustCompile(`(?i)\.(nzb|torrent)$`)
 )
 
 // ParseRelease reads a music release title: the artist, the album, the
@@ -82,8 +86,15 @@ func ParseRelease(title string) Release {
 	case strings.Contains(title, " - "):
 		artist, rest, _ := strings.Cut(title, " - ")
 		r.Artist = cleanName(artist)
+		// "Artist - 2013 - Album": the year leads the album.
+		if m := reLeadingYear.FindStringSubmatch(rest); m != nil {
+			r.Year, _ = strconv.Atoi(m[1])
+			rest = rest[len(m[0]):]
+		}
 		r.Album = cutAlbum(rest)
-		r.Year = yearFrom(rest, r.Album)
+		if r.Year == 0 {
+			r.Year = yearFrom(rest, r.Album)
+		}
 	case !strings.Contains(title, " ") && strings.Count(title, "-") >= 1, spacedScene(title):
 		parseScene(title, &r)
 	default:
@@ -205,6 +216,15 @@ func parseScene(title string, r *Release) {
 		return
 	}
 	r.Album = cutAlbum(parts[1])
+	// A bare "320" between dashes is the bitrate of an MP3 release.
+	for _, p := range parts[2:] {
+		if reBareRate.MatchString(p) && r.Bitrate == "" && (r.Format == "" || r.Format == FormatMP3 || r.Format == FormatAAC) {
+			r.Bitrate = p
+			if r.Format == "" {
+				r.Format = FormatMP3
+			}
+		}
+	}
 	for _, p := range parts[2:] {
 		if y := pureYear(p); y != 0 {
 			r.Year = y
@@ -235,7 +255,7 @@ func readQuality(tokens string, r *Release) {
 		formats[strings.ToUpper(m)] = true
 	}
 	switch {
-	case formats["FLAC"]:
+	case formats["FLAC"] || formats["WEBFLAC"]:
 		r.Format = FormatFLAC
 	case formats["ALAC"]:
 		r.Format = FormatALAC

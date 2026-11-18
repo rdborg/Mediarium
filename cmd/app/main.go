@@ -103,6 +103,9 @@ func main() {
 		return
 	}
 	if err := run(); err != nil {
+		if hint := startupHint(err); hint != "" {
+			log.Printf("mediarium: %s", hint)
+		}
 		log.Fatalf("mediarium: %v", err)
 	}
 	// After an update, a restore or the Restart button, start the next program

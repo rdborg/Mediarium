@@ -4,7 +4,7 @@ import { api, type ImportListHistory } from '../api'
 import { timeAgo } from '../format'
 import { t } from '../i18n'
 
-// The History view of one import list (Settings > Import lists): what it has
+// The History view of one import list (Settings > Library and files > Import lists): what it has
 // added, how much of that has a file now, how many downloads it started and
 // what it skipped, so you can tell which lists are worth keeping.
 

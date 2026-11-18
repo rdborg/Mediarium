@@ -328,7 +328,14 @@ func (c *NewznabClient) get(ctx context.Context, q url.Values) ([]byte, error) {
 		return nil, NewStatusError(resp.StatusCode, resp.Header,
 			fmt.Sprintf("newznab request to %s: unexpected status %d: %s", c.Name, resp.StatusCode, c.mask(truncate(string(body), 200))), time.Now())
 	}
-	return body, nil
+	clean, err := cleanFeed(body)
+	if errors.Is(err, errEmptyReply) {
+		return nil, fmt.Errorf("%s answered with nothing at all (an empty page). It may be down, or a proxy in front of it dropped the answer", c.Name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("newznab request to %s: %s", c.Name, c.mask(err.Error()))
+	}
+	return clean, nil
 }
 
 // UserAgent is what Mediarium calls itself when it asks an indexer for a
@@ -386,7 +393,12 @@ func parseNewznabFeed(body []byte, indexerName, apiKey string) ([]Result, error)
 func parseNewznabPage(body []byte, indexerName, apiKey string) ([]Result, int, error) {
 	var feed newznabRSS
 	var err error
-	if feed.Channel, err = decodeNewznabFeed(body); err != nil {
+	if feed.Channel, err = decodeNewznabFeed(body); err != nil && len(feed.Channel.Items) > 0 && isCutOff(err) {
+		// The reply stopped part way (a dropped connection, a proxy time-out):
+		// the releases that arrived whole are still worth having.
+		err = nil
+	}
+	if err != nil {
 		// Newznab reports bad credentials and the like as a bare <error> root
 		// element instead of an RSS feed; surface its description.
 		var apiErr struct {
@@ -394,8 +406,17 @@ func parseNewznabPage(body []byte, indexerName, apiKey string) ([]Result, int, e
 			Code        string   `xml:"code,attr"`
 			Description string   `xml:"description,attr"`
 		}
-		if xml.Unmarshal(body, &apiErr) == nil && apiErr.Description != "" {
+		if xml.Unmarshal(body, &apiErr) == nil && (apiErr.Description != "" || apiErr.Code != "") {
+			if apiErr.Description == "" {
+				apiErr.Description = "the indexer gave no reason"
+			}
 			return nil, 0, fmt.Errorf("newznab error from %s: %s (code %s)", indexerName, maskSecret(truncate(apiErr.Description, 300), apiKey), truncate(apiErr.Code, 20))
+		}
+		if !looksLikeWebPage(body) && !bytes.HasPrefix(bytes.TrimSpace(body), []byte("<")) {
+			// Not XML at all: a JSON error, or a line of text from a proxy or a
+			// rate limiter. What it says is the most useful thing to show.
+			say := strings.Join(strings.Fields(string(body[:min(len(body), 300)])), " ")
+			return nil, 0, fmt.Errorf("%s did not answer with a feed. It said: %s", indexerName, maskSecret(truncate(say, 200), apiKey))
 		}
 		if looksLikeWebPage(body) {
 			return nil, 0, fmt.Errorf("%s answered with a web page, not an indexer feed. Check the address: it must be the indexer's API address, not the site's home page. For an indexer in Prowlarr, open it in Prowlarr and copy its Torznab or Newznab feed address (it looks like http://192.168.1.10:9696/5/api), and use Prowlarr's API key. Or copy all your Prowlarr indexers at once under Settings > System > Move from other apps", indexerName)
@@ -415,6 +436,11 @@ func parseNewznabPage(body []byte, indexerName, apiKey string) ([]Result, int, e
 	return results, feed.Channel.Total, nil
 }
 
+// isCutOff says whether the reader stopped because the reply ended early.
+func isCutOff(err error) bool {
+	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) || strings.Contains(err.Error(), "unexpected EOF")
+}
+
 // maxNewznabItems is how many releases of one reply are used.
 const maxNewznabItems = 5000
 
@@ -424,6 +450,10 @@ const maxNewznabItems = 5000
 func decodeNewznabFeed(body []byte) (newznabChannel, error) {
 	var ch newznabChannel
 	dec := xml.NewDecoder(bytes.NewReader(body))
+	// Indexers write a bare & in a title now and then; the strict reader would
+	// refuse the whole page for it.
+	dec.Strict = false
+	dec.Entity = xml.HTMLEntity
 	var root xml.StartElement
 	for {
 		tok, err := dec.Token()
@@ -586,9 +616,13 @@ func (item newznabItem) toResult(indexerName string) Result {
 	}
 	r.SizeBytes = saneSize(r.SizeBytes)
 	r.Title = shortenText(strings.Join(strings.Fields(r.Title), " "), maxTitleBytes)
-	if catStr := item.attr("category"); catStr != "" {
-		if n, err := strconv.Atoi(catStr); err == nil {
-			r.Categories = append(r.Categories, n)
+	// A Torznab item names its category more than once (2000 and 2040, and
+	// the indexer's own number): all of them are kept.
+	for _, a := range item.Attrs {
+		if strings.EqualFold(a.Name, "category") {
+			if n, err := strconv.Atoi(strings.TrimSpace(a.Value)); err == nil {
+				r.Categories = append(r.Categories, n)
+			}
 		}
 	}
 	if seeders := item.attr("seeders"); seeders != "" {

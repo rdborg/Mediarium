@@ -5,7 +5,7 @@ Mediarium can look after books too: as an ebook, an audiobook or both. Each form
 ## Switching them on
 
 1. Open **Settings > Basics > Media types** and switch on **Ebooks**, **Audiobooks** or both.
-2. Open **Settings > Library and files and files > Folders** and check the **Ebooks folder** and **Audiobooks folder**. They start from `EBOOKS_DIR` and `AUDIOBOOKS_DIR` (`/ebooks` and `/audiobooks` by default). The folder has to be mapped into the container; see [modules.md](./modules.md#adding-music-ebooks-or-audiobooks-later).
+2. Open **Settings > Library and files > Folders** and check the **Ebooks folder** and **Audiobooks folder**. They start from `EBOOKS_DIR` and `AUDIOBOOKS_DIR` (`/ebooks` and `/audiobooks` by default). The folder has to be mapped into the container; see [modules.md](./modules.md#adding-music-ebooks-or-audiobooks-later).
 3. Make sure at least one of your indexers carries books. Ebooks are searched in the Newznab categories 7000 and 7020, audiobooks in 3030.
 
 You can also pick them in the first-run wizard, on the **What do you want to manage?** step.
@@ -143,7 +143,7 @@ Books are filed by author:
 <Audiobooks folder>/<Author>/<Title (Year)>/<the audiobook's own files>
 ```
 
-An ebook download keeps only the best ebook file in it. An audiobook keeps all of its audio files with their own names, so the chapters stay in order. When a book comes in several folders with the same file names (`CD1/Track 01.mp3` and `CD2/Track 01.mp3`), the folder name goes in front of the file name (`CD1 - Track 01.mp3`), so no part replaces another. A download with no ebook (or no audio) in it is marked as a bad release, blocklisted, and the next best one is tried.
+Two different works of the same title, author and year (two catalogue entries for one name) don't share a folder: the second one gets its Open Library key after the name, `Title (Year) [OL123W]`. An ebook download keeps only the best ebook file in it. An audiobook keeps all of its audio files with their own names, so the chapters stay in order. When a book comes in several folders with the same file names (`CD1/Track 01.mp3` and `CD2/Track 01.mp3`), the folder name goes in front of the file name (`CD1 - Track 01.mp3`), so no part replaces another. A download with no ebook (or no audio) in it is marked as a bad release, blocklisted, and the next best one is tried.
 
 Downloading a better ebook later (an EPUB after a PDF) replaces the file. A worse one doesn't.
 

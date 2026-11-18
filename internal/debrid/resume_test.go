@@ -237,3 +237,59 @@ func TestFetchResumeWrongRange(t *testing.T) {
 		t.Fatal("the file is not the one served")
 	}
 }
+
+// A part on disk that is bigger than the whole file belongs to something else:
+// it is dropped and the file is fetched from the start, with no Range that
+// could only be refused.
+func TestFetchResumeOversizedPart(t *testing.T) {
+	content := strings.Repeat("abcdefghij", 100)
+	var ranges []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ranges = append(ranges, r.Header.Get("Range"))
+		_, _ = io.WriteString(w, content)
+	}))
+	defer srv.Close()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.mkv.part"), []byte(content+content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Fetch(context.Background(), srv.Client(), File{Name: "a.mkv", Size: int64(len(content)), URL: srv.URL}, dir, func(int64) {}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, "a.mkv"))
+	if string(got) != content {
+		t.Fatalf("got %d bytes, want %d", len(got), len(content))
+	}
+	if len(ranges) != 1 || ranges[0] != "" {
+		t.Fatalf("asked with Range %q, want none", ranges)
+	}
+}
+
+// A refused Range (416) with a part that is not the whole file starts the file
+// over on a fresh link instead of failing the download.
+func TestFetchResumeRangeNotSatisfiable(t *testing.T) {
+	retryWait = 0
+	content := strings.Repeat("abcdefghij", 100)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") != "" {
+			w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+			return
+		}
+		_, _ = io.WriteString(w, content)
+	}))
+	defer srv.Close()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.mkv.part"), []byte(content[:300]), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := FetchResume(context.Background(), srv.Client(), File{Name: "a.mkv", Size: int64(len(content)), URL: srv.URL}, dir, func(int64) {}, FetchOptions{
+		Refresh: func(ctx context.Context) (string, error) { return srv.URL, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, "a.mkv"))
+	if string(got) != content {
+		t.Fatalf("got %d bytes, want %d", len(got), len(content))
+	}
+}

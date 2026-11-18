@@ -4,7 +4,7 @@ import { useModules } from '../ModulesContext'
 import { useToast } from './Toast'
 import { t, tx } from '../i18n'
 
-// Settings > Info, lists and subtitles: an optional Hardcover token for better
+// Settings > Library and files: an optional Hardcover token for better
 // book series and release dates. A Hardcover token belongs to one account and
 // can't be shared, so none comes with Mediarium; without one, Open Library is used.
 export default function HardcoverCard() {

@@ -22,7 +22,7 @@ import (
 	"github.com/rdborg/mediarium/internal/store"
 )
 
-// Settings in a file, with a check first (Settings > System > Settings file).
+// Settings in a file, with a check first (Settings > System > Backup and restore > Settings file).
 // An administrator downloads everything that isn't a secret as one file, edits
 // or keeps it, and later chooses it again: it is checked (nothing written),
 // the difference is shown in plain words, and only then applied. An apply

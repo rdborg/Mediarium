@@ -25,7 +25,8 @@ for (const lang of ['en', 'ru']) {
 
 // The same check with a wide fallback font, the way a Linux machine without
 // Edge's fonts draws Cyrillic and accented text (DejaVu Sans is much wider than
-// Segoe UI). Every settings page is walked in the languages with long words.
+// Segoe UI). Every settings page is walked in the languages with long words
+// (and in Chinese, whose sentences have no spaces to break at).
 const WIDE_FONT = '*{font-family: Verdana, "DejaVu Sans", sans-serif !important}'
 const SETTINGS = [
   'modules', 'media', 'naming', 'quality', 'automation', 'indexers', 'usenet', 'torrents', 'download-rules', 'vpn',
@@ -33,7 +34,7 @@ const SETTINGS = [
   'system', 'backup', 'accounts', 'requests', 'sign-in', 'general', 'security', 'services', 'logs', 'about', 'statistics',
 ].map((s) => `/settings/${s}`)
 
-for (const lang of ['en', 'ru', 'de', 'fr', 'pl']) {
+for (const lang of ['en', 'ru', 'de', 'fr', 'pl', 'zh-CN']) {
   for (const path of [...PAGES.filter((p) => !p.startsWith('/settings')), ...SETTINGS]) {
     test(`${path} does not scroll sideways with a wide font (${lang})`, async ({ page }) => {
       await page.addInitScript((l) => {

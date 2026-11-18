@@ -38,12 +38,7 @@ const (
 	soulseekSearchWait = 30 * time.Second
 	// soulseekQueryWait is how long one ask to slskd may take; an empty answer
 	// is asked again in a wider form, so each try gets less than the whole.
-	soulseekQueryWait = 20 * time.Second
-	// soulseekQueuedFor is how long a download may wait in the other user's
-	// queue before another release is tried. Soulseek queues can be long.
-	soulseekQueuedFor = 6 * time.Hour
-	// soulseekStalledFor is how long a started download may get no data.
-	soulseekStalledFor = 30 * time.Minute
+	soulseekQueryWait  = 20 * time.Second
 	soulseekMaxResults = 25
 	soulseekURLPrefix  = "slsk:"
 	// soulseekFileRetries is how many times a file that failed is asked for again
@@ -53,6 +48,15 @@ const (
 
 // soulseekPoll is how often slskd is asked how the files are doing.
 var soulseekPoll = 5 * time.Second
+
+var (
+	// soulseekQueuedFor is how long a download may wait in the other user's
+	// queue, with nothing arriving, before another release is tried. Soulseek
+	// queues can be long. Variables so tests can shorten them.
+	soulseekQueuedFor = 6 * time.Hour
+	// soulseekStalledFor is how long a started download may get no data.
+	soulseekStalledFor = 30 * time.Minute
+)
 
 type soulseekConfig struct {
 	URL, Key, Folder string
@@ -404,7 +408,7 @@ func (s *Server) soulseekReleases(resps []slskd.Response, artist music.Artist, a
 func (s *Server) downloadSoulseek(ctx context.Context, queueID int64, downloadURL string) (string, error) {
 	c, cfg, ok := s.soulseekClient()
 	if !ok {
-		return "", errors.New("Soulseek isn't set up any more. Save slskd's address, key and folder under Settings > Downloading > Soulseek")
+		return "", errors.New("Soulseek isn't set up any more. Save slskd's address, key and folder under Settings > Downloading > Download rules > Soulseek through slskd")
 	}
 	g, err := decodeSoulseek(downloadURL)
 	if err != nil {
@@ -459,7 +463,18 @@ func (s *Server) downloadSoulseek(ctx context.Context, queueID int64, downloadUR
 			var got int64
 			done, failed, moving := 0, 0, false
 			var again []slskd.Want
-			for name, t := range soulseekTries(list, wanted) {
+			tries := soulseekTries(list, wanted)
+			// A file slskd no longer lists (it restarted, or its list was cleared)
+			// is asked for again, after a minute to let a new request show up.
+			if time.Since(started) > time.Minute {
+				for name, size := range wanted {
+					if _, listed := tries[name]; !listed && retries[name] < soulseekFileRetries {
+						retries[name]++
+						again = append(again, slskd.Want{Filename: name, Size: size})
+					}
+				}
+			}
+			for name, t := range tries {
 				got += min(t.BytesTransferred, t.Size)
 				switch {
 				case t.State.Succeeded():
@@ -501,7 +516,9 @@ func (s *Server) downloadSoulseek(ctx context.Context, queueID int64, downloadUR
 			switch {
 			case moving && time.Since(lastMove) > soulseekStalledFor:
 				return "", badRelease(fmt.Errorf("nothing came from %s on Soulseek for %s", g.User, soulseekStalledFor))
-			case !moving && got == 0 && time.Since(started) > soulseekQueuedFor:
+			case !moving && time.Since(lastMove) > soulseekQueuedFor:
+				// Also when some files came and the rest sit in the user's queue (or
+				// slskd lost them): nothing has arrived for this long.
 				return "", badRelease(fmt.Errorf("the files waited in %s's queue on Soulseek for %s without starting", g.User, soulseekQueuedFor))
 			}
 		}
@@ -584,7 +601,7 @@ func (s *Server) soulseekView(queueID int64, folder string, files []slskd.Want) 
 		return "", fmt.Errorf("read slskd's downloads folder %s: %w", folder, err)
 	}
 	if len(found) < len(want) {
-		return "", fmt.Errorf("slskd says the files are downloaded, but %d of them aren't in %s. Check the Soulseek folder under Settings > Downloading > Soulseek", len(want)-len(found), folder)
+		return "", fmt.Errorf("slskd says the files are downloaded, but %d of them aren't in %s. Check the Soulseek folder under Settings > Downloading > Download rules > Soulseek through slskd", len(want)-len(found), folder)
 	}
 	dir := s.defaultWorkDirFor(queueID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -601,7 +618,7 @@ func (s *Server) soulseekView(queueID int64, folder string, files []slskd.Want) 
 	return dir, nil
 }
 
-// ---- Settings > Downloading > Soulseek ----
+// ---- Settings > Downloading > Download rules > Soulseek through slskd ----
 
 type soulseekPayload struct {
 	URL     string `json:"url"`

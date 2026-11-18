@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -65,6 +66,13 @@ func (r *realDebrid) call(ctx context.Context, method, path string, form url.Val
 			ErrorCode int    `json:"error_code"`
 		}
 		_ = json.Unmarshal(data, &e)
+		switch {
+		case resp.StatusCode == http.StatusTooManyRequests:
+			e.ErrorCode = 34
+		case resp.StatusCode >= 500 && e.Error == "":
+			// Its servers had a bad moment (or Cloudflare answered for them).
+			return fmt.Errorf("Real-Debrid is having trouble at the moment, so Mediarium will try again (HTTP %d)", resp.StatusCode)
+		}
 		return fmt.Errorf("Real-Debrid: %s (HTTP %d)", rdError(e.Error, e.ErrorCode), resp.StatusCode)
 	}
 	if out == nil || len(bytes.TrimSpace(data)) == 0 {
@@ -181,8 +189,21 @@ func (r *realDebrid) Files(ctx context.Context, id string) ([]File, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Real-Debrid lists one link per selected file, in the order of the files.
+	// Its link answer only has the bare file name, so two files of a pack with
+	// the same name (every episode's English.srt) would overwrite each other:
+	// the torrent's own paths are used when they line up with the links.
+	var paths []string
+	for _, f := range in.Files {
+		if f.Selected == 1 {
+			paths = append(paths, strings.TrimPrefix(f.Path, "/"))
+		}
+	}
+	if len(paths) != len(in.Links) {
+		paths = nil
+	}
 	var out []File
-	for _, link := range in.Links {
+	for i, link := range in.Links {
 		var u struct {
 			Filename string `json:"filename"`
 			Filesize int64  `json:"filesize"`
@@ -194,7 +215,11 @@ func (r *realDebrid) Files(ctx context.Context, id string) ([]File, error) {
 		if u.Download == "" {
 			continue
 		}
-		out = append(out, File{Name: u.Filename, Size: u.Filesize, URL: u.Download})
+		name := u.Filename
+		if paths != nil && paths[i] != "" && path.Base(paths[i]) == path.Base(strings.ReplaceAll(u.Filename, `\`, "/")) {
+			name = paths[i]
+		}
+		out = append(out, File{Name: name, Size: u.Filesize, URL: u.Download})
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("Real-Debrid has no files for this torrent")

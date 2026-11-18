@@ -34,7 +34,7 @@
 }
 .prog-month::first-letter { text-transform: uppercase; }
 .prog.compact .prog-month { font-size: clamp(1.7rem, 2.8vw, 2.3rem); }
-.prog-year { font-family: var(--font-mono); font-weight: 400; font-size: 0.3em; letter-spacing: 0.12em; color: var(--text-faint); vertical-align: 0.95em; margin-left: 0.15em; }
+.prog-year { font-family: var(--font-mono); font-weight: 400; font-size: max(0.3em, 10px); letter-spacing: 0.12em; color: var(--text-faint); vertical-align: 0.95em; margin-left: 0.15em; }
 .prog-count { margin: 10px 0 0; font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.06em; color: var(--text-dim); }
 
 .prog-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }

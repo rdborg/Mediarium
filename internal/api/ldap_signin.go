@@ -225,7 +225,7 @@ func (s *Server) handleTestLDAP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, ldapauth.ErrAmbiguous) {
-			writeError(w, http.StatusBadRequest, "More than one entry matches that user name. Make the user filter more specific.")
+			writeError(w, http.StatusBadRequest, "More than one entry matches that username. Make the user filter more specific.")
 			return
 		}
 		writeError(w, http.StatusBadRequest, capitalise(err.Error())+".")

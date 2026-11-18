@@ -16,7 +16,7 @@ import (
 )
 
 // Library lifecycle rules (V4 D13), off until an administrator switches the
-// module on (Settings > Media types).
+// module on (Settings > Basics > Media types).
 //
 // The rules are the ones the plain cleanup has (a movie watched a while ago,
 // a movie nobody watched, an episode watched a while ago; titles with a keep
@@ -354,7 +354,7 @@ func (s *Server) handleGetLifecycle(w http.ResponseWriter, r *http.Request) {
 // off empties the shelf, so the grace period starts over.
 func (s *Server) handlePutLifecycle(w http.ResponseWriter, r *http.Request) {
 	if !s.lifecycleEnabled() {
-		writeError(w, http.StatusConflict, "Library lifecycle is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "Library lifecycle is switched off. Switch it on in Settings > Basics > Media types.")
 		return
 	}
 	var req LifecycleRules
@@ -418,7 +418,7 @@ func (s *Server) handlePutLifecycle(w http.ResponseWriter, r *http.Request) {
 // now. Nothing is changed except the note that this dry run was made.
 func (s *Server) handleLifecycleDryRun(w http.ResponseWriter, r *http.Request) {
 	if !s.lifecycleEnabled() {
-		writeError(w, http.StatusConflict, "Library lifecycle is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "Library lifecycle is switched off. Switch it on in Settings > Basics > Media types.")
 		return
 	}
 	rules := s.lifecycleRules()

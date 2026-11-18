@@ -151,3 +151,49 @@ func TestProbeAdviceSeesRecentFailuresAndStaleLimits(t *testing.T) {
 		t.Fatalf("a set limit that is used up holds the check back, got %v", got)
 	}
 }
+
+// An indexer that is paused after failures is checked again after half an
+// hour, not six, so a pause that no longer fits does not outlast the problem.
+// One that said it was asked too often is left alone for the usual time.
+func TestProbeAdviceChecksAPausedIndexerSooner(t *testing.T) {
+	clock := newClock()
+	fail := func(tr *indexers.Tracker, id int64, err error, n int) {
+		for i := 0; i < n; i++ {
+			tr.Failed(id, err)
+		}
+	}
+	auth := errors.New("newznab error from Alpha: Incorrect user credentials (code 100)")
+	tooMany := errors.New("Alpha: HTTP 429 too many requests")
+
+	tr, list, _ := trackerWithIndexers(t, clock, "Alpha", "Beta", "Gamma")
+	alpha, beta, gamma := list[0].ID, list[1].ID, list[2].ID
+	// Six failures in a row pause for 40 minutes.
+	fail(tr, alpha, auth, 6)
+	fail(tr, beta, tooMany, 6)
+	fail(tr, gamma, auth, 1) // one failure does not pause
+	for _, id := range []int64{alpha, beta, gamma} {
+		tr.NoteProbe(id)
+	}
+	clock.advance(10 * time.Minute)
+	if got := tr.ProbeAdvice(alpha, 0); got != indexers.ProbeSkipWait {
+		t.Fatalf("10 minutes after a check, got %v", got)
+	}
+	clock.advance(25 * time.Minute) // 35 minutes: still paused (40)
+	if _, paused := tr.PausedUntil(alpha); !paused {
+		t.Fatal("the test needs the indexer to still be paused")
+	}
+	if got := tr.ProbeAdvice(alpha, 0); got != indexers.ProbeNow {
+		t.Fatalf("a paused indexer is checked again after half an hour, got %v", got)
+	}
+	if got := tr.ProbeAdvice(beta, 0); got != indexers.ProbeSkipWait {
+		t.Fatalf("an indexer that said too many requests keeps the long wait, got %v", got)
+	}
+	if got := tr.ProbeAdvice(gamma, 0); got != indexers.ProbeSkipWait {
+		t.Fatalf("an indexer that is not paused keeps the long wait, got %v", got)
+	}
+	// Once the pause is over, the usual wait applies again.
+	tr.Succeeded(alpha)
+	if got := tr.ProbeAdvice(alpha, 0); got != indexers.ProbeSkipWait {
+		t.Fatalf("after it recovered, got %v", got)
+	}
+}

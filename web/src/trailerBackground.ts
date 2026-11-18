@@ -2,8 +2,8 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { t } from './i18n.ts'
 
 // "Play the trailer behind the page" is on out of the box. An administrator can
-// switch it off for everyone (Settings > Info, lists and subtitles > Movie info
-// and lists), and a browser can still choose for itself with the button on a
+// switch it off for everyone (Settings > Library and files > Movie and show
+// info), and a browser can still choose for itself with the button on a
 // title page: that choice is remembered in the browser and wins over the
 // server's. The video comes from YouTube, which the setting says.
 const EVENT = 'mediarium-trailer-bg-change'

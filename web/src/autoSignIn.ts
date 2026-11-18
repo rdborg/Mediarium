@@ -1,5 +1,5 @@
 // Sending visitors who are not signed in straight to the single sign-on
-// provider, when an administrator chose that (Settings > Account & Access).
+// provider, when an administrator chose that (Settings > People and access).
 // The sign-in page asks shouldAutoSignIn before it does anything, so every
 // case that must keep the normal page is decided in one place.
 

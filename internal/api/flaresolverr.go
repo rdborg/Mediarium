@@ -16,7 +16,7 @@ import (
 // FlareSolverr. It listens on the loopback address only.
 const bundledFlareSolverrURL = "http://127.0.0.1:8191"
 
-// flareSolverrState is what Settings > Indexers & Search shows about the helper.
+// flareSolverrState is what Settings > Finding releases > Indexers & Search shows about the helper.
 type flareSolverrState struct {
 	// Bundled is true in the "-full" image (the helper is built in).
 	Bundled bool `json:"bundled"`

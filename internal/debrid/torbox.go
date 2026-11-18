@@ -57,10 +57,18 @@ func (t *torBox) call(ctx context.Context, method, path string, query url.Values
 	var a tbAnswer
 	_ = json.Unmarshal(data, &a)
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		// A 403 is also how TorBox says the plan doesn't include something:
+		// that is not a wrong key, and its own words say what it is.
+		if code, _ := a.Error.(string); code != "" && a.Detail != "" && !strings.Contains(strings.ToUpper(code), "AUTH") && !strings.Contains(strings.ToUpper(code), "TOKEN") {
+			return fmt.Errorf("TorBox: %s", a.Detail)
+		}
 		return ErrAuth
 	}
 	if resp.StatusCode >= 300 || !a.Success {
 		msg := a.Detail
+		if msg == "" && resp.StatusCode == http.StatusTooManyRequests {
+			msg = "too many requests, Mediarium will try again in a moment"
+		}
 		if msg == "" {
 			msg = fmt.Sprintf("HTTP %d", resp.StatusCode)
 		}

@@ -40,6 +40,7 @@
 .bks-actions a { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.82rem; font-weight: 600; text-decoration: none; }
 .bks-actions a:hover { border-color: var(--c-book); text-decoration: none; }
 .bks-actions a.primary { background: var(--c-book); border-color: transparent; color: #0d1411; }
+:root[data-theme='light'] .bks-actions a.primary { color: #fff; }
 
 /* The reader */
 .rdr { --rdr-bg: #fbfaf7; --rdr-fg: #1d1c1a; display: grid; grid-template-rows: auto 1fr auto; height: 100vh; height: 100dvh; background: var(--rdr-bg); color: var(--rdr-fg); position: relative; }

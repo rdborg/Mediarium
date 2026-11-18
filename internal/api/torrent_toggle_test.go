@@ -127,3 +127,16 @@ func TestHealthIgnoresVPNAndTorrentIndexersWhileOff(t *testing.T) {
 		}
 	}
 }
+
+// The modules answer says whether a TMDB key is set, so the search pages can
+// say so instead of sending a search that is bound to fail.
+func TestModulesSaysWhetherATMDBKeyIsSet(t *testing.T) {
+	server, base, client := loginNewServer(t)
+	if mods := getJSON[map[string]any](t, client, base+"/api/modules"); mods["tmdbKey"] != false {
+		t.Fatalf("without a key the modules answer says: %+v", mods["tmdbKey"])
+	}
+	server.TestSetTMDBBaseURL("k", newTitleTMDB(t).URL)
+	if mods := getJSON[map[string]any](t, client, base+"/api/modules"); mods["tmdbKey"] != true {
+		t.Fatalf("with a key the modules answer says: %+v", mods["tmdbKey"])
+	}
+}

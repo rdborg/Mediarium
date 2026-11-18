@@ -371,7 +371,9 @@ func TestResolveConflictSkip(t *testing.T) {
 	}
 
 	finalMovie := getJSON[map[string]any](t, client, fmt.Sprintf("%s/api/movies/%d", httpSrv.URL, movie.ID))
-	if finalMovie["status"] != "missing" {
-		t.Fatalf("expected movie status back to missing after skip, got %+v", finalMovie)
+	// The movie had no file of its own, and the one that is kept is at its place:
+	// it is the movie's file now, so no search fetches the release again.
+	if finalMovie["status"] != "downloaded" || finalMovie["filePath"] != existingPath {
+		t.Fatalf("expected the kept file to become the movie's file after skip, got %+v", finalMovie)
 	}
 }

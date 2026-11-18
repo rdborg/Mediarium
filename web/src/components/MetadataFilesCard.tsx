@@ -11,7 +11,7 @@ type Kind = 'movies' | 'tv'
 
 const total = (c: MetadataFileCounts) => c.nfo + c.posters + c.fanart + c.logos + c.seasonPosters + c.episodeNfos
 
-// Settings > Library > Folders and file names: NFO and artwork files that
+// Settings > Library and files > Folders: NFO and artwork files that
 // Kodi, Jellyfin and Emby read (and the artwork Plex reads) next to the videos.
 // Everything is off until switched on; a file that is already there is never
 // overwritten unless "replace" is chosen.
@@ -99,7 +99,7 @@ export default function MetadataFilesCard() {
           {t('More about these files')}
         </a>
       </p>
-      {!cfg.hasTmdbKey && <p className="error-text">{t('These files are made from TMDB data, so add your TMDB key first (Settings > Info, lists and subtitles > Movie and show info).')}</p>}
+      {!cfg.hasTmdbKey && <p className="error-text">{t('These files are made from TMDB data, so add your TMDB key first (Settings > Library and files > Movie and show info).')}</p>}
       <div className="half-cols">
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <strong>{t('Movies')}</strong>

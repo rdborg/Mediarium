@@ -63,6 +63,9 @@ func TestMessage(t *testing.T) {
 		{"own sentence about disk is untouched", errors.New("couldn't unpack the download: not enough free disk space to unpack the archive"),
 			"couldn't unpack the download: not enough free disk space to unpack the archive"},
 		{"unknown raw stays", errors.New(`lookup failed`), "lookup failed"},
+		{"sync error", errors.New(`couldn't save the file: sync /downloads/x.mkv: input/output error`), "Couldn't save the file. The drive or network share reported a read or write error. Check that it is connected and healthy."},
+		{"windows file in use", errors.New(`couldn't move the file into your library: rename D:\dl.mkv D:\m.mkv: The process cannot access the file because it is being used by another process.`),
+			"Couldn't move the file into your library. Another program is using that file. Close it there, or wait until it is done, and try again."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,6 +111,10 @@ func TestForResponse(t *testing.T) {
 		{"database text is hidden", "update settings: sqlite: database is locked", plainerror.Generic, true},
 		{"json text is hidden", "decode: invalid character 'x' looking for beginning of value", plainerror.Generic, true},
 		{"crash text is hidden", "runtime error: invalid memory address or nil pointer dereference", plainerror.Generic, true},
+		{"database full", "save settings: database or disk is full (13)", "The disk is full. Free up some space and try again.", true},
+		{"database read only", "save settings: attempt to write a readonly database (8)", "Mediarium is not allowed to use that file or folder. Check its permissions.", true},
+		{"database disk error", "SQL logic error: disk I/O error (10)", "Mediarium could not write to its database. Check that the disk has free space and that the config folder is writable.", true},
+		{"file in use", "rename /d/a.mkv /m/a.mkv: The process cannot access the file because it is being used by another process.", "Another program is using that file. Close it there, or wait until it is done, and try again.", true},
 		{"empty", "", "", false},
 	}
 	for _, tt := range tests {

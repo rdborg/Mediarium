@@ -100,6 +100,9 @@ type profileSet struct {
 	// languageOnly is the "Only take releases in these languages" switch,
 	// given to every profile the same way.
 	languageOnly bool
+	// ignoreExtraLanguages is the "Extra languages don't change the ranking"
+	// switch, given to every profile the same way.
+	ignoreExtraLanguages bool
 }
 
 func (s *Server) loadProfiles() (profileSet, error) {
@@ -115,7 +118,7 @@ func (s *Server) loadProfiles() (profileSet, error) {
 	for i := range formats {
 		byFormat[formats[i].ID] = &formats[i]
 	}
-	ps := profileSet{byID: map[int64]quality.Profile{}, def: quality.Presets()[quality.DefaultPreset], language: s.preferredLanguage(), languageOnly: s.languageOnly()}
+	ps := profileSet{byID: map[int64]quality.Profile{}, def: quality.Presets()[quality.DefaultPreset], language: s.preferredLanguage(), languageOnly: s.languageOnly(), ignoreExtraLanguages: s.languageIgnoreExtra()}
 	for _, p := range list {
 		ps.byID[p.ID] = quality.AttachFormats(p, byFormat)
 	}
@@ -151,11 +154,11 @@ func (ps profileSet) resolveWith(id int64, def quality.Profile) quality.Profile 
 		p = def
 	}
 	p.FallbackProfiles = nil
-	p.Language, p.LanguageOnly = ps.language, ps.languageOnly
+	p.Language, p.LanguageOnly, p.IgnoreExtraLanguages = ps.language, ps.languageOnly, ps.ignoreExtraLanguages
 	for _, fid := range p.Fallback {
 		if f, ok := ps.byID[fid]; ok && fid != p.ID {
 			f.FallbackProfiles = nil // a fallback's own fallbacks are not followed
-			f.Language, f.LanguageOnly = ps.language, ps.languageOnly
+			f.Language, f.LanguageOnly, f.IgnoreExtraLanguages = ps.language, ps.languageOnly, ps.ignoreExtraLanguages
 			p.FallbackProfiles = append(p.FallbackProfiles, f)
 		}
 	}
@@ -245,6 +248,9 @@ type profileListPayload struct {
 	// "Monitor" and "Start searching now" choices, readable by every member.
 	AddMonitored bool `json:"addMonitored"`
 	AddSearchNow bool `json:"addSearchNow"`
+	// AddKeepBetter is the starting state of the add dialog's "Keep looking for
+	// better versions" box (off unless switched on).
+	AddKeepBetter bool `json:"addKeepBetter"`
 }
 
 func toProfilePayload(p quality.Profile, inUse int) profilePayload {
@@ -357,7 +363,7 @@ func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	out := profileListPayload{Profiles: []profilePayload{}, Tiers: []string{}, DefaultID: s.defaultProfileID(), DefaultTVID: s.defaultTVProfileID(), DefaultSources: s.defaultSources(), AddMonitored: s.addMonitoredDefault(), AddSearchNow: s.addSearchNowDefault()}
+	out := profileListPayload{Profiles: []profilePayload{}, Tiers: []string{}, DefaultID: s.defaultProfileID(), DefaultTVID: s.defaultTVProfileID(), DefaultSources: s.defaultSources(), AddMonitored: s.addMonitoredDefault(), AddSearchNow: s.addSearchNowDefault(), AddKeepBetter: s.addKeepBetterDefault()}
 	for _, p := range list {
 		out.Profiles = append(out.Profiles, toProfilePayload(p, usage[p.ID]))
 	}

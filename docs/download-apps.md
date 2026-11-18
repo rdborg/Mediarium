@@ -14,7 +14,7 @@ This idea came from SanketBaraiya (GitHub discussion #177).
 | qBittorrent (torrents) | `http://192.168.1.20:8264/qbittorrent` | `/qbittorrent` |
 
 - **Host and port** are the ones you open Mediarium at. Inside Docker, use the container name or the NAS address, not `localhost`.
-- **SABnzbd: API key.** An administrator's Mediarium API key. Make one on the Other apps page (**Make a key for other apps**) or under **Accounts > API keys**. Paste it into the app's API key box.
+- **SABnzbd: API key.** An administrator's Mediarium API key. Make one on the Other apps page (**Make a key for other apps**) or under **Settings > People and access > Security > API keys**. Paste it into the app's API key box.
 - **qBittorrent: password.** The same API key goes into the **password** box. The user name can be anything. The app signs in and keeps a cookie, like it does with the real qBittorrent. An app that can send the key as a bearer token (`Authorization: Bearer <key>`) or as an `X-Api-Key` header works without signing in first.
 - A key of a basic account is refused. A read-only key can look at the lists but cannot pause, resume, remove or add.
 - If Mediarium sits behind a reverse proxy under a sub-path (the `URL_BASE` setting), put that path in front, for example `https://home.example.com/mediarium/sabnzbd`.
@@ -26,7 +26,7 @@ In nzb360, open **Settings > Servers**, add a **SABnzbd** server and a **qBittor
 SABnzbd (`/sabnzbd/api`):
 
 - Version and key check.
-- The queue: each download with its name, status, size, size left, percentage, time left, category and priority, plus the total speed, the time left for everything, and the free disk space of the downloads folder.
+- The queue: its state as a word (Downloading, Paused or Idle, which Home Assistant shows), and each download with its name, status, size, size left, percentage, time left, category and priority, plus the total speed, the time left for everything, and the free disk space of the downloads folder.
 - The history: finished and failed downloads with their name, status, size, category and finish time.
 - Pause and resume, for everything or for one download. Remove one download or all of them from the queue, and remove entries from the history.
 - Adding an NZB by address or as a file.

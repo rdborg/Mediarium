@@ -13,7 +13,7 @@ function weekdays(): { day: number; name: string }[] {
   return [1, 2, 3, 4, 5, 6, 0].map((day) => ({ day, name: fmt.format(new Date(2024, 0, 7 + day)) }))
 }
 
-// Settings > Connections > Notifications: a short message once a week with
+// Settings > Media servers and apps > Notifications: a short message once a week with
 // what came in, what failed and what is still missing. It goes to the targets
 // that have "Weekly summary" ticked.
 export default function WeeklySummary() {

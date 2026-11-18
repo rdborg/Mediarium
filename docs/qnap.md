@@ -71,12 +71,12 @@ services:
 
 ## Optional folders: music, ebooks and audiobooks
 
-Music, ebooks and audiobooks each switch on under **Settings → Media types**.
+Music, ebooks and audiobooks each switch on under **Settings → Basics → Media types**.
 
 - **Inside `data`:** create the folder (for example `music`), then take the `#` off the matching `environment` line above. Nothing else to map.
 - **In another shared folder:** add a line under `volumes:`, for example `- /share/music:/music` (or `/ebooks`, `/audiobooks` on the right). No `environment` line is needed when the right side keeps those names.
 
-To add one later, edit the application's YAML, then save it with **Update** so the container is recreated. In Mediarium, switch the type on and check the folder under **Settings → Library → Folders**.
+To add one later, edit the application's YAML, then save it with **Update** so the container is recreated. In Mediarium, switch the type on and check the folder under **Settings → Library and files → Folders**.
 
 ## Updating
 
@@ -85,7 +85,7 @@ To add one later, edit the application's YAML, then save it with **Update** so t
 
 If your Container Station version has no such option, delete the application (your mapped folders are kept) and create it again with the same YAML: the newest image is used. Your settings and library stay, because they live in the folders you mapped. The menu names above can differ slightly between Container Station versions.
 
-When a new version is out, administrators see a card on the dashboard and on **Settings → General**. If the release is signed, the card also has an **Update now** button. See [Update now](./INSTALL.md#update-now-docker-image).
+When a new version is out, administrators see a card on the dashboard and on **Settings → Basics → General**. If the release is signed, the card also has an **Update now** button. See [Update now](./INSTALL.md#update-now-docker-image).
 
 ## Backing up
 

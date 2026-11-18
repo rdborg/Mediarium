@@ -144,7 +144,7 @@ export default function OtherAppsSettings() {
                 </dd>
                 <dt>{t('The key goes in')}</dt>
                 <dd>
-                  {t("SABnzbd: the API key box. qBittorrent: the password box (the user name can be anything). Make the key in the box further down.")}
+                  {t("SABnzbd: the API key box. qBittorrent: the password box (the username can be anything). Make the key in the box further down.")}
                 </dd>
                 <dt>{t('Good to know')}</dt>
                 <dd>
@@ -211,7 +211,7 @@ export default function OtherAppsSettings() {
       <section className="card wide">
         <h2>{t('The API key')}</h2>
         <p style={{ color: 'var(--text-dim)' }}>
-          {t("The other app signs in with an API key of an administrator. Make one here, or under Accounts > API keys, and paste it into the app's API key field. It's shown only once.")}
+          {t("The other app signs in with an API key of an administrator. Make one here, or under Security > API keys, and paste it into the app's API key field. It's shown only once.")}
         </p>
         {key ? (
           <div className="newkey">

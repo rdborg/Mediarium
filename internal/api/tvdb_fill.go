@@ -210,7 +210,7 @@ func seasonAgrees(tmdb map[int]library.Episode, tvdb []thetvdb.Episode) bool {
 	return compared > 0 && same*5 >= compared*4
 }
 
-// ---- The TheTVDB key (Settings > Info, lists and subtitles)
+// ---- The TheTVDB key (Settings > Library and files)
 
 type tvdbState struct {
 	Set  bool `json:"set"`  // a key is saved

@@ -131,7 +131,7 @@ func (s *Server) handlePutOptions(w http.ResponseWriter, r *http.Request) {
 // pushUploadTime is the longest a program file may take to arrive.
 const pushUploadTime = 20 * time.Minute
 
-const pushOffMessage = "Pushed updates are switched off. An administrator can allow them in Settings > General, under Advanced: updates pushed through the API."
+const pushOffMessage = "Pushed updates are switched off. An administrator can allow them in Settings > Basics > General, under Advanced: updates pushed through the API."
 
 // handlePushUpdate takes the raw program file as the request body, and its
 // SHA-256 in the X-Update-SHA256 header, checks both, and restarts into it.

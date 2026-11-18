@@ -12,7 +12,7 @@ import (
 	"github.com/rdborg/mediarium/internal/store"
 )
 
-// Going back after an update (Settings > System > Updates). Before an update
+// Going back after an update (Settings > Basics > General). Before an update
 // changes the database's tables, a copy of the database is kept next to it
 // (store.snapshotBeforeMigrating). Putting that copy back is what an older
 // version needs to run again; an installed update also keeps the program it

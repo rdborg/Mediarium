@@ -24,7 +24,7 @@ import (
 // step: a new one is added, a renamed or switched off one follows, and one
 // removed from Prowlarr goes. What is set on Mediarium's side of an indexer
 // (its priority, minimum seeders, where torrents go, extra categories) stays.
-// The one-time import (Settings > Import from other apps) still exists for
+// The one-time import (Settings > System > Move from other apps) still exists for
 // people who want to leave Prowlarr.
 
 // prowlarrSyncEvery is how often a linked Prowlarr is read.
@@ -175,7 +175,7 @@ func (s *Server) prowlarrJob(ctx context.Context) {
 	}
 }
 
-// ---- Settings > Indexers & Search > Prowlarr
+// ---- Settings > Finding releases > Indexers & Search > Prowlarr
 
 type prowlarrState struct {
 	URL    string          `json:"url"`

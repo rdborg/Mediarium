@@ -491,7 +491,7 @@ func (c *Client) Delete(ctx context.Context, hash string, deleteFiles bool) erro
 // file. It returns "" when it can't be known up front (a v2-only magnet,
 // a damaged file); the torrent is then found by its tag.
 func InfoHash(magnet string, torrentFile []byte) string {
-	if magnet != "" {
+	if magnet = strings.TrimSpace(magnet); magnet != "" {
 		m, err := metainfo.ParseMagnetUri(magnet)
 		if err != nil || m.InfoHash == (metainfo.Hash{}) {
 			return ""

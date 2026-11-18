@@ -22,8 +22,8 @@ import (
 	"github.com/rdborg/mediarium/internal/requests"
 )
 
-// Requests: a basic account that may not add titles itself (Settings >
-// Accounts, "Add titles themselves" off) asks instead. The add it sent is
+// Requests: a basic account that may not add titles itself (Settings > People and
+// access > Requests and reports, "Add titles themselves" off) asks instead. The add it sent is
 // kept as it was; an administrator approves it, which runs that same add on
 // the person's behalf, or declines it with a note.
 
@@ -368,7 +368,7 @@ func (s *Server) handleApproveRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.requestKindOn(req.Kind) {
-		writeError(w, http.StatusConflict, "That kind of media is switched off under Settings > Media types. Switch it on to approve this request.")
+		writeError(w, http.StatusConflict, "That kind of media is switched off under Settings > Basics > Media types. Switch it on to approve this request.")
 		return
 	}
 	// The add runs on the person's behalf, so the library says who asked.

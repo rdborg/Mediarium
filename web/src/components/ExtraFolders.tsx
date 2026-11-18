@@ -6,7 +6,7 @@ import { useToast } from './Toast'
 import { t } from '../i18n'
 import { keptRule, ruleChoices } from '../newTitleFolder'
 
-// Settings > Library > Folders and file names: more movie or TV folders next
+// Settings > Library and files > Folders: more movie or TV folders next
 // to the main one, for another drive or a folder kept apart (kids, concerts,
 // documentaries). When there are some, adding a title asks which folder to
 // keep it in, and a title's page can move it to another for new files. Under

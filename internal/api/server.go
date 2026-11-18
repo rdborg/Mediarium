@@ -498,7 +498,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	t.permsOf = s.Auth.PermissionsOf
 	member := t.group(accessMember)
 	admin := t.group(accessAdmin)
-	// What a basic account needs for a route (Settings > Accounts).
+	// What a basic account needs for a route (Settings > People and access > All accounts).
 	releases := member.Need(auth.PermReleases)
 	manage := member.Need(auth.PermManage)
 	play := member.Need(auth.PermPlay)

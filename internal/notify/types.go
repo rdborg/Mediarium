@@ -203,7 +203,7 @@ func Types() []TypeInfo {
 		}},
 		{Type: string(TargetMatrix), Label: "Matrix", Fields: []Field{
 			{Name: "url", Label: "Homeserver address", Kind: "text", Required: true, Placeholder: "https://matrix.example.org",
-				Help: "The address of your Matrix server, for example https://matrix.org. It is the one Element shows under Settings > General."},
+				Help: "The address of your Matrix server, for example https://matrix.org. It is the one Element shows under Settings > Basics > General."},
 			{Name: "roomId", Label: "Room ID", Kind: "text", Required: true, Placeholder: "!abcdefg:example.org",
 				Help: "In Element open the room's settings > Advanced and copy the internal room ID. It starts with an exclamation mark. A room alias like #room:example.org will not work."},
 			{Name: "accessToken", Label: "Access token", Kind: "password", Required: true,

@@ -24,6 +24,31 @@ var ErrGoogleBooksKey = errors.New("google books rejected the api key")
 
 var errGoogleBooksDown = errors.New("google books didn't answer")
 
+// ErrGoogleBooksQuota means Google Books has used up the requests it allows
+// (without a key they are shared by everyone who has none), or asked for fewer.
+// It is nothing wrong with the key: it passes, and trying later works.
+var ErrGoogleBooksQuota = errors.New("google books has reached its request limit, try again later")
+
+// googleRefusal turns Google's refusals into errors. A 403 is a refused key
+// when Google says so, but the same status carries "rate limit exceeded" and
+// "daily limit exceeded"; 429 is plainly too many requests. nil when the
+// status is not a refusal.
+func googleRefusal(status int, body []byte) error {
+	if status == http.StatusTooManyRequests {
+		return ErrGoogleBooksQuota
+	}
+	if status != http.StatusBadRequest && status != http.StatusForbidden {
+		return nil
+	}
+	low := strings.ToLower(string(body[:min(len(body), 4096)]))
+	for _, reason := range []string{"ratelimitexceeded", "dailylimitexceeded", "quotaexceeded", "resource_exhausted", "rate limit exceeded", "quota"} {
+		if strings.Contains(low, reason) {
+			return ErrGoogleBooksQuota
+		}
+	}
+	return ErrGoogleBooksKey
+}
+
 // GoogleHit is one volume as Google returned it. CoverURL is the picture
 // Google hosts; search copies it onto this server before the page sees it.
 type GoogleHit struct {
@@ -188,8 +213,8 @@ func (g *GoogleBooks) Book(ctx context.Context, id string) (WorkInfo, error) {
 	if status == http.StatusNotFound {
 		return WorkInfo{}, ErrNotFound
 	}
-	if status == http.StatusBadRequest || status == http.StatusForbidden {
-		return WorkInfo{}, ErrGoogleBooksKey
+	if err := googleRefusal(status, body); err != nil {
+		return WorkInfo{}, err
 	}
 	if status != http.StatusOK {
 		return WorkInfo{}, errGoogleBooksDown
@@ -270,15 +295,15 @@ func MergeGoogle(openLib, goog []Found) []Found {
 
 // Check asks Google whether the key is accepted.
 func (g *GoogleBooks) Check(ctx context.Context) error {
-	status, _, err := g.fetch(ctx, "/volumes", url.Values{
+	status, body, err := g.fetch(ctx, "/volumes", url.Values{
 		"q":          {"isbn:9780140328721"},
 		"maxResults": {"1"},
 	})
 	if err != nil {
 		return err
 	}
-	if status == http.StatusBadRequest || status == http.StatusForbidden {
-		return ErrGoogleBooksKey
+	if err := googleRefusal(status, body); err != nil {
+		return err
 	}
 	if status != http.StatusOK {
 		return errGoogleBooksDown
@@ -306,8 +331,8 @@ func (g *GoogleBooks) Search(ctx context.Context, q, lang string, limit int) ([]
 	if err != nil {
 		return nil, err
 	}
-	if status == http.StatusBadRequest || status == http.StatusForbidden {
-		return nil, ErrGoogleBooksKey
+	if err := googleRefusal(status, body); err != nil {
+		return nil, err
 	}
 	if status != http.StatusOK {
 		return nil, errGoogleBooksDown

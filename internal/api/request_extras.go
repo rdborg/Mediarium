@@ -167,9 +167,9 @@ func (s *Server) ageRefusal(ctx context.Context, userID int64, kind string, tmdb
 		return 0, ""
 	}
 	if _, known := requests.RatingLevel(cert); !known {
-		return http.StatusForbidden, "This title has no age rating, and your account may only ask for titles that have one. An administrator can change that in Settings > Account & Access > Requests and reports."
+		return http.StatusForbidden, "This title has no age rating, and your account may only ask for titles that have one. An administrator can change that in Settings > People and access > Requests and reports."
 	}
-	return http.StatusForbidden, fmt.Sprintf("This title is rated %s, which is above the age limit set for your account. An administrator can change that in Settings > Account & Access > Requests and reports.", strings.TrimSpace(cert))
+	return http.StatusForbidden, fmt.Sprintf("This title is rated %s, which is above the age limit set for your account. An administrator can change that in Settings > People and access > Requests and reports.", strings.TrimSpace(cert))
 }
 
 // mayAskForAge answers 403 (or 502 when the rating can't be read) and returns

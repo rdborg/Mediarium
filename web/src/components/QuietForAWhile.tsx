@@ -13,7 +13,7 @@ function untilMorning(): number {
   return Math.max(1, Math.round((next.getTime() - now.getTime()) / 60000))
 }
 
-// Settings > Quality > Automation: hold the heavy background work for a while.
+// Settings > Finding releases > Automatic searching: hold the heavy background work for a while.
 export default function QuietForAWhile() {
   const toast = useToast()
   const [state, setState] = useState<QuietState | null>(null)

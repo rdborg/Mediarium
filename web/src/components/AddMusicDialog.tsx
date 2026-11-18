@@ -272,7 +272,7 @@ function AddMusicForm({ target, onClose, onAdded }: { target: AddMusicTarget; on
 
           {cannotSearch && (
             <div className="notice notice-warn">
-              <strong>{t('No indexer yet.')}</strong> {t('It will be added and searched once you add one (Settings > Indexers & Search).')}
+              <strong>{t('No indexer yet.')}</strong> {t('It will be added and searched once you add one (Settings > Finding releases > Indexers & Search).')}
             </div>
           )}
           {error && <p className="error-text">{error}</p>}

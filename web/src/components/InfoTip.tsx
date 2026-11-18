@@ -61,6 +61,17 @@ export default function InfoTip({ text, label, learnMore, glyph = 'i', className
   }, [])
   useEffect(() => clearTimers, [])
 
+  // Inside a <label> the tip's own button comes first, so a screen reader would take the button, not the box
+  // after it, as the thing the label names. Point the label at that box.
+  useEffect(() => {
+    const label = button.current?.closest('label')
+    if (!label || label.htmlFor || label.querySelector('input, select, textarea') === null) return
+    const control = label.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea')
+    if (!control) return
+    if (!control.id) control.id = `${descId}-field`
+    label.htmlFor = control.id
+  }, [descId])
+
   const place = useCallback(() => {
     const b = button.current
     const p = pop.current

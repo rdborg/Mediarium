@@ -98,7 +98,7 @@ export default function BackupCard() {
                     <Icon name="hard" size={16} />
                   </span>
                   <div className="file-name">
-                    <span>{new Date(b.createdAt).toLocaleString(locale())}</span>
+                    <span className="file-when">{new Date(b.createdAt).toLocaleString(locale())}</span>
                     <small>{formatBytes(b.size)}</small>
                   </div>
                   <a className="btn-sm" href={withBase(`/api/system/backups/${encodeURIComponent(b.name)}`)} download>

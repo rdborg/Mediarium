@@ -24,7 +24,7 @@ function parsedRows(p: ProfileSimulation['parsed']): { label: string; value: str
   return rows.filter((r): r is { label: string; value: string } => !!r.value)
 }
 
-// Settings > Library > Quality: "Try this profile". A release name is run
+// Settings > Finding releases > Quality: "Try this profile". A release name is run
 // through a quality profile the way a search would run it, so a profile can be
 // tested before it is trusted. Nothing is searched or saved.
 export default function ProfileSimulator() {

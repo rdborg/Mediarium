@@ -6,7 +6,7 @@ import Icon from './Icon'
 import { useToast } from './Toast'
 import TipLabel from './TipLabel'
 
-// Settings > Account & Access: sign-in through a reverse proxy that does the login
+// Settings > People and access: sign-in through a reverse proxy that does the login
 // itself (Authelia, Authentik, Cloudflare Access...). Off until a header name
 // is saved. Only for administrators.
 export default function ProxySignIn() {
@@ -51,14 +51,14 @@ export default function ProxySignIn() {
         <Icon name="shield" size={14} /> {t('Sign in through your reverse proxy')}
       </legend>
       <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>
-        {t("Only for a proxy that asks for the login itself, such as Authelia, Authentik or Cloudflare Access. It can pass the signed-in user name on in a header, and Mediarium signs that account in without its own sign-in page. A plain reverse proxy (like the one on a Synology) doesn't need this: leave it off. Mediarium only believes the header when it comes straight from your proxy's address, and the name has to match an account here.")}{' '}
+        {t("Only for a proxy that asks for the login itself, such as Authelia, Authentik or Cloudflare Access. It can pass the signed-in username on in a header, and Mediarium signs that account in without its own sign-in page. A plain reverse proxy (like the one on a Synology) doesn't need this: leave it off. Mediarium only believes the header when it comes straight from your proxy's address, and the name has to match an account here.")}{' '}
         <a href={`${DOCS_URL}/security.md#sign-in-through-your-reverse-proxy`} target="_blank" rel="noreferrer">
           {t('How to set it up')}
         </a>
       </p>
       <div className="row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
         <label style={{ display: 'grid', gap: 4, flex: '1 1 220px', maxWidth: 320 }}>
-          <TipLabel text={t('The name of the header your proxy adds with the signed-in user name, such as Remote-User. The name must match an account here.')}>{t('Header with the user name')}</TipLabel>
+          <TipLabel text={t('The name of the header your proxy adds with the signed-in username, such as Remote-User. The name must match an account here.')}>{t('Header with the username')}</TipLabel>
           <input value={header} placeholder="Remote-User" onChange={(e) => setHeader(e.target.value)} disabled={busy || state === null} />
         </label>
         <label style={{ display: 'grid', gap: 4, flex: '1 1 220px', maxWidth: 320 }}>

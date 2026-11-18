@@ -1,5 +1,5 @@
 // Which library folder a new movie or show goes to, when a kind has more
-// than one folder (Settings > Library > Folders). The server says where a
+// than one folder (Settings > Library and files > Folders). The server says where a
 // title added without a choice goes right now (GET /api/library/folders,
 // newTitles): the Add dialog starts on that folder, and the forms that add
 // titles later (a followed collection, an import list) can leave the choice

@@ -19,6 +19,10 @@ import (
 type SizeLimit struct {
 	Min float64 `json:"min"`
 	Max float64 `json:"max"`
+	// Preferred is the size Radarr's and Sonarr's quality definitions call
+	// preferred, kept for the apps that write it (Recyclarr). Nothing here
+	// uses it; 0 means none.
+	Preferred float64 `json:"preferred,omitempty"`
 }
 
 // SizeLimits is the editable table.

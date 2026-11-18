@@ -61,7 +61,7 @@ services:
 
   # Optional, for torrent sites behind a Cloudflare check:
   #   docker compose --profile cloudflare up -d
-  # then use http://flaresolverr:8191 under Settings > Indexers & Search.
+  # then use http://flaresolverr:8191 under Settings > Finding releases > Indexers & Search.
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr

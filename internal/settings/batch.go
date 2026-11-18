@@ -57,8 +57,20 @@ func (s *Store) Apply(b *Batch) error {
 			return fmt.Errorf("set setting %s: %w", w.Key, err)
 		}
 	}
-	if err := tx.Commit(); err != nil {
+	err = tx.Commit()
+	s.forget(b.writes)
+	if err != nil {
 		return fmt.Errorf("save settings: %w", err)
 	}
 	return nil
+}
+
+// forget drops what the read cache holds for the keys just written.
+func (s *Store) forget(writes []Write) {
+	s.mu.Lock()
+	s.gen++
+	for _, w := range writes {
+		delete(s.cache, w.Key)
+	}
+	s.mu.Unlock()
 }

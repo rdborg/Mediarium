@@ -124,3 +124,51 @@ func TestSoulseekDownloadAsksAgainForAFailedSong(t *testing.T) {
 		t.Errorf("asked %v: the first song once, the failed one twice", asked)
 	}
 }
+
+// One song comes and the other stays in the user's queue for good: the release
+// is given up on after the wait, not polled for ever.
+func TestSoulseekDownloadGivesUpWhenPartOfItStaysQueued(t *testing.T) {
+	oldPoll, oldQueued := soulseekPoll, soulseekQueuedFor
+	soulseekPoll, soulseekQueuedFor = 20*time.Millisecond, 300*time.Millisecond
+	defer func() { soulseekPoll, soulseekQueuedFor = oldPoll, oldQueued }()
+
+	files := []slskd.Want{{Filename: `Share\Album\01 One.flac`, Size: 10}, {Filename: `Share\Album\02 Two.flac`, Size: 10}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(r.URL.Path, "/api/v0")
+		switch {
+		case p == "/transfers/downloads/batches":
+			w.WriteHeader(http.StatusCreated)
+		case p == "/transfers/downloads/carol":
+			list := []map[string]any{
+				{"id": "1", "filename": files[0].Filename, "size": 10, "state": "Completed, Succeeded", "bytesTransferred": 10},
+				{"id": "2", "filename": files[1].Filename, "size": 10, "state": "Queued, Remotely", "bytesTransferred": 0},
+			}
+			b, _ := json.Marshal(map[string]any{"username": "carol", "directories": []any{map[string]any{"directory": "Album", "files": list}}})
+			_, _ = w.Write(b)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	s := newBareServer(t)
+	for k, v := range map[string]string{settings.KeyModulesMusic: "1", settings.KeySoulseekURL: srv.URL, settings.KeySoulseekFolder: t.TempDir()} {
+		if err := s.Settings.Set(k, v, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Settings.Set(settings.KeySoulseekAPIKey, "key", true); err != nil {
+		t.Fatal(err)
+	}
+	grab := soulseekGrab{User: "carol", Files: files}
+	id, err := s.QueueRepo.Enqueue(queue.Item{ReleaseTitle: "Album", NZBURL: encodeSoulseek(grab), Protocol: queue.ProtocolSoulseek})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err = s.downloadSoulseek(ctx, id, encodeSoulseek(grab))
+	if err == nil || ctx.Err() != nil || !strings.Contains(err.Error(), "queue") {
+		t.Fatalf("expected the queue wait to end the download, got %v (ctx %v)", err, ctx.Err())
+	}
+}

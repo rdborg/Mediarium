@@ -97,7 +97,7 @@ func (s *Server) handleAddBookManual(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Choose ebook, audiobook or both.")
 		return
 	case (req.Ebook && !s.ebooksEnabled()) || (req.Audiobook && !s.audiobooksEnabled()):
-		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Media types.")
+		writeError(w, http.StatusConflict, "That format is switched off. Switch it on in Settings > Basics > Media types.")
 		return
 	}
 	key, err := books.NewManualKey(req.ExternalID)

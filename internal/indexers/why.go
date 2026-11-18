@@ -58,9 +58,9 @@ func FlareSolverrDown(err error) (address string, down bool) {
 // not answer.
 func FlareSolverrDownMessage(address string) string {
 	if address == "" {
-		return "FlareSolverr isn't running or Mediarium can't reach it. Start FlareSolverr, or set its address under Settings > Indexers & Search."
+		return "FlareSolverr isn't running or Mediarium can't reach it. Start FlareSolverr, or set its address under Settings > Finding releases > Indexers & Search."
 	}
-	return fmt.Sprintf("FlareSolverr isn't running or Mediarium can't reach it at %s. Start FlareSolverr, or set its address under Settings > Indexers & Search.", address)
+	return fmt.Sprintf("FlareSolverr isn't running or Mediarium can't reach it at %s. Start FlareSolverr, or set its address under Settings > Finding releases > Indexers & Search.", address)
 }
 
 // GoneStatus reports whether err is a site answering "not found" or "gone"

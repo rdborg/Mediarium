@@ -173,7 +173,7 @@ type dashFolder struct {
 	ItemsLabel   string   `json:"itemsLabel"`
 	Hardlinks    *bool    `json:"hardlinks,omitempty"` // shares a drive with Downloads, so imports don't copy
 	Warnings     []string `json:"warnings"`
-	// Off: that media type is switched off (Settings > Media types).
+	// Off: that media type is switched off (Settings > Basics > Media types).
 	Off bool `json:"off,omitempty"`
 	// NewTitles: titles of this kind added without a folder choice go here
 	// right now (only sent when the kind has more than one folder).
@@ -374,7 +374,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		return mkFolder(key, label, path, bytes, items, itemsLabel)
 	}
-	// A kind with more folders (Settings > Library > Folders) gets a card for
+	// A kind with more folders (Settings > Library and files > Folders) gets a card for
 	// each: the main one keeps the totals less what the extra ones hold, and
 	// the one new titles go to right now is marked.
 	kindFolders := func(on bool, kind, label, moreLabel string, roots []string, totalBytes int64, totalItems int, itemsLabel string, bytesByRoot map[string]int64, itemsByRoot map[string]int, newFolder string) []dashFolder {

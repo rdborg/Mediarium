@@ -192,6 +192,7 @@ export default function IndexerCard({ indexer: i, onChanged, onToggle, onRemove 
             <span className="badge">{i.protocol === 'torrent' ? 'Torrent' : 'Usenet'}</span>
             {i.fromProwlarr && <span className="badge" title={t('Kept in step with your Prowlarr. Change its name, address or on/off switch in Prowlarr.')}>{t('From Prowlarr')}</span>}
             {!i.enabled && <span className="badge">{t('Off')}</span>}
+            {paused && <span className="badge paused" title={i.pausedWhy ? t('Left out of searches: {why}.', { why: i.pausedWhy }) : t('Left out of searches for now.')}>{t('Paused')}</span>}
           </div>
           <small className="indexer-url" title={i.baseUrl}>
             {i.baseUrl}

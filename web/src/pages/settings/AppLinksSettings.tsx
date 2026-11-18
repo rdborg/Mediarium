@@ -9,7 +9,7 @@ import TipLabel from '../../components/TipLabel'
 
 const ICONS: IconName[] = ['grid', 'tv', 'film', 'music', 'book', 'headphones', 'globe', 'server', 'monitor', 'star', 'shield', 'calendar']
 
-// Settings > Connections > Add-ons: other programs that run next to Mediarium,
+// Settings > Media servers and apps > Add-ons: other programs that run next to Mediarium,
 // each with a link in the players menu. Mediarium doesn't run them or load
 // their code: it only keeps the name and the address.
 export default function AppLinksSettings() {

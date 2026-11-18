@@ -14,7 +14,7 @@ import (
 // Automatic searches wait for a title to come out: a movie before its release
 // date and an episode before it airs are left alone, and a film that is only in
 // cinemas waits for its digital or disc release (home_release.go). The wait is
-// on unless someone switches it off (Settings > Library > Quality >
+// on unless someone switches it off (Settings > Finding releases > Quality >
 // Automation); a search by hand always looks. The pickers are plain functions,
 // so the switch is kept here, like the minimum size check.
 var holdUnreleasedOff atomic.Bool

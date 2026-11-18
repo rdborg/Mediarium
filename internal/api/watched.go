@@ -18,7 +18,7 @@ import (
 	"github.com/rdborg/mediarium/internal/settings"
 )
 
-// Watched status and cleanup rules (Settings > Connections > Media servers).
+// Watched status and cleanup rules (Settings > Media servers and apps > Media servers).
 // Both are off until an administrator switches them on.
 //
 // With "Read what's been watched" on, Mediarium asks Plex, Jellyfin and Emby

@@ -96,7 +96,7 @@ export default function ReleaseNotice({
           {h.link && (
             <>
               {' '}
-              <Link to="/settings/indexers">{t('Settings > Indexers & Search')}</Link>.
+              <Link to="/settings/indexers">{t('Settings > Finding releases > Indexers & Search')}</Link>.
             </>
           )}
         </p>

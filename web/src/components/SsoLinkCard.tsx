@@ -5,7 +5,7 @@ import { t } from '../i18n'
 import Icon from './Icon'
 import { useToast } from './Toast'
 
-// Settings > Your profile: tie this account to the single sign-on provider, so
+// Settings > People and access > Your profile: tie this account to the single sign-on provider, so
 // "Sign in with <name>" lands here. Only for an account with a password here;
 // accounts made through single sign-on or the directory have no other way in.
 export default function SsoLinkCard() {

@@ -337,7 +337,7 @@ function titleLink(item: WatchedStatTitle): string {
 }
 
 // What gets watched, read from Plex, Jellyfin and Emby (Settings > Media
-// servers > "Read what's been watched").
+// servers and apps > Media servers > "Read what's been watched").
 function WatchedStats({ w }: { w: WatchStats }) {
   const pct = (a: number, b: number) => (a + b > 0 ? Math.round((a * 100) / (a + b)) : 0)
   const topMax = Math.max(1, ...w.top.map((item) => item.plays))

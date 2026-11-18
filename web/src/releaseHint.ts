@@ -10,7 +10,7 @@ export interface Unanswered {
 
 export interface ReleaseHint {
   text: string
-  // Whether the text ends with a link to Settings > Indexers & Search.
+  // Whether the text ends with a link to Settings > Finding releases > Indexers & Search.
   link: boolean
   // True when there is nothing to list, so the hint stands in for the table.
   empty: boolean

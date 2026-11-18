@@ -67,6 +67,10 @@ type CustomFormat struct {
 	App     FormatApp    `json:"app"`
 	TrashID string       `json:"trashId,omitempty"`
 	Specs   []FormatSpec `json:"specifications"`
+	// IncludeInName is Radarr's and Sonarr's "include custom format when
+	// renaming" switch. It is kept so it can be read back; it changes nothing
+	// here.
+	IncludeInName bool `json:"includeInName,omitempty"`
 	// TrashScore is the score the TRaSH Guides gave the format when it was last
 	// read from them; nil for a format that was pasted or made by hand, which
 	// is never updated from the guides.
@@ -384,6 +388,7 @@ type rawFormat struct {
 	TrashID     string         `json:"trash_id"`
 	TrashScores map[string]int `json:"trash_scores"`
 	Name        string         `json:"name"`
+	IncludeName bool           `json:"includeCustomFormatWhenRenaming"`
 	Specs       []rawSpec      `json:"specifications"`
 }
 
@@ -449,12 +454,12 @@ func (rf rawFormat) toFormat(app FormatApp) (CustomFormat, error) {
 	if len(rf.Specs) > 200 {
 		return CustomFormat{}, fmt.Errorf("the custom format %q has too many conditions", name)
 	}
-	f := CustomFormat{Name: name, TrashID: strings.TrimSpace(rf.TrashID), App: app}
+	f := CustomFormat{Name: name, TrashID: strings.TrimSpace(rf.TrashID), App: app, IncludeInName: rf.IncludeName}
 	for _, rs := range rf.Specs {
 		if rs.Implementation == SpecReleaseType && f.App == "" {
 			f.App = AppSonarr
 		}
-		s := FormatSpec{Name: strings.TrimSpace(rs.Name), Kind: rs.Implementation, Negate: rs.Negate, Required: rs.Required}
+		s := FormatSpec{Name: rs.Name, Kind: rs.Implementation, Negate: rs.Negate, Required: rs.Required}
 		fields, err := readFields(rs.Fields)
 		if err != nil {
 			return CustomFormat{}, fmt.Errorf("the custom format %q: condition %q: %w", name, rs.Name, err)

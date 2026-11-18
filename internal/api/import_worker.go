@@ -144,6 +144,7 @@ func (s *Server) processDueImports() {
 }
 
 func (s *Server) fetchImportDetails(item library.ImportItem) {
+	defer logTaskPanic("the import details of a title")
 	ctx, cancel := context.WithTimeout(context.Background(), importDetailsTimeout)
 	defer cancel()
 

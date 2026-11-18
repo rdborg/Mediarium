@@ -324,6 +324,9 @@ func TestInfoHash(t *testing.T) {
 		{"hex magnet", "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=x", nil, "0123456789abcdef0123456789abcdef01234567"},
 		{"base32 magnet", "magnet:?xt=urn:btih:AERUKZ4JVPG66AJDIVTYTK6N54ASGRLH&dn=x", nil, "0123456789abcdef0123456789abcdef01234567"},
 		{"not a magnet", "magnet:?dn=x", nil, ""},
+		{"spaces and a line break around it", "  magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567\n", nil, "0123456789abcdef0123456789abcdef01234567"},
+		{"capital scheme", "MAGNET:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567", nil, "0123456789abcdef0123456789abcdef01234567"},
+		{"spaces in the name", "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=A B  C", nil, "0123456789abcdef0123456789abcdef01234567"},
 		{"torrent file", "", []byte("d4:infod6:lengthi1e4:name1:x12:piece lengthi16384e6:pieces20:aaaaaaaaaaaaaaaaaaaaee"), "a7d1bb63d4a1ad7d1d7b8a3a5b3c4b9c7d2f0d1c"},
 		{"broken file", "", []byte("nonsense"), ""},
 		// Millions of nested lists end the program if the library decodes them.

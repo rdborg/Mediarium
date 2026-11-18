@@ -11,7 +11,7 @@ function weekdayNames(): { day: number; name: string }[] {
   return [1, 2, 3, 4, 5, 6, 0].map((day) => ({ day, name: fmt.format(new Date(2024, 0, 7 + day)) }))
 }
 
-// Settings > Downloading > Speed: lines of "on these days, at these hours, limit
+// Settings > Downloading > Download rules: lines of "on these days, at these hours, limit
 // to this speed". The first line that fits the moment sets the limit; outside
 // every line, the plain limit above applies.
 export default function SpeedSchedule() {

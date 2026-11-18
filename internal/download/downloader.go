@@ -398,7 +398,11 @@ func forward(ctx context.Context, st *dlState, chans []chan job, i int, j job, o
 			if st.repairable > 0 {
 				reason = "and the PAR2 files in the release can't repair that much"
 			}
-			st.recordFatal(&ReleaseError{fmt.Errorf("%d articles couldn't be found on your Usenet servers %s", n, reason)})
+			noun := "articles"
+			if n == 1 {
+				noun = "article"
+			}
+			st.recordFatal(&ReleaseError{fmt.Errorf("%d %s couldn't be found on your Usenet servers %s", n, noun, reason)})
 		}
 	default:
 		st.recordFatal(o.err)

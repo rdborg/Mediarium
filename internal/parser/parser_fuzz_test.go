@@ -96,7 +96,7 @@ func FuzzParse(f *testing.F) {
 			t.Fatalf("Parse(%q) returned %d episodes", in, len(r.Episodes))
 		}
 		for _, e := range r.Episodes {
-			if e < 0 || e > 999 {
+			if e < 0 || e > 9999 {
 				t.Fatalf("Parse(%q).Episodes = %v", in, r.Episodes)
 			}
 		}

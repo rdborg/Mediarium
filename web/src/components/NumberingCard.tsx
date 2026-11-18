@@ -187,7 +187,7 @@ export default function NumberingCard({
       {n.note && <p className="numbering-note">{st(n.note)}</p>}
       <p className="numbering-foot">
         {n.checkedAt ? t('Last looked up {date}.', { date: when(n.checkedAt) }) : t('Not looked up yet.')}{' '}
-        {anime && !n.lookup ? t('Automatic lookups are off in Settings, so this only changes when you press the button.') : ''}
+        {anime && !n.lookup ? t('Automatic lookups are off in Settings > Library and files > Movie and show info, so this only changes when you press the button.') : ''}
       </p>
     </section>
   )

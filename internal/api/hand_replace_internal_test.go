@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/rdborg/mediarium/internal/parser"
@@ -180,6 +181,40 @@ func TestKeptDataSentences(t *testing.T) {
 	} {
 		if got := keptDataSentence(data, "Rel"); got != want {
 			t.Errorf("%s: %q", data, got)
+		}
+	}
+}
+
+// The temporary file of a swap that was cut short is cleared by the next swap
+// of the same file once it is an hour old, and nothing else is.
+func TestStaleSwapFilesAreCleared(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "Heat (1995).mkv")
+	old := time.Now().Add(-2 * time.Hour)
+	put := func(name string, mod time.Time) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("half"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, mod, mod); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	stale := put(".0badc0de-Heat (1995).mkv.mediarium-tmp", old)
+	recent := put(".1badc0de-Heat (1995).mkv.mediarium-tmp", time.Now())
+	other := put(".2badc0de-Alien (1979).mkv.mediarium-tmp", old)
+	video := put("Heat (1995).mkv", old)
+	notHex := put(".zzzzzzzz-Heat (1995).mkv.mediarium-tmp", old)
+
+	removeStaleStages(dest, time.Now())
+
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("the old temporary file should be gone: %v", err)
+	}
+	for name, p := range map[string]string{"recent file": recent, "other title's file": other, "the video": video, "odd name": notHex} {
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("the %s should stay: %v", name, err)
 		}
 	}
 }

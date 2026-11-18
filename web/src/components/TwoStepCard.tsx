@@ -64,7 +64,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   )
 }
 
-// Settings > Your profile: two-step sign-in for the signed-in person. Off
+// Settings > People and access > Your profile: two-step sign-in for the signed-in person. Off
 // until they set it up; suggested (never forced) once Mediarium can be
 // reached from outside the home.
 export default function TwoStepCard() {

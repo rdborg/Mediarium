@@ -526,7 +526,7 @@ function ServerCard({ s, onChanged }: { s: MediaServer; onChanged: () => void })
   )
 }
 
-// Settings > Connections > Media servers: Plex, Jellyfin and Emby. After each
+// Settings > Media servers and apps > Media servers: Plex, Jellyfin and Emby. After each
 // download the right library is refreshed, and title pages get "Watch in ..."
 // buttons. Your servers are listed on top, and adding one is below.
 // Pause downloads while someone is watching on Plex, Jellyfin or Emby.

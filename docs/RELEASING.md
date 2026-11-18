@@ -93,8 +93,10 @@ The example releases version `2.1.0`. Replace it with your number.
    - builds the app for Linux (amd64, arm64), each packed with the licence, the install notes and the systemd files, plus a `sha256sums.txt`;
    - signs `sha256sums.txt` and adds `sha256sums.txt.sig`, if the `UPDATE_SIGNING_KEY` secret is set (see [Signing releases](#signing-releases));
    - creates a GitHub Release named "Mediarium v2.1.0" with those files, and notes made from the version's section of `CHANGELOG.md` with install steps on top (`tools/release-notes.sh`; a test build without a section gets GitHub's own list);
-   - builds the Docker image for linux/amd64 and linux/arm64 and pushes it to `ghcr.io` with the tags `2.1.0`, `2.1` and `latest`;
-   - builds the "full" image (with the Cloudflare helper), starts it as a test, and pushes it with the tags `2.1.0-full`, `2.1-full` and `latest-full` (see [The full image](#the-full-image-with-the-cloudflare-helper)).
+   - makes the list of everything the program is built from (an SBOM) and attaches it, and records where each archive was built (see [Checking a release is genuine](#checking-a-release-is-genuine));
+   - builds the Docker image for linux/amd64 and linux/arm64 and pushes it to `ghcr.io` (and to Docker Hub, when its two secrets are set) with the tags `2.1.0`, `2.1` and `latest`;
+   - builds the "full" image (with the Cloudflare helper), starts it as a test, and pushes it with the tags `2.1.0-full`, `2.1-full` and `latest-full` (see [The full image](#the-full-image-with-the-cloudflare-helper));
+   - signs both images and records where they were built.
 
 8. **Check the result.** Open the GitHub Release page and see the files are there. Pull the image and look at the version:
 
@@ -108,7 +110,7 @@ The example releases version `2.1.0`. Replace it with your number.
 
 ### If something goes wrong
 
-- **"The tag is v2.1.0 but VERSION says 2.0.0."** You tagged a commit without the `VERSION` change. Delete the tag (`git tag -d v2.1.0` and `git push origin :refs/tags/v2.1.0`), commit the `VERSION` change, and tag again. Nothing was published, because the check runs first.
+- **"The tag is v2.1.0 but VERSION says 2.0.0."** You tagged a commit without the `VERSION` change. Delete the tag (`git tag -d v2.1.0` and `git push origin :refs/tags/v2.1.0`), commit the `VERSION` change, and tag again. Nothing was published, because the check runs first. If you protected the `v*` tags as described under [Protecting the signing key](#protecting-the-signing-key), GitHub refuses the delete until you lift that rule for a moment; a tag that was already pushed is best left alone and the next number used instead.
 - **A build step failed after the check.** Fix the problem on `main`, then either delete and re-push the same tag (only if nothing was published yet) or release the next PATCH number.
 - **A broken release went out.** Do not delete or replace it. Fix it and release the next PATCH number (`2.1.1`), with a "Fixed" note that says what was wrong.
 
@@ -163,7 +165,7 @@ From 4.0 on, every release also carries proof of where it was built, signed with
   gh attestation verify mediarium_4.0.0_linux_amd64.tar.gz --repo rdborg/Mediarium
   ```
 - **The SBOM** (the list of everything the program is built from, in SPDX JSON) is attached to each release as `mediarium-<version>.spdx.json`, made from the source with syft, and attested for every archive.
-- **The Docker images** (normal and `-full`) are signed with cosign and carry the same build attestation on ghcr.io:
+- **The Docker images** (normal and `-full`, the latter until its first weekly rebuild, see [The full image](#the-full-image-with-the-cloudflare-helper)) are signed with cosign and carry the same build attestation on ghcr.io:
   ```
   cosign verify ghcr.io/rdborg/mediarium:4.0.0     --certificate-identity-regexp '^https://github.com/rdborg/Mediarium/.github/workflows/release.yml@refs/tags/v'     --certificate-oidc-issuer https://token.actions.githubusercontent.com
   gh attestation verify oci://ghcr.io/rdborg/mediarium:4.0.0 --repo rdborg/Mediarium
@@ -218,5 +220,5 @@ Every release also publishes `ghcr.io/rdborg/mediarium:<version>-full`, `:<major
 
 - The FlareSolverr version is pinned in the `FLARESOLVERR_IMAGE` line at the top of the `Dockerfile`, by version and digest. To update it, pull the new image, copy its digest into that line, run `docker/smoke-full.sh` on a local build (`docker build --target full -t mediarium-full-test .`), and put the change in the changelog. Cloudflare changes its checks all the time, so check the FlareSolverr release notes first.
 - The release job builds the image for amd64 first, runs `docker/smoke-full.sh` (both Mediarium and the helper must answer) and only then pushes amd64 and arm64.
-- `.github/workflows/rebuild-full.yml` rebuilds the latest release's `-full` image every Monday with no cache, so browser and system security fixes get picked up without a new Mediarium version.
+- `.github/workflows/rebuild-full.yml` rebuilds the latest release's `-full` image every Monday with no cache, so browser and system security fixes get picked up without a new Mediarium version. It runs the same smoke test first. The rebuilt image is a new image under the same tags, and the rebuild does not sign it or record where it was built, so `cosign verify` and `gh attestation verify` work on a `-full` tag only until the first Monday after the release. The plain image is never rebuilt this way.
 - The plain image (no `-full`) is unchanged and stays the default in the compose files.

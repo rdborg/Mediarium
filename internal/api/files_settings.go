@@ -16,7 +16,7 @@ import (
 // files. They live in this file's neighbours; the access level of each is
 // decided here.
 func (s *Server) fileRoutes(member, manage, admin routeGroup) {
-	// File and folder permissions (Settings > Library > Folders).
+	// File and folder permissions (Settings > Library and files > Folders).
 	admin.HandleFunc("GET /api/settings/file-permissions", s.handleGetFilePermissions)
 	admin.HandleFunc("PUT /api/settings/file-permissions", s.handlePutFilePermissions)
 

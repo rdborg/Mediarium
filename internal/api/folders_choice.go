@@ -25,7 +25,7 @@ func (s *Server) checkFolderChoice(want string, offered []string, what string) (
 			return c, ""
 		}
 	}
-	return "", "Pick one of your " + what + " folders from the list. They are set in Settings > Library > Folders."
+	return "", "Pick one of your " + what + " folders from the list. They are set in Settings > Library and files > Folders."
 }
 
 // handleLibraryFolders is GET /api/library/folders (any account): the folders

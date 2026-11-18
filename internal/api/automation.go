@@ -429,8 +429,7 @@ func pickBestResult(results []indexers.Result, profile quality.Profile, wantYear
 // preferring a matching release year when the movie's year is known.
 // Returns nil if nothing in results is acceptable.
 func pickBestFor(results []indexers.Result, profile quality.Profile, wantYear int) *indexers.Result {
-	var best *indexers.Result
-	var bestKey pickKey
+	var pk picker
 	for i := range results {
 		release := results[i].Parsed()
 		if !profile.Accepts(release) {
@@ -445,13 +444,12 @@ func pickBestFor(results []indexers.Result, profile quality.Profile, wantYear in
 		if !builtinSizeOK(quality.Classify(release), results[i].SizeBytes, 0, 0) || !profile.SizeAllowed(results[i].SizeBytes) {
 			continue
 		}
-		key := keyFor(profile, release, &results[i])
-		if best == nil || key.above(bestKey) || (key == bestKey && preferOver(best, &results[i])) {
-			bestKey = key
-			best = &results[i]
-		}
+		pk.add(i, keyFor(profile, release, &results[i]), &results[i])
 	}
-	return best
+	if i, ok := pk.best(); ok {
+		return &results[i]
+	}
+	return nil
 }
 
 // pickUpgradeResult is pickBestResult with the extra requirement that the
@@ -460,8 +458,7 @@ func pickBestFor(results []indexers.Result, profile quality.Profile, wantYear in
 // re-checking already-downloaded movies, as opposed to pickBestResult's
 // "anything profile-accepted" bar for movies with nothing downloaded yet.
 func pickUpgradeResult(results []indexers.Result, profile quality.Profile, currentTier quality.Tier, currentRelease string, wantYear int) *indexers.Result {
-	var best *indexers.Result
-	var bestKey pickKey
+	var pk picker
 	for i := range results {
 		release := results[i].Parsed()
 		if !profile.IsUpgradeOverRel(currentTier, currentRelease, results[i].Title, release) {
@@ -476,13 +473,12 @@ func pickUpgradeResult(results []indexers.Result, profile quality.Profile, curre
 		if !builtinSizeOK(quality.Classify(release), results[i].SizeBytes, 0, 0) || !profile.SizeAllowed(results[i].SizeBytes) {
 			continue
 		}
-		key := keyFor(profile, release, &results[i])
-		if best == nil || key.above(bestKey) || (key == bestKey && preferOver(best, &results[i])) {
-			bestKey = key
-			best = &results[i]
-		}
+		pk.add(i, keyFor(profile, release, &results[i]), &results[i])
 	}
-	return best
+	if i, ok := pk.best(); ok {
+		return &results[i]
+	}
+	return nil
 }
 
 // notPossessive are short words ending in "s" that are not the name of a

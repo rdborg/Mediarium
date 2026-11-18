@@ -25,6 +25,7 @@ func newOAuthEnv(t *testing.T) *oauthEnv {
 	t.Helper()
 	e := newMCPEnv(t)
 	e.enable(t)
+	e.allowDownloads(t, true)
 	return &oauthEnv{mcpEnv: e, plain: &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 

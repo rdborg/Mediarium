@@ -3,7 +3,7 @@ set -e
 
 # ---- Installed updates ---------------------------------------------------------
 # Mediarium can install a newer program file into <config>/update/app (from the
-# Settings > System page, or pushed through the API; see docs/INSTALL.md). Before
+# Settings > Basics > General page, or pushed through the API; see docs/INSTALL.md). Before
 # starting the app this script decides which program to run: the one inside the
 # image, or the installed one. The installed one is used only when ALL of these hold:
 #   - it is an executable file, and its checksum matches app.sha256 (when present);
@@ -27,9 +27,8 @@ say() { echo "Mediarium: $*" >&2; }
 # permissions away from the usual 666 for files and 777 for folders: 022 gives
 # files 644 and folders 755, 002 gives 664 and 775. Unset leaves the container's
 # own umask (022) alone. A value that is not one to four octal digits is ignored
-# with a note. The permissions can also be set in Settings > Library > Folders
-# and file names, which applies them to what Mediarium puts in the library and
-# does not depend on the umask.
+# with a note. The permissions can also be set in Settings > Library and files >
+# Folders, which applies them to what Mediarium puts in the library and does not depend on the umask.
 apply_umask() {
   [ -n "${UMASK:-}" ] || return 0
   case "$UMASK" in

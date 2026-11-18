@@ -61,6 +61,9 @@
    fallback font) instead of pushing the table past the page */
 .settings-content .profiles-table :is(th, td) { white-space: normal !important; overflow-wrap: anywhere; }
 .settings-content .profiles-table td:first-child { min-width: min(240px, 30vw); }
+.settings-content .profiles-table :is(th, td):nth-child(3) { min-width: 9.5rem; overflow-wrap: normal; word-break: normal; }
+.settings-content .profiles-table :is(th, td):nth-child(4) { min-width: 6.5rem; overflow-wrap: normal; }
+.settings-content .profiles-table td:last-child { width: 320px; }
 .settings-content .profiles-table td button { white-space: normal; max-width: 100%; }
 .credit-top .badge { white-space: normal; max-width: 100%; }
 
@@ -203,8 +206,21 @@
 
 @media (max-width: 700px) {
   /* the episode list scrolls sideways inside its own box instead of being cut off at the screen edge */
-  .ep-table, .lib-list { display: block; position: relative; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .ep-table th, .ep-table td { white-space: nowrap; }
+  .lib-list { display: block; position: relative; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* the episode list becomes one small card per episode: number and name on top, date, status, quality and size under it, then the buttons. Nothing scrolls sideways. */
+  .ep-table, .ep-table tbody { display: block; max-width: 100%; }
+  .ep-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ep-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .ep-table th, .ep-table td, .ep-table td:not(:nth-child(3)) { display: block; padding: 0; border: 0; white-space: normal; }
+  main .ep-table td, main .ep-table td:last-child { min-width: 0; }
+  .ep-table td:nth-child(1) { flex: 0 0 24px; }
+  .ep-table td:nth-child(2) { flex: 0 0 22px; font-weight: 600; }
+  .ep-table td:nth-child(3) { flex: 1 1 calc(100% - 72px); min-width: 0; }
+  .ep-table td:nth-child(n+4):nth-child(-n+7) { flex: 0 0 auto; font-size: 0.85rem; }
+  .ep-table td:nth-child(4) { margin-left: 56px; }
+  .ep-table td:nth-child(7) { margin-left: auto; }
+  .ep-table td:nth-child(8) { flex: 1 1 100%; margin-left: 56px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .ep-table td[colspan] { flex: 1 1 100%; }
   /* a long label (Russian, German, Polish) wraps inside a full-width button instead of running off the card */
   button.btn-with-icon, .ms-plex-btn { max-width: 100%; white-space: normal; text-align: center; }
   /* any label, in any language, wraps inside the screen: buttons, form controls and flex or grid children can shrink */
@@ -294,6 +310,7 @@
     font-size: 0.62rem; font-weight: 700; line-height: 17px; text-align: center; font-variant-numeric: tabular-nums;
     background: var(--c-activity); color: #06101f; box-shadow: 0 0 0 2px var(--bg);
   }
+  :root[data-theme='light'] .bn-count { color: #fff; }
   /* Held upright a phone has nothing at its sides. A foldable iPhone reports a side safe area of
      about 84 pt there (it belongs to the sideways posture), which left the bar's first button
      in the middle of the screen. */
@@ -327,3 +344,19 @@
    (Russian, German) breaks into balanced lines instead of pushing the page sideways. */
 .install-line { margin: 0; color: var(--text-dim); white-space: nowrap; }
 @media (max-width: 700px) { .install-line { white-space: normal; text-wrap: balance; } }
+
+/* Fingers: links that look like links (a back link above a list, the crumb on a playlist, the choices on the not-found page) still get a 40px tall target. */
+@media (max-width: 640px) {
+  a.btn.btn-with-icon, .mpl-crumb { min-height: 40px; }
+  .not-found-links a { min-height: 44px; }
+}
+
+/* Fingers, round two: the small toggles and the links in lists and credits. The target grows (padding) and the page
+   does not (the same amount of negative margin), so nothing moves. */
+@media (max-width: 640px), (pointer: coarse) {
+  details > summary, .qdetails summary { padding-block: 9px; }
+  .link-btn, a.tile-link, .credit-top a, .credit-list a, .credit-card a, .waiting-list li .wait-title, .wmain a { padding-block: 9px; margin-block: -9px; }
+  .link-pill, .hero-pill { min-height: 40px; }
+  .icon-btn, .btn-sm { min-width: 40px; }
+  .pcard-title { padding-block: 1px; }
+}

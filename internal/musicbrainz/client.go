@@ -15,6 +15,7 @@
 package musicbrainz
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -192,6 +193,9 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, out any
 
 func decode(body []byte, out any, path string) error {
 	if err := json.Unmarshal(body, out); err != nil {
+		if head := bytes.TrimSpace(body[:min(len(body), 64)]); bytes.HasPrefix(head, []byte("<")) {
+			return &unavailableError{"the music database sent a web page instead of its data (it may be down for maintenance)"}
+		}
 		return fmt.Errorf("music database %s: decode answer: %w", path, err)
 	}
 	return nil

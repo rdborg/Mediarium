@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import LoadFailed from '../components/LoadFailed'
 import AddDialog from '../components/AddDialog'
 import Icon from '../components/Icon'
 import TitleHero from '../components/TitleHero'
@@ -40,7 +41,7 @@ export default function ShowDetail() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }, [id, navigate])
 
-  if (error) return <p className="error-text">{error}</p>
+  if (error) return <LoadFailed message={error} />
   if (!show) return <div className="skeleton" style={{ height: 380, borderRadius: 22 }} />
 
   const creators = crewWith(show.crew, 'Creator')

@@ -18,7 +18,7 @@ import (
 // own per language ("EBook (DE)" as 7120 next to 7020). So a release's
 // language is read from its name first, and when the name says nothing, from
 // the name of the category the indexer filed it under. The wanted languages
-// (Settings > Library > Quality, "Languages you want") then apply to books the
+// (Settings > Finding releases > Quality, "Languages you want") then apply to books the
 // way they apply to films: a release in another language is not taken by
 // itself, and one in a wanted language goes first.
 
@@ -172,10 +172,10 @@ func (s *Server) bookLanguageFits(ctx context.Context, results []indexers.Result
 	for _, inst := range instances {
 		byName[inst.Name] = inst
 	}
-	preferred, only := s.preferredLanguage(), s.languageOnly()
+	preferred, only, ignoreExtra := s.preferredLanguage(), s.languageOnly(), s.languageIgnoreExtra()
 	out := make([]quality.LanguageFit, len(results))
 	for i, res := range results {
-		out[i] = quality.FitLanguageOnly(s.bookRelease(ctx, res, byName), quality.ResolveOriginal(preferred, ""), only)
+		out[i] = quality.FitLanguageWith(s.bookRelease(ctx, res, byName), quality.ResolveOriginal(preferred, ""), only, ignoreExtra)
 	}
 	return out
 }

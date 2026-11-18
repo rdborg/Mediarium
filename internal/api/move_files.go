@@ -489,7 +489,7 @@ func (s *Server) moveContext(w http.ResponseWriter, r *http.Request) (plans []mo
 		}
 	}
 	if newRoot == "" {
-		writeError(w, http.StatusBadRequest, "That folder isn't set up. Choose it in Settings > Library > Folders.")
+		writeError(w, http.StatusBadRequest, "That folder isn't set up. Choose it in Settings > Library and files > Folders.")
 		return
 	}
 	if len(refs) > moveMaxTitles {

@@ -248,8 +248,7 @@ func pickTVResult(results []indexers.Result, series library.Series, season, epis
 // upgrades over current. Season packs are never offered for a single
 // episode — that would download a whole season to fill one gap.
 func pickTVResultFor(results []indexers.Result, series library.Series, season, episode int, profile quality.Profile, current *upgradeBase, mapper func(parser.Release) parser.Release) *indexers.Result {
-	var best *indexers.Result
-	var bestKey pickKey
+	var pk picker
 	for i := range results {
 		parsed := results[i].Parsed()
 		rel := mapped(mapper, parsed)
@@ -276,13 +275,12 @@ func pickTVResultFor(results []indexers.Result, series library.Series, season, e
 		if !builtinSizeOK(quality.Classify(rel), results[i].SizeBytes, eps, knownEpisodeMinutes(series)) || !profile.SizeAllowed(results[i].SizeBytes) {
 			continue
 		}
-		key := keyFor(profile, rel, &results[i])
-		if best == nil || key.above(bestKey) || (key == bestKey && preferOver(best, &results[i])) {
-			bestKey = key
-			best = &results[i]
-		}
+		pk.add(i, keyFor(profile, rel, &results[i]), &results[i])
 	}
-	return best
+	if i, ok := pk.best(); ok {
+		return &results[i]
+	}
+	return nil
 }
 
 // autoGrabTV fills every wanted season/episode (and upgrades) using the

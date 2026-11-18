@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/cleanup"
 	"github.com/rdborg/mediarium/internal/fsinfo"
 	"github.com/rdborg/mediarium/internal/problems"
 	"github.com/rdborg/mediarium/internal/settings"
@@ -185,6 +186,28 @@ func (s *Server) minFreeGB() int {
 		return defaultMinFreeGB
 	}
 	return n
+}
+
+// releaseSpaceReserve is kept free on top of what a release needs.
+const releaseSpaceReserve = 256 << 20
+
+// checkRoomForRelease refuses a release that cannot fit in dir: what it still
+// has to fetch (need, less what an earlier try already saved in dir) plus a
+// small reserve against the disk's free space. When the free space cannot be
+// read nothing is refused, as a guess must never stop a download.
+func checkRoomForRelease(dir string, need int64) error {
+	if need <= 0 {
+		return nil
+	}
+	u, err := fsinfo.DiskUsage(dir)
+	if err != nil || u.TotalBytes == 0 {
+		return nil
+	}
+	left := need - cleanup.Size(dir)
+	if left <= 0 || uint64(left)+releaseSpaceReserve <= u.FreeBytes {
+		return nil
+	}
+	return fmt.Errorf("there is not enough free disk space in the downloads folder for this release: it needs %s and %s is free", humanBytes(left), humanBytes(int64(u.FreeBytes)))
 }
 
 // diskTooFull reports whether the downloads folder has less free space than

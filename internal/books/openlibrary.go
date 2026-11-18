@@ -1,10 +1,12 @@
 package books
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -120,23 +122,52 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, into an
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "Client.Timeout") {
+			return busy("Open Library did not answer in time. Try again in a moment.")
+		}
 		return fmt.Errorf("open library: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
+	switch {
+	case resp.StatusCode == http.StatusNotFound:
 		return ErrNotFound
-	}
-	if resp.StatusCode == http.StatusUnprocessableEntity || resp.StatusCode == http.StatusBadRequest {
+	case resp.StatusCode == http.StatusUnprocessableEntity || resp.StatusCode == http.StatusBadRequest:
 		return fmt.Errorf("open library answered %d: %w", resp.StatusCode, ErrBadQuery)
-	}
-	if resp.StatusCode != http.StatusOK {
+	case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable || resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusGatewayTimeout:
+		return busy(fmt.Sprintf("Open Library is busy or asked for fewer requests (it answered %d). Try again in a moment.", resp.StatusCode))
+	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("open library answered %d", resp.StatusCode)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(into); err != nil {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxOpenLibraryBody+1))
+	if err != nil {
+		return fmt.Errorf("open library: read the answer: %w", err)
+	}
+	if len(body) > maxOpenLibraryBody {
+		return fmt.Errorf("open library sent an answer larger than %d MB, which is not used", maxOpenLibraryBody>>20)
+	}
+	if err := json.Unmarshal(body, into); err != nil {
+		if head := bytes.TrimSpace(body[:min(len(body), 64)]); bytes.HasPrefix(head, []byte("<")) {
+			return busy("Open Library sent a web page instead of its data (it may be down for maintenance). Try again later.")
+		}
 		return fmt.Errorf("open library: read the answer: %w", err)
 	}
 	return nil
 }
+
+// maxOpenLibraryBody is the largest answer read from Open Library.
+const maxOpenLibraryBody = 16 << 20
+
+// ErrBusy is returned when Open Library is down, slow, or asks for fewer
+// requests; trying again a little later is the right thing to do.
+var ErrBusy = errors.New("open library is busy, try again in a moment")
+
+// busyError is an ErrBusy that says what happened in its own words.
+type busyError string
+
+func (e busyError) Error() string        { return string(e) }
+func (e busyError) Is(target error) bool { return target == ErrBusy }
+
+func busy(msg string) error { return busyError(msg) }
 
 // ErrNotFound is returned for a book Open Library does not have.
 var ErrNotFound = fmt.Errorf("open library has no such book")

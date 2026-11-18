@@ -86,7 +86,7 @@ func ValidateURL(raw string, extraHosts []string) (string, error) {
 		return "", errors.New("Only https addresses can be followed.")
 	}
 	if p := u.Port(); u.User != nil || (p != "" && p != "443") {
-		return "", errors.New("An address with a user name or a port can't be followed.")
+		return "", errors.New("An address with a username or a port can't be followed.")
 	}
 	host := strings.ToLower(u.Hostname())
 	ok := false

@@ -337,7 +337,7 @@ func (s *Server) handlePutSignIn(w http.ResponseWriter, r *http.Request) {
 	if req.Passkeys != nil {
 		if *req.Passkeys {
 			if origin, _ := s.passkeyOrigin(); origin == "" {
-				writeError(w, http.StatusBadRequest, "Passkeys need the address you open Mediarium at, starting with https:// (or http://localhost). Set it under Settings > General > Address of Mediarium first, and it can't be an IP address.")
+				writeError(w, http.StatusBadRequest, "Passkeys need the address you open Mediarium at, starting with https:// (or http://localhost). Set it under Settings > Basics > General > Address of Mediarium first, and it can't be an IP address.")
 				return
 			}
 		}

@@ -15,7 +15,7 @@ import (
 // sound, bad subtitles or another problem. The reports are listed under
 // Activity > Reports. An administrator marks one resolved with a comment, and
 // the person who reported it is told (when messages to people are on). Off
-// until an administrator switches it on in Settings > Accounts > All accounts.
+// until an administrator switches it on in Settings > People and access > All accounts.
 
 type issue struct {
 	ID         int64  `json:"id"`
@@ -108,7 +108,7 @@ func (s *Server) handleListIssues(w http.ResponseWriter, r *http.Request) {
 // POST /api/issues {"kind": "movie", "itemId": 12, "category": "no-sound", "episode": "S01E02", "message": "..."}
 func (s *Server) handleCreateIssue(w http.ResponseWriter, r *http.Request) {
 	if !s.requestOptions().Reports {
-		writeError(w, http.StatusConflict, "Reporting problems is switched off. An administrator can switch it on in Settings > Accounts > Requests and reports.")
+		writeError(w, http.StatusConflict, "Reporting problems is switched off. An administrator can switch it on in Settings > People and access > Requests and reports.")
 		return
 	}
 	var body struct {

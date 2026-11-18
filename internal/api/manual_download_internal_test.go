@@ -115,6 +115,20 @@ func TestCheckTorrentFileSafe(t *testing.T) {
 	}
 }
 
+// A torrent whose own name says nothing still has files that do.
+func TestInspectReleaseReadsTheNameFromInsideATorrent(t *testing.T) {
+	info, err := inspectRelease(torrentBytes("m2", map[string]int{"Heat.1995.1080p.BluRay.x264-GRP.mkv": 900, "Heat.1995.1080p.BluRay.x264-GRP.nfo": 10, "Sample/sample.mkv": 50}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.name != "m2" || info.inside != "Heat.1995.1080p.BluRay.x264-GRP" {
+		t.Errorf("name %q, inside %q", info.name, info.inside)
+	}
+	if got := chooseReleaseName("", info.name, "m2", info.inside); got != "Heat.1995.1080p.BluRay.x264-GRP" {
+		t.Errorf("the download goes by %q", got)
+	}
+}
+
 func TestInspectRelease(t *testing.T) {
 	const nzb = `<?xml version="1.0"?><nzb xmlns="http://www.newzbin.com/DTD/2003/nzb"><file subject="[1/1] &quot;Movie.mkv&quot; yEnc (1/1)"><groups><group>alt.binaries.test</group></groups><segments><segment bytes="500" number="1">abc@example</segment></segments></file></nzb>`
 	tests := []struct {
@@ -195,6 +209,11 @@ func TestReleaseNames(t *testing.T) {
 		{"typed name wins", chooseReleaseName("  My name ", "from file"), "My name"},
 		{"file name is the second choice", chooseReleaseName("", "", "from file"), "from file"},
 		{"a placeholder at the end", chooseReleaseName("", "", ""), "Download added by hand"},
+		{"a name that says nothing loses to one that does", chooseReleaseName("", "m2", "Heat.1995.1080p.BluRay.x264-GRP"), "Heat.1995.1080p.BluRay.x264-GRP"},
+		{"equally poor names keep the first", chooseReleaseName("", "my movie night", "movie final"), "my movie night"},
+		{"a file name with the quality stays", chooseReleaseName("", "Heat.1995.1080p.BluRay.x264-GRP", "Heat"), "Heat.1995.1080p.BluRay.x264-GRP"},
+		{"the better of two real names wins", chooseReleaseName("", "Heat 1995", "Heat.1995.2160p.WEB-DL.DDP5.1.x265-GRP"), "Heat.1995.2160p.WEB-DL.DDP5.1.x265-GRP"},
+		{"an empty name is skipped", chooseReleaseName("", "", "  ", "Show.S01E02.720p.HDTV.x264-GRP"), "Show.S01E02.720p.HDTV.x264-GRP"},
 	}
 	for _, tt := range tests {
 		if tt.got != tt.want {

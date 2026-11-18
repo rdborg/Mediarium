@@ -18,12 +18,14 @@ func newMovieReleaseIndexer(t *testing.T) *httptest.Server {
 		"Lighthouse.Keepers.2023.2160p.BluRay.x265-FuN",
 		"Other.Film.2023.1080p.WEB-DL.x264-GRP",
 	}
+	// The second release is freeleech and the third half price.
+	factors := []string{"", `<newznab:attr name="downloadvolumefactor" value="0"/>`, `<newznab:attr name="downloadvolumefactor" value="0.5"/>`}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		var b strings.Builder
 		b.WriteString(`<?xml version="1.0"?><rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>`)
 		for i, title := range titles {
-			fmt.Fprintf(&b, `<item><title>%s</title><guid>m%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="8589934592" type="application/x-nzb"/><newznab:attr name="size" value="8589934592"/><newznab:attr name="category" value="2040"/></item>`, title, i, r.Host, i)
+			fmt.Fprintf(&b, `<item><title>%s</title><guid>m%d</guid><enclosure url="http://%s/nzb/%d.nzb" length="8589934592" type="application/x-nzb"/><newznab:attr name="size" value="8589934592"/><newznab:attr name="category" value="2040"/>%s</item>`, title, i, r.Host, i, factors[i])
 		}
 		b.WriteString(`</channel></rss>`)
 		fmt.Fprint(w, b.String())
@@ -52,11 +54,6 @@ func newDownloadsEnv(t *testing.T) *downloadsEnv {
 		t.Fatalf("the wanted movie is missing: %v", err)
 	}
 	return &downloadsEnv{mcpEnv: e, movieID: m.ID}
-}
-
-func (e *downloadsEnv) allowDownloads(t *testing.T, on bool) {
-	t.Helper()
-	postJSONMethod[map[string]any](t, e.admin, http.MethodPut, e.base+"/api/system/mcp", map[string]any{"downloads": on}, http.StatusOK)
 }
 
 func (e *downloadsEnv) queueLen(t *testing.T) int {
@@ -138,6 +135,67 @@ func TestMCPDownloadNeedsAWritableKey(t *testing.T) {
 		if isErr, text, _ := e.call(t, e.roKey, tool, map[string]any{"movie_id": e.movieID, "release_id": "r1"}); !isErr || !strings.Contains(text, "read-only") {
 			t.Errorf("%s with a read-only key: isError=%v %q", tool, isErr, text)
 		}
+	}
+}
+
+// add_movie, add_series and search_now can end in a download too, so they sit
+// behind the same switch: refused while it is off, working once it is on.
+func TestMCPAddAndSearchNeedTheDownloadsSwitch(t *testing.T) {
+	e := newDownloadsEnv(t)
+	movies := len(getJSON[[]map[string]any](t, e.admin, e.base+"/api/movies"))
+	_, out, _ := e.rpc(t, e.adminKey, rpcBody(1, "tools/list", nil))
+	listing := fmt.Sprint(out["result"])
+	for _, tc := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"add_movie", map[string]any{"tmdb_id": 701, "confirm": true}},
+		{"add_series", map[string]any{"tmdb_id": 9001, "confirm": true}},
+		{"search_now", map[string]any{"movie_ids": []any{e.movieID}, "confirm": true}},
+	} {
+		if strings.Contains(listing, "name:"+tc.tool+"]") {
+			t.Errorf("%s is listed while downloads are off", tc.tool)
+		}
+		isErr, text, _ := e.call(t, e.adminKey, tc.tool, tc.args)
+		if !isErr || !strings.Contains(text, "not allowed") || !strings.Contains(text, "Nothing was added") {
+			t.Errorf("%s with downloads off: isError=%v %q", tc.tool, isErr, text)
+		}
+	}
+	if got := getJSON[[]map[string]any](t, e.admin, e.base+"/api/movies"); len(got) != movies {
+		t.Fatalf("a refused add_movie changed the library: %d movies, was %d", len(got), movies)
+	}
+	e.allowDownloads(t, true)
+	// The fixture library already has movie 701: the tool runs and says so, instead of being refused.
+	if isErr, text, _ := e.call(t, e.adminKey, "add_movie", map[string]any{"tmdb_id": 701, "search_now": false}); !isErr || !strings.Contains(text, "already in the library") {
+		t.Fatalf("add_movie with downloads on: %v %s", isErr, text)
+	}
+	if isErr, text, p := e.call(t, e.adminKey, "search_now", map[string]any{"movie_ids": []any{e.movieID}}); isErr || p["preview"] != true {
+		t.Fatalf("search_now with downloads on: %v %s", isErr, text)
+	}
+}
+
+// find_releases says which releases are freeleech or at a discount.
+func TestMCPFindReleasesShowsDiscounts(t *testing.T) {
+	e := newDownloadsEnv(t)
+	e.allowDownloads(t, true)
+	isErr, text, out := e.call(t, e.adminKey, "find_releases", map[string]any{"movie_id": e.movieID})
+	if isErr {
+		t.Fatalf("find_releases: %s", text)
+	}
+	free, half, plain := 0, 0, 0
+	for _, r := range out["releases"].([]any) {
+		rel := r.(map[string]any)
+		switch {
+		case rel["freeleech"] == true && rel["discount_percent"] == float64(100):
+			free++
+		case rel["discount_percent"] == float64(50) && rel["freeleech"] == nil:
+			half++
+		case rel["discount_percent"] == nil && rel["freeleech"] == nil:
+			plain++
+		}
+	}
+	if free != 1 || plain < 1 {
+		t.Fatalf("freeleech %d, half price %d, plain %d: %s", free, half, plain, text)
 	}
 }
 

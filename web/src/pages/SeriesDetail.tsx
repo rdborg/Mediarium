@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import LoadFailed from '../components/LoadFailed'
 import Icon from '../components/Icon'
 import InfoTip from '../components/InfoTip'
 import ProfilePicker from '../components/ProfilePicker'
@@ -389,7 +390,7 @@ function SeriesPage() {
     }
   }
 
-  if (!series) return loadError || error ? <p className="error-text">{loadError || error}</p> : <p>{t('Loading…')}</p>
+  if (!series) return loadError || error ? <LoadFailed message={loadError || error} /> : <p>{t('Loading…')}</p>
 
   const creators = crewWith(tv?.crew, 'Creator')
   const today = localDate(new Date())

@@ -151,8 +151,8 @@ func TestSwitchedOffMoviesAndTVAreNotAddedNorHunted(t *testing.T) {
 	}
 
 	for _, tc := range []struct{ path, msg string }{
-		{"/api/movies", "Movies are switched off. Switch them on in Settings > Media types."},
-		{"/api/series", "TV is switched off. Switch it on in Settings > Media types."},
+		{"/api/movies", "Movies are switched off. Switch them on in Settings > Basics > Media types."},
+		{"/api/series", "TV is switched off. Switch it on in Settings > Basics > Media types."},
 	} {
 		status, body := doJSONStatus(t, client, http.MethodPost, base+tc.path, map[string]any{"tmdbId": 1399})
 		if status != http.StatusConflict || body["error"] != tc.msg {

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/rdborg/mediarium/internal/blocklist"
@@ -95,7 +97,24 @@ func holdBack(job string) {
 
 // background runs fn as tracked background work (a download pipeline or an
 // automatic retry), so tests can wait for all of it to finish.
-func (s *Server) background(fn func()) { s.bg.Go(fn) }
+//
+// A crash in the work is logged and ends that work only: these run in their
+// own goroutines, where a panic nobody catches would stop the whole app.
+func (s *Server) background(fn func()) {
+	s.bg.Go(func() {
+		defer logTaskPanic("a background task")
+		fn()
+	})
+}
+
+// logTaskPanic is deferred at the top of a goroutine to keep a panic in it
+// from ending the program: it writes the panic and where it came from to the
+// log and lets the goroutine finish.
+func logTaskPanic(what string) {
+	if p := recover(); p != nil {
+		slog.Error("a task crashed and was stopped", "task", what, "panic", fmt.Sprint(p), "stack", string(debug.Stack()))
+	}
+}
 
 // claimMovie reports whether an automatic grab for movieID may go ahead:
 // not while another download for it is still running. Call with grabMu held.

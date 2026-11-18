@@ -701,7 +701,7 @@ function Accounts() {
   )
 }
 
-// Settings > Account & Access > Your profile: your name, password and request messages.
+// Settings > People and access > Your profile: your name, password and request messages.
 export default function Profile() {
   const { user } = useAuth()
   const location = useLocation()
@@ -733,7 +733,7 @@ export default function Profile() {
   )
 }
 
-// Settings > Account & Access > Security: how you sign in and the keys that act as you.
+// Settings > People and access > Security: how you sign in and the keys that act as you.
 export function SecuritySettings() {
   const { user } = useAuth()
   const local = !user?.source || user.source === 'local'
@@ -750,7 +750,7 @@ export function SecuritySettings() {
   )
 }
 
-// Settings > Account & Access > Linked services: the accounts and devices you connect to yours.
+// Settings > People and access > Linked services: the accounts and devices you connect to yours.
 export function ServicesSettings() {
   const { user } = useAuth()
   if (user?.role === 'viewer') return <p className="hint">{t('View-only accounts have nothing to link here.')}</p>
@@ -775,7 +775,7 @@ export function AllAccounts() {
   )
 }
 
-// Settings > Account & Access > Requests and reports (administrators).
+// Settings > People and access > Requests and reports (administrators).
 export function RequestsSettings() {
   return (
     <div className="settings-stack">
@@ -784,7 +784,7 @@ export function RequestsSettings() {
   )
 }
 
-// Settings > Account & Access > Ways to sign in: password, passkeys, single sign-on, a
+// Settings > People and access > Ways to sign in: password, passkeys, single sign-on, a
 // directory and a login proxy (administrators).
 export function SignInSettings() {
   return (

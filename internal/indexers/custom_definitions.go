@@ -15,8 +15,8 @@ import (
 )
 
 // Definition files an administrator added themselves, for a site the shared
-// list doesn't have or a fixed copy of one it does (Settings > Indexers &
-// Search > Add a definition file). They live in their own folder, apart from
+// list doesn't have or a fixed copy of one it does (Settings > Finding releases >
+// Indexers & Search > Add a definition file). They live in their own folder, apart from
 // the downloaded list, which is replaced on every refresh. They're listed
 // with the others and win over a shared definition with the same id.
 

@@ -34,9 +34,9 @@ Every signed-in account, basic users included, sees only the modules that are on
 
 *The Library with all three modules on: one tab each for Movies, TV and Music. Switch a module off and its tab disappears.*
 
-![The sidebar with Settings open and the Connections group expanded to Media servers and Notifications](images/settings-menu.png)
+![The sidebar with Settings open: Basics, Library and files, Finding releases, Downloading, Media servers and apps, People and access and System, with Media servers and apps expanded to its four pages](images/settings-menu.png)
 
-*The Settings menu in the sidebar. Pages on one topic share an entry (here Connections). Opening it shows its pages underneath, and the other entries stay closed.*
+*The Settings menu in the sidebar. Pages on one topic share a group (here Media servers and apps). Opening a group shows its pages underneath, and the other groups stay closed.*
 
 ## In the setup wizard
 
@@ -68,13 +68,13 @@ Downloads use `DOWNLOADS_DIR` (`/downloads`, setting `library.downloads_path`). 
 
 ### Adding music, ebooks or audiobooks later
 
-**The easy way:** if your movies, TV and downloads already share one mapped folder (for example `/data/Movies`, `/data/tv` and `/data/downloads`), there's nothing to change in your compose file. Under **Settings > Library and files and files > Folders**, a folder that isn't found offers **Use /data/Ebooks** (or Music, Audiobooks), which creates it next to the others and fills in the box. Then press **Save**. A missing folder inside a mapped one also gets a **Create this folder** button, and the setup wizard offers **create it now**. Mediarium only creates a folder one level inside a folder that is mapped to your device and writable, so nothing ends up inside the container where an update would lose it.
+**The easy way:** if your movies, TV and downloads already share one mapped folder (for example `/data/Movies`, `/data/tv` and `/data/downloads`), there's nothing to change in your compose file. Under **Settings > Library and files > Folders**, a folder that isn't found offers **Use /data/Ebooks** (or Music, Audiobooks), which creates it next to the others and fills in the box. Then press **Save**. A missing folder inside a mapped one also gets a **Create this folder** button, and the setup wizard offers **create it now**. Mediarium only creates a folder one level inside a folder that is mapped to your device and writable, so nothing ends up inside the container where an update would lose it.
 
 **Otherwise:**
 
 1. Create the folder on your server (on a NAS, before the next step, or Docker won't start).
 2. Give it to the container: either a `*_DIR` line in `environment` pointing inside your `/data` folder (for example `MUSIC_DIR=/data/music`), or a `volumes` line such as `- /path/to/music:/music`. Then recreate the container ([INSTALL.md](./INSTALL.md#optional-folders-music-ebooks-and-audiobooks)).
-3. Switch the type on under **Settings > Basics > Media types** (music today), and check the folder under **Settings > Library and files and files > Folders**, which shows whether it's **Mapped to your device**.
+3. Switch the type on under **Settings > Basics > Media types** (music today), and check the folder under **Settings > Library and files > Folders**, which shows whether it's **Mapped to your device**.
 
 ## On the dashboard
 

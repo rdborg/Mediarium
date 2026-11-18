@@ -23,12 +23,32 @@ type YencPart struct {
 	// HasCRC says the article carried a checksum of its own data (pcrc32, or
 	// crc32 for a single-part post), so CRC32Valid means something.
 	HasCRC bool
+	// EndSize is the size the =yend line says this article's data has, 0 when
+	// it does not say.
+	EndSize int64
 }
 
 // Damaged reports whether the article came with a checksum and its data
 // doesn't match it: it was corrupted on the way, and another server may have
 // a good copy.
-func (p *YencPart) Damaged() bool { return p.HasCRC && !p.CRC32Valid }
+//
+// An article with no checksum of its own is judged by its length instead: one
+// that was cut short on the way (or came empty) holds fewer bytes than its
+// =ypart and =yend lines say. A checksum that matches settles it, as the data
+// is then what was posted, but not for an empty article.
+func (p *YencPart) Damaged() bool {
+	if p.HasCRC && !p.CRC32Valid {
+		return true
+	}
+	if p.HasCRC && len(p.Data) > 0 {
+		return false
+	}
+	want := p.EndSize
+	if p.PartBegin > 0 && p.PartEnd >= p.PartBegin {
+		want = p.PartEnd - p.PartBegin + 1
+	}
+	return want > 0 && int64(len(p.Data)) != want
+}
 
 // DecodeYenc decodes a single yEnc-encoded article body (the content of one
 // NNTP ARTICLE/BODY response), per the yEnc 1.3 draft spec.
@@ -62,6 +82,9 @@ func DecodeYenc(r io.Reader) (*YencPart, error) {
 			}
 		case strings.HasPrefix(line, "=yend"):
 			sawEnd = true
+			if size, err := strconv.ParseInt(yencField(line, "size"), 10, 64); err == nil && size > 0 {
+				part.EndSize = size
+			}
 			// pcrc32 is this part's checksum. crc32 is the whole file's, so it
 			// only describes this data in a post of one part.
 			crcHex := yencField(line, "pcrc32")

@@ -79,5 +79,5 @@ func otherFileOwner(owners map[string][]fileOwner, dest string, movieID int64, e
 // errFileOfAnother is the failure of an import whose destination is another
 // title's file.
 func errFileOfAnother(owner, dest string) error {
-	return fmt.Errorf("%s already has its file at %s, so this download wasn't put in its place. The two titles get the same file name: add the TMDB id or the edition to the naming format in Settings > Library > File names and importing", owner, dest)
+	return fmt.Errorf("%s already has its file at %s, so this download wasn't put in its place. The two titles get the same file name: add the TMDB id or the edition to the naming format in Settings > Library and files > File names and importing", owner, dest)
 }

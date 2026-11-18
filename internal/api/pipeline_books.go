@@ -72,14 +72,18 @@ func (s *Server) bookRoot(f books.Format) string {
 func (s *Server) bookFolder(b books.Book, f books.Format) (string, error) {
 	root := s.bookRoot(f)
 	if root == "" {
-		return "", fmt.Errorf("the %s folder isn't set. Choose one in Settings > Library > Folders", formatWord(f))
+		return "", fmt.Errorf("the %s folder isn't set. Choose one in Settings > Library and files > Folders", formatWord(f))
 	}
 	mode, repl := s.illegalCharSettings()
 	author := strings.TrimSpace(b.Author)
 	if author == "" {
 		author = "Unknown author"
 	}
-	return filepath.Join(root, organizer.Sanitize(author, mode, repl), organizer.Sanitize(books.FolderName(b), mode, repl)), nil
+	folder := filepath.Join(root, organizer.Sanitize(author, mode, repl), organizer.Sanitize(books.FolderName(b), mode, repl))
+	if all, err := s.BookRepo.List(); err == nil {
+		folder = books.UniqueFolder(folder, b, f, all)
+	}
+	return folder, nil
 }
 
 func formatWord(f books.Format) string {

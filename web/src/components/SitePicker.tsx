@@ -141,7 +141,7 @@ export default function SitePicker({ protocol, onAdded }: { protocol: 'torrent' 
   if (missing) {
     return (
       <div className="notice notice-info">
-        {tx("The list of sites isn't available from this server. Use {paste} instead, or add torrents later in Settings > Indexers & Search.", { paste: <strong>{t('Paste a Torznab link')}</strong> })}
+        {tx("The list of sites isn't available from this server. Use {paste} instead, or add torrents later in Settings > Finding releases > Indexers & Search.", { paste: <strong>{t('Paste a Torznab link')}</strong> })}
       </div>
     )
   }

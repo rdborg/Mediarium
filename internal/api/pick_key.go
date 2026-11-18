@@ -46,6 +46,67 @@ func (k pickKey) above(other pickKey) bool {
 	return k.score > other.score
 }
 
+// picker takes the best of the releases handed to it, one call to add for
+// each release that qualifies. Among releases with the best key it first sets
+// aside the older upload of a name that was posted again later (see
+// newerSameName), then settles what is left by preferAttr, so the answer is the
+// same in whatever order the releases were found. Judging the repost rule and
+// the indexer rules one pair at a time instead would depend on that order: A
+// beats B for being newer, C beats A for its indexer, and B and C were never
+// compared with each other.
+type picker struct {
+	cands []pickCand
+}
+
+type pickCand struct {
+	idx int
+	key pickKey
+	res *indexers.Result
+}
+
+func (p *picker) add(idx int, key pickKey, res *indexers.Result) {
+	p.cands = append(p.cands, pickCand{idx, key, res})
+}
+
+// best is the index given to add for the winner, and false when nothing was added.
+func (p *picker) best() (int, bool) {
+	if len(p.cands) == 0 {
+		return -1, false
+	}
+	top := p.cands[0].key
+	for _, c := range p.cands[1:] {
+		if c.key.above(top) {
+			top = c.key
+		}
+	}
+	var tied []pickCand
+	for _, c := range p.cands {
+		if c.key == top {
+			tied = append(tied, c)
+		}
+	}
+	win := -1
+	for i, c := range tied {
+		repost := false
+		for j, d := range tied {
+			if i != j && newerSameName(c.res, d.res) == d.res {
+				repost = true
+				break
+			}
+		}
+		if repost {
+			continue
+		}
+		if win < 0 || preferAttr(tied[win].res, c.res) {
+			win = i
+		}
+	}
+	if win < 0 { // every one is the older of some other: cannot happen, but never return nothing
+		win = 0
+	}
+	return tied[win].idx, true
+}
+
 // keyFor is the pickKey of a release that profile accepts.
 func keyFor(profile quality.Profile, rel parser.Release, res *indexers.Result) pickKey {
 	k := pickKey{alive: 1, language: profile.LanguageRank(rel), tier: profile.TierRank(quality.Classify(rel)), sub: quality.Rank(quality.Classify(rel)), score: profile.Score(res.Title)}

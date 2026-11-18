@@ -113,6 +113,12 @@ function LanguageSection() {
     (saved) => (saved ? t('Saved: only releases in these languages are taken.') : t('Saved: releases with no language in the name are taken too when nothing else is found.')),
     false,
   )
+  const ignoreExtra = useAutosaveSetting<boolean>(
+    (s) => s.qualityLanguageIgnoreExtra ?? false,
+    (v) => ({ qualityLanguageIgnoreExtra: v }),
+    (saved) => (saved ? t('Saved: extra languages no longer change the ranking.') : t('Saved: releases with extra languages are ranked as before.')),
+    false,
+  )
   const list = language.value.split(',').map((l) => l.trim()).filter(Boolean)
   const name = (l: string) => (l === ORIGINAL ? t('Original language of the title') : l)
   const free = [ORIGINAL, ...AUDIO_LANGUAGES].filter((l) => !list.includes(l))
@@ -165,6 +171,14 @@ function LanguageSection() {
         disabled={!only.loaded || only.saving}
         label={t('Only take releases in these languages')}
         description={t("Off, a release with no language in the name (counted as English) or tagged English only is still taken when nothing better turns up. On, it is skipped unless English is on your list, and so is a MULTi or DUAL release that doesn't name one of your languages. You can still pick any release yourself.")}
+        showState
+      />
+      <Switch
+        checked={ignoreExtra.value}
+        onChange={ignoreExtra.change}
+        disabled={!ignoreExtra.loaded || ignoreExtra.saving}
+        label={t("Extra languages don't change the ranking")}
+        description={t("Off, a release with more audio languages than yours is placed above or below one in just your language, as described above. On, the other languages a release carries are ignored: it only counts which language on your list it has, the first one best, and then the quality and your preferred terms decide. Releases still have to be in one of your languages to be taken.")}
         showState
       />
     </section>
@@ -232,6 +246,12 @@ function AddDefaultsSection() {
     (saved) => (saved ? t('Saved: adding a title starts a search.') : t('Saved: adding a title does not start a search.')),
     true,
   )
+  const keepBetter = useAutosaveSetting<boolean>(
+    (s) => s.addKeepBetter ?? false,
+    (v) => ({ addKeepBetter: v }),
+    (saved) => (saved ? t('Saved: new titles keep looking for better versions.') : t('Saved: new titles stay as first downloaded.')),
+    false,
+  )
   return (
     <section className="card">
       <h2>{t('When you add a title')}</h2>
@@ -249,6 +269,14 @@ function AddDefaultsSection() {
         disabled={!searchNow.loaded || searchNow.saving}
         label={t('Start searching when a title is added')}
         description={t('Whether "Start searching now" is ticked in the add dialog. If it is off, a new title waits for the next automatic search.')}
+        showState
+      />
+      <Switch
+        checked={keepBetter.value}
+        onChange={keepBetter.change}
+        disabled={!keepBetter.loaded || keepBetter.saving}
+        label={t('Keep looking for better versions on new titles')}
+        description={t('The starting choice in the add dialog, and what a title gets when an import list or a script does not say. A title only swaps its file when its quality profile has better versions on too. Titles you already have keep their own choice.')}
         showState
       />
     </section>

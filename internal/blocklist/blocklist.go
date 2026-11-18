@@ -32,6 +32,8 @@ type Entry struct {
 	// Entries without one (all those from before, and those made where the
 	// upload is not known) block every release with that name.
 	ReleaseID string
+	// A ReleaseID made with PackIDs also carries the size-based id of the same
+	// upload (see FallbackID); Add keeps it next to the guid.
 	// ItemOnly makes the entry count for the title named by the ids above and
 	// for no other. Without it the release is blocked everywhere, as before.
 	ItemOnly  bool
@@ -126,7 +128,9 @@ func GUIDID(indexerID int64, guid string) string {
 // ReleaseIDs lists every way an upload is known by, the most exact first: its
 // guid (when the indexer gave one), then what ReleaseID makes of it. A search
 // result is looked up under all of them, so entries made before guids were
-// kept (by size or info hash) still match.
+// kept (by size or info hash) still match. When it has no guid, BlockedAny and
+// ReasonOfAny also look it up under FallbackID, which finds an entry that was
+// saved under the guid of the same upload (same indexer, same size).
 func ReleaseIDs(indexerID int64, guid string, size int64, downloadURL string) []string {
 	var out []string
 	if id := GUIDID(indexerID, guid); id != "" {
@@ -136,6 +140,66 @@ func ReleaseIDs(indexerID int64, guid string, size int64, downloadURL string) []
 		out = append(out, id)
 	}
 	return out
+}
+
+// withFallbacks adds FallbackID of each size-based id to the ids of an upload
+// that has no guid (none of them is a guid id), so BlockedAny and ReasonOfAny
+// also find an entry saved under the guid of the same upload.
+func withFallbacks(ids []string) []string {
+	for _, id := range ids {
+		if strings.HasPrefix(id, "g") {
+			return ids
+		}
+	}
+	out := append([]string(nil), ids...)
+	for _, id := range ids {
+		if f := FallbackID(id); f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// weakPrefix marks the id a release without a guid is also looked up under:
+// the size-based id (ReleaseID) of the upload, as a fallback for an entry that
+// was saved under a guid. It is never the id of an entry itself.
+const weakPrefix = "~"
+
+// fbSep joins the two ids in what PackIDs returns. The NUL bytes keep it from
+// ever being part of a real guid.
+const fbSep = "\x00fb\x00"
+
+// FallbackID is the size-based id (ReleaseID) of an upload with the mark that
+// says it is only the fallback for a guid. A release the indexer gave no guid
+// is looked up under it as well as under its plain id, so an entry made for
+// the same upload while its guid was known still matches (the indexer and the
+// size are the same). A release that has a guid never uses it: another guid is
+// another upload.
+func FallbackID(releaseID string) string {
+	if releaseID == "" {
+		return ""
+	}
+	return weakPrefix + releaseID
+}
+
+// PackIDs is the id a blocklist entry is saved under, from ReleaseIDs: the
+// first one, and when that is a guid, the size-based id too (kept in the
+// entry's fallback). Pass the result as Entry.ReleaseID.
+func PackIDs(ids []string) string {
+	switch {
+	case len(ids) == 0:
+		return ""
+	case len(ids) > 1 && strings.HasPrefix(ids[0], "g") && !strings.HasPrefix(ids[1], weakPrefix):
+		return ids[0] + fbSep + ids[1]
+	}
+	return ids[0]
+}
+
+// unpackID splits an Entry.ReleaseID into the id the entry is saved under and
+// its fallback id (both may be empty).
+func unpackID(packed string) (id, fallback string) {
+	id, fallback, _ = strings.Cut(packed, fbSep)
+	return id, fallback
 }
 
 // Blocked reports whether the release is blocklisted for a search for sc: on
@@ -160,7 +224,7 @@ func BlockedRelease(set map[string]bool, releaseTitle, releaseID string, sc Scop
 // any of the ids. An entry for another upload with the same name does not
 // block it.
 func BlockedAny(set map[string]bool, releaseTitle string, releaseIDs []string, sc Scope) bool {
-	ids := append([]string{""}, releaseIDs...)
+	ids := append([]string{""}, withFallbacks(releaseIDs)...)
 	for _, id := range ids {
 		if set[releaseKey(releaseTitle, id)] {
 			return true
@@ -202,15 +266,17 @@ func nullIfZero(id int64) any {
 // limit it to.
 func (r *Repo) Add(e Entry) error {
 	tags := e.Scope().tags()
+	id, fallback := unpackID(e.ReleaseID)
+	e.ReleaseID = id
 	key, scope := releaseKey(e.ReleaseTitle, e.ReleaseID), ScopeAll
 	if e.ItemOnly && len(tags) > 0 {
 		key, scope = scopedKey(tags[0], e.ReleaseTitle, e.ReleaseID), ScopeItem
 	}
 	_, err := r.db.Exec(
-		`INSERT INTO blocklist (release_title, title_key, protocol, reason, movie_id, series_id, album_id, book_id, scope)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT (title_key) DO UPDATE SET reason = excluded.reason, created_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
-		e.ReleaseTitle, key, e.Protocol, e.Reason, nullIfZero(e.MovieID), nullIfZero(e.SeriesID), nullIfZero(e.AlbumID), nullIfZero(e.BookID), scope,
+		`INSERT INTO blocklist (release_title, title_key, protocol, reason, movie_id, series_id, album_id, book_id, scope, fallback_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (title_key) DO UPDATE SET reason = excluded.reason, fallback_id = excluded.fallback_id, created_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
+		e.ReleaseTitle, key, e.Protocol, e.Reason, nullIfZero(e.MovieID), nullIfZero(e.SeriesID), nullIfZero(e.AlbumID), nullIfZero(e.BookID), scope, fallback,
 	)
 	if err != nil {
 		return fmt.Errorf("blocklist %q: %w", e.ReleaseTitle, err)
@@ -299,13 +365,42 @@ func (r *Repo) ReasonOf(releaseTitle, releaseID string) (string, bool, error) {
 // first), or else of the one for the name alone.
 func (r *Repo) ReasonOfAny(releaseTitle string, releaseIDs []string) (string, bool, error) {
 	keys := make([]any, 0, len(releaseIDs)+1)
-	for _, id := range releaseIDs {
-		if id != "" {
+	var weak []string
+	for _, id := range withFallbacks(releaseIDs) {
+		switch {
+		case id == "":
+		case strings.HasPrefix(id, weakPrefix):
+			weak = append(weak, strings.TrimPrefix(id, weakPrefix))
+		default:
 			keys = append(keys, releaseKey(releaseTitle, id))
 		}
 	}
 	keys = append(keys, Key(releaseTitle))
 	var reason string
+	// An entry saved under the guid of this upload (same indexer and size, no
+	// guid known now) is found by its fallback id.
+	for _, fb := range weak {
+		rows, err := r.db.Query(`SELECT release_title, reason FROM blocklist WHERE fallback_id = ? AND scope = ?`, fb, ScopeAll)
+		if err != nil {
+			return "", false, fmt.Errorf("look up blocklist reason of %q: %w", releaseTitle, err)
+		}
+		found := false
+		for rows.Next() {
+			var title, why string
+			if err := rows.Scan(&title, &why); err != nil {
+				rows.Close()
+				return "", false, fmt.Errorf("look up blocklist reason of %q: %w", releaseTitle, err)
+			}
+			if Key(title) == Key(releaseTitle) {
+				reason, found = why, true
+				break
+			}
+		}
+		rows.Close()
+		if found {
+			return reason, true, nil
+		}
+	}
 	for _, k := range keys {
 		err := r.db.QueryRow(`SELECT reason FROM blocklist WHERE title_key = ? LIMIT 1`, k).Scan(&reason)
 		if err == sql.ErrNoRows {
@@ -323,18 +418,30 @@ func (r *Repo) ReasonOfAny(releaseTitle string, releaseIDs []string) (string, bo
 // results. A release blocked for one title alone is in it under a key of its
 // own, so look releases up with Blocked and not by Key alone.
 func (r *Repo) Keys() (map[string]bool, error) {
-	rows, err := r.db.Query(`SELECT title_key FROM blocklist`)
+	rows, err := r.db.Query(`SELECT title_key, release_title, scope, fallback_id, COALESCE(movie_id, 0), COALESCE(series_id, 0), COALESCE(album_id, 0), COALESCE(book_id, 0) FROM blocklist`)
 	if err != nil {
 		return nil, fmt.Errorf("list blocklist keys: %w", err)
 	}
 	defer rows.Close()
 	out := map[string]bool{}
 	for rows.Next() {
-		var k string
-		if err := rows.Scan(&k); err != nil {
+		var (
+			k, title, scope, fallback string
+			e                         Entry
+		)
+		if err := rows.Scan(&k, &title, &scope, &fallback, &e.MovieID, &e.SeriesID, &e.AlbumID, &e.BookID); err != nil {
 			return nil, err
 		}
 		out[k] = true
+		if fallback == "" {
+			continue
+		}
+		// The same upload, for a release that comes without a guid.
+		if tags := e.Scope().tags(); scope == ScopeItem && len(tags) > 0 {
+			out[scopedKey(tags[0], title, FallbackID(fallback))] = true
+		} else if scope != ScopeItem {
+			out[releaseKey(title, FallbackID(fallback))] = true
+		}
 	}
 	return out, rows.Err()
 }

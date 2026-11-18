@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, can, isAdmin, type Book, type BookFormat, type QueueItem, type SearchResult } from '../api'
 import { useAuth } from '../AuthContext'
+import LoadFailed from '../components/LoadFailed'
 import AddDownloadDialog from '../components/AddDownloadDialog'
 import ChangeCoverDialog from '../components/ChangeCoverDialog'
 import { useConfirm } from '../components/ConfirmProvider'
@@ -88,7 +89,7 @@ function BookPage({ id }: { id?: string }) {
     }
   }
 
-  if (error && !book) return <p className="error-text">{error}</p>
+  if (error && !book) return <LoadFailed message={error} />
   if (!book) return <div className="skeleton" style={{ height: 320, borderRadius: 22 }} />
 
   // A book added from Audible has no Open Library page, so the link and the series lookup are left out.
@@ -168,7 +169,7 @@ function BookPage({ id }: { id?: string }) {
       {book.authorKey && <AuthorBooks authorKey={book.authorKey} author={book.author} exclude={book.olKey} />}
       {formats.length === 0 && (
         <p className="hint">
-          {t('Ebooks and audiobooks are both switched off.')} {admin ? <Link to="/settings/modules">{t('Switch one on in Settings > Media types.')}</Link> : null}
+          {t('Ebooks and audiobooks are both switched off.')} {admin ? <Link to="/settings/modules">{t('Switch one on in Settings > Basics > Media types.')}</Link> : null}
         </p>
       )}
     </div>

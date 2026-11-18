@@ -20,7 +20,7 @@ import (
 	"github.com/rdborg/mediarium/internal/trakt"
 )
 
-// Import lists (Settings > Info, lists and subtitles > Import lists): lists on
+// Import lists (Settings > Library and files > Import lists): lists on
 // Trakt, TMDB, IMDb, MDBList, Simkl and Letterboxd that are read on a schedule, adding
 // what is on them to the library with the profile, folder, monitoring and tags
 // chosen for the list. Nothing is ever removed when a title leaves a list.

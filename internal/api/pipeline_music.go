@@ -326,7 +326,7 @@ func (s *Server) importAlbumFiles(ctx context.Context, artist music.Artist, albu
 	}
 	root := s.musicRoot()
 	if root == "" {
-		return albumImport{}, fmt.Errorf("the music folder isn't set. Choose one in Settings > Library > Folders")
+		return albumImport{}, fmt.Errorf("the music folder isn't set. Choose one in Settings > Library and files > Folders")
 	}
 	// A busy MusicBrainz is waited out for a few minutes here (nobody is
 	// watching a page); if it is still busy the caller keeps the files and
@@ -377,7 +377,13 @@ func (s *Server) importAlbumFiles(ctx context.Context, artist music.Artist, albu
 		tier = music.TierForExtension(filepath.Ext(matched[0]))
 	}
 	clean := music.Sanitizer(s.musicSanitizer())
-	folder := music.AlbumPath(root, artist.Name, album.Title, album.Year(), clean)
+	// Another band of the same name, or a single of the album's name and year,
+	// would have the same folder; the second one gets a folder of its own.
+	var taken []music.Album
+	if all, err := s.MusicRepo.ListAllAlbums(); err == nil {
+		taken = all
+	}
+	folder := music.UniqueAlbumPath(root, artist, album, taken, clean)
 	policy, isBetter := s.musicConflictPolicy(album, tier)
 
 	res := albumImport{folder: folder, tier: tier, unmatched: len(unmatched), missing: wantedTracks(tracks) - len(matches), unwanted: unwanted}

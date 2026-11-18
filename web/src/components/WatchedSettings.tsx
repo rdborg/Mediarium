@@ -7,7 +7,7 @@ import { useToast } from './Toast'
 import { useConfirm } from './ConfirmProvider'
 import TipLabel from './TipLabel'
 
-// Settings > Connections > Media servers: reading what's been watched from
+// Settings > Media servers and apps > Media servers: reading what's been watched from
 // Plex, Jellyfin and Emby, and the cleanup rules built on it. Both are off
 // until switched on; cleanup always shows what it would remove first.
 

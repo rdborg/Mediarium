@@ -19,22 +19,22 @@
 #      smoke-tested (both programs must answer) before it is pushed.
 #
 # Notes:
-#   * There was no other workflow in .github/workflows/ when this was written,
-#     so nothing here duplicates a CI job. If you add a CI workflow later, keep
-#     it on push/pull_request so the two never both run on a tag.
+#   * The other workflows (ci.yml, codeql.yml, rebuild-full.yml) run on pushes to
+#     main, pull requests or a timer, never on a tag, so none of them runs twice
+#     for a release. Keep it that way.
 #   * The frontend (web/dist) is embedded into the Go binary by web/embed.go
 #     (//go:embed dist), so it MUST be built before `go build`. The `frontend`
 #     job builds it once and the `binaries` matrix downloads it. The Docker
 #     build does its own frontend stage inside the Dockerfile.
 #   * -X variable names (main.version, main.defaultTMDBAPIKey,
-#     main.defaultOpenSubtitlesAPIKey, main.defaultTraktClientID) are copied
-#     from the Dockerfile and cmd/app/main.go. Keep all three in sync.
-#   * Optional repository secrets TMDB_API_KEY, OPENSUBTITLES_API_KEY and
-#     TRAKT_CLIENT_ID bake app-wide identifiers into official builds (see the
-#     Dockerfile). If a secret is not set the value is empty and the app asks
-#     each user for their own key, exactly like a build from source.
-#   * NOT TESTED: this workflow has not been run on GitHub yet. The Go
-#     cross-compile commands it uses were verified locally.
+#     main.defaultOpenSubtitlesAPIKey, main.defaultTraktClientID,
+#     main.defaultSimklClientID) are copied from the Dockerfile and
+#     cmd/app/main.go. Keep all three in sync.
+#   * Optional repository secrets TMDB_API_KEY, OPENSUBTITLES_API_KEY,
+#     TRAKT_CLIENT_ID and SIMKL_CLIENT_ID bake app-wide identifiers into
+#     official builds (see the Dockerfile). If a secret is not set the value is
+#     empty and the app asks each user for their own key, exactly like a build
+#     from source.
 
 name: Release
 

@@ -15,7 +15,7 @@ import (
 // Second copies: a movie or show kept again in another quality, such as a 4K
 // copy next to the 1080p one. Each copy is a library row of its own (its
 // own quality profile, status and file) pointing at the main title, and its
-// files go in the copies folder set in Settings > Library > Folders and file
+// files go in the copies folder set in Settings > Library and files > Folders and file
 // names, never next to the main ones. Everything else (searching, grabbing,
 // upgrades, removing) works on a copy by its id like on any title.
 
@@ -188,7 +188,7 @@ func (s *Server) handleAddMovieCopy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.movieCopiesRoot() == "" {
-		writeError(w, http.StatusConflict, "Choose a folder for second copies first, in Settings > Library > Folders.")
+		writeError(w, http.StatusConflict, "Choose a folder for second copies first, in Settings > Library and files > Folders.")
 		return
 	}
 	if !s.checkCopyProfile(w, req.ProfileID, m.ProfileID, false) {
@@ -246,7 +246,7 @@ func (s *Server) handleAddSeriesCopy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.tvCopiesRoot() == "" {
-		writeError(w, http.StatusConflict, "Choose a folder for second copies first, in Settings > Library > Folders.")
+		writeError(w, http.StatusConflict, "Choose a folder for second copies first, in Settings > Library and files > Folders.")
 		return
 	}
 	if !s.checkCopyProfile(w, req.ProfileID, sr.ProfileID, true) {

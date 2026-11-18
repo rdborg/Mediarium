@@ -5,7 +5,7 @@ import TipLabel from './TipLabel'
 import { sortProfiles } from './qualityBlurb'
 import { t } from '../i18n'
 
-// Settings > Media types, under the cards while the anime library is on: the
+// Settings > Basics > Media types, under the cards while the anime library is on: the
 // folder new anime shows go to, their default quality profile and their file
 // names. Each is optional; left empty, anime use what every show uses.
 export default function AnimeSettingsCard() {

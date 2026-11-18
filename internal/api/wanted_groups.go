@@ -145,11 +145,8 @@ func (s *Server) wantedRows(ctx context.Context, kind string, filter wantedFilte
 
 // wantedShowRows is one row per show with wanted episodes, newest added first.
 func (s *Server) wantedShowRows(ctx context.Context, kind string, profiles profileSet) ([]wantedRowPayload, error) {
-	show := func(id int64, title string, year int, poster string, profileID, copyOf int64, n int) wantedRowPayload {
-		faceTitle, facePoster := title, wantedPoster(poster)
-		if sr, err := s.MovieRepo.GetSeries(id); err == nil {
-			faceTitle, facePoster = s.shownFace("tv", sr.TMDBID, sr.Title, sr.PosterPath)
-		}
+	show := func(id int64, tmdbID int, title string, year int, poster string, profileID, copyOf int64, n int) wantedRowPayload {
+		faceTitle, facePoster := s.shownFace("tv", tmdbID, title, poster)
 		row := wantedRowPayload{Episodes: n, wantedItemPayload: wantedItemPayload{
 			Kind: "show", ID: id, SeriesID: id, Title: faceTitle, Year: year, PosterURL: facePoster,
 			ProfileName: profiles.resolveTV(profileID).Name, Copy: copyOf != 0,
@@ -211,7 +208,7 @@ func (s *Server) wantedShowRows(ctx context.Context, kind string, profiles profi
 	}
 	for _, sh := range shows {
 		if n := sh.Episodes - onDisk[sh.ID]; n > 0 {
-			rows = append(rows, show(sh.ID, sh.Title, sh.Year, sh.PosterPath, sh.ProfileID, sh.CopyOf, n))
+			rows = append(rows, show(sh.ID, sh.TMDBID, sh.Title, sh.Year, sh.PosterPath, sh.ProfileID, sh.CopyOf, n))
 		}
 	}
 	return rows, nil

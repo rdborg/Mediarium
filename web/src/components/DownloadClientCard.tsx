@@ -129,7 +129,7 @@ export default function DownloadClientCard() {
       <p style={{ marginTop: 0 }}>
         {t('Hand torrent releases to a download client you already run: qBittorrent, Transmission, or a program that works like qBittorrent, such as RDT-Client or Decypharr. The client downloads and seeds, and Mediarium imports the finished files from its folder without moving them.')}
       </p>
-      <p className="field-help">{t('The download client and a debrid service can both be set up. Torrents go to the client first; an indexer can send its torrents to the debrid service or the built-in client instead (Settings > Indexers & Search, Where torrents go).')}</p>
+      <p className="field-help">{t('The download client and a debrid service can both be set up. Torrents go to the client first; an indexer can send its torrents to the debrid service or the built-in client instead (Settings > Finding releases > Indexers & Search, Where torrents go).')}</p>
       <div className="form-cols">
         <label>
           {t('Client')}

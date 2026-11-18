@@ -24,7 +24,7 @@ The cache keeps up to 1 GB. When it grows past that, the pictures nobody has loo
 
 ## Switching it off
 
-**Settings > Library and files > Artwork from TMDB > Load artwork through Mediarium.** It is on by default. When you switch it off, every browser loads posters and backdrops from `image.tmdb.org` itself, as in older versions. Pages that are already open change the next time they load. Only administrators can change it.
+**Settings > Library and files > Movie and show info > Artwork from TMDB > Load artwork through Mediarium.** It is on by default. When you switch it off, every browser loads posters and backdrops from `image.tmdb.org` itself, as in older versions. Pages that are already open change the next time they load. Only administrators can change it.
 
 ## What Mediarium contacts
 

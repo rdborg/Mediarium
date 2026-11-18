@@ -10,7 +10,7 @@ import { useToast } from './Toast'
 
 // Anonymous usage numbers. Nothing is sent until an administrator presses Yes:
 // the window below asks once (and again in a later session until it is answered),
-// and Settings > General has the same choice any time. What can be sent is one
+// and Settings > Basics > General has the same choice any time. What can be sent is one
 // fixed message, shown here exactly as it would go (internal/usagestats).
 
 const LATER_KEY = 'mediarium-stats-later'
@@ -149,7 +149,7 @@ function AskDialog({ state, choose, askLater }: { state: UsageStatsState; choose
               {t('Open the form')}
             </a>
           </p>
-          <p className="hint">{t('You can change your mind at any time in Settings > General, or set MEDIARIUM_DISABLE_STATS=1 so it is never asked.')}</p>
+          <p className="hint">{t('You can change your mind at any time in Settings > Basics > General, or set MEDIARIUM_DISABLE_STATS=1 so it is never asked.')}</p>
         </div>
         <div className="modal-foot">
           <button type="button" className="link-btn" onClick={askLater}>
@@ -168,7 +168,7 @@ function AskDialog({ state, choose, askLater }: { state: UsageStatsState; choose
   )
 }
 
-// The same choice, in Settings > General.
+// The same choice, in Settings > Basics > General.
 export function UsageStatsCard() {
   const { state, choose, resetId } = useUsageStats()
   if (!state) return null

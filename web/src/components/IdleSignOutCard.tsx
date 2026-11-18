@@ -8,7 +8,7 @@ import { useToast } from './Toast'
 // limit would never apply.
 const CHOICES = [0, 1, 2, 3, 5, 7]
 
-// Settings > Account & Access > Security: sign a browser out when it has not
+// Settings > People and access > Security: sign a browser out when it has not
 // been used for a while. Off until a number of days is chosen. Only for administrators.
 export default function IdleSignOutCard() {
   const toast = useToast()

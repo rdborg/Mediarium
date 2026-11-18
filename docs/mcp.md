@@ -18,7 +18,7 @@ It is off until you switch it on, and it adds nothing to install: it is part of 
 
 1. Open **Settings > Media servers and apps > Other apps**.
 2. Under **Let AI assistants connect (MCP)** switch it on. The address appears with a copy button.
-3. Make an API key for the assistant: press **Make a key for other apps** on the same page, or use **Accounts > API keys**. For a key that may only ask questions, tick **Read-only** when you make it.
+3. Make an API key for the assistant: press **Make a key for other apps** on the same page, or use **Settings > People and access > Security > API keys**. For a key that may only ask questions, tick **Read-only** when you make it.
 
 Only an administrator's key works. A key of a basic account is refused. (Programs that can sign in by themselves don't need a key at all, see [Sign in instead of a key](#sign-in-instead-of-a-key).) Switching MCP **on** can only be done from the web page while you are signed in, never with an API key, so a leaked key can't open the door by itself.
 
@@ -109,7 +109,7 @@ If it can't find the sign-in, open `https://<your address>/.well-known/oauth-aut
 
 ### Other clients
 
-Programs that support the MCP sign-in (VS Code, MCP Inspector, Claude and others) need only the address of Mediarium's MCP endpoint. They read the rest from these places and register themselves:
+Programs that support the MCP sign-in (VS Code, MCP Inspector and others) need only the address of Mediarium's MCP endpoint. They read the rest from these places and register themselves:
 
 | What | Address |
 |---|---|
@@ -146,9 +146,9 @@ Sizes are in GB of 1024 MB, the way file managers show them. The release group c
 
 | Tool | What it does |
 |---|---|
-| `add_movie` | Adds a movie by TMDB id, on a profile you name, and searches for it. |
-| `add_series` | Adds a show by TMDB or TVDB id, with the monitoring you choose. |
-| `search_now` | Searches right now for up to 20 movies, shows or episodes. |
+| `add_movie` | Adds a movie by TMDB id, on a profile you name, and searches for it. Needs [the downloads switch](#let-an-assistant-start-downloads). |
+| `add_series` | Adds a show by TMDB or TVDB id, with the monitoring you choose. Needs the downloads switch. |
+| `search_now` | Searches right now for up to 20 movies, shows or episodes. Needs the downloads switch. |
 | `set_movie_profile`, `set_series_profile` | Moves a title to another quality profile ("upgrade it to 4K"). If its file is below the new profile, a search for a better one starts. |
 | `retry_failed_download` | Blocks the release of a failed download and searches for another. |
 | `add_preferred_term` | Adds a preferred term with a score to a profile, or changes the score of one that is there. |
@@ -157,11 +157,11 @@ Each of these needs `confirm: true`. Called without it, the tool changes nothing
 
 ### Let an assistant start downloads
 
-Picking one specific release and downloading it is a separate permission, and it is **off** until you switch it on. On **Settings > Media servers and apps > Other apps**, under **Let AI assistants connect (MCP)**, switch on **Let assistants pick releases and start downloads**. Like the main MCP switch it can only be turned on from the web page while you are signed in, never with an API key. With it off, the two tools below don't even show up in the assistant's list, and calling them anyway is refused.
+Picking one specific release and downloading it is a separate permission, and it is **off** until you switch it on. On **Settings > Media servers and apps > Other apps**, under **Let AI assistants connect (MCP)**, switch on **Let assistants pick releases and start downloads**. Like the main MCP switch it can only be turned on from the web page while you are signed in, never with an API key. With it off, the tools below don't even show up in the assistant's list, and calling them anyway is refused with a plain message. That also goes for `add_movie`, `add_series` and `search_now` from the table above: adding a title or searching for it starts a search that downloads by itself, so those three need the same switch. Everything else in the change table still works with the switch off.
 
 | Tool | What it does |
 |---|---|
-| `find_releases` | Searches your indexers for releases of a title that is in the library (a movie, or a season, an episode or the packs of a show) and lists the best matches with size, quality, group and anything that speaks against them. Each one gets a short `release_id`. Nothing is downloaded. The download address stays inside Mediarium and is never given to the assistant. |
+| `find_releases` | Searches your indexers for releases of a title that is in the library (a movie, or a season, an episode or the packs of a show) and lists the best matches with size, quality, group and anything that speaks against them. Each one gets a short `release_id`, and says when the tracker counts it as freeleech (`freeleech`) or at a discount (`discount_percent`, 50 is half price). Nothing is downloaded. The download address stays inside Mediarium and is never given to the assistant. |
 | `grab_release` | Downloads one of those releases. It takes two calls (see below). |
 
 Both need a key that is not read-only (or a sign-in that was allowed to make changes), next to the switch.
@@ -183,7 +183,7 @@ Besides the tools, Mediarium offers two resources (a library summary and the hea
 - **Use HTTPS when you can.** Keys and tokens travel in a header and the sign-in sends the browser back with a one-time code. Over plain `http` on your home network that is fine for many people; across the internet put Mediarium behind HTTPS (a reverse proxy).
 - **Tokens are revocable.** Each connected app can be disconnected on the Other apps page, and it stops at once. Mediarium keeps only a hash of every token, so a copy of its database doesn't give them away. A refresh token that is used a second time is treated as stolen and ends the whole connection. The one-time code is valid for 60 seconds.
 - **A registered client's name is what the registering program called itself.** The Allow page therefore also shows the address the browser goes to afterwards. If the name and the address don't fit together, press Deny.
-- **Make a key just for it**, named after the program. Revoke it under **Accounts > API keys** and it stops working at once. Switch MCP off on the Other apps page and the address stops answering (404) for every key.
+- **Make a key just for it**, named after the program. Revoke it under **Settings > People and access > Security > API keys** and it stops working at once. Switch MCP off on the Other apps page and the address stops answering (404) for every key.
 - **Your library leaves the house.** What a tool answers (titles, file names, sizes, request names) goes to the assistant, and from there to whoever runs it. A voice assistant or chat program that runs fully on your own machine keeps it at home; a hosted one does not.
 - **Limits.** A request can be up to 256 KB; one key can send about 20 requests a second (with a burst of 100) before it is asked to wait; a long answer is cut and says so. Nothing is kept between requests (no sessions).
 - **Mistakes come back as plain answers.** If a tool can't do what was asked (an unknown kind, an argument that isn't a number, a search that took too long, an unexpected crash) it answers with a short explanation marked as an error, never with an empty reply or a failed connection. Numbers and yes/no values sent as text ("5", "true") are accepted. A search that finds nothing says "No titles matched" and how many titles the library holds. If an assistant still reports an empty "error communicating with the MCP server", look for a `mcp: a tool was slow` line in the log: the call took longer than the assistant waited.

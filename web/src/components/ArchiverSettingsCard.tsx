@@ -15,7 +15,7 @@ const FORMATS: { value: ArchiverConfig['format']; label: () => string }[] = [
 
 const formatName = (f: string) => FORMATS.find((x) => x.value === f)?.label() ?? f
 
-// Settings > Media types: the Channel archiver. It is shown while the module is
+// Settings > Basics > Media types: the Channel archiver. It is shown while the module is
 // off too, because the warning has to be ticked and the yt-dlp file tested
 // before the module's switch will turn it on. The followed channels and the
 // recent videos show once it is on.

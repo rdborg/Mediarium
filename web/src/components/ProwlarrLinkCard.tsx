@@ -15,7 +15,7 @@ interface ProwlarrState {
   last?: { at: string; ok: boolean; message: string }
 }
 
-// Settings > Indexers & Search: a link to a running Prowlarr (#134). Every
+// Settings > Finding releases > Indexers & Search: a link to a running Prowlarr (#134). Every
 // indexer Prowlarr has is added here as Prowlarr's own feed for it, and kept
 // in step every few hours, so the sites that only Prowlarr can do work too.
 export default function ProwlarrLinkCard({ onSynced }: { onSynced: () => void }) {

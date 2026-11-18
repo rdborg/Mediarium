@@ -164,3 +164,56 @@ func TestMonitorProbeFailsAndLearnsLimit(t *testing.T) {
 		t.Fatal("an indexer over its limit was asked")
 	}
 }
+
+// A check that works lifts the pause an indexer was under after failures, and
+// a paused indexer is checked after half an hour, so one that came back (or
+// whose key was refused for a while) is not left out of searches for hours.
+func TestMonitorProbeLiftsAPause(t *testing.T) {
+	fake := newFakeNewznab(t)
+	clock := &probeClock{t: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)}
+	tr := indexers.NewTracker(nil, clock.now)
+	inst := indexers.Instance{ID: 7, Name: "Slug", BaseURL: fake.URL, APIKey: "key", Enabled: true, Tracker: tr}
+	s := &Server{}
+	ctx := context.Background()
+
+	for i := 0; i < 6; i++ {
+		tr.Failed(inst.ID, errors.New("newznab error from Slug: Incorrect user credentials (code 100)"))
+	}
+	if _, paused := tr.PausedUntil(inst.ID); !paused {
+		t.Fatal("the indexer should be paused")
+	}
+	// The first check was a while ago (the pause itself shows it is not new).
+	tr.NoteProbe(inst.ID)
+	clock.advance(10 * time.Minute)
+	if err := s.probeIndexer(ctx, inst); !errors.Is(err, monitor.ErrSkip) {
+		t.Fatalf("10 minutes later it is too soon, got %v", err)
+	}
+	if _, paused := tr.PausedUntil(inst.ID); !paused {
+		t.Fatal("a skipped check lifted the pause")
+	}
+	clock.advance(25 * time.Minute)
+	if err := s.probeIndexer(ctx, inst); err != nil {
+		t.Fatalf("check of a paused indexer: %v", err)
+	}
+	if _, paused := tr.PausedUntil(inst.ID); paused {
+		t.Fatal("a check that worked did not lift the pause")
+	}
+	if h, ok := tr.Health(inst.ID); ok {
+		t.Fatalf("the failures should be forgotten, got %+v", h)
+	}
+
+	// A check that fails does not lift it.
+	fake.mu.Lock()
+	fake.capsBody = `<error code="100" description="Incorrect user credentials"/>`
+	fake.mu.Unlock()
+	for i := 0; i < 6; i++ {
+		tr.Failed(inst.ID, errors.New("newznab error from Slug: Incorrect user credentials (code 100)"))
+	}
+	clock.advance(35 * time.Minute)
+	if err := s.probeIndexer(ctx, inst); err == nil {
+		t.Fatal("the check should have failed")
+	}
+	if _, ok := tr.Health(inst.ID); !ok {
+		t.Fatal("a failed check cleared the failures")
+	}
+}

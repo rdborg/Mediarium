@@ -258,7 +258,7 @@ function SizeTableEditor({ kind, onEnabled }: { kind: Kind; onEnabled: (on: bool
   )
 }
 
-// Settings > Library > Quality: the size limits, one table for movies and one
+// Settings > Finding releases > Quality: the size limits, one table for movies and one
 // for shows. TRaSH's sizes differ between Radarr and Sonarr, so each side has
 // its own table and its own Apply TRaSH sizes.
 export default function SizeLimitsCard() {

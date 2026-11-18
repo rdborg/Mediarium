@@ -32,7 +32,7 @@ function Check({ checked, onChange, children, disabled, tip }: { checked: boolea
   )
 }
 
-// Settings > Account & Access > All accounts: the ways to sign in besides the password
+// Settings > People and access > All accounts: the ways to sign in besides the password
 // of an account made here. Everything in this box is off until it is switched
 // on, and none of it takes the password away unless an administrator who has
 // already signed in another way says so.
@@ -137,7 +137,7 @@ function GeneralCard({ state, error, onChange, reload }: { state: SignInSettings
             </p>
             {!state.passkeysAvailable && (
               <p className="hint" style={{ margin: '0 0 8px' }}>
-                {t('Passkeys need the address you open Mediarium at (Settings > General > Address of Mediarium), starting with https:// and with a name, not an IP address. http://localhost works too.')}
+                {t('Passkeys need the address you open Mediarium at (Settings > Basics > General > Address of Mediarium), starting with https:// and with a name, not an IP address. http://localhost works too.')}
                 {state.publicUrl && ' ' + t('Now it is {url}.', { url: state.publicUrl })}
               </p>
             )}
@@ -251,7 +251,7 @@ function OidcCard({ publicUrl, ssoDisabledByEnv, onSaved }: { publicUrl: string;
         </a>
       </p>
       {ssoDisabledByEnv && <p className="hint">{t('Switched off by MEDIARIUM_DISABLE_SSO on the container.')}</p>}
-      {!cfg.publicUrlSet && <p className="hint">{t('Set the address you open Mediarium at (Settings > General > Address of Mediarium) first, for example https://mediarium.example.com. The provider needs it to send people back.')}</p>}
+      {!cfg.publicUrlSet && <p className="hint">{t('Set the address you open Mediarium at (Settings > Basics > General > Address of Mediarium) first, for example https://mediarium.example.com. The provider needs it to send people back.')}</p>}
       <div className="grid-form" style={{ gap: 14 }}>
         <Check checked={cfg.enabled} onChange={(v) => set('enabled', v)}>
           {t('Turn on single sign-on')}
@@ -422,7 +422,7 @@ function LdapCard({ ssoDisabledByEnv, onSaved }: { ssoDisabledByEnv: boolean; on
         <Icon name="server" size={14} /> {t('Directory sign-in (LDAP or Active Directory)')}
       </legend>
       <p style={{ color: 'var(--text-dim)', marginTop: 0 }}>
-        {t('Let people sign in with the user name and password of your directory (OpenLDAP, Active Directory, FreeIPA, LLDAP, GLAuth). Their password is checked by the directory each time and never stored here. They use the normal sign-in form.')}{' '}
+        {t('Let people sign in with the username and password of your directory (OpenLDAP, Active Directory, FreeIPA, LLDAP, GLAuth). Their password is checked by the directory each time and never stored here. They use the normal sign-in form.')}{' '}
         <a href={`${DOCS_URL}/accounts.md#directory-sign-in-ldap-and-active-directory`} target="_blank" rel="noreferrer">
           {t('How to set it up')}
         </a>
@@ -551,7 +551,7 @@ function LdapCard({ ssoDisabledByEnv, onSaved }: { ssoDisabledByEnv: boolean; on
                   {report.passwordChecked && <li>{report.passwordOk ? t('The password is right.') : t('The password is wrong.')}</li>}
                 </ul>
               ) : (
-                <span>{t('Nobody was found with that user name. Check the base DN and the user filter.')}</span>
+                <span>{t('Nobody was found with that username. Check the base DN and the user filter.')}</span>
               )}
             </div>
           )}

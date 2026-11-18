@@ -25,13 +25,13 @@ func TestProblemMessageExplainsFlareSolverrAndGonePages(t *testing.T) {
 		{
 			"FlareSolverr not running, with its address",
 			flareDown("1337x", "http://127.0.0.1:8191"),
-			"FlareSolverr isn't running or Mediarium can't reach it at http://127.0.0.1:8191. Start FlareSolverr, or set its address under Settings > Indexers & Search.",
+			"FlareSolverr isn't running or Mediarium can't reach it at http://127.0.0.1:8191. Start FlareSolverr, or set its address under Settings > Finding releases > Indexers & Search.",
 			`1337x: FlareSolverr could not pass the Cloudflare check: contact FlareSolverr: Post "http://127.0.0.1:8191/v1": EOF`,
 		},
 		{
 			"a login in the saved address is never printed",
 			flareDown("kickasstorrents.to", "http://user:secret@flare.lan:8191/?key=abc"),
-			"FlareSolverr isn't running or Mediarium can't reach it at http://flare.lan:8191. Start FlareSolverr, or set its address under Settings > Indexers & Search.",
+			"FlareSolverr isn't running or Mediarium can't reach it at http://flare.lan:8191. Start FlareSolverr, or set its address under Settings > Finding releases > Indexers & Search.",
 			"",
 		},
 		{

@@ -439,7 +439,7 @@ func (s *Server) downloadClientError(label string, err error) error {
 // Mediarium sees it: a path inside remote gets local in its place. Without a
 // mapping (or for a path outside remote) the path is used as it is.
 func mapClientPath(p, remote, local string) string {
-	p = strings.TrimSpace(p)
+	p, remote, local = strings.TrimSpace(p), strings.TrimSpace(remote), strings.TrimSpace(local)
 	if p == "" || remote == "" || local == "" {
 		return filepath.Clean(filepath.FromSlash(p))
 	}
@@ -452,7 +452,9 @@ func mapClientPath(p, remote, local string) string {
 		prefix, rest = q[:len(r)], q[len(r):]
 	}
 	same := prefix == r || (windows && strings.EqualFold(prefix, r))
-	if !same || (rest != "" && rest[0] != '/') {
+	// A path that climbs out of the folder ("..") is not mapped: it would end up
+	// outside the local folder.
+	if !same || (rest != "" && rest[0] != '/') || slices.Contains(strings.Split(rest, "/"), "..") {
 		return filepath.Clean(filepath.FromSlash(p))
 	}
 	return filepath.Join(local, filepath.FromSlash(rest))

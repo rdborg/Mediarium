@@ -160,6 +160,12 @@ func (c *Client) exchange(req *http.Request, s Server, base string, out any) err
 	if err != nil {
 		return fmt.Errorf("read %s response: %w", s.Kind.Label(), err)
 	}
+	// A login page of a proxy, or a default web server page, is not an answer
+	// of the server. Read as XML it would come out as an empty one, and the
+	// address would pass its test with no libraries in it.
+	if head := strings.ToLower(string(bytes.TrimSpace(data[:min(len(data), 512)]))); strings.HasPrefix(head, "<!doctype html") || strings.HasPrefix(head, "<html") || strings.Contains(head, "<html") {
+		return fmt.Errorf("%w: a web page", errUnrecognised)
+	}
 	if strings.Contains(resp.Header.Get("Content-Type"), "xml") || bytes.HasPrefix(bytes.TrimSpace(data), []byte("<")) {
 		if err := xml.Unmarshal(data, out); err != nil {
 			return fmt.Errorf("%w: %v", errUnrecognised, err)

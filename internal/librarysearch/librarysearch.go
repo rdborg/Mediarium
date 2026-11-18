@@ -130,7 +130,7 @@ func resolve(ctx context.Context, db *sql.DB, ids []int64, limit int) ([]Hit, er
 			found[h.ID*idStep+code] = h
 		}
 	}
-	out := make([]Hit, 0, min(limit, len(ids)))
+	out := make([]Hit, 0, min(limit, len(ids), 1000)) // never more than the ids found; 1000 caps the first allocation
 	for _, rid := range ids {
 		if h, ok := found[rid]; ok {
 			out = append(out, h)

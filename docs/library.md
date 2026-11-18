@@ -54,7 +54,7 @@ A fake, a sample or a download that was cut off can pass every check on names an
 
 A file can also be no video at all: a release that was never unpacked, saved under a video's name (for example a RAR volume called `Show - S01E01.mkv`). Mediarium reads the first bytes of each file, so a RAR, ZIP or 7z archive is recognised whatever its name says. Such a file is listed with the incomplete ones, its chip says **Not a video (RAR archive)**, and **Delete this file and search again** works on it the same way, with the release blocklisted as *not a video file*. A new download like that is turned away before it is imported, even with the length check switched off, and the next release is tried. Files that were already in your library are read again once after the update, so they show up within the first runs of the background job.
 
-- **New downloads.** Before a download is imported the same check runs, so a fake never gets into the library: the download fails with a plain reason ("The file is only 1 min long, the episode is about 45 min. This looks like a fake or broken release."), the release is blocklisted with the reason *incomplete file*, the bad files are cleared away and Mediarium tries the next release. In a season pack only the short files are left out (a line in the show's Activity says which); the pack is blocklisted when none of its files is long enough. Turn it off with **Check that the video is as long as the episode or movie** in Settings > Library and files and files > File names and importing; it is on by default. The Logs and errors page lists it as `import.incomplete_file`.
+- **New downloads.** Before a download is imported the same check runs, so a fake never gets into the library: the download fails with a plain reason ("The file is only 1 min long, the episode is about 45 min. This looks like a fake or broken release."), the release is blocklisted with the reason *incomplete file*, the bad files are cleared away and Mediarium tries the next release. In a season pack only the short files are left out (a line in the show's Activity says which); the pack is blocklisted when none of its files is long enough. Turn it off with **Check that the video is as long as the episode or movie** in Settings > Library and files > File names and importing; it is on by default. The Logs and errors page lists it as `import.incomplete_file`.
 - **Files you already have.** The **Looks incomplete** chip under the toolbar lists the movies and shows with such a file (`/library?st=incomplete`), and the count shows how many. Open a movie or an episode and a warning chip says **Only 1 min long**; point at it to see the length it should have. This works from the details the background job has read, so on a big library it fills in over time. The runtimes come from TMDB, so it needs the TMDB key.
 - **Delete this file and search again.** Administrators get this button next to the warning chip. After you confirm, the file goes to the recycle bin (or is deleted if the bin is off), the release it came from is blocklisted when Mediarium knows it, and the title is searched for again. In the Library, press **Select**, pick the **Looks incomplete** chip, **Select all**, and use **Delete incomplete files and search again**: it reaches only the selected titles that have such a file, shows the number of files, and asks first. A show stands for all its incomplete episodes. At most 25 searches are started at once; the automatic search does the rest. Each file is checked again on the server, so one that is fine by then, or lies outside your library folders, is never touched.
 - **For scripts.** The movie and show lists carry `shortFile` (`minutes`, `expected`, and `archive` — `rar`, `zip` or `7z` — for a file that is an archive, with `minutes` 0) on a movie and `shortFiles` (a count) on a show; a movie's page and each episode of `GET /api/series/{id}` carry `shortFile`. `POST /api/library/incomplete/redo` (administrators) takes `{"movieIds": [], "seriesIds": [], "episodeIds": []}` and answers `{files, titles, searching, skipped}`. The setting is `checkDuration` in `GET /api/settings`, key `import.check_duration`. The assistant tool `library_search` ([mcp.md](./mcp.md)) has an `incomplete` filter.
@@ -85,10 +85,10 @@ The path is the one Mediarium sees inside its container. With Docker it can diff
 If a library folder lives on a network drive and the drive isn't connected (a NAS that is off, a share that didn't mount after a restart), the folder is an empty one on the machine's own disk. Importing into it would fill that disk, and the files would seem to vanish the moment the drive comes back. Mediarium refuses to write there:
 
 - Before it imports, moves or renames anything under a library folder, it checks that the folder is there. If it can't be found, the import fails with a plain message, nothing is written, and the dashboard's Health list says which folder it is.
-- Once a library folder is known to be the real one, Mediarium keeps a small hidden file named `.mediarium-root` in it. It is put there when you choose the folder in Settings > Library and files and files > Folders, and for a folder that already holds files the first time Mediarium imports into it. A folder that has been seen with the file and then loses it is treated as disconnected: imports and moves into it wait (the download stays where it is, and you can retry it from Activity once the drive is back), and Health says so.
+- Once a library folder is known to be the real one, Mediarium keeps a small hidden file named `.mediarium-root` in it. It is put there when you choose the folder in Settings > Library and files > Folders, and for a folder that already holds files the first time Mediarium imports into it. A folder that has been seen with the file and then loses it is treated as disconnected: imports and moves into it wait (the download stays where it is, and you can retry it from Activity once the drive is back), and Health says so.
 - A folder that never got the file keeps working as before. If you delete the file on purpose, or move to a new drive, put an empty file named `.mediarium-root` into the folder, or choose the folder again in Settings.
 - A folder Mediarium knows to be on the container's own disk (not mapped from the host) never gets the file, so it can't be mistaken for a connected drive.
-- If the folder is the right one (you put a new drive or volume at the same path, moved the library, or a tool tidied up hidden files), an administrator does not need a shell: the failed import in Activity, and the folder in Settings > Library and files and files > Folders, show a **This is the right folder: create the marker** button. It explains the risk first and makes the file only when the folder exists, can be written to and is mapped from the host. When Mediarium has titles recorded under the folder but none of their folders is there, it is most likely the drive that is missing, so the button asks you to tick that you know the drive is connected. Afterwards **Retry the failed imports** retries the downloads that were refused for that folder. The action is written to Activity.
+- If the folder is the right one (you put a new drive or volume at the same path, moved the library, or a tool tidied up hidden files), an administrator does not need a shell: the failed import in Activity, and the folder in Settings > Library and files > Folders, show a **This is the right folder: create the marker** button. It explains the risk first and makes the file only when the folder exists, can be written to and is mapped from the host. When Mediarium has titles recorded under the folder but none of their folders is there, it is most likely the drive that is missing, so the button asks you to tick that you know the drive is connected. Afterwards **Retry the failed imports** retries the downloads that were refused for that folder. The action is written to Activity.
 - A folder that cannot be read at that moment (a network drive that stumbled) is reported as "could not be read just now", not as having lost its file, and nothing is written into it either.
 
 ### When you renamed a file or a folder
@@ -131,7 +131,7 @@ To get a better or smaller version of something you already have, delete the fil
 - **One episode:** **Delete file** on the episode's row (open the season first).
 - **A whole season:** **Delete files** in the season's header.
 
-Administrators only. The files (and the subtitles and artwork named after them) go to the recycle bin, or are deleted if the bin is switched off (Settings > System, in the clean-up card). The movie or the episodes become **wanted** again, and stay monitored if they were, so the next search can fill them. A file that holds two episodes is deleted once and both come back as wanted. Nothing outside your library folders is ever touched. Scripts: `DELETE /api/movies/{id}/file`, `DELETE /api/episodes/{id}/file` and `DELETE /api/series/{id}/seasons/{season}/files` (each answers with how many files went and how many episodes are wanted again; `409` when there's nothing downloaded to delete).
+Administrators only. The files (and the subtitles and artwork named after them) go to the recycle bin, or are deleted if the bin is switched off (Settings > System > Server, in the clean-up card). The movie or the episodes become **wanted** again, and stay monitored if they were, so the next search can fill them. A file that holds two episodes is deleted once and both come back as wanted. Nothing outside your library folders is ever touched. Scripts: `DELETE /api/movies/{id}/file`, `DELETE /api/episodes/{id}/file` and `DELETE /api/series/{id}/seasons/{season}/files` (each answers with how many files went and how many episodes are wanted again; `409` when there's nothing downloaded to delete).
 
 A season pack you pick yourself for a season that is fully downloaded is no longer refused with "no episodes to fill": it goes through **If a file already exists** like any import. With the default, it replaces a file only when the pack is a better quality and the show may be upgraded. To replace worse or equal files, set **If a file already exists** to overwrite, or delete the season's files first.
 
@@ -139,7 +139,7 @@ A season pack you pick yourself for a season that is fully downloaded is no long
 
 **Select** is for administrators. Members see the Library without it.
 
-![The Library in select mode with five movies ticked and the bar showing 5 selected, Monitor, Stop monitoring, Better versions, Quality profile, Download from, Search now and Remove from library](images/library-bulk.png)
+![The Library in select mode with five movies ticked and the bar showing 5 selected, Monitor, Stop monitoring, Better versions, Quality profile, Tags, Download from, Search now, Replace with smaller and Remove from library](images/library-bulk.png)
 
 *Five movies selected. The bar stays in view while you scroll.*
 
@@ -159,7 +159,7 @@ On a phone the bar takes one row and the actions fold away behind an **Actions**
 | Action | What it does |
 |---|---|
 | **Monitor** / **Stop monitoring** | Turns automatic searching on or off. Stopping also removes downloads that were only waiting for these titles. |
-| **Better versions** | **Look for better versions** lets Mediarium swap a download for a better one, if the title's quality profile allows upgrades. **Leave what I have alone** stops that for these titles, whatever their profile says, and removes waiting downloads that would have replaced a file. A release you pick yourself under **Choose a release** can still replace the file of a title that is left alone: Mediarium asks first, and only that title is affected. |
+| **Better versions** | **Look for better versions** lets Mediarium swap a download for a better one, if the title's quality profile allows upgrades. **Leave what I have alone** stops that for these titles, whatever their profile says, and removes waiting downloads that would have replaced a file. A release you pick yourself under **Choose a release** can still replace the file of a title that is left alone: Mediarium asks first, and only that title is affected. On a movie that is left alone, **Look for a better copy** says so (*Better versions is off for this movie*) instead of searching. |
 | **Quality profile** | Gives them a profile, or the default. |
 | **Download from** | Usenet only, torrents only, both, or the choice in Settings. |
 | **Move to folder** | Appears once you have more than one movie or TV folder. Sends the next files of the selected titles to the folder you pick, or moves the files that are already there as well. See [Moving titles to another folder](#moving-titles-to-another-folder). |
@@ -282,7 +282,7 @@ TMDB only knows the day an episode airs, not the hour, so two shows that both ai
 - **Wanted and automatic search.** An episode whose date has come but whose exact time is still more than three hours away is not counted as missing and is not searched for. Without a known time the date decides, as before.
 - **How times are found.** When a show is refreshed (daily, and with the **Refresh** button), Mediarium looks the show up on TVmaze once, by its TheTVDB id, then its IMDb id, then by name and year, and remembers the answer. It reads the show's episode list once per refresh, and matches episodes by season and number. A time is only stored when TVmaze's day is the same as TMDB's or one day away, so a wrong match never moves an episode. A show that has ended is read once, and a show TVmaze does not know is tried again after a week. If TVmaze can't be reached the refresh carries on and tries again next time.
 - **What is sent.** Only the show's TheTVDB or IMDb id, or its name and year, and Mediarium's name and version. Nothing about you, your library as a whole or your server. Requests are limited to 20 every 10 seconds and go through the same proxy or VPN settings as the other lookups.
-- **Switching it off.** **Settings > Metadata > Air times > Look up air times on TVmaze** (on by default). Off means TVmaze is never contacted; times already found stay until the show's dates change.
+- **Switching it off.** **Settings > Library and files > Movie and show info > Air times > Look up air times on TVmaze** (on by default). Off means TVmaze is never contacted; times already found stay until the show's dates change.
 
 The data comes from TVmaze under the [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) licence, and the calendar says so ("Air times from TVmaze"). For scripts: `GET /api/calendar` and the episodes of `GET /api/series/{id}` carry `airAt` (RFC 3339, UTC) next to the date when a time is known; in the Sonarr-style API `airDateUtc` uses it, and `tvMazeId` is the show's TVmaze id. The setting is `metadata.tvmaze_air_times` (`tvmazeAirTimes` in `GET`/`PUT /api/settings`).
 
@@ -290,7 +290,7 @@ The data comes from TVmaze under the [CC BY-SA 4.0](https://creativecommons.org/
 
 A show's seasons and episodes come from TMDB, so a show is only as complete as its TMDB page. A few pages are missing a lot: Formula 1 has one episode on TMDB while [TheTVDB](https://thetvdb.com) has every season. With your own TheTVDB key, Mediarium can fill those in.
 
-- **Turning it on.** **Settings > Library and files > TheTVDB (shows)**: make a key on thetvdb.com (Dashboard, API keys), paste it and press **Save**. A user key also needs your subscriber PIN. Mediarium checks the key with TheTVDB first and keeps it encrypted. Saving it turns on **Fill in shows from TheTVDB**; the switch turns it off again without removing the key. Off, and without a key, which is how Mediarium starts, TheTVDB is never asked.
+- **Turning it on.** **Settings > Library and files > Movie and show info > TheTVDB (shows)**: make a key on thetvdb.com (Dashboard, API keys), paste it and press **Save**. A user key also needs your subscriber PIN. Mediarium checks the key with TheTVDB first and keeps it encrypted. Saving it turns on **Fill in shows from TheTVDB**; the switch turns it off again without removing the key. Off, and without a key, which is how Mediarium starts, TheTVDB is never asked.
 - **When it happens.** When a show is added and each time it is refreshed (daily, and with the **Refresh** button). Mediarium reads the show's episodes on TheTVDB by its TheTVDB id and adds what TMDB doesn't list.
 - **Only where both count the same way.** A season TMDB has is compared with TheTVDB's: when the episodes both list mostly aired on the same days, the episodes missing from TMDB's season are added. A season TMDB doesn't have at all is added when TMDB's page is nearly empty (three episodes or fewer), or when every season both have agrees. A show the two number differently is left as TMDB has it, so you never get each episode twice. Specials and anime are never filled, since the two often split those in different ways.
 - **TMDB wins.** An episode TMDB has keeps TMDB's title, date and summary. Once TMDB adds an episode itself, it simply carries on from there.
@@ -315,7 +315,7 @@ For scripts: `GET /api/settings/thetvdb` answers `{"set": true, "fill": true}`; 
 TMDB's score (the star) is always shown. With a free key from [OMDb](https://www.omdbapi.com), film and show pages also show the IMDb score, the Rotten Tomatoes critics score and the Metascore, and the cards on Discover (also the "more like this" rows on a film's page) show the Rotten Tomatoes score (or IMDb's when there is none).
 
 - **Getting a key.** Open [omdbapi.com/apikey.aspx](https://www.omdbapi.com/apikey.aspx), pick **FREE**, fill in your email and send. OMDb emails you the key with a link to activate it: open that link first, or the key doesn't work.
-- **Turning it on.** **Settings > Library and files > Scores from IMDb, Rotten Tomatoes and Metacritic**: paste the key and press **Save**. Mediarium checks it with OMDb first. **Remove the key** turns the scores off again.
+- **Turning it on.** **Settings > Library and files > Movie and show info > Scores from IMDb, Rotten Tomatoes and Metacritic**: paste the key and press **Save**. Mediarium checks it with OMDb first. **Remove the key** turns the scores off again.
 - **How many lookups.** A free key allows 1,000 a day. Scores are kept for a week, also "OMDb doesn't know this title", so a page you open again costs nothing. A film or show page asks when you open it. Discover cards show the scores already kept and look up the ones they don't have in the background, one every few seconds and at most 400 a day, so browsing never uses up the key. When the key has used its day, nothing more is asked until the next day (UTC).
 - **What is sent.** Only the title's IMDb id and your key. Nothing about you or your library.
 
@@ -390,7 +390,7 @@ Some names belong to more than one show: Shameless (US and UK), The Office (US a
 
 A movie or show can be kept twice, in two qualities: a 4K copy for the big screen next to the 1080p one for phones and laptops, for example. It's off until you choose where second copies go.
 
-1. Under **Settings > Library and files and files > Folders**, fill in **Folder for second copies of movies** and/or **of shows**, for example `/movies-4k` and `/tv-4k`. It has to be a folder of its own, not the movies or TV folder or one inside it, so a copy can never land on the main file. In Docker, map it like the other folders. Add it to Plex, Jellyfin or Emby as its own library.
+1. Under **Settings > Library and files > Folders**, fill in **Folder for second copies of movies** and/or **of shows**, for example `/movies-4k` and `/tv-4k`. It has to be a folder of its own, not the movies or TV folder or one inside it, so a copy can never land on the main file. In Docker, map it like the other folders. Add it to Plex, Jellyfin or Emby as its own library.
 2. On a movie's or show's page, **Second copies** has **Add a second copy**: pick the quality profile it should follow (4K & over is offered first) and press the button. Mediarium starts looking for it straight away.
 
 A second copy is a title of its own that happens to share the main one's details:
@@ -405,7 +405,7 @@ Scripts: `GET /api/movies/{id}/copies` and `GET /api/series/{id}/copies` list a 
 
 ## More than one folder per kind
 
-Each kind of media has a main library folder (Settings > Library and files and files > Folders), plus the optional folders for [second copies](#second-copies-two-qualities-of-one-title). Under **More folders for other titles (optional)** on the same page you can add **more movie folders** and **more TV folders**: another drive, or a folder kept apart for kids' films, documentaries or concerts. Each movie or show is kept in one folder:
+Each kind of media has a main library folder (Settings > Library and files > Folders), plus the optional folders for [second copies](#second-copies-two-qualities-of-one-title). Under **More folders for other titles (optional)** on the same page you can add **more movie folders** and **more TV folders**: another drive, or a folder kept apart for kids' films, documentaries or concerts. Each movie or show is kept in one folder:
 
 - When there is more than one folder, the Add dialog has **Keep it in**. It starts on the folder named under the list by **New movies go to** (or **New shows go to**): the main folder, one of the extra folders, or **the folder with the most room**, which looks at the free space each time a title is added, so two drives fill up side by side. Titles added without a choice (a Plex watchlist, an import list, a request, a followed collection, the Radarr and Sonarr compatible API) go to that folder too. The folder is decided when the title is added and stays with it: changing the rule later doesn't move anything, and changing a title's own folder asks first (see [Moving a title to another folder](#moving-a-title-to-another-folder)).
 - The Dashboard's **Connected folders** has a card for every movie and TV folder, with what each one holds and how much room is left, and "new titles go here" on the one in use. The Server card's storage figure counts each drive once.
@@ -449,7 +449,7 @@ How the files are moved:
 
 Scripts (administrators): `POST /api/library/bulk/folder` with `{"items": [...], "rootPath": "/movies2"}` changes only where new files go. `POST /api/library/move-files/preview` takes the same body and answers what a move would do; `POST /api/library/move-files` starts it (`202`); `GET /api/library/move-files/status` follows it and `POST /api/library/move-files/cancel` stops it.
 
-Tags (above) still sort a library inside one folder. To see how full the disk is, the folder boxes show the free space, and Settings > System shows storage.
+Tags (above) still sort a library inside one folder. To see how full the disk is, the folder boxes show the free space, and Settings > System > Server shows storage.
 
 ## Collections
 
@@ -466,7 +466,7 @@ Scripts: `GET /api/collections` lists the collections that have a film in the li
 
 ## File permissions
 
-**Settings > Library and files and files > Folders > File permissions** sets the permissions of the files and folders Mediarium creates in your library: imported movies, episodes, music and books, the folders made for them, subtitles it downloads, covers, and the [NFO and artwork files](./media-servers.md#nfo-and-artwork-files). It is useful when another app or user also needs to write there, for example `664` and `775` so your group can.
+**Settings > Library and files > Folders > File permissions** sets the permissions of the files and folders Mediarium creates in your library: imported movies, episodes, music and books, the folders made for them, subtitles it downloads, covers, and the [NFO and artwork files](./media-servers.md#nfo-and-artwork-files). It is useful when another app or user also needs to write there, for example `664` and `775` so your group can.
 
 - The boxes take three octal digits, like `644` for files and `755` for folders. The preview under each box shows them the way `ls` does (`rw-r--r--`).
 - **Both empty is the default** and changes nothing: new files get whatever the container's umask leaves (see `UMASK` in [INSTALL.md](./INSTALL.md#puid-pgid-and-tz)), as before.
@@ -480,7 +480,7 @@ Scripts: `GET /api/settings/file-permissions` and `PUT /api/settings/file-permis
 
 ## File names
 
-**Settings > Library and files and files > File names and importing** picks how imported files are named. Plex, Jellyfin / Emby, Kodi and Simple each name movies and episodes the way that media player likes. **Custom** lets you write your own. The page shows a preview of a made-up movie and episode as you type.
+**Settings > Library and files > File names and importing** picks how imported files are named. Plex, Jellyfin / Emby, Kodi and Simple each name movies and episodes the way that media player likes. **Custom** lets you write your own. The page shows a preview of a made-up movie and episode as you type.
 
 ### Keep the original file names
 
@@ -522,7 +522,7 @@ A title with no name gets a folder and file called `tmdb-` and its TMDB number, 
 | Group | Tokens |
 |---|---|
 | Movie | `{Movie Title}`, `{Movie CleanTitle}`, `{Movie TitleThe}`, `{Movie CleanTitleThe}`, `{Movie TitleFirstCharacter}`, `{Release Year}`, `{Movie Year}`, `{Year}`, `{Edition Tags}` |
-| Show and episode | `{Series Title}`, `{Series CleanTitle}`, `{Series TitleYear}`, `{Series CleanTitleYear}`, `{Series TitleThe}`, `{Season}`, `{Episode}`, `{Episode Title}`, `{Episode CleanTitle}`, `{Air-Date}` |
+| Show and episode | `{Series Title}`, `{Series CleanTitle}`, `{Series TitleYear}`, `{Series CleanTitleYear}`, `{Series TitleThe}`, `{Series TitleWithoutYear}`, `{Series CleanTitleWithoutYear}`, `{Series Year}`, `{Season}`, `{Episode}`, `{Episode Title}`, `{Episode CleanTitle}`, `{Air-Date}` |
 | Ids | `{TmdbId}`, `{ImdbId}`, `{TvdbId}` |
 | Quality | `{Quality Full}` (for example `Bluray-1080p Proper`), `{Quality Title}`, `{Quality Proper}`, `{Quality}`, `{Source}` |
 | Media info | `{MediaInfo Simple}`, `{MediaInfo Full}`, `{MediaInfo VideoCodec}`, `{MediaInfo AudioCodec}`, `{MediaInfo AudioLanguages}`, `{MediaInfo VideoDynamicRange}`, `{MediaInfo VideoDynamicRangeType}`, `{MediaInfo 3D}`, `{Codec}` |
@@ -532,7 +532,7 @@ A title with no name gets a folder and file called `tmdb-` and its TMDB number, 
 
 **Text around a token.** Anything inside the braces next to the token name is only written when the token has a value. `{ - Edition Tags}` adds " - Extended" for an extended cut and nothing otherwise; `{[Quality Full]}` adds the brackets only with a quality. For Plex's edition tag, `{edition-{Edition Tags}}` gives `{edition-Extended}`.
 
-**Numbers.** `{Season:00}` pads to two digits (`S01`), `{Episode:000}` to three.
+**Numbers.** `{Season:00}` pads to two digits (`S01`), `{Episode:000}` to three. **Length.** A number that is not zeros cuts the text: `{Episode CleanTitle:90}` is at most 90 characters, with `…` at the end when something was cut off.
 
 **What Mediarium doesn't know yet.** The media info comes from the release name, not from reading the file, so audio channels, bit depth and subtitle languages are left out (those tokens are accepted and write nothing). Mediarium doesn't have custom formats yet, so `{Custom Formats}` holds the edition; when the format also has `{Edition Tags}`, the edition is written once. `{Preferred Words}` is accepted and writes nothing.
 
@@ -540,7 +540,7 @@ Scripts: `GET /api/settings/naming-tokens` lists the tokens and ready-made forma
 
 ## Renaming existing files
 
-Files keep the name they had when they arrived. After you change the naming preset (Settings > Library and files and files > File names and importing), **Rename existing files** on the same page lists every movie and episode whose name would change, as "old name → new name". Untick any you want to leave alone and press **Rename**. Subtitles, `.nfo` and artwork named after a video move with it, empty folders left behind are removed, and your media server is told. A file is never moved outside the library folder or onto another file; those are listed as not renamed. While **Keep the original file names** is on, nothing is renamed and the card says so. Scripts: `GET /api/rename?kind=movie|tv` (the preview) and `POST /api/rename` with `{"items": [{"kind": "movie", "id": 12}]}`.
+Files keep the name they had when they arrived. After you change the naming preset (Settings > Library and files > File names and importing), **Rename existing files** on the same page lists every movie and episode whose name would change, as "old name → new name". Untick any you want to leave alone and press **Rename**. Subtitles, `.nfo` and artwork named after a video move with it, empty folders left behind are removed, and your media server is told. A file is never moved outside the library folder or onto another file; those are listed as not renamed. While **Keep the original file names** is on, nothing is renamed and the card says so. Scripts: `GET /api/rename?kind=movie|tv` (the preview) and `POST /api/rename` with `{"items": [{"kind": "movie", "id": 12}]}`.
 
 ## Statistics
 
@@ -548,7 +548,7 @@ Files keep the name they had when they arrived. After you change the naming pres
 
 **Over time** shows how the library grew: its size, the number of movies and shows, and the downloads that finished each week, for the last 3 months, a year or everything. Hover over a chart (or touch it) to read a day's value; **Show as a table** lists the numbers. Mediarium writes down one small snapshot of the library a day, kept for good, so these charts go back further than the download history. Days before the first snapshot are filled in from when titles were added and from the download history that's still kept; the library's size is only known from the first snapshot on. Scripts: `GET /api/stats/history` (`?days=90` for the last 90 days).
 
-With **What's been watched** on (Settings > Media servers, see [media-servers.md](./media-servers.md#whats-been-watched)), the page also has **What gets watched**: how many of the movies and episodes you have were played, how much space the never-played ones take, the most watched titles and the ones watched lately. It counts what your media servers last said, so it is as fresh as the last read.
+With **What's been watched** on (Settings > Media servers and apps > Media servers, see [media-servers.md](./media-servers.md#whats-been-watched)), the page also has **What gets watched**: how many of the movies and episodes you have were played, how much space the never-played ones take, the most watched titles and the ones watched lately. It counts what your media servers last said, so it is as fresh as the last read.
 
 ## Music
 

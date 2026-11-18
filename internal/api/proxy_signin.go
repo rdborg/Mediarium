@@ -19,7 +19,7 @@ import (
 // the network could send the header too), and it only ever signs in an
 // account that already exists.
 
-// proxyHeader is the header name set under Settings > Accounts ("" = off).
+// proxyHeader is the header name set under Settings > People and access > Ways to sign in ("" = off).
 func (s *Server) proxyHeader() string {
 	v, err := s.Settings.Get(settings.KeyAuthProxyHeader)
 	if err != nil {
@@ -28,8 +28,8 @@ func (s *Server) proxyHeader() string {
 	return strings.TrimSpace(v)
 }
 
-// proxyAddresses is where the signing-in proxy connects from (Settings >
-// Accounts): addresses or CIDR ranges, comma-separated. "" means not set.
+// proxyAddresses is where the signing-in proxy connects from (Settings > People and access >
+// Ways to sign in): addresses or CIDR ranges, comma-separated. "" means not set.
 func (s *Server) proxyAddresses() string {
 	v, err := s.Settings.Get(settings.KeyAuthProxyAddresses)
 	if err != nil {

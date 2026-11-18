@@ -128,7 +128,7 @@ func (s *Server) confirmLibraryRoot(root string, force bool) {
 func (s *Server) libraryRootProblem(root string) *libraryRootError {
 	root = filepath.Clean(root)
 	if !fsinfo.RootReachable(root) {
-		return &libraryRootError{root: root, err: fmt.Errorf("The library folder %s can't be found, so nothing was put into it. If it is on a network drive, check that the drive is connected. If the folder is new, create it first (Settings > Library > Folders), then try again.", root)}
+		return &libraryRootError{root: root, err: fmt.Errorf("The library folder %s can't be found, so nothing was put into it. If it is on a network drive, check that the drive is connected. If the folder is new, create it first (Settings > Library and files > Folders), then try again.", root)}
 	}
 	missing, readErr := fsinfo.RootMarkerState(root)
 	if !missing && readErr == nil {

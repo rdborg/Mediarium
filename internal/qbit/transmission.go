@@ -124,6 +124,10 @@ func (c *TransmissionClient) call(ctx context.Context, method string, args any, 
 			return errors.New("the download client answered HTTP 409 without a session id. Check that the address is Transmission's Web UI address")
 		case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 			return ErrAuth
+		case resp.StatusCode == http.StatusMisdirectedRequest:
+			// Transmission 4 answers 421 when the address Mediarium used is not in its
+			// host whitelist (rpc-host-whitelist).
+			return errors.New("Transmission refused the address Mediarium used (HTTP 421). Add that host name to rpc-host-whitelist in Transmission's settings, or turn the whitelist off")
 		case resp.StatusCode >= 300:
 			return fmt.Errorf("the download client answered HTTP %d for %s", resp.StatusCode, method)
 		case readErr != nil:

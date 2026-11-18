@@ -67,7 +67,7 @@ func preferUsenet(best, candidate *indexers.Result) bool {
 	if best == nil {
 		return false
 	}
-	// A more preferred indexer wins first (Settings > Indexers & Search).
+	// A more preferred indexer wins first (Settings > Finding releases > Indexers & Search).
 	if pb, pc := indexerRank(best.Priority), indexerRank(candidate.Priority); pb != pc {
 		return pc < pb
 	}
@@ -146,7 +146,7 @@ func (s *Server) handleTitleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.TMDB().HasAPIKey() {
-		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info).")
+		writeError(w, http.StatusPreconditionFailed, "Add your TMDB API key first (Settings > Library and files > Movie and show info).")
 		return
 	}
 	results, err := s.searchTitles(r.Context(), query)

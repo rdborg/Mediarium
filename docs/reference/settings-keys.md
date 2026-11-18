@@ -8,6 +8,7 @@ The keys the app stores in its settings table. You normally change these from th
 |---|---|
 | `apps.links` | JSON list of add-ons: other programs next to Mediarium with a link to each (name, address, how it opens) |
 | `archiver.config` | the Channel archiver's settings (JSON: yt-dlp path, folder, format, limits, other websites, the ticked warning) |
+| `arr.config_echo` | JSON: the values the API of those apps was last sent for settings Mediarium does not use; set by the app, not user-editable |
 | `audiobooks.path` | audiobooks library folder; falls back to the AUDIOBOOKS_DIR env default (/audiobooks) when unset |
 | `auth.auto_signin` | "oidc" sends visitors who are not signed in straight to the single sign-on provider from the sign-in page (add ?no-redirect=1 to the address to see the normal page); unset or empty leaves it off. Only a signed-in browser session can set it, and only while single sign-on works |
 | `auth.idle_days` | browser sessions not used for this many days (1 to 7) end and the person signs in again. Unset or "0" leaves it off. API keys, calendar feeds and e-reader passwords are not affected |
@@ -75,7 +76,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `formats.trash_every_days` | how often the daily update reads the guides: "1" every day (the default) or "7" every week |
 | `formats.trash_last_check` | what the last check of the TRaSH Guides found, as JSON (shown under the switch on the Custom formats card) |
 | `formats.trash_last_update` | when the TRaSH Guides were last read for the daily update (RFC 3339) |
-| `import.check_duration` | "0" turns off the check that a video is about as long as its episode or movie before it is imported (Settings > Library > File names and importing); anything else, including unset, leaves it on |
+| `import.check_duration` | "0" turns off the check that a video is about as long as its episode or movie before it is imported (Settings > Library and files > File names and importing); anything else, including unset, leaves it on |
 | `indexers.prowlarr_api_key` | encrypted; that Prowlarr's API key |
 | `indexers.prowlarr_links` | which Mediarium indexer is each Prowlarr indexer: JSON {"5": 12} |
 | `indexers.prowlarr_result` | what the last sync did, as a sentence, and when (JSON) |
@@ -84,6 +85,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `info.language` | the language titles, plots, genres and posters are read in, as a TMDB tag like "de-DE" (en-US when unset); with naming.folders_in_info_language on, new movie and show folders and file names use that language's title too |
 | `info.release_country` | the country release dates are read for, as a code like "IN"; unset = the country of the info language |
 | `legal.acknowledged_at` |  |
+| `library.add_keep_better` | "1": a title added without saying otherwise (the add dialog, an import list, a script) keeps being searched for better versions; unset or "0" leaves it alone once downloaded (the setup wizard turns it on for a new install) |
 | `library.add_monitored` | "0" starts the add dialog with monitoring off; unset or "1" leaves it on (each title can still be changed when it is added) |
 | `library.add_search_now` | "0" starts the add dialog with "start searching now" off; unset or "1" leaves it on |
 | `library.anime_episode_format` | with the anime module on, the file name format of anime episodes (tokens as for episodes, plus {Absolute:000}); unset = the TV episode format |
@@ -169,6 +171,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `numbering.lookup` | "0" stops Mediarium looking up scene and anime numbering (TheXEM, the anime lists, AniList) for anime on its own; on by default. The Refresh mapping button on a show's page still works |
 | `onboarding.done` | "1" once the first-run wizard completes |
 | `quality.language` | the audio language wanted, as a name like "English" (the default when unset); a release clearly in another language only is not picked automatically |
+| `quality.language_ignore_extra` | "1" ranks a release that has a wanted language the same whether or not it carries other languages too; unset or "0" ranks a multi-language release above or below a plain one as before |
 | `quality.language_only` | "1" takes only releases that say they are in a wanted audio language (no untagged, English-only or bare multi releases unless English is wanted); unset or "0" keeps those as a lower-ranked fallback |
 | `quality.size_limits` | size limits per quality for movies in MB per minute of runtime (JSON: enabled, limits); applied only while enabled is true |
 | `quality.size_limits_tv` |  |
@@ -176,8 +179,8 @@ The keys the app stores in its settings table. You normally change these from th
 | `scripts.after_import` | JSON: script (a file name in /config/scripts; empty = off) and timeoutSec (default 300). Only a signed-in browser session can set it, not an API key |
 | `scripts.last_run` | what the last run did (JSON; set by the app, not user-editable) |
 | `search.delay_profile` | delay profile (JSON: preferredProtocol, usenetMinutes, torrentMinutes, bypassIfHighestQuality): automatic searches hold back releases of the less liked protocol for that many minutes; unset or 0 minutes = no wait |
-| `search.hold_unreleased` | "0" lets automatic searches look for a movie before its release date and an episode before it airs; anything else, including unset, leaves them waiting (Settings > Library > Quality > Automation) |
-| `search.min_size_check` | "0" turns the built-in minimum size per quality off (Settings > Library > Quality > Size limits); anything else, including unset, leaves it on |
+| `search.hold_unreleased` | "0" lets automatic searches look for a movie before its release date and an episode before it airs; anything else, including unset, leaves them waiting (Settings > Finding releases > Quality) |
+| `search.min_size_check` | "0" turns the built-in minimum size per quality off (Settings > Finding releases > Quality > Size limits); anything else, including unset, leaves it on |
 | `server.public_url` | the address you open Mediarium at from your own devices (like https://mediarium.example.com); links in notification messages use it; unset = no links |
 | `soulseek.api_key` | encrypted; a read-write slskd API key |
 | `soulseek.folder` | the folder slskd downloads into, as Mediarium sees it |

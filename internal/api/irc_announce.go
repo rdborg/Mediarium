@@ -16,7 +16,7 @@ import (
 	"github.com/rdborg/mediarium/internal/announce"
 )
 
-// IRC announce (Settings > Indexers & Search > IRC announce): connections to
+// IRC announce (Settings > Finding releases > Indexers & Search > IRC announce): connections to
 // the IRC channels where trackers announce new releases, so a wanted release
 // can be grabbed within seconds of being posted instead of at the next RSS
 // check. The engine is internal/announce; irc_announce_decide.go decides what

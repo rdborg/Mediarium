@@ -4,7 +4,7 @@ import { useModules } from '../ModulesContext'
 import { useToast } from './Toast'
 import { t, tx } from '../i18n'
 
-// Settings > Info, lists and subtitles. The key belongs to the user's own
+// Settings > Library and files. The key belongs to the user's own
 // Google Cloud project. The language of the results is the movie and show
 // info language on this same page, so there is no second language choice.
 export default function GoogleBooksCard() {

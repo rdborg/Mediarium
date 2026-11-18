@@ -91,3 +91,42 @@ func TestPickWithOnlyTheseLanguages(t *testing.T) {
 		}
 	})
 }
+
+// With "Extra languages don't change the ranking" on, a multi-language release
+// no longer goes above (or below) a plain one in the wanted language, so the
+// better quality or the preferred terms decide. Off, it picks as before.
+func TestPickIgnoringExtraLanguages(t *testing.T) {
+	const (
+		plain1080 = "Weapons.2025.German.1080p.BluRay.x265-2BA"
+		dual720   = "Weapons.2025.German.DL.720p.WEB-DL.x264-GRP"
+		dual1080  = "Weapons.2025.German.DL.1080p.BluRay.x265-FuN"
+	)
+	with := func(language string, ignore bool) quality.Profile {
+		p := profileWithLanguage(language)
+		p.IgnoreExtraLanguages = ignore
+		return p
+	}
+	tests := []struct {
+		name   string
+		p      quality.Profile
+		titles []string
+		want   string
+	}{
+		{"off, German and English: the dual release is first", with("German,English", false), []string{plain1080, dual720}, dual720},
+		{"on: the better quality wins over the dual release", with("German,English", true), []string{plain1080, dual720}, plain1080},
+		{"on: equal quality, the preferred term decides", func() quality.Profile {
+			p := with("German,English", true)
+			p.Preferred = []quality.Preferred{{Term: "FuN", Score: 50}}
+			return p
+		}(), []string{plain1080, dual1080}, dual1080},
+		{"on, one language: the dual release is not behind the plain one", with("German", true), []string{dual1080}, dual1080},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := pickBestResult(results(tc.titles...), tc.p, 2025)
+			if pickedTitle(got) != tc.want {
+				t.Fatalf("picked %q, want %q", pickedTitle(got), tc.want)
+			}
+		})
+	}
+}

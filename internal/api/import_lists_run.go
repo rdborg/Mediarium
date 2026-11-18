@@ -110,19 +110,19 @@ func listErrorText(err error) string {
 	var se *metadata.StatusError
 	switch {
 	case errors.Is(err, metadata.ErrNoAPIKey):
-		return "Add your TMDB API key first (Settings > Info, lists and subtitles > Movie and show info)."
+		return "Add your TMDB API key first (Settings > Library and files > Movie and show info)."
 	case errors.Is(err, metadata.ErrInvalidKey):
 		return "TMDB rejected the API key. Check it in Settings."
 	case errors.Is(err, trakt.ErrNoClientID):
-		return "Add your Trakt client ID first (Settings > Info, lists and subtitles > Import lists)."
+		return "Add your Trakt client ID first (Settings > Library and files > Import lists)."
 	case errors.Is(err, trakt.ErrInvalidClientID):
 		return "Trakt rejected the client ID. Check it in Settings."
 	case errors.Is(err, simkl.ErrNoClientID):
-		return "Add your Simkl client ID first (Settings > Info, lists and subtitles > Import lists)."
+		return "Add your Simkl client ID first (Settings > Library and files > Import lists)."
 	case errors.Is(err, simkl.ErrInvalidClientID):
 		return "Simkl rejected the client ID. Check it in Settings."
 	case errors.Is(err, simkl.ErrNotConnected):
-		return "Connect your Simkl account first (Settings > Info, lists and subtitles > Import lists)."
+		return "Connect your Simkl account first (Settings > Library and files > Import lists)."
 	case errors.Is(err, simkl.ErrUnauthorized):
 		return "Simkl no longer accepts the saved sign-in. Connect your Simkl account again."
 	case errors.Is(err, errSimklTokenUnreadable):

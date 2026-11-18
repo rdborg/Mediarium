@@ -3,7 +3,7 @@ import { t } from '../i18n'
 import { foldInUse, readFacts, savedFold, savedSide, savedTop, setFold, setFoldSide, setFoldTop, type DisplayFacts, type FoldChoice } from '../fold'
 import Icon from './Icon'
 
-// Settings > General: the foldable and dual-screen layout, and what this screen
+// Settings > Basics > General: the foldable and dual-screen layout, and what this screen
 // reports (so the layout can be tuned for the phone in hand).
 export default function FoldSettings() {
   const [choice, setChoice] = useState<FoldChoice>(savedFold)

@@ -119,7 +119,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	if m, err := s.MovieRepo.Get(movieID); err == nil {
 		if m.CopyOf != 0 {
 			if root = s.movieCopiesRoot(); root == "" {
-				return fail(errors.New("the folder for second copies isn't set. Choose one in Settings > Library > Folders"))
+				return fail(errors.New("the folder for second copies isn't set. Choose one in Settings > Library and files > Folders"))
 			}
 		} else {
 			root = s.movieRootFor(m) // the folder chosen for this movie, else the main one
@@ -220,7 +220,9 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 		if err := s.QueueRepo.SetStatus(queueID, queue.StatusCompleted, keptExistingMessage); err != nil {
 			return fail(err)
 		}
-		_ = s.MovieRepo.SetStatus(movieID, restoreStatus, "", "")
+		if restoreStatus == library.StatusDownloaded || !s.adoptKeptMovieFile(movieID, existing) {
+			_ = s.MovieRepo.SetStatus(movieID, restoreStatus, "", "")
+		}
 		_ = s.QueueRepo.LogActivity(movieID, "kept", fmt.Sprintf("%s: a file is already at %s, so Mediarium kept it and did not import %s.", movieTitle, existing, releaseTitle))
 		s.logKeptData(movieID, 0, data, releaseTitle)
 		return nil
@@ -438,6 +440,15 @@ func (s *Server) downloadUsenet(ctx context.Context, queueID int64, nzbURL, inco
 		}
 	}
 
+	// A release bigger than the free space would fill the disk part way through
+	// and fail then: say so before anything is fetched.
+	if err := os.MkdirAll(incompleteDir, 0o755); err != nil {
+		return 0, fmt.Errorf("create download folder: %w", err)
+	}
+	if err := checkRoomForRelease(incompleteDir, nzb.TotalBytes()); err != nil {
+		return 0, err
+	}
+
 	progress := newProgressSaver(func(pct float64) error { return s.QueueRepo.SetProgress(queueID, pct) })
 	res, err := download.DownloadFromServers(ctx, configs, nzb, incompleteDir, progress.Report)
 	progress.Flush()
@@ -603,6 +614,12 @@ func (s *Server) downloadTorrent(ctx context.Context, queueID int64, downloadURL
 	// The choices made for this torrent: files left out, order, speed limits.
 	ctl := torrentclient.NewControl(t)
 	s.setUpDownloadControl(queueID, ctl)
+	// The files that will be fetched are known now: refuse a torrent the disk
+	// cannot hold before it starts, not when the disk is full.
+	if err := checkRoomForRelease(incompleteDir, ctl.WantedBytes()); err != nil {
+		s.torrents.stop(job)
+		return err
+	}
 	if !s.torrents.attachControl(job, ctl) {
 		s.torrents.stop(job)
 		return context.Canceled
@@ -867,6 +884,9 @@ func (s *Server) resolveConflict(queueID int64, overwrite bool) error {
 		m, err := s.MovieRepo.Get(item.MovieID)
 		if err != nil {
 			return nil // removed from the library meanwhile
+		}
+		if restoredMovieStatus(m) != library.StatusDownloaded && s.adoptKeptMovieFile(item.MovieID, item.DestPath) {
+			return nil // the file that was kept is the movie's file now
 		}
 		return s.MovieRepo.SetStatus(item.MovieID, restoredMovieStatus(m), "", "")
 	}
@@ -1305,7 +1325,7 @@ func (s *Server) buildDestPathFor(root, movieTitle string, year, tmdbID int, rel
 		moviesPath = s.moviesRoot()
 	}
 	if moviesPath == "" {
-		return "", namedByPreset, fmt.Errorf("the movies folder isn't set. Choose one in Settings > Library > Folders")
+		return "", namedByPreset, fmt.Errorf("the movies folder isn't set. Choose one in Settings > Library and files > Folders")
 	}
 
 	preset, err := s.Settings.Get(settings.KeyNamingPreset)

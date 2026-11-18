@@ -26,26 +26,6 @@ import type {
 
 import { demoAuthorWorks, demoBookCounts, demoBookList, demoBooks, demoBookSearch, demoProgress, demoTracks, demoWork } from './demoBooks'
 
-const KEY = 'mediarium-demo'
-
-export function demoEnabled(): boolean {
-  try {
-    return localStorage.getItem(KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-export function setDemo(on: boolean) {
-  try {
-    if (on) localStorage.setItem(KEY, '1')
-    else localStorage.removeItem(KEY)
-  } catch {
-    // ignore
-  }
-  window.location.reload()
-}
-
 // Abstract, text-free poster art: two seeded hues, a horizon and a light.
 function poster(seed: number): string {
   const h1 = (seed * 47) % 360
@@ -484,6 +464,13 @@ export function installDemo() {
         return json([])
       case /^\/api\/(movies|series)\/\d+\/files$/.test(p):
         return json({ folder: '', files: [] })
+      // The sample titles have no second copies and no anime numbering.
+      case /^\/api\/(movies|series)\/\d+\/copies$/.test(p):
+        return json({ folder: '', mainProfileId: 0, items: [] })
+      case /^\/api\/series\/\d+\/numbering\/custom$/.test(p):
+        return json({ rules: [], names: [] })
+      case /^\/api\/series\/\d+\/numbering$/.test(p):
+        return json({ lookup: false, sceneState: '', sceneRows: 0, sceneDiffers: 0, listsState: '', entries: [] })
       case /^\/api\/movies\/\d+\/search$/.test(p):
         return json({
           results: demoReleases(),
@@ -509,7 +496,13 @@ export function installDemo() {
       case p === '/api/activity':
         return json(activity)
       case p === '/api/blocklist':
-        return json([{ id: 1, releaseTitle: 'The.Quiet.Signal.2016.720p.HDTV-JUNK', protocol: 'usenet', reason: 'Bad release: archive is corrupt', createdAt: ago(2100), scope: 'all' }])
+        return json({
+          items: [
+            { id: 1, releaseTitle: 'The.Quiet.Signal.2016.720p.HDTV-JUNK', protocol: 'usenet', reason: 'Bad release: archive is corrupt', createdAt: ago(2100), scope: 'all' },
+            { id: 2, releaseTitle: 'Northbound.2014.1080p.WEB-DL.x264-NOPE', protocol: 'torrent', reason: 'Stalled with no seeders', createdAt: ago(5400), scope: 'item', itemKind: 'movie', itemId: 7, itemTitle: 'Northbound' },
+          ],
+          total: 2,
+        })
       case p === '/api/subtitles/wanted':
         return json([
           { kind: 'movie', id: 2, tmdbId: 9002, title: 'The Long Equation', missing: ['en'] },
@@ -622,6 +615,18 @@ export function installDemo() {
         return json({ page: 1, totalPages: 1, items: DEMO_ARTISTS.map((a, i) => ({ mbid: `demo-artist-${i}`, name: a, listenCount: 90000 - i * 7300, inLibrary: i === 1 })) })
       case p === '/api/music/artists':
         return json(DEMO_ARTISTS.slice(0, 6).map((_, i) => demoArtist(i)))
+      case /^\/api\/music\/artists\/\d+\/discography$/.test(p):
+        // Nothing is left out by the filter in the demo, and nothing is still being looked at.
+        return json({ filter: { types: ['album', 'ep'], hideSecondary: [], hideBootlegs: true, useLibrary: true }, hidden: [], library: [], counts: {}, checking: 0 })
+      case p === '/api/music/profiles':
+        return json([
+          { id: 1, name: 'Lossless', allowed: ['FLAC', 'ALAC'], cutoff: 'FLAC', upgradeAllowed: true, fallback: [], default: true, inUse: 5 },
+          { id: 2, name: 'Any quality', allowed: ['FLAC', 'ALAC', 'MP3-320', 'MP3-V0'], cutoff: 'MP3-320', upgradeAllowed: true, fallback: [], default: false, inUse: 1 },
+        ])
+      case /^\/api\/book-works\/[^/]+\/series$/.test(p):
+        return json({ series: null })
+      case p === '/api/music/filters':
+        return json({ filter: { types: ['album', 'ep'], hideSecondary: [], hideBootlegs: true }, defaults: { types: ['album', 'ep'], hideSecondary: [], hideBootlegs: true }, studio: { types: ['album', 'ep'], hideSecondary: [], hideBootlegs: true }, secondaryTypes: [] })
       case /^\/api\/music\/artists\/\d+$/.test(p):
         return json(demoArtist(Number(p.split('/').pop()) - 1, true))
       case p === '/api/library/scan/demo':

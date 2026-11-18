@@ -9,7 +9,7 @@ import { useToast } from './Toast'
 import './RequestPortal.css'
 import TipLabel from './TipLabel'
 
-// Settings > Account & Access > All accounts: the request portal. Messages to the
+// Settings > People and access > All accounts: the request portal. Messages to the
 // person who asked, a limit on requests, 4K requests and problem reports.
 // Everything is off or unlimited until it is set here.
 export default function RequestSettingsCard() {
@@ -74,12 +74,12 @@ export default function RequestSettingsCard() {
         disabled={busy}
         onChange={(v) => void save({ notifyRequester: v }, v ? t('People are told when their request is answered.') : t('People are no longer sent messages.'))}
         label={t('Tell people when their request is answered')}
-        description={t('They get a message when a request is approved, declined or ready to watch, and when their report is answered. It goes by email (needs an email notification under Settings > Connections > Notifications and an address on their account) and to the phones and browsers they allow notifications on in their profile. Each person can switch it off for themselves.')}
+        description={t('They get a message when a request is approved, declined or ready to watch, and when their report is answered. It goes by email (needs an email notification under Settings > Media servers and apps > Notifications and an address on their account) and to the phones and browsers they allow notifications on in their profile. Each person can switch it off for themselves.')}
         showState
       />
 
       <div className="rp-block">
-        <h3 className="rp-h3"><TipLabel help="accounts#the-request-portal-settings">{t('Limit requests')}</TipLabel></h3>
+        <h3 className="rp-h3" aria-level={2}><TipLabel help="accounts#the-request-portal-settings">{t('Limit requests')}</TipLabel></h3>
         <div className="rp-row">
           <label>
             <TipLabel text={t('How many requests one person can have waiting or approved in the period you choose. Empty means no limit, and admins are never limited.')}>{t('Requests each person may make')}</TipLabel>
@@ -156,7 +156,7 @@ export default function RequestSettingsCard() {
 
       {members.length > 0 && (
         <div className="rp-block">
-          <h3 className="rp-h3"><TipLabel help="accounts#the-request-portal-settings">{t('Age limits')}</TipLabel></h3>
+          <h3 className="rp-h3" aria-level={2}><TipLabel help="accounts#the-request-portal-settings">{t('Age limits')}</TipLabel></h3>
           <p className="field-hint">{t('The most mature rating a person may ask for or add. Ratings from different countries are put on one scale, so PG-13 and TV-14 count the same. A title with no rating is allowed unless you tick the box.')}</p>
           <table className="rp-people rp-age">
             <thead>
@@ -209,7 +209,7 @@ export default function RequestSettingsCard() {
       )}
 
       <div className="rp-block">
-        <h3 className="rp-h3"><TipLabel help="accounts#the-request-portal-settings">{t('4K requests')}</TipLabel></h3>
+        <h3 className="rp-h3" aria-level={2}><TipLabel help="accounts#the-request-portal-settings">{t('4K requests')}</TipLabel></h3>
         <Switch
           checked={o.fourK}
           disabled={busy || (!o.fourK && o.fourKProfileId <= 0)}
@@ -220,7 +220,7 @@ export default function RequestSettingsCard() {
         />
         <div className="rp-row">
           <label>
-            <TipLabel text={t('The quality profile the extra 4K copy is downloaded with, for example 4K & over. It also needs a second-copies folder under Settings > Library > Folders.')}>{t('Quality of the 4K copy')}</TipLabel>
+            <TipLabel text={t('The quality profile the extra 4K copy is downloaded with, for example 4K & over. It also needs a second-copies folder under Settings > Library and files > Folders.')}>{t('Quality of the 4K copy')}</TipLabel>
             <select
               value={o.fourKProfileId}
               disabled={busy}
@@ -243,7 +243,7 @@ export default function RequestSettingsCard() {
         {o.fourK && (!data.folders.movie || !data.folders.tv) && (
           <p className="field-hint">
             {tx('Second copies need a folder of their own, set in {link}. Without one, 4K is not offered for {kinds}.', {
-              link: <Link to="/settings/media">{t('Settings > Library > Folders')}</Link>,
+              link: <Link to="/settings/media">{t('Settings > Library and files > Folders')}</Link>,
               kinds: !data.folders.movie && !data.folders.tv ? t('movies or shows') : !data.folders.movie ? t('movies') : t('shows'),
             })}
           </p>
@@ -251,7 +251,7 @@ export default function RequestSettingsCard() {
       </div>
 
       <div className="rp-block">
-        <h3 className="rp-h3"><TipLabel help="accounts#the-request-portal-settings">{t('Problem reports')}</TipLabel></h3>
+        <h3 className="rp-h3" aria-level={2}><TipLabel help="accounts#the-request-portal-settings">{t('Problem reports')}</TipLabel></h3>
         <Switch
           checked={o.reports}
           disabled={busy}

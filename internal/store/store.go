@@ -246,10 +246,22 @@ func migrate(conn *sql.DB, path string, info *Info) error {
 			return fmt.Errorf("read %s: %w", name, err)
 		}
 		if err := applyMigration(conn, name, version, string(sqlBytes)); err != nil {
-			return err
+			return failedUpdate(err, info.SafetyCopy)
 		}
 	}
 	return nil
+}
+
+// failedUpdate says in plain words what a change that could not be applied left
+// behind. Each change runs in one transaction, so the one that failed is
+// undone whole and the ones before it stay applied; the app then does not
+// start, rather than run on tables it does not understand.
+func failedUpdate(err error, safetyCopy string) error {
+	msg := "That change was undone and the database was left as it was, so nothing is lost. Mediarium stops here instead of running on a half-updated database"
+	if safetyCopy != "" {
+		msg += ". A copy from before the update is saved as " + filepath.Base(safetyCopy) + " next to the database"
+	}
+	return fmt.Errorf("%w. %s", err, msg)
 }
 
 // brokenLinks counts the rows whose foreign key points at nothing.

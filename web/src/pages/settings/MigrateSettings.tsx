@@ -595,7 +595,7 @@ function BazarrCard({ p, on, onToggle }: { p: MigrateBazarr; on: boolean; onTogg
           </span>
         ))}
       </div>
-      <small className="mig-hint">{t('Replaces the subtitle languages in Settings → Info, lists and subtitles → Subtitles.')}</small>
+      <small className="mig-hint">{t('Replaces the subtitle languages in Settings > Library and files > Subtitles.')}</small>
       {noEquivalent.length > 0 && (
         <>
           <button className="btn-sm" onClick={() => setOpen((v) => !v)}>

@@ -182,8 +182,7 @@ func pickCompletePack(results []indexers.Result, series library.Series, seasons 
 		if p.NoSeasonPacks {
 			continue
 		}
-		var best *indexers.Result
-		var bestKey pickKey
+		var pk picker
 		for i := range results {
 			res := &results[i]
 			parsed := res.Parsed()
@@ -202,14 +201,10 @@ func pickCompletePack(results []indexers.Result, series library.Series, seasons 
 			if !builtinSizeOK(quality.Classify(parsed), res.SizeBytes, quality.SeasonPack, knownEpisodeMinutes(series)) || !p.SizeAllowed(per) || (sizeOK != nil && !sizeOK(*res, count)) {
 				continue
 			}
-			key := keyFor(p, parsed, res)
-			if best == nil || key.above(bestKey) || (key == bestKey && preferOver(best, res)) {
-				bestKey = key
-				best = res
-			}
+			pk.add(i, keyFor(p, parsed, res), res)
 		}
-		if best != nil {
-			return best
+		if i, ok := pk.best(); ok {
+			return &results[i]
 		}
 	}
 	return nil

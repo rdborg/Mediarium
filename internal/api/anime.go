@@ -15,7 +15,7 @@ import (
 // The anime library (V4 D26, from an idea sent through the website: "anime
 // and all its settings in a separate library"). Anime shows stay shows: the
 // same episodes, searches, numbering (absolute numbers, TheXEM, the anime
-// lists) and downloads as before. With the anime module on (Settings > Media
+// lists) and downloads as before. With the anime module on (Settings > Basics > Media
 // types, part of TV) they also get a place of their own:
 //
 //   - their own tab in the Library, and the TV tab shows the other shows;
@@ -111,7 +111,7 @@ func (s *Server) absoluteNumber(sr library.Series, ep library.Episode) int {
 	return 0
 }
 
-// ---- Settings > Media types > Anime library
+// ---- Settings > Basics > Media types > Anime library
 
 type animeSettings struct {
 	Enabled       bool   `json:"enabled"`       // the module (read only here: PUT /api/modules switches it)

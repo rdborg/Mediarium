@@ -21,7 +21,7 @@ import (
 
 // The request portal around Activity > Requests: messages to the person who
 // asked, a limit on how many requests a person may make, 4K requests, and the
-// settings for those (Settings > Accounts > All accounts). All of it is off or
+// settings for those (Settings > People and access > All accounts). All of it is off or
 // unlimited until an administrator sets it.
 
 // requestOptions are the portal's settings, kept as one JSON value.
@@ -225,7 +225,7 @@ func (s *Server) addFourKCopy(req requests.Request) (note string, err error) {
 	want := s.requestOptions().FourKProfileID
 	tmdbID := payloadTMDBID(req.Payload)
 	if !s.fourKReady(req.Kind) {
-		return "", errors.New("4K requests are switched off, or the 4K quality or the folder for second copies isn't set. Check Settings > Accounts > Requests and reports and Settings > Library > Folders.")
+		return "", errors.New("4K requests are switched off, or the 4K quality or the folder for second copies isn't set. Check Settings > People and access > Requests and reports and Settings > Library and files > Folders.")
 	}
 	profiles, err := s.loadProfiles()
 	if err != nil {
@@ -422,7 +422,7 @@ func (s *Server) handlePutRequestSettings(w http.ResponseWriter, r *http.Request
 // ---- Messages to the person ----
 
 // tellPerson sends a message to the account that asked: by email (through the
-// email server set up under Settings > Connections > Notifications, to the
+// email server set up under Settings > Media servers and apps > Notifications, to the
 // address on the account) and to the devices that account allowed
 // notifications on. Nothing is sent while the option is off, or when the person
 // switched these messages off.

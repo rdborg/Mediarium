@@ -297,3 +297,16 @@ func TestTransmissionAddSetsRatioLimitOnly(t *testing.T) {
 		})
 	}
 }
+
+// Transmission 4 answers 421 for a host name that is not in its whitelist; the
+// message says what to do instead of showing a bare status code.
+func TestTransmissionHostWhitelistAnswer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusMisdirectedRequest)
+	}))
+	defer srv.Close()
+	_, err := NewTransmission(srv.URL, "", "", srv.Client()).Version(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "rpc-host-whitelist") {
+		t.Fatalf("got %v", err)
+	}
+}

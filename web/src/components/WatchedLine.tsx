@@ -4,7 +4,7 @@ import { locale, plural, t } from '../i18n'
 import Icon from './Icon'
 
 // "Watched 2 times · last on 3 Mar 2026" on a movie's or show's page, when
-// reading what's been watched is on (Settings > Media servers).
+// reading what's been watched is on (Settings > Media servers and apps > Media servers).
 
 let cache: { at: number; data: Promise<Awaited<ReturnType<typeof api.watched>>> } | null = null
 

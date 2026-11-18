@@ -1,6 +1,7 @@
 package books
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -43,13 +44,24 @@ func foldAccents(s string) string {
 	}, norm.NFD.String(s))
 }
 
+// seriesNote is a bracketed series entry, as Calibre and Goodreads write it:
+// "(Foundation #1)", "[Dune Chronicles #2.5]".
+var seriesNote = regexp.MustCompile(`[(\[][^()\[\]]*#\s*\d+(?:\.\d+)?[^()\[\]]*[)\]]`)
+
+// foreignArticle are the leading words of titles in other languages that
+// release names also leave out, like an English "The".
+var foreignArticle = map[string]bool{"le": true, "la": true, "les": true, "el": true, "los": true, "las": true, "die": true, "der": true,
+	"das": true, "il": true, "lo": true, "gli": true, "het": true, "een": true, "um": true, "uma": true}
+
 var small = map[string]bool{"the": true, "a": true, "an": true, "of": true, "and": true, "to": true, "in": true, "on": true, "for": true}
 
 // Matches reports whether a release name is about book b: the title's words
 // appear together, not as part of a longer title ("It" is not "If It
 // Bleeds"), and the author's surname is in it too (when known).
 func Matches(release string, b Book) bool {
-	rel := words(release)
+	// "(Dune Chronicles #1)": the series a catalogue lists a book under is not
+	// part of its title.
+	rel := words(seriesNote.ReplaceAllString(release, " "))
 	have := map[string]bool{}
 	for _, w := range rel {
 		have[w] = true
@@ -76,7 +88,7 @@ func Matches(release string, b Book) bool {
 		if titleRunAt(rel, title, author) {
 			return true
 		}
-		if !small[title[0]] {
+		if !small[title[0]] && !(foreignArticle[title[0]] && len(title) > 1) {
 			return false
 		}
 		title = title[1:]
@@ -89,7 +101,7 @@ func Matches(release string, b Book) bool {
 // format next to it.
 func titleRunAt(rel, title []string, author map[string]bool) bool {
 	edge := func(w string) bool {
-		return author[w] || noiseWord[w] || EbookRank(w) > 0 || AudioRank(w) > 0 || isNumber(w)
+		return author[w] || noiseWord[w] || EbookRank(w) > 0 || AudioRank(w) > 0 || isNumber(w) || isOrdinal(w)
 	}
 	for i := 0; i+len(title) <= len(rel); i++ {
 		run := true
@@ -103,7 +115,13 @@ func titleRunAt(rel, title []string, author map[string]bool) bool {
 			continue
 		}
 		before := i == 0 || edge(rel[i-1])
-		after := i+len(title) == len(rel) || edge(rel[i+len(title)])
+		end := i + len(title)
+		after := end == len(rel) || edge(rel[end])
+		// "Dune 02 - Dune Messiah": a series number with another title after it
+		// is the next book of the series, not this one.
+		if after && end+1 < len(rel) && isNumber(rel[end]) && len(rel[end]) < 4 && !edge(rel[end+1]) {
+			after = false
+		}
 		if before && after {
 			return true
 		}
@@ -117,6 +135,20 @@ var noiseWord = map[string]bool{
 	"unabridged": true, "abridged": true, "read": true, "narrated": true, "web": true, "en": true,
 	"eng": true, "english": true, "kbps": true, "illustrated": true, "edition": true, "repack": true,
 	"proper": true, "fixed": true, "book": true, "novel": true, "audio": true, "aac": true, "x264": true,
+	"anniversary": true, "deluxe": true, "special": true, "revised": true, "annotated": true, "collectors": true,
+	// Formats that are not ranked as ebook or audio files, but name a release.
+	"fb2": true, "azw": true, "kfx": true, "lit": true, "rtf": true, "txt": true, "doc": true, "docx": true,
+	"djvu": true, "cbz": true, "cbr": true, "cb7": true, "zip": true, "rar": true, "digital": true, "ocr": true,
+}
+
+// isOrdinal reports whether w is a number with its ending: "50th", "1st".
+func isOrdinal(w string) bool {
+	for _, end := range []string{"st", "nd", "rd", "th"} {
+		if strings.HasSuffix(w, end) && isNumber(strings.TrimSuffix(w, end)) {
+			return true
+		}
+	}
+	return false
 }
 
 func isNumber(w string) bool {
@@ -270,3 +302,33 @@ func AudioFiles(dir string, opts ...FindOption) (files []string, format string) 
 
 // FolderName is the book's folder: "Title (Year)".
 func FolderName(b Book) string { return b.Name() }
+
+// UniqueFolder is folder (where a book's files go), unless another book of the
+// library already has its files there: two works of one title, author and year
+// (an illustrated and a plain edition catalogued apart, two "Collected Poems").
+// Their files would meet in one folder. The one that comes second gets its Open
+// Library key after the name. A folder is only moved aside from when another
+// book holds it, never the book that holds it.
+func UniqueFolder(folder string, b Book, f Format, all []Book) string {
+	held := func(p string) bool {
+		for _, o := range all {
+			if o.ID != b.ID && o.Path(f) != "" && strings.EqualFold(filepath.Clean(o.Path(f)), filepath.Clean(p)) {
+				return true
+			}
+		}
+		return false
+	}
+	if !held(folder) {
+		return folder
+	}
+	key := strings.Map(func(r rune) rune {
+		if r < 128 && (unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_') {
+			return r
+		}
+		return -1
+	}, b.OLKey)
+	if key == "" {
+		key = fmt.Sprint(b.ID)
+	}
+	return folder + " [" + key + "]"
+}

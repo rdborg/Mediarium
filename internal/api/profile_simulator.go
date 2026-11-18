@@ -9,7 +9,7 @@ import (
 	"github.com/rdborg/mediarium/internal/quality"
 )
 
-// "Try this profile" (Settings > Library > Quality): a release name, and
+// "Try this profile" (Settings > Finding releases > Quality): a release name, and
 // optionally a size and an indexer, is run through a quality profile the way
 // a search would run it, and the answer says how the name reads, how it
 // scores and whether an automatic search would take it. It reads settings and
@@ -80,7 +80,7 @@ func (s *Server) simulateRelease(req simulateRequest) (simulateResponse, error) 
 	if belowMinSeeders(res) {
 		p.BelowMinSeeders, p.MinSeeders = true, res.MinSeeders
 	}
-	p.setLanguage(quality.FitLanguageOnly(rel, profile.Language, profile.LanguageOnly))
+	p.setLanguage(quality.FitLanguageWith(rel, profile.Language, profile.LanguageOnly, profile.IgnoreExtraLanguages))
 	p.addReasonList(rejectionReasonsFor(res.Title, profile, false, "", "", keepsNothing))
 	if res.SizeBytes > 0 {
 		p.addReasons("size", s.sizeRejections(s.sizeLimitsFor(kind), 0, profile, res.Title, res.SizeBytes, simulatedEpisodes(rel)))

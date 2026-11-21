@@ -299,7 +299,7 @@ func planSearchNow(c *mcpCtx, a struct {
 		if err != nil {
 			return nil, toolErr("There is no show with id %d.", id)
 		}
-		targets = append(targets, target{"show " + sr.Title, fmt.Sprintf("/api/series/%d/search-now", id), nil})
+		targets = append(targets, target{"show " + sr.Title, fmt.Sprintf("/api/series/%d/search-now", id), map[string]any{}})
 	}
 	for _, id := range a.EpisodeIDs {
 		ep, err := c.s.MovieRepo.GetEpisodeByID(id)

@@ -8,6 +8,9 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+### Fixed
+- **MCP `search_now` with `series_ids` no longer crashes on a nil body.** Calling the tool with `series_ids` and `confirm: true` crashed with a nil pointer dereference in `decodeJSON`. Empty request bodies are now handled gracefully without panicking.
+
 ## [4.1.0] - 2026-11-18
 
 ### Added

@@ -45,3 +45,12 @@ func TestWriteErrorSpeaksPlainlyOnServerErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeJSONNilBody(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	var v struct{}
+	err := decodeJSON(req, &v)
+	if err == nil {
+		t.Fatal("expected error for nil body, got nil")
+	}
+}

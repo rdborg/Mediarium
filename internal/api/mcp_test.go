@@ -600,7 +600,12 @@ func TestMCPAddTitles(t *testing.T) {
 	movies := getJSON[[]map[string]any](t, e.admin, e.base+"/api/movies")
 	isErr, text, p := e.call(t, e.adminKey, "search_now", map[string]any{"movie_ids": []any{movies[0]["id"]}, "confirm": true})
 	if isErr || p["changed"] != true || !strings.Contains(text, "Night Harbour") {
-		t.Fatalf("search_now: %s", text)
+		t.Fatalf("search_now movie: %s", text)
+	}
+	series := getJSON[[]map[string]any](t, e.admin, e.base+"/api/series")
+	isErr, text, p = e.call(t, e.adminKey, "search_now", map[string]any{"series_ids": []any{series[0]["id"]}, "confirm": true})
+	if isErr || p["changed"] != true {
+		t.Fatalf("search_now series: %s", text)
 	}
 }
 

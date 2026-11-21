@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -46,6 +47,9 @@ func writeError(w http.ResponseWriter, status int, message string) {
 const maxJSONBody = 8 << 20
 
 func decodeJSON(r *http.Request, v any) error {
+	if r.Body == nil {
+		return io.EOF
+	}
 	defer r.Body.Close()
 	return json.NewDecoder(http.MaxBytesReader(nil, r.Body, maxJSONBody)).Decode(v)
 }

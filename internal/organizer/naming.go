@@ -50,8 +50,8 @@ type NamingContext struct {
 	AudioChannels     string
 	BitDepth          int
 	SubtitleLanguages []string
-	IMDBID     string
-	TVDBID     int
+	IMDBID            string
+	TVDBID            int
 
 	// OriginalFilename is the name the file came with, without its folder
 	// or extension; OriginalTitle is the release's own name.

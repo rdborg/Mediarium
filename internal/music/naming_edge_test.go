@@ -190,7 +190,10 @@ func TestUniqueAlbumPathNamesSinglesAndEPsByType(t *testing.T) {
 // The scan reads "Title [Single] (2020)" back as the title, so a library scan
 // and a rescan find the folders that are made now.
 func TestTypedAlbumFolderReadsBack(t *testing.T) {
-	for _, tt := range []struct{ folder, title string; year int }{
+	for _, tt := range []struct {
+		folder, title string
+		year          int
+	}{
 		{"Sinnerman [Single] (1965)", "Sinnerman", 1965},
 		{"Four Women [EP] (1966)", "Four Women", 1966},
 		{"Sinnerman [Single]", "Sinnerman", 0},

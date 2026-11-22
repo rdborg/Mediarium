@@ -34,9 +34,9 @@ func TestRenamePlanUsesTheStoredRelease(t *testing.T) {
 	movies, tv := filepath.Join(t.TempDir(), "movies"), filepath.Join(t.TempDir(), "tv")
 	for k, v := range map[string]string{
 		settings.KeyMoviesPath: movies, settings.KeyTVPath: tv, settings.KeyIllegalCharMode: "strip",
-		settings.KeyNamingPreset:       "custom",
-		settings.KeyMovieNameFormat:    "{Movie CleanTitle} {(Release Year)} - {{Edition Tags}} {[Quality Full]}{[MediaInfo AudioCodec]}{[MediaInfo VideoCodec]}{-Release Group}",
-		settings.KeyEpisodeNameFormat:  "{Series CleanTitle} - S{season:00}E{episode:00} - {[Quality Full]}{[MediaInfo VideoCodec]}{-Release Group}",
+		settings.KeyNamingPreset:      "custom",
+		settings.KeyMovieNameFormat:   "{Movie CleanTitle} {(Release Year)} - {{Edition Tags}} {[Quality Full]}{[MediaInfo AudioCodec]}{[MediaInfo VideoCodec]}{-Release Group}",
+		settings.KeyEpisodeNameFormat: "{Series CleanTitle} - S{season:00}E{episode:00} - {[Quality Full]}{[MediaInfo VideoCodec]}{-Release Group}",
 	} {
 		if err := s.Settings.Set(k, v, false); err != nil {
 			t.Fatal(err)

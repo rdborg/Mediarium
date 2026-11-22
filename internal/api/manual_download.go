@@ -29,8 +29,8 @@ import (
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/music"
-	"github.com/rdborg/mediarium/internal/other"
 	"github.com/rdborg/mediarium/internal/origin"
+	"github.com/rdborg/mediarium/internal/other"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/queue"
 )

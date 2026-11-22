@@ -138,7 +138,7 @@ func TestSubDLDownload(t *testing.T) {
 }
 
 func TestSubDLLanguageCodes(t *testing.T) {
-	for in, want := range map[string]string{"en": "EN", "pt-BR": "BR_PT", "pt-PT": "PT", "zh-TW": "ZH", "fr": "FR", "sr": "SR"} {
+	for in, want := range map[string]string{"en": "EN", "pt-BR": "BR_PT", "pt-PT": "PT", "zh-TW": "ZH", "fr": "FR", "sr": "SR", "fa": "FA"} {
 		if got := subdlLanguage(in); got != want {
 			t.Errorf("%s: %s, want %s", in, got, want)
 		}

@@ -343,6 +343,24 @@ function SeriesPage() {
     }
   }
 
+  // Let an episode go of its file without deleting it, so the file can be linked to another episode.
+  async function unlinkFile(e: Episode) {
+    const label = `S${String(e.season).padStart(2, '0')}E${String(e.episode).padStart(2, '0')}`
+    const answer = await confirm({
+      title: t('Unlink the file of {name}?', { name: label }),
+      body: <p>{t('The file stays where it is on your disk. This episode shows as missing again, and the file can be linked to a different episode. If {title} is monitored, Mediarium will look for a new release.', { title: series?.title ?? '' })}</p>,
+      confirmLabel: t('Unlink'),
+    })
+    if (!answer) return
+    try {
+      await api.unlinkEpisodeFile(e.id)
+      toast.success(t('Unlinked. The file is still on your disk.'))
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   // An episode file far shorter than the episode should be: delete it and look for another release.
   async function redoShortFile(e: Episode) {
     const label = `S${String(e.season).padStart(2, '0')}E${String(e.episode).padStart(2, '0')}`
@@ -702,6 +720,9 @@ function SeriesPage() {
                         )}{' '}
                         {admin && e.status === 'downloaded' && e.filePath && (
                           <>
+                            <button className="btn-sm" onClick={() => void unlinkFile(e)} title={t('Detach this episode from its file and keep the file on your disk')}>
+                              {t('Unlink file')}
+                            </button>{' '}
                             <button className="danger-ghost" onClick={() => void deleteFiles({ episode: e })} title={t('Delete this episode’s file and keep the show')}>
                               {t('Delete file')}
                             </button>{' '}

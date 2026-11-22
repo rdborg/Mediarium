@@ -68,6 +68,10 @@ const (
 	// MediaBook is an ebook or audiobook: only refreshed, never looked up by
 	// TMDB id (see Client.FindBook).
 	MediaBook MediaKind = "book"
+	// MediaOther is the Other library (things that are not movies, shows,
+	// music or books): only refreshed, and only on a server whose own library
+	// holds the folder.
+	MediaOther MediaKind = "other"
 )
 
 // ParseMediaKind accepts "movie" or "tv" (also "series"/"show").

@@ -18,6 +18,8 @@ test('the tabs follow the switches, in a fixed order', () => {
     ['the anime library', ['movies', 'tv', 'anime'], ['movie', 'tv', 'anime']],
     ['anime without TV has no tab', ['movies', 'anime'], ['movie']],
     ['only music', ['music'], ['music']],
+    ['Other with everything', ['movies', 'tv', 'other'], ['movie', 'tv', 'other']],
+    ['only Other', ['other'], ['other']],
     ['only books', ['ebooks', 'audiobooks'], ['ebook', 'audiobook']],
     ['only audiobooks', ['audiobooks'], ['audiobook']],
     ['nothing on', [], ['movie']],

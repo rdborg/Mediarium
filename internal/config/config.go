@@ -24,6 +24,7 @@ type Config struct {
 	MusicDir            string // /music (only used when the music module is switched on)
 	EbooksDir           string // /ebooks (the ebooks module)
 	AudiobooksDir       string // /audiobooks (the audiobooks module)
+	OtherDir            string // /other (the Other media type)
 
 	DBPath        string
 	SecretKeyPath string
@@ -94,6 +95,7 @@ func Load() Config {
 		MusicDir:      envStr("MUSIC_DIR", "/music"),
 		EbooksDir:     envStr("EBOOKS_DIR", "/ebooks"),
 		AudiobooksDir: envStr("AUDIOBOOKS_DIR", "/audiobooks"),
+		OtherDir:      envStr("OTHER_DIR", "/other"),
 
 		TrustedProxies: envStr("TRUSTED_PROXIES", "private"),
 		AllowedOrigins: envStr("ALLOWED_ORIGINS", ""),

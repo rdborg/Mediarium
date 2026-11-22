@@ -38,7 +38,7 @@ export default function SearchBox() {
   const box = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const panel = useRef<HTMLDivElement>(null)
-  const { on, tmdbOn } = useModules()
+  const { on, tmdbOn, loaded } = useModules()
   const { user } = useAuth()
   const musicOn = on('music')
   const titlesOn = on('movies') || on('tv')
@@ -68,6 +68,7 @@ export default function SearchBox() {
       setLoading(false)
       return
     }
+    if (!loaded) return // the answer about the TMDB key is not in yet
     if (!tmdbOn) {
       // No TMDB key: the movie and show search can't answer, so say so instead of asking.
       setResults([])
@@ -97,7 +98,7 @@ export default function SearchBox() {
       clearTimeout(t)
       ctl.abort()
     }
-  }, [q, titlesOn, tmdbOn, noKeyMessage])
+  }, [q, titlesOn, tmdbOn, loaded, noKeyMessage])
 
   // Artists come from MusicBrainz, which allows about one lookup a second, so
   // they are asked for a little later than titles.

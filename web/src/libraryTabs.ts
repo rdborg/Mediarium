@@ -3,19 +3,19 @@
 //
 // No React in this file, so it can be tested on its own.
 
-export type LibraryTab = 'movie' | 'tv' | 'anime' | 'music' | 'ebook' | 'audiobook'
+export type LibraryTab = 'movie' | 'tv' | 'anime' | 'music' | 'ebook' | 'audiobook' | 'other'
 
 // The switches in Settings, Media types, that decide which tabs exist.
-export type LibraryModule = 'movies' | 'tv' | 'anime' | 'music' | 'ebooks' | 'audiobooks'
+export type LibraryModule = 'movies' | 'tv' | 'anime' | 'music' | 'ebooks' | 'audiobooks' | 'other'
 
-const ALL_TABS: readonly LibraryTab[] = ['movie', 'tv', 'anime', 'music', 'ebook', 'audiobook']
+const ALL_TABS: readonly LibraryTab[] = ['movie', 'tv', 'anime', 'music', 'ebook', 'audiobook', 'other']
 
 export function isLibraryTab(v: string | null | undefined): v is LibraryTab {
   return !!v && (ALL_TABS as readonly string[]).includes(v)
 }
 
 // The tabs that are switched on: movies, TV and music (whichever are on), then
-// ebooks and audiobooks. Never empty.
+// ebooks and audiobooks, then Other. Never empty.
 export function libraryTabs(on: (key: LibraryModule) => boolean): LibraryTab[] {
   const video: LibraryTab[] = []
   if (on('movies')) video.push('movie')
@@ -25,11 +25,12 @@ export function libraryTabs(on: (key: LibraryModule) => boolean): LibraryTab[] {
   if (on('music')) video.push('music')
   // With nothing on at all, the Library still opens on Movies.
   const videoKinds: LibraryTab[] = video.length > 0 ? video : ['movie']
-  const booksOn = on('ebooks') || on('audiobooks')
+  const booksOn = on('ebooks') || on('audiobooks') || on('other')
   return [
     ...(on('movies') || on('tv') || on('music') || !booksOn ? videoKinds : []),
     ...(on('ebooks') ? (['ebook'] as const) : []),
     ...(on('audiobooks') ? (['audiobook'] as const) : []),
+    ...(on('other') ? (['other'] as const) : []),
   ]
 }
 

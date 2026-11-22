@@ -4,7 +4,7 @@
 // helper is imported, so the node test runner can load it (see setupHelpers.test.ts).
 import { t } from './i18n.ts'
 
-export type FolderKind = 'movies' | 'tv' | 'music' | 'ebooks' | 'audiobooks' | 'downloads'
+export type FolderKind = 'movies' | 'tv' | 'music' | 'ebooks' | 'audiobooks' | 'other' | 'downloads'
 
 export interface FolderInfo {
   label: string
@@ -22,6 +22,7 @@ export const FOLDER_INFO: Record<FolderKind, FolderInfo> = {
   music: { label: t('Music folder'), envVar: 'MUSIC_DIR', fallback: '/music', hostExample: '/volume1/Media/Music' },
   ebooks: { label: t('Ebooks folder'), envVar: 'EBOOKS_DIR', fallback: '/ebooks', hostExample: '/volume1/Media/Ebooks' },
   audiobooks: { label: t('Audiobooks folder'), envVar: 'AUDIOBOOKS_DIR', fallback: '/audiobooks', hostExample: '/volume1/Media/Audiobooks' },
+  other: { label: t('Other folder'), envVar: 'OTHER_DIR', fallback: '/other', hostExample: '/volume1/Media/Other' },
   downloads: { label: t('Downloads folder'), envVar: 'DOWNLOADS_DIR', fallback: '/downloads', hostExample: '/volume1/Media/downloads' },
 }
 
@@ -94,6 +95,8 @@ export interface Chosen {
   music: boolean
   ebooks?: boolean
   audiobooks?: boolean
+  // The Other library: things that are not movies, shows, music or books.
+  other?: boolean
   // The anime library, part of TV: never a kind of media on its own.
   anime?: boolean
   // The library lifecycle rules: not a kind of media either.
@@ -102,7 +105,7 @@ export interface Chosen {
   archiver?: boolean
 }
 
-export const nothingChosen = (c: Chosen) => !c.movies && !c.tv && !c.music && !c.ebooks && !c.audiobooks
+export const nothingChosen = (c: Chosen) => !c.movies && !c.tv && !c.music && !c.ebooks && !c.audiobooks && !c.other
 export const hasVideo = (c: Chosen) => c.movies || c.tv
 
 /** The library folders to ask for, in order, ending with downloads. */
@@ -113,6 +116,7 @@ export function foldersToAsk(c: Chosen): FolderKind[] {
   if (c.music) out.push('music')
   if (c.ebooks) out.push('ebooks')
   if (c.audiobooks) out.push('audiobooks')
+  if (c.other) out.push('other')
   out.push('downloads')
   return out
 }
@@ -125,6 +129,7 @@ export function mediaPhrase(c: Chosen): string {
   if (c.music) parts.push(t('music'))
   if (c.ebooks) parts.push(t('ebooks'))
   if (c.audiobooks) parts.push(t('audiobooks'))
+  if (c.other) parts.push(t('other media'))
   if (parts.length <= 1) return parts[0] ?? ''
   return t('{items} and {last}', { items: parts.slice(0, -1).join(', '), last: parts[parts.length - 1] })
 }

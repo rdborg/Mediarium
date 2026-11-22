@@ -515,6 +515,68 @@ func (r *Repo) Remove(id int64) error {
 	return nil
 }
 
+// ReleaseOf is the release title and reason of an entry.
+func (r *Repo) ReleaseOf(id int64) (releaseTitle, reason string, err error) {
+	err = r.db.QueryRow(`SELECT release_title, reason FROM blocklist WHERE id = ?`, id).Scan(&releaseTitle, &reason)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", err
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("read blocklist entry %d: %w", id, err)
+	}
+	return releaseTitle, reason, nil
+}
+
+// KeepShort remembers that a person chose to keep this release although its
+// file is far shorter than expected, and drops its blocklist entries (made for
+// that reason) so it can be grabbed again. It reports how many were dropped.
+func (r *Repo) KeepShort(releaseTitle, reason string) (int, error) {
+	key := Key(releaseTitle)
+	if key == "" {
+		return 0, errors.New("keep a release: no release title")
+	}
+	if _, err := r.db.Exec(`INSERT INTO kept_short_releases (title_key) VALUES (?) ON CONFLICT (title_key) DO NOTHING`, key); err != nil {
+		return 0, fmt.Errorf("keep release %q: %w", releaseTitle, err)
+	}
+	// The titles are compared here: SQLite's lower() only folds ASCII, so a
+	// title with a capital like "É" would never match the key.
+	rows, err := r.db.Query(`SELECT id, release_title FROM blocklist WHERE reason = ?`, reason)
+	if err != nil {
+		return 0, fmt.Errorf("unblock release %q: %w", releaseTitle, err)
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		var title string
+		if err := rows.Scan(&id, &title); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("unblock release %q: %w", releaseTitle, err)
+		}
+		if Key(title) == key {
+			ids = append(ids, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("unblock release %q: %w", releaseTitle, err)
+	}
+	rows.Close()
+	for _, id := range ids {
+		if _, err := r.db.Exec(`DELETE FROM blocklist WHERE id = ?`, id); err != nil {
+			return 0, fmt.Errorf("unblock release %q: %w", releaseTitle, err)
+		}
+	}
+	return len(ids), nil
+}
+
+// KeptShort says whether a person chose to keep this release despite its length.
+// A database error counts as no: the normal check then applies.
+func (r *Repo) KeptShort(releaseTitle string) bool {
+	var one int
+	err := r.db.QueryRow(`SELECT 1 FROM kept_short_releases WHERE title_key = ?`, Key(releaseTitle)).Scan(&one)
+	return err == nil
+}
+
 func (r *Repo) Clear() error {
 	if _, err := r.db.Exec(`DELETE FROM blocklist`); err != nil {
 		return fmt.Errorf("clear blocklist: %w", err)

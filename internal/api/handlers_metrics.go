@@ -260,6 +260,9 @@ func (s *Server) metricsFolders() []metricsFolder {
 	if s.audiobooksEnabled() {
 		add("audiobooks", s.audiobooksRoot())
 	}
+	if s.otherEnabled() {
+		add("other", s.otherRoot())
+	}
 	add("downloads", s.downloadsRoot())
 	return out
 }

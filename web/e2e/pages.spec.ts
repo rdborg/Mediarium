@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoErrors, openNav, watchErrors } from './helpers'
+import { expectNoErrors, menuToggle, openNav, watchErrors } from './helpers'
 
 // Every main page opens without an error on a new, empty install.
 const PAGES: [string, RegExp][] = [
@@ -104,6 +104,10 @@ test('the Library entry lists its kinds, and each one opens the Library on that 
   const shows = nav.getByRole('link', { name: 'TV shows', exact: true })
   await expect(movies).toBeHidden()
   await page.locator('#sn-head-library').click()
+  // the tap opens the Library page, which closes the drawer on a tablet or phone;
+  // wait for that so the menu is not reopened just before it closes
+  await expect(page).toHaveURL(/\/library/)
+  if (page.viewportSize()!.width <= 900) await expect(menuToggle(page)).toHaveAttribute('aria-expanded', 'false')
   await openNav(page)
   await expect(movies).toBeVisible()
   await shows.click()

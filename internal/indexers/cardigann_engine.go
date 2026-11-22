@@ -231,8 +231,33 @@ type cgSession struct {
 	viaFlareSolverr atomic.Bool // a Cloudflare check was passed by FlareSolverr
 }
 
+// currentSiteAddress is the address an indexer should use. The one saved with
+// it was the definition's first address on the day it was added. When a site
+// moves to a new domain the definition moves the old address to its legacy
+// list, so a saved address found there (and no longer among the current
+// links) is replaced by the definition's first current link. An address the
+// person typed that the definition never listed is left alone.
+func currentSiteAddress(def *Definition, saved string) string {
+	if saved == "" || len(def.Links) == 0 {
+		return saved
+	}
+	norm := func(s string) string { return strings.TrimRight(strings.ToLower(strings.TrimSpace(s)), "/") }
+	n := norm(saved)
+	for _, l := range def.Links {
+		if norm(l) == n {
+			return saved
+		}
+	}
+	for _, l := range def.LegacyLinks {
+		if norm(l) == n {
+			return def.Links[0]
+		}
+	}
+	return saved
+}
+
 func newSession(m *CardigannManager, def *Definition, inst Instance) (*cgSession, error) {
-	baseStr := strings.TrimSpace(inst.BaseURL)
+	baseStr := currentSiteAddress(def, strings.TrimSpace(inst.BaseURL))
 	if baseStr == "" && len(def.Links) > 0 {
 		baseStr = def.Links[0]
 	}

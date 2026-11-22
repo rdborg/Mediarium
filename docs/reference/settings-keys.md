@@ -54,6 +54,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `downloadclient.username` | the client's web login |
 | `downloads.concurrent` | how many downloads run at the same time, Usenet and torrents together: 1 to 500; unset = 1 |
 | `downloads.hours` | when new downloads may start, "1-7" (from 1:00 to 7:00, server time); outside it they wait in line. Unset = any time |
+| `downloads.max_release_gb` | the largest release, in GB, that is taken for any title (searches skip bigger ones and say so); unset or "0" = no limit |
 | `downloads.min_free_gb` | no new download starts while the downloads folder has less free space than this many GB; unset = 5, "0" = off |
 | `downloads.newest_first` | "1": among the downloads the automatic searches added, newer releases start first; unset = in the order they were added |
 | `downloads.nzb_link_holds` | kept by Mediarium itself: JSON of releases whose NZB link answered with a web page or another answer that is not an NZB, and until when automatic searches leave each one alone |
@@ -149,6 +150,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `modules.lifecycle` | "1" switches the library lifecycle rules on (the Leaving soon shelf); unset or "0" leaves them off |
 | `modules.movies` | "0" switches movies off; anything else (including unset) leaves them on |
 | `modules.music` | "1" switches music on; unset or "0" leaves it off (unset falls back to music.enabled) |
+| `modules.other` | "1" switches the Other media type on; unset or "0" leaves it off |
 | `modules.tv` | "0" switches TV off; anything else (including unset) leaves it on |
 | `monitor.interval_minutes` | minutes between connection checks of your Usenet providers and indexers; unset = 30, "0" = off, under 5 is raised to 5 |
 | `music.default_profile_id` | id of the music profile artists without one of their own use; unset = the first |
@@ -170,6 +172,7 @@ The keys the app stores in its settings table. You normally change these from th
 | `notify.vapid_key` | this server's key for push notifications (encrypted; made on first start) |
 | `numbering.lookup` | "0" stops Mediarium looking up scene and anime numbering (TheXEM, the anime lists, AniList) for anime on its own; on by default. The Refresh mapping button on a show's page still works |
 | `onboarding.done` | "1" once the first-run wizard completes |
+| `other.path` | Other library folder (items that are not movies, shows, music or books); unset = OTHER_DIR (/other) |
 | `quality.language` | the audio language wanted, as a name like "English" (the default when unset); a release clearly in another language only is not picked automatically |
 | `quality.language_ignore_extra` | "1" ranks a release that has a wanted language the same whether or not it carries other languages too; unset or "0" ranks a multi-language release above or below a plain one as before |
 | `quality.language_only` | "1" takes only releases that say they are in a wanted audio language (no untagged, English-only or bare multi releases unless English is wanted); unset or "0" keeps those as a lower-ranked fallback |

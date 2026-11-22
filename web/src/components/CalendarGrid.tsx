@@ -39,8 +39,8 @@ function glyphOf(kind: CalendarEntry['kind'], subtitle?: string): GlyphKind {
   return 'movie'
 }
 
-const KIND_LABEL: Record<GlyphKind, string> = { movie: t('Movie'), tv: t('TV episode'), music: t('Album'), book: t('Book'), audiobook: t('Audiobook') }
-const LEGEND_LABEL: Record<GlyphKind, string> = { movie: t('Movies'), tv: t('TV'), music: t('Music'), book: t('Books'), audiobook: t('Audiobooks') }
+const KIND_LABEL: Record<GlyphKind, string> = { movie: t('Movie'), tv: t('TV episode'), music: t('Album'), book: t('Book'), audiobook: t('Audiobook'), other: t('Other') }
+const LEGEND_LABEL: Record<GlyphKind, string> = { movie: t('Movies'), tv: t('TV'), music: t('Music'), book: t('Books'), audiobook: t('Audiobooks'), other: t('Other') }
 const STATUS_LABEL: Record<CalendarEntry['status'], string> = { downloaded: t('Have it'), downloading: t('Downloading'), missing: t('Waiting') }
 
 // A movie that is on the calendar twice says which of its dates this is.

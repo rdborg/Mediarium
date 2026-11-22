@@ -32,6 +32,7 @@ import (
 	"github.com/rdborg/mediarium/internal/migrate"
 	"github.com/rdborg/mediarium/internal/monitor"
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/other"
 	"github.com/rdborg/mediarium/internal/musicbrainz"
 	"github.com/rdborg/mediarium/internal/notify"
 	"github.com/rdborg/mediarium/internal/problems"
@@ -87,6 +88,7 @@ type Server struct {
 	Announce          *announce.Manager // runs them
 	MusicRepo         *music.Repo       // artists, albums, tracks (the music module, music*.go)
 	BookRepo          *books.Repo       // ebooks and audiobooks (books_api.go)
+	OtherRepo         *other.Repo       // the Other media type (other.go)
 	EReader           *ereader.Repo     // e-reader password and Kobo sync address (ereader_*.go)
 	ereader           ereaderRuntime    // limits and store address for the e-reader routes (ereader_auth.go)
 	OpenLibrary       *books.Client
@@ -334,6 +336,7 @@ func New(db *sql.DB, cfg config.Config, box *crypto.Box, defaultTMDBAPIKey, vers
 	}
 	s.MusicRepo = music.NewRepo(db)
 	s.BookRepo = books.NewRepo(db)
+	s.OtherRepo = other.NewRepo(db)
 	if box != nil {
 		s.EReader = ereader.NewRepo(db, box)
 	} else {
@@ -681,6 +684,14 @@ func (s *Server) protectedRoutes() *routeTable {
 	releases.HandleFunc("GET /api/books/{id}/releases", s.handleBookReleases)
 	releases.HandleFunc("POST /api/books/{id}/grab", s.handleGrabBook)
 
+	// Other: items made by name, never looked up anywhere (409 while the module is off).
+	member.HandleFunc("GET /api/other", s.handleListOther)
+	member.HandleFunc("GET /api/other/{id}", s.handleGetOther)
+	admin.HandleFunc("POST /api/other", s.handleAddOther)
+	admin.HandleFunc("PUT /api/other/{id}", s.handleRenameOther)
+	admin.HandleFunc("DELETE /api/other/{id}", s.handleDeleteOther)
+	admin.HandleFunc("POST /api/other/{id}/import", s.handleImportOther)
+
 	// Music: the same for artists and albums (404 while the music module is off).
 	member.HandleFunc("GET /api/music/profiles", s.handleMusicProfiles)
 	member.HandleFunc("GET /api/music/tiers", s.handleMusicTiers)
@@ -735,6 +746,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	member.HandleFunc("POST /api/plex-watchlist/check", s.handleCheckWatchlist)
 	member.HandleFunc("GET /api/plex-watchlist/items", s.handleWatchlistItems)
 	member.Need(auth.PermRetry).HandleFunc("POST /api/queue/{id}/retry", s.handleRetryQueueItem)
+	admin.HandleFunc("POST /api/queue/{id}/keep-short", s.handleKeepShortQueueItem)
 
 	// Subtitles for titles in the library.
 	member.HandleFunc("GET /api/subtitles/wanted", s.handleSubtitlesWanted)
@@ -823,6 +835,8 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("POST /api/movies/{id}/locate-file", s.handleLocateMovieFile)
 	admin.HandleFunc("POST /api/movies/{id}/locate-folder", s.handleLocateMovieFolder)
 	admin.HandleFunc("POST /api/episodes/{id}/locate-file", s.handleLocateEpisodeFile)
+	admin.HandleFunc("POST /api/movies/{id}/unlink-file", s.handleUnlinkMovieFile)
+	admin.HandleFunc("POST /api/episodes/{id}/unlink-file", s.handleUnlinkEpisodeFile)
 	admin.HandleFunc("POST /api/series/{id}/change-folder", s.handleChangeSeriesFolder)
 	admin.HandleFunc("DELETE /api/movies/{id}/file", s.handleDeleteMovieFile)
 	admin.HandleFunc("POST /api/library/incomplete/redo", s.handleRedoIncomplete)
@@ -941,6 +955,7 @@ func (s *Server) protectedRoutes() *routeTable {
 	admin.HandleFunc("POST /api/queue/resume-all", s.handleResumeAllQueue)
 	admin.HandleFunc("GET /api/blocklist", s.handleListBlocklist)
 	admin.HandleFunc("PUT /api/blocklist/{id}/scope", s.handleSetBlocklistScope)
+	admin.HandleFunc("POST /api/blocklist/{id}/keep", s.handleKeepBlocklistEntry)
 	admin.HandleFunc("DELETE /api/blocklist/{id}", s.handleRemoveBlocklistEntry)
 	admin.HandleFunc("DELETE /api/blocklist", s.handleClearBlocklist)
 

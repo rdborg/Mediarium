@@ -9,7 +9,7 @@ import { useId } from 'react'
 // cards, the dashboard and anywhere the shape is the hero. The record is the
 // one exception to "body in the kind's colour": it is always grey-blue vinyl
 // with the colour on its label, the same as the record on music posters.
-export type GlyphKind = 'movie' | 'tv' | 'music' | 'book' | 'audiobook'
+export type GlyphKind = 'movie' | 'tv' | 'music' | 'book' | 'audiobook' | 'other'
 
 export default function KindGlyph({ kind, size = 28, variant = 'line' }: { kind: GlyphKind; size?: number; variant?: 'line' | 'solid' }) {
   const id = useId().replace(/:/g, '')
@@ -76,6 +76,13 @@ export default function KindGlyph({ kind, size = 28, variant = 'line' }: { kind:
           <path className="tint" fill={body} d="M7 4h17a2 2 0 0 1 2 2v22H9.5A2.5 2.5 0 0 1 7 25.5z" />
           <path className="pages" d="M7 25.5A2.5 2.5 0 0 1 9.5 23H26" />
           <path className="solid" d="M18 4v9.5l2.5-2 2.5 2V4z" />
+        </>
+      )}
+      {kind === 'other' && (
+        <>
+          <path className="tint" fill={body} d="M5 12h22v13a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" />
+          <rect x="3" y="5" width="26" height="7" rx="2.4" />
+          <path className="solid" d="M13 17.5h6" />
         </>
       )}
       {kind === 'audiobook' && (

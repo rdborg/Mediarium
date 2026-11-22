@@ -9,7 +9,7 @@ import type { ModuleKey } from './api.ts'
 import { t } from './i18n.ts'
 import { compareVersions } from './whatsNew.ts'
 
-export type OfferId = 'anime' | 'udp-dht' | 'thetvdb' | 'torrent-route' | 'rss-lists' | 'prowlarr' | 'omdb' | 'soulseek' | 'lifecycle' | 'archiver'
+export type OfferId = 'anime' | 'udp-dht' | 'thetvdb' | 'torrent-route' | 'rss-lists' | 'prowlarr' | 'omdb' | 'soulseek' | 'lifecycle' | 'archiver' | 'other'
 
 export interface Offer {
   id: OfferId
@@ -47,6 +47,14 @@ export const OFFERS: Offer[] = [
     title: t('Channel archiver'),
     text: t('Follow YouTube channels and keep their videos or just the audio, with a yt-dlp you supply yourself.'),
     action: { kind: 'module', module: 'archiver' },
+    wizard: 'Media types',
+  },
+  {
+    id: 'other',
+    since: '4.1.1',
+    title: t('The Other library'),
+    text: t('A place for what is not a movie, show, song or book. Items are made by name, with their own folder.'),
+    action: { kind: 'module', module: 'other' },
     wizard: 'Media types',
   },
   {

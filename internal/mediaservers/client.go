@@ -340,7 +340,7 @@ func (c *Client) RefreshFolders(ctx context.Context, s Server, kind MediaKind, f
 		}
 		return c.bookRefresh(ctx, s, folders)
 	}
-	if kind == MediaBook {
+	if kind == MediaBook || kind == MediaOther {
 		// Plex, Jellyfin and Emby scan a book folder only when one of their
 		// libraries holds it; a whole-library scan for a book is not worth it.
 		folders = c.foldersInLibraries(ctx, s, folders)

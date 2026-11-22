@@ -28,7 +28,7 @@ import '../search.css'
 export default function Search() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
-  const { on, tmdbOn } = useModules()
+  const { on, tmdbOn, loaded } = useModules()
   const me = useAuth().user
   const [byHand, setByHand] = useState<ByHandKind | null>(null) // the add-by-hand dialog, when open
   const titlesOn = on('movies') || on('tv')
@@ -73,6 +73,9 @@ export default function Search() {
       if (term !== urlQ) setParams(resultsParams(tab, term), { replace: true })
       return
     }
+    // Whether a TMDB key is set is not known until the switchboard has answered: asking before
+    // that would send the movie and show search to a server that has no key to answer it with.
+    if (!loaded) return
     const ctl = new AbortController()
     const timer = setTimeout(() => {
       setError('')
@@ -98,7 +101,7 @@ export default function Search() {
       ctl.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, tmdbOn])
+  }, [q, tmdbOn, loaded])
 
   // Books come from Open Library, a little after the titles, whichever tab is
   // open, so the Books tab can say how many it found.

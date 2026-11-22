@@ -602,6 +602,13 @@ func TestMCPAddTitles(t *testing.T) {
 	if isErr || p["changed"] != true || !strings.Contains(text, "Night Harbour") {
 		t.Fatalf("search_now: %s", text)
 	}
+	// A show goes through the series route, which reads an optional body: that
+	// call used to crash because the tool sent no body at all.
+	series := getJSON[[]map[string]any](t, e.admin, e.base+"/api/series")
+	isErr, text, p = e.call(t, e.adminKey, "search_now", map[string]any{"series_ids": []any{series[0]["id"]}, "confirm": true})
+	if isErr || p["changed"] != true {
+		t.Fatalf("search_now with a show: %s", text)
+	}
 }
 
 func TestMCPNeverLogsArguments(t *testing.T) {

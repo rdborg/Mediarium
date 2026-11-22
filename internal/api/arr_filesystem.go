@@ -20,7 +20,7 @@ import (
 // (movies, shows, music, ebooks, audiobooks) and the downloads folder.
 func (s *Server) arrFSRoots() []string {
 	roots := s.browseRoots()
-	for _, r := range []string{s.musicRoot(), s.ebooksRoot(), s.audiobooksRoot()} {
+	for _, r := range []string{s.musicRoot(), s.ebooksRoot(), s.audiobooksRoot(), s.otherRoot()} {
 		if r != "" {
 			roots = append(roots, r)
 		}

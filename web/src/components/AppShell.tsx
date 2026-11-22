@@ -48,13 +48,14 @@ const NAV: { to: string; label: string; icon: IconName; sec: SectionKey; end?: b
 
 // The lines under "Library" in the left menu: what each one is called, the glyph
 // it wears and its colour (the same as the Library's tabs).
-const LIBRARY_LINE: Record<LibraryTab, { label: string; glyph: 'movie' | 'tv' | 'music' | 'book' | 'audiobook'; color: string }> = {
+const LIBRARY_LINE: Record<LibraryTab, { label: string; glyph: 'movie' | 'tv' | 'music' | 'book' | 'audiobook' | 'other'; color: string }> = {
   movie: { label: t('Movies'), glyph: 'movie', color: 'var(--c-movie)' },
   tv: { label: t('TV shows'), glyph: 'tv', color: 'var(--c-tv)' },
   anime: { label: t('Anime'), glyph: 'tv', color: 'var(--c-anime)' },
   music: { label: t('Music'), glyph: 'music', color: 'var(--c-music)' },
   ebook: { label: t('Ebooks'), glyph: 'book', color: 'var(--c-book)' },
   audiobook: { label: t('Audiobooks'), glyph: 'audiobook', color: 'var(--c-audiobook)' },
+  other: { label: t('Other'), glyph: 'other', color: 'var(--c-other)' },
 }
 
 // Where Back goes from a detail page that was opened directly; undefined

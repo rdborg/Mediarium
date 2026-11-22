@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -45,7 +46,13 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // requests are a few KB; the cap stops one huge body from eating memory.
 const maxJSONBody = 8 << 20
 
+// decodeJSON reads the request body as JSON. A request without any body (an
+// internal call, a test) counts as an empty body and gives io.EOF, the same
+// as an empty one, instead of crashing.
 func decodeJSON(r *http.Request, v any) error {
+	if r.Body == nil || r.Body == http.NoBody {
+		return io.EOF
+	}
 	defer r.Body.Close()
 	return json.NewDecoder(http.MaxBytesReader(nil, r.Body, maxJSONBody)).Decode(v)
 }

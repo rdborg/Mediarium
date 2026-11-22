@@ -85,9 +85,9 @@ var tokenDefs = []tokenDef{
 	{"MediaInfo Full", TokenBoth, "Media info", func(c NamingContext) string { return joinNonEmpty(" ", c.Codec, c.AudioCodec) }},
 	{"MediaInfo VideoCodec", TokenBoth, "Media info", func(c NamingContext) string { return c.Codec }},
 	{"MediaInfo AudioCodec", TokenBoth, "Media info", func(c NamingContext) string { return c.AudioCodec }},
-	{"MediaInfo AudioChannels", TokenBoth, "Media info", func(c NamingContext) string { return "" }},
+	{"MediaInfo AudioChannels", TokenBoth, "Media info", func(c NamingContext) string { return c.AudioChannels }},
 	{"MediaInfo AudioLanguages", TokenBoth, "Media info", func(c NamingContext) string { return strings.Join(c.Languages, "+") }},
-	{"MediaInfo SubtitleLanguages", TokenBoth, "Media info", func(c NamingContext) string { return "" }},
+	{"MediaInfo SubtitleLanguages", TokenBoth, "Media info", func(c NamingContext) string { return strings.Join(c.SubtitleLanguages, "+") }},
 	{"MediaInfo VideoDynamicRange", TokenBoth, "Media info", func(c NamingContext) string {
 		if c.HDR != "" {
 			return "HDR"
@@ -95,7 +95,7 @@ var tokenDefs = []tokenDef{
 		return ""
 	}},
 	{"MediaInfo VideoDynamicRangeType", TokenBoth, "Media info", func(c NamingContext) string { return c.HDR }},
-	{"MediaInfo VideoBitDepth", TokenBoth, "Media info", func(c NamingContext) string { return "" }},
+	{"MediaInfo VideoBitDepth", TokenBoth, "Media info", func(c NamingContext) string { return idText(c.BitDepth) }},
 	{"MediaInfo 3D", TokenBoth, "Media info", func(c NamingContext) string {
 		if c.Is3D {
 			return "3D"

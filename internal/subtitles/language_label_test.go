@@ -20,6 +20,7 @@ func TestLanguageLabel(t *testing.T) {
 		{"th", "Thai"},
 		{"vi", "Vietnamese"},
 		{"hi", "Hindi"},
+		{"fa", "Persian"},
 		{"xx", "XX"},
 		{"", ""},
 	}

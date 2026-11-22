@@ -75,11 +75,40 @@ func SizePlausibleRuntime(t Tier, size int64, episodes int, minutes float64) boo
 	return size >= each*n
 }
 
-// SizeAllowed reports whether size bytes is within the profile's largest
-// size. No limit (0) or an unknown size (0) always passes.
-func (p Profile) SizeAllowed(size int64) bool {
+// OwnSizeAllowed reports whether size bytes is within the profile's own
+// largest size. No limit (0) or an unknown size (0) always passes.
+func (p Profile) OwnSizeAllowed(size int64) bool {
 	if p.MaxSizeGB <= 0 || size <= 0 {
 		return true
 	}
 	return float64(size) <= p.MaxSizeGB*float64(int64(1)<<30)
+}
+
+// CapAllowed reports whether size bytes is within the largest release the
+// install allows, whatever the profile says. No cap or an unknown size passes.
+func (p Profile) CapAllowed(size int64) bool {
+	if p.CapGB <= 0 || size <= 0 {
+		return true
+	}
+	return float64(size) <= p.CapGB*float64(int64(1)<<30)
+}
+
+// RoomAllowed reports whether size bytes still leaves the disk the free space
+// it was asked to keep. Not known (0) or an unknown size passes.
+func (p Profile) RoomAllowed(size int64) bool {
+	return p.RoomBytes <= 0 || size <= 0 || size <= p.RoomBytes
+}
+
+// PackSizeAllowed is SizeAllowed for a pack of several seasons: the profile's
+// own largest size is per season (per), the install's cap and the room on the
+// disk are about the whole download (total).
+func (p Profile) PackSizeAllowed(total, per int64) bool {
+	return p.OwnSizeAllowed(per) && p.CapAllowed(total) && p.RoomAllowed(total)
+}
+
+// SizeAllowed reports whether a release of size bytes is acceptable: within the
+// profile's largest size, within the largest release Settings allows, and small
+// enough to leave the free space the disk was asked to keep.
+func (p Profile) SizeAllowed(size int64) bool {
+	return p.OwnSizeAllowed(size) && p.CapAllowed(size) && p.RoomAllowed(size)
 }

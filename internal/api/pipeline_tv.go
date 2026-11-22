@@ -300,7 +300,7 @@ func (s *Server) runTVPipeline(queueID int64, series library.Series, season int,
 			continue
 		}
 
-		if err := s.checkEpisodeLength(ctx, series.TMDBID, eps[0].Season, file); err != nil {
+		if err := s.checkEpisodeLength(ctx, series.TMDBID, eps[0].Season, releaseTitle, file); err != nil {
 			// Not filed: this file is a fake, a sample or cut off. The rest of a
 			// pack is imported as usual.
 			if tooShort == nil {
@@ -677,6 +677,7 @@ func (s *Server) buildTVDestPathFor(series library.Series, eps []library.Episode
 		Proper: release.Proper, Repack: release.Repack, Languages: release.Languages,
 		OriginalTitle: releaseTitle, OriginalFilename: originalStem(videoFile),
 	}
+	s.fillFromFile(&ctx, videoFile, format, s.seriesFolderFormat())
 	if strings.Contains(strings.ToLower(format), "{absolute") {
 		ctx.Absolute = s.absoluteNumber(series, ep)
 	}

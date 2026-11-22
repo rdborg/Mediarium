@@ -12,6 +12,7 @@ const CARDS: { key: Key; title: string; glyph: GlyphKind; text: string; soon?: b
   { key: 'music', title: t('Music'), glyph: 'music', text: t('Keep your artists and albums in order.') },
   { key: 'ebooks', title: t('Ebooks'), glyph: 'book', text: t('Books for your e-reader, EPUB first.') },
   { key: 'audiobooks', title: t('Audiobooks'), glyph: 'audiobook', text: t('Audiobooks, filed by author, ready for your player.') },
+  { key: 'other', title: t('Other'), glyph: 'other', text: t('Anything else, made by name, with its own folder. Optional.') },
   { key: 'lifecycle', title: t('Library lifecycle'), glyph: 'movie', text: t('Remove what nobody watches, with a warning first. Optional.') },
   { key: 'archiver', title: t('Channel archiver'), glyph: 'tv', text: t('Keep YouTube channels with your own yt-dlp. Set it up in Settings.'), later: true },
 ]

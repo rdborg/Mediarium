@@ -3,9 +3,11 @@ package torrentclient
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/anacrolix/dht/v2"
@@ -132,4 +134,34 @@ func bootstrapThroughTunnel(network string, names TunnelNames) ([]dht.Addr, erro
 		return nil, errors.New("DHT bootstrap names could not be looked up through the VPN")
 	}
 	return addrs, nil
+}
+
+// dhtConn is the tunnel's UDP socket as the DHT server sees it. When the
+// tunnel goes down its socket answers io.EOF, and the DHT library treats a
+// read error on a server it was not told to close as fatal and panics, which
+// takes the whole app down. So when the socket reports it has closed, the
+// server is told to close first (it then ends quietly) and the error follows.
+type dhtConn struct {
+	net.PacketConn
+	mu      sync.Mutex
+	onClose func()
+}
+
+func (c *dhtConn) setOnClose(f func()) {
+	c.mu.Lock()
+	c.onClose = f
+	c.mu.Unlock()
+}
+
+func (c *dhtConn) ReadFrom(b []byte) (int, net.Addr, error) {
+	n, addr, err := c.PacketConn.ReadFrom(b)
+	if err != nil && (errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, io.ErrClosedPipe)) {
+		c.mu.Lock()
+		f := c.onClose
+		c.mu.Unlock()
+		if f != nil {
+			f()
+		}
+	}
+	return n, addr, err
 }

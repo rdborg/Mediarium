@@ -29,6 +29,7 @@ import (
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/other"
 	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/queue"
@@ -378,6 +379,11 @@ type manualTarget struct {
 	albumID    int64
 	bookID     int64
 	bookFormat books.Format
+	// otherID is an item of the Other library; newOther asks for a new one,
+	// named otherName (or after the release when that is empty).
+	otherID   int64
+	newOther  bool
+	otherName string
 }
 
 type manualDownloadResponse struct {
@@ -394,7 +400,8 @@ type manualDownloadResponse struct {
 //	url     an address of an NZB or .torrent file, or a magnet link
 //	name    the release name (optional; the file or address gives one)
 //	movieId, or seriesId with season and episode (episode 0 = the whole season),
-//	or albumId, or bookId with format ("ebook" or "audiobook")
+//	or albumId, or bookId with format ("ebook" or "audiobook"),
+//	or otherId (an Other item), or other=new with an optional otherName
 func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 	allowLongUpload(w)
 	r.Body = http.MaxBytesReader(w, r.Body, maxManualNZB+(1<<20))
@@ -441,6 +448,7 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 	var album music.Album
 	var artist music.Artist
 	var book books.Book
+	var otherItem other.Item
 	switch {
 	case target.albumID > 0:
 		if !s.requireModule(w, moduleMusic) {
@@ -459,6 +467,22 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		album = a
+	case target.otherID > 0 || target.newOther:
+		if !s.requireModule(w, moduleOther) {
+			return
+		}
+		if target.otherID > 0 {
+			o, err := s.OtherRepo.Get(target.otherID)
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "That item isn't in your library.")
+				return
+			}
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			otherItem = o
+		}
 	case target.bookID > 0:
 		module := moduleEbooks
 		if target.bookFormat == books.Audiobook {
@@ -530,8 +554,37 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	createdOther := false
+	if target.newOther {
+		// A new item is named by the person, else after the release.
+		name := target.otherName
+		if name == "" {
+			name = otherNameFromRelease(src.title)
+		}
+		userID, _ := requester(r)
+		o := addOrigin(r)
+		made, aerr := s.OtherRepo.Add(name, userID, o.Kind, o.Name)
+		switch {
+		case errors.Is(aerr, other.ErrExists):
+			// The same name is the same item: the download goes into it.
+			made, aerr = s.OtherRepo.FindByName(name)
+		default:
+			createdOther = aerr == nil
+		}
+		if aerr != nil {
+			s.removeUpload(src.ref)
+			if !writeOtherNameError(w, aerr) {
+				writeError(w, http.StatusInternalServerError, aerr.Error())
+			}
+			return
+		}
+		otherItem = made
+	}
+
 	var queueID int64
 	switch {
+	case otherItem.ID > 0:
+		queueID, err = s.grabOther(otherItem, src.title, src.ref, src.size, src.protocol, userOrigin(r, origin.Manual))
 	case target.albumID > 0:
 		queueID, err = s.grabAlbum(artist, album, src.title, src.ref, src.size, src.protocol, grabPicked, userOrigin(r, origin.Manual))
 	case target.bookID > 0:
@@ -543,8 +596,11 @@ func (s *Server) handleManualDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		s.removeUpload(src.ref)
+		if createdOther {
+			_ = s.OtherRepo.Delete(otherItem.ID) // nothing was added, so no empty item is left behind
+		}
 		failed := http.StatusInternalServerError
-		if target.bookID > 0 {
+		if target.bookID > 0 || otherItem.ID > 0 {
 			failed = http.StatusConflict // a book's grab only fails because a download is already there
 		}
 		writeGrabError(w, err, failed)
@@ -568,8 +624,10 @@ func parseManualTarget(r *http.Request) (manualTarget, string) {
 	seriesID, hasSeries := num("seriesId")
 	albumID, hasAlbum := num("albumId")
 	bookID, hasBook := num("bookId")
+	otherID, hasOther := num("otherId")
+	newOther := strings.TrimSpace(r.FormValue("other")) == "new"
 	chosen := 0
-	for _, has := range []bool{hasMovie, hasSeries, hasAlbum, hasBook} {
+	for _, has := range []bool{hasMovie, hasSeries, hasAlbum, hasBook, hasOther || newOther} {
 		if has {
 			chosen++
 		}
@@ -577,8 +635,13 @@ func parseManualTarget(r *http.Request) (manualTarget, string) {
 	switch {
 	case chosen > 1:
 		return manualTarget{}, "Choose one title for this download, not both."
+	case hasOther && otherID > 0:
+		return manualTarget{otherID: int64(otherID)}, ""
+	case newOther:
+		return manualTarget{newOther: true, otherName: cleanReleaseName(r.FormValue("otherName"))}, ""
 	case hasAlbum && albumID > 0:
 		return manualTarget{albumID: int64(albumID)}, ""
+
 	case hasBook && bookID > 0:
 		f := books.Format(strings.TrimSpace(r.FormValue("format")))
 		if !f.Valid() {
@@ -598,7 +661,7 @@ func parseManualTarget(r *http.Request) (manualTarget, string) {
 		}
 		return manualTarget{seriesID: int64(seriesID), season: season, episode: episode}, ""
 	}
-	return manualTarget{}, "Choose the movie, show, album or book this download is for."
+	return manualTarget{}, "Choose the movie, show, album, book or item this download is for."
 }
 
 // tvTargetMismatch says so when the release name names another season or

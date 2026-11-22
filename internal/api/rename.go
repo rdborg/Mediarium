@@ -52,7 +52,7 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 			if m.FilePath == "" || root == "" {
 				continue
 			}
-			to, err := s.buildDestPath(root, m.Title, m.Year, m.TMDBID, strings.TrimSuffix(filepath.Base(m.FilePath), filepath.Ext(m.FilePath)), m.FilePath)
+			to, err := s.buildDestPath(root, m.Title, m.Year, m.TMDBID, renameRelease(m.ReleaseTitle, m.FilePath), m.FilePath)
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +89,15 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 					continue
 				}
 				done[ep.FilePath] = true
-				stem := strings.TrimSuffix(filepath.Base(ep.FilePath), filepath.Ext(ep.FilePath))
+				// A file holding several episodes has one release: take the first stored.
+				stored := ""
+				for _, e := range inFile[ep.FilePath] {
+					if e.ReleaseTitle != "" {
+						stored = e.ReleaseTitle
+						break
+					}
+				}
+				stem := renameRelease(stored, ep.FilePath)
 				to, _, err := s.buildTVDestPathFor(sr, inFile[ep.FilePath], parser.Parse(stem), stem, ep.FilePath, false)
 				if err != nil {
 					return nil, err
@@ -111,6 +119,22 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 		out = out[:maxRenamePreview]
 	}
 	return out, nil
+}
+
+// renameRelease is the name the naming setting reads the quality, source,
+// codecs, edition and release group from. A file's current name may have lost
+// them (a style that only wrote the resolution), so the release the file came
+// from is used when it is known; the file's own name is the fallback. When the
+// release gives no resolution but the file's name does, that is kept.
+func renameRelease(stored, file string) string {
+	stem := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if strings.TrimSpace(stored) == "" {
+		return stem
+	}
+	if res := parser.Parse(stem).Resolution; res != "" && parser.Parse(stored).Resolution == "" {
+		return stored + " " + res
+	}
+	return stored
 }
 
 func (s *Server) handleRenamePreview(w http.ResponseWriter, r *http.Request) {

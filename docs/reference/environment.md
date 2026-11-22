@@ -20,6 +20,7 @@ Container-level settings only. Everything else (indexers, Usenet servers, naming
 | `MEDIARIUM_SUPERVISED` | `` |
 | `MOVIES_DIR` | `/movies` |
 | `MUSIC_DIR` | `/music` |
+| `OTHER_DIR` | `/other` |
 | `TRUSTED_PROXIES` | `private` |
 | `TV_DIR` | `/tv` |
 | `URL_BASE` | `` |

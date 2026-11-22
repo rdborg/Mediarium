@@ -82,8 +82,18 @@ func (s *Server) sizeRejections(table quality.SizeLimits, minutes float64, profi
 	if !builtinSizeOK(tier, size, episodes, minutes) {
 		out = append(out, fmt.Sprintf("smaller than a real %s release is likely to be (you can turn this check off in Settings > Finding releases > Quality)", tier))
 	}
-	if !profile.SizeAllowed(size) {
+	if !profile.OwnSizeAllowed(size) {
 		out = append(out, fmt.Sprintf("larger than the %q profile's limit of %s GB", profile.Name, trimFloat(profile.MaxSizeGB)))
+	}
+	if !profile.CapAllowed(size) {
+		out = append(out, fmt.Sprintf("larger than the %s GB you allow for a release (Settings > Downloading > Download rules)", trimFloat(profile.CapGB)))
+	}
+	if !profile.RoomAllowed(size) {
+		if gb := s.minFreeGB(); gb > 0 {
+			out = append(out, fmt.Sprintf("it would leave the download disk with less than the %d GB you keep free (Settings > Downloading > Download rules)", gb))
+		} else {
+			out = append(out, "it is more than the download disk has room for")
+		}
 	}
 	if reason := table.Check(tier, size, minutes, episodes); reason != "" {
 		out = append(out, reason)

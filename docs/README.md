@@ -40,6 +40,7 @@ The screenshots in these pages come from demo mode: the movies, shows, artists, 
 | Change many movies, shows or artists at once from the Library (monitor, better versions, quality profile, download from, search now, remove) | [library.md](./library.md) |
 | Manage music (switch on the music module, artists and albums, audio quality, importing a collection) | [music.md](./music.md) |
 | Ebooks and audiobooks (switch them on, add books, which release is picked, where files go) | [books.md](./books.md) |
+| Other (anything that is not a movie, show, song or book: items by name, NZB or torrent, import) | [other.md](./other.md) |
 | Connect Plex, Jellyfin or Emby (library refresh after imports, "Watch in" links, finding the token or API key, path mapping) | [media-servers.md](./media-servers.md) |
 | Run a script of your own after each import (what it is told, how to try it) | [scripts.md](./scripts.md) |
 | Keep your settings in a YAML file (for git or a deploy script) and apply it | [config-file.md](./config-file.md) |

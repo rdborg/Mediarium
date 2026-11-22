@@ -11,7 +11,7 @@ func TestSearchNowScope(t *testing.T) {
 		req  seriesSearchNowRequest
 		want tvScope
 	}{
-		{"whole show", seriesSearchNowRequest{}, tvScope{seriesID: 7, force: true}},
+		{"whole show keeps the monitored boxes", seriesSearchNowRequest{}, tvScope{seriesID: 7, force: true, asMarked: true}},
 		{"one season", seriesSearchNowRequest{Season: &two}, tvScope{seriesID: 7, season: 2, force: true}},
 		{"one episode", seriesSearchNowRequest{Season: &two, Episode: 5}, tvScope{seriesID: 7, season: 2, episode: 5, force: true}},
 		{"specials", seriesSearchNowRequest{Season: &zero}, tvScope{seriesID: 7, specials: true, force: true}},

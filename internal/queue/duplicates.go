@@ -23,7 +23,7 @@ func (r *Repo) SetNZBHash(id int64, hash string) error {
 
 // hasTarget reports whether the item says what it is for.
 func (it Item) hasTarget() bool {
-	return it.MovieID > 0 || it.SeriesID > 0 || it.AlbumID > 0 || it.BookID > 0
+	return it.MovieID > 0 || it.SeriesID > 0 || it.AlbumID > 0 || it.BookID > 0 || it.OtherID > 0
 }
 
 // targetClause is the SQL that matches the rows made for the same thing as it,
@@ -36,6 +36,8 @@ func (it Item) targetClause() (string, []any) {
 		return `series_id = ? AND COALESCE(season, 0) = ? AND COALESCE(episode, 0) = ?`, []any{it.SeriesID, it.Season, it.Episode}
 	case it.AlbumID > 0:
 		return `album_id = ?`, []any{it.AlbumID}
+	case it.OtherID > 0:
+		return `other_id = ?`, []any{it.OtherID}
 	default:
 		return `book_id = ? AND book_format = ?`, []any{it.BookID, it.BookFormat}
 	}

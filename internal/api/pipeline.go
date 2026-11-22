@@ -108,7 +108,7 @@ func (s *Server) runPipeline(queueID, movieID int64, movieTitle string, movieYea
 	if err != nil {
 		return fail(badRelease(fmt.Errorf("couldn't find the movie file in the finished download: %w", err)))
 	}
-	if err := s.checkMovieLength(ctx, tmdbID, videoFile); err != nil {
+	if err := s.checkMovieLength(ctx, tmdbID, releaseTitle, videoFile); err != nil {
 		// A fake, a sample or a cut-off file: nothing is imported, and the bad
 		// download is cleared away before the next release is tried.
 		s.discardWorkDir(incompleteDir, protocol)
@@ -445,7 +445,7 @@ func (s *Server) downloadUsenet(ctx context.Context, queueID int64, nzbURL, inco
 	if err := os.MkdirAll(incompleteDir, 0o755); err != nil {
 		return 0, fmt.Errorf("create download folder: %w", err)
 	}
-	if err := checkRoomForRelease(incompleteDir, nzb.TotalBytes()); err != nil {
+	if err := s.checkRoomForRelease(incompleteDir, nzb.TotalBytes()); err != nil {
 		return 0, err
 	}
 
@@ -616,7 +616,7 @@ func (s *Server) downloadTorrent(ctx context.Context, queueID int64, downloadURL
 	s.setUpDownloadControl(queueID, ctl)
 	// The files that will be fetched are known now: refuse a torrent the disk
 	// cannot hold before it starts, not when the disk is full.
-	if err := checkRoomForRelease(incompleteDir, ctl.WantedBytes()); err != nil {
+	if err := s.checkRoomForRelease(incompleteDir, ctl.WantedBytes()); err != nil {
 		s.torrents.stop(job)
 		return err
 	}
@@ -1351,6 +1351,7 @@ func (s *Server) buildDestPathFor(root, movieTitle string, year, tmdbID int, rel
 		OriginalTitle: releaseTitle, OriginalFilename: originalStem(videoFile),
 	}
 
+	s.fillFromFile(&ctx, videoFile, format, s.movieFolderFormat())
 	sanitizeMode, replacement := s.illegalCharSettings()
 	// Folder and file use the title in the info language. Indexers are still
 	// searched for the English title the library stores.

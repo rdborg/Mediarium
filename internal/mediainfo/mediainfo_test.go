@@ -375,6 +375,9 @@ func TestLanguage(t *testing.T) {
 		{[]string{"mul"}, ""},
 		{[]string{"  ENG  "}, "en"},
 		{[]string{"xyz"}, "xyz"},
+		{[]string{"per"}, "fa"},
+		{[]string{"fas"}, "fa"},
+		{[]string{"fa-IR"}, "fa"},
 		{nil, ""},
 	}
 	for _, tt := range tests {
@@ -402,5 +405,16 @@ func TestResolutionAndChannels(t *testing.T) {
 		if got := ChannelLayout(n); got != want {
 			t.Errorf("ChannelLayout(%d) = %q, want %q", n, got, want)
 		}
+	}
+}
+
+func TestLanguageCodeForPersian(t *testing.T) {
+	for _, in := range []string{"Persian", "farsi", "FA", "per", "fas"} {
+		if got := LanguageCode(in); got != "fa" {
+			t.Errorf("LanguageCode(%q) = %q, want fa", in, got)
+		}
+	}
+	if got := ISO3("fa"); got != "per" {
+		t.Errorf("ISO3(fa) = %q, want per", got)
 	}
 }

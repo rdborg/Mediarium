@@ -426,7 +426,7 @@ func (s *Server) runBulkSearch(movies []library.Movie, shows []library.Series) {
 			break
 		}
 		started += s.autoGrabTV(s.targetedTVSearcher(ctx, instances, maxTVSearchesPerHunt, true), "bulk-search", profiles,
-			tvScope{seriesID: sr.ID, force: true})
+			tvScope{seriesID: sr.ID, force: true, asMarked: true})
 	}
 	total := len(movies) + len(shows)
 	msg := fmt.Sprintf("Searched for %s: nothing suitable was found.", plural(total, "title"))

@@ -294,6 +294,36 @@ func (s *Server) handleRemoveBlocklistEntry(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, nil)
 }
 
+// handleKeepBlocklistEntry is "Keep anyway" on a release that was turned away
+// because its file was far shorter than the movie or episode: the choice is
+// remembered, the entry is dropped and the release can be grabbed again.
+func (s *Server) handleKeepBlocklistEntry(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "That isn't a valid blocklist ID.")
+		return
+	}
+	title, reason, err := s.Blocklist.ReleaseOf(id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "That blocklist entry no longer exists.")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if reason != incompleteReason {
+		writeError(w, http.StatusConflict, "Only a release that was turned away for being too short can be kept this way.")
+		return
+	}
+	if _, err := s.Blocklist.KeepShort(title, incompleteReason); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_ = s.QueueRepo.LogActivity(0, "retried", fmt.Sprintf("Kept \"%s\" although its file is shorter than expected", title))
+	writeJSON(w, http.StatusOK, nil)
+}
+
 // handleSetBlocklistScope switches an entry between "all" (every title) and
 // "item" (only the title it was made for).
 func (s *Server) handleSetBlocklistScope(w http.ResponseWriter, r *http.Request) {

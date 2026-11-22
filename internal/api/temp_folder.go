@@ -217,7 +217,7 @@ func (s *Server) tempFolderClash(real string) string {
 		return filepath.Clean(p)
 	}
 	related := func(a, b string) bool { return a == b || isWithin(a, b) || isWithin(b, a) }
-	library := append(s.videoRoots(), s.musicRoot(), s.ebooksRoot(), s.audiobooksRoot())
+	library := append(s.videoRoots(), s.musicRoot(), s.ebooksRoot(), s.audiobooksRoot(), s.otherRoot())
 	for _, f := range library {
 		if f != "" && related(real, realOf(f)) {
 			return fmt.Sprintf("The temporary download folder can't be, hold or sit inside a library folder (%s). Pick a folder of its own.", f)

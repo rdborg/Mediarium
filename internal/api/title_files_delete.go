@@ -30,30 +30,41 @@ func (s *Server) handleDeleteMovieFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "That isn't a valid movie ID.")
 		return
 	}
+	answer, code, msg, discardErr := s.deleteMovieFile(id)
+	if discardErr != nil {
+		writeError(w, http.StatusConflict, fmt.Sprintf("Couldn't delete the file: %s", discardErr.Error()))
+		return
+	}
+	if msg != "" {
+		writeError(w, code, msg)
+		return
+	}
+	writeJSON(w, http.StatusOK, answer)
+}
+
+// deleteMovieFile does the work of handleDeleteMovieFile. A non-empty message
+// means it failed, with the status code to answer; discardErr is set instead
+// when the file itself could not be removed.
+func (s *Server) deleteMovieFile(id int64) (answer deletedFilesAnswer, code int, msg string, discardErr error) {
 	m, err := s.MovieRepo.Get(id)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusNotFound, "That movie isn't in your library.")
-		return
+		return deletedFilesAnswer{}, http.StatusNotFound, "That movie isn't in your library.", nil
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return deletedFilesAnswer{}, http.StatusInternalServerError, err.Error(), nil
 	}
 	if m.Status != library.StatusDownloaded || m.FilePath == "" {
-		writeError(w, http.StatusConflict, "This movie has no file to delete.")
-		return
+		return deletedFilesAnswer{}, http.StatusConflict, "This movie has no file to delete.", nil
 	}
 	n, trashed, err := s.discardFileWithSidecars(s.fileRoot(s.movieRootFor(m), m.FilePath), m.FilePath, movieLabel(m))
 	if err != nil {
-		writeError(w, http.StatusConflict, fmt.Sprintf("Couldn't delete the file: %s", err.Error()))
-		return
+		return deletedFilesAnswer{}, 0, "", err
 	}
 	if err := s.MovieRepo.ClearMovieFile(id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return deletedFilesAnswer{}, http.StatusInternalServerError, err.Error(), nil
 	}
 	_ = s.QueueRepo.LogActivity(id, "removed", fmt.Sprintf("%s: its file %s was deleted%s. The movie is wanted again.", movieLabel(m), filepath.Base(m.FilePath), binNote(trashed)))
-	writeJSON(w, http.StatusOK, deletedFilesAnswer{Files: n, Episodes: 1, Trashed: trashed})
+	return deletedFilesAnswer{Files: n, Episodes: 1, Trashed: trashed}, http.StatusOK, "", nil
 }
 
 // handleDeleteEpisodeFile deletes one episode's file.

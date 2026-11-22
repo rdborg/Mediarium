@@ -37,6 +37,10 @@ type tvWant struct {
 	season      int
 	episodes    []library.Episode
 	wholeSeason bool
+	// firstAir is the day the first episode of the season aired ("" when none
+	// has a date): a pack posted well before it is the season of an older show of
+	// the same name.
+	firstAir string
 	// pack is set when the season has ended and a season pack is worth looking
 	// for first (see season_pack.go). With no episodes it is all there is to do
 	// for the season: nothing is missing, a pack could only be an upgrade.
@@ -164,7 +168,10 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 				}
 			}
 			var plan *packPlan
-			if packsOn && season > 0 {
+			// A pack brings in every episode of the season, so a season with episodes
+			// that are not monitored (the old ones of a show that follows only new
+			// episodes) is not fetched as a pack: only its monitored episodes are.
+			if packsOn && season > 0 && unwantedBySeason(all)[season] == 0 {
 				if searches == nil {
 					var err error
 					if searches, err = s.MovieRepo.SeasonPackSearches(sr.ID); err != nil {
@@ -181,7 +188,7 @@ func (s *Server) tvWants(profiles profileSet, scope tvScope) (wants []tvWant, up
 				withNames()
 				// A season with nothing in it yet is fetched as a pack only for a show that
 				// takes packs; "episode by episode" means what it says.
-				wants = append(wants, tvWant{profile: profile, series: sr, season: season, episodes: missing, wholeSeason: whole && s.wantsSeasonPacks(sr), pack: plan})
+				wants = append(wants, tvWant{profile: profile, series: sr, season: season, episodes: missing, wholeSeason: whole && s.wantsSeasonPacks(sr), firstAir: firstAirDate(all), pack: plan})
 			}
 		}
 		// Nothing to fetch yet because the next episode has not aired: say so in
@@ -214,6 +221,17 @@ func dropPostedBeforeAiring(results []indexers.Result, airDate string) []indexer
 		out = append(out, r)
 	}
 	return out
+}
+
+// firstAirDate is the earliest air date among the episodes ("" when none has one).
+func firstAirDate(eps []library.Episode) string {
+	first := ""
+	for _, ep := range eps {
+		if ep.AirDate != "" && (first == "" || ep.AirDate < first) {
+			first = ep.AirDate
+		}
+	}
+	return first
 }
 
 // pickTVResult returns the best release for a season pack (episode == 0) or
@@ -345,7 +363,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 				if w.pack.over != nil {
 					current = w.pack.over
 				}
-				return refine(w.series, w.season, 0, current, raw), raw != nil
+				return dropPostedBeforeAiring(refine(w.series, w.season, 0, current, raw), w.firstAir), raw != nil
 			}
 			if s.trySeasonPack(w, pack, func(best *indexers.Result) bool {
 				ok, _ := grab(w.series, w.season, 0, best)
@@ -362,7 +380,7 @@ func (s *Server) autoGrabTV(searcher tvSearcher, logPrefix string, profiles prof
 			}
 		}
 		if w.wholeSeason && w.pack == nil { // with a pack plan the pack was just looked for
-			if best := pickTVResult(searcher(w.series, w.season, 0), w.series, w.season, 0, w.profile, nil, s.releaseMapper(w.series)); best != nil {
+			if best := pickTVResult(dropPostedBeforeAiring(searcher(w.series, w.season, 0), w.firstAir), w.series, w.season, 0, w.profile, nil, s.releaseMapper(w.series)); best != nil {
 				if ok, _ := grab(w.series, w.season, 0, best); ok {
 					s.noteFallbackGrab(0, w.series.ID, w.series.Title, w.profile, best.Title)
 					continue

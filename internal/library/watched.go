@@ -107,3 +107,40 @@ func (r *Repo) ClearEpisodeFile(id int64) error {
 	}
 	return nil
 }
+
+// UnlinkMovieFile detaches a movie from its file without touching the file:
+// the movie is missing again, and what was recorded about that file for the
+// movie (downloaded subtitles, subtitle lookups) is forgotten so it can't be
+// mistaken for the next file's.
+func (r *Repo) UnlinkMovieFile(id int64) error {
+	return r.unlink("movie", "movies", id)
+}
+
+// UnlinkEpisodeFile is UnlinkMovieFile for one episode.
+func (r *Repo) UnlinkEpisodeFile(id int64) error {
+	return r.unlink("episode", "episodes", id)
+}
+
+func (r *Repo) unlink(kind, table string, id int64) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("unlink %s %d: %w", kind, id, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	set := "status = 'missing', quality = '', file_path = NULL, release_title = ''"
+	if kind == "movie" {
+		set += ", updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+	}
+	if _, err := tx.Exec("UPDATE "+table+" SET "+set+" WHERE id = ?", id); err != nil {
+		return fmt.Errorf("unlink %s %d: %w", kind, id, err)
+	}
+	for _, t := range []string{"subtitle_files", "subtitle_attempts"} {
+		if _, err := tx.Exec("DELETE FROM "+t+" WHERE kind = ? AND media_id = ?", kind, id); err != nil {
+			return fmt.Errorf("unlink %s %d: forget %s: %w", kind, id, t, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("unlink %s %d: %w", kind, id, err)
+	}
+	return nil
+}

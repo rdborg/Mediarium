@@ -131,7 +131,7 @@ choose_app() {
 # PGID do not apply, and nothing can be chowned. Create missing folders if
 # possible, say which ones cannot be written, and start the app as this user.
 if [ "$(id -u)" != "0" ]; then
-  for dir in "${CONFIG_DIR:-/config}" "${DOWNLOADS_DIR:-/downloads}" "${MOVIES_DIR:-/movies}" "${TV_DIR:-/tv}" ${MUSIC_DIR:+"$MUSIC_DIR"} ${EBOOKS_DIR:+"$EBOOKS_DIR"} ${AUDIOBOOKS_DIR:+"$AUDIOBOOKS_DIR"}; do
+  for dir in "${CONFIG_DIR:-/config}" "${DOWNLOADS_DIR:-/downloads}" "${MOVIES_DIR:-/movies}" "${TV_DIR:-/tv}" ${MUSIC_DIR:+"$MUSIC_DIR"} ${EBOOKS_DIR:+"$EBOOKS_DIR"} ${AUDIOBOOKS_DIR:+"$AUDIOBOOKS_DIR"} ${OTHER_DIR:+"$OTHER_DIR"}; do
     [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null || true
     if [ ! -w "$dir" ]; then
       echo "WARNING: $dir is not writable by uid $(id -u)/gid $(id -g). Fix the folder permissions on the host." >&2
@@ -212,8 +212,8 @@ is_fresh() {
 # The folders checked are the ones the app uses: DOWNLOADS_DIR, MOVIES_DIR and
 # TV_DIR (by default /downloads, /movies and /tv, or /data/downloads,
 # /data/movies and /data/tv with one /data mount). MUSIC_DIR, EBOOKS_DIR and
-# AUDIOBOOKS_DIR are checked the same way, but only when you set them.
-for dir in "${DOWNLOADS_DIR:-/downloads}" "${MOVIES_DIR:-/movies}" "${TV_DIR:-/tv}" ${MUSIC_DIR:+"$MUSIC_DIR"} ${EBOOKS_DIR:+"$EBOOKS_DIR"} ${AUDIOBOOKS_DIR:+"$AUDIOBOOKS_DIR"}; do
+# AUDIOBOOKS_DIR and OTHER_DIR are checked the same way, but only when you set them.
+for dir in "${DOWNLOADS_DIR:-/downloads}" "${MOVIES_DIR:-/movies}" "${TV_DIR:-/tv}" ${MUSIC_DIR:+"$MUSIC_DIR"} ${EBOOKS_DIR:+"$EBOOKS_DIR"} ${AUDIOBOOKS_DIR:+"$AUDIOBOOKS_DIR"} ${OTHER_DIR:+"$OTHER_DIR"}; do
   if [ ! -d "$dir" ]; then
     parent="$(dirname "$dir")"
     if [ "$parent" = "/" ]; then

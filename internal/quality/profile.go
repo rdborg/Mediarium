@@ -169,6 +169,14 @@ type Profile struct {
 	// limit). See SizeAllowed.
 	MaxSizeGB float64
 
+	// Two limits that are not part of the profile but of the install, set when
+	// the profiles are loaded (never saved): CapGB is the largest release
+	// Settings > Downloading allows for any profile (0 = none), and RoomBytes
+	// is how big a release can be and still leave the disk its reserve (0 =
+	// not known or not limited). See SizeAllowed.
+	CapGB     float64
+	RoomBytes int64
+
 	// Fallback lists other profiles (by id) that an automatic search tries,
 	// in this order, when nothing it found is acceptable to this profile.
 	// Only this profile's own list is used (a fallback's fallbacks are not

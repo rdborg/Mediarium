@@ -83,6 +83,13 @@ export const TOPICS: TopicDef[] = [
     sources: [{ file: 'books.md' }],
   },
   {
+    id: 'other',
+    title: 'Other media',
+    summary: 'Items that are not movies, shows, music or books: made by name, with an NZB, a torrent or your own files.',
+    group: 'Your media',
+    sources: [{ file: 'other.md' }],
+  },
+  {
     id: 'archiver',
     title: 'Channel archiver',
     summary: 'Following YouTube channels with a yt-dlp you supply, what the warning means and where files go.',

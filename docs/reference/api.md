@@ -100,6 +100,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | DELETE | `/api/blocklist` | admin |  |
 | GET | `/api/blocklist` | admin | lists the blocklist, newest first. |
 | DELETE | `/api/blocklist/{id}` | admin |  |
+| POST | `/api/blocklist/{id}/keep` | admin | is "Keep anyway" on a release that was turned away because its file was far shorter than the movie or episode: the choice is remembered, the entry is dropped... |
 | PUT | `/api/blocklist/{id}/scope` | admin | switches an entry between "all" (every title) and "item" (only the title it was made for). |
 
 ## book-authors
@@ -267,6 +268,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | GET | `/api/episodes/{id}/subtitles` | any account |  |
 | POST | `/api/episodes/{id}/subtitles/download` | any account |  |
 | GET | `/api/episodes/{id}/subtitles/status` | any account |  |
+| POST | `/api/episodes/{id}/unlink-file` | admin | detaches an episode from its file without deleting it. |
 
 ## events
 
@@ -514,6 +516,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/movies/{id}/subtitles/download` | any account |  |
 | GET | `/api/movies/{id}/subtitles/status` | any account |  |
 | PUT | `/api/movies/{id}/tags` | any account | PUT /api/movies/{id}/tags and /api/series/{id}/tags: replace a title's tags. |
+| POST | `/api/movies/{id}/unlink-file` | admin | detaches a movie from its file without deleting it. |
 
 ## music
 
@@ -608,6 +611,17 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | POST | `/api/onboarding/admin` | **public** | is onboarding wizard step 1. |
 | GET | `/api/onboarding/status` | **public** | tells the frontend whether to show the first-run wizard or the normal app shell. |
 
+## other
+
+| Method | Path | Access | What it does |
+|---|---|---|---|
+| GET | `/api/other` | any account | lists the Other library. |
+| POST | `/api/other` | admin | makes an item from a name. |
+| DELETE | `/api/other/{id}` | admin |  |
+| GET | `/api/other/{id}` | any account |  |
+| PUT | `/api/other/{id}` | admin |  |
+| POST | `/api/other/{id}/import` | admin | moves files that are already on the server (a file, or a folder of them) into an item's folder. |
+
 ## plex-watchlist
 
 | Method | Path | Access | What it does |
@@ -662,6 +676,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | DELETE | `/api/queue/{id}` | admin | removes a finished, failed, stopped, paused or parked entry from the list. |
 | POST | `/api/queue/{id}/blocklist` | admin | marks a release as bad and tries another: it blocklists the failed release, removes the entry and starts a fresh search for the same movie or show. |
 | POST | `/api/queue/{id}/front` | admin | sends a waiting download to the front of the line. |
+| POST | `/api/queue/{id}/keep-short` | admin | is "Keep anyway" on a download that failed because its file was far shorter than the movie or episode (a dub that is half as long, say). |
 | POST | `/api/queue/{id}/pause` | admin | pauses one download. |
 | POST | `/api/queue/{id}/resolve-conflict` | admin | settles a download that is waiting because a file already exists (the "ask me" setting): a person decides, per item, whether the new file replaces the one al... |
 | POST | `/api/queue/{id}/resume` | admin | starts a paused download again. |
@@ -990,4 +1005,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-610 routes.
+620 routes.

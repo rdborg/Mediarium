@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 
@@ -184,6 +185,10 @@ func (s *Server) arrUpdateQualityDefinition(app arrApp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := arrPathID(w, r)
 		if !ok {
+			return
+		}
+		if id > math.MaxInt32 {
+			arrNotFound(w)
 			return
 		}
 		var in arrDefinitionIn

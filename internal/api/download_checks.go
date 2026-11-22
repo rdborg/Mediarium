@@ -246,6 +246,9 @@ func (s *Server) titleStillHas(it queue.Item) bool {
 	case it.BookID > 0:
 		b, err := s.BookRepo.Get(it.BookID)
 		return err == nil && fileExists(b.Path(books.Format(it.BookFormat)))
+	case it.OtherID > 0:
+		o, err := s.OtherRepo.Get(it.OtherID)
+		return err == nil && o.Path != "" && o.FileCount > 0 && fileExists(o.Path)
 	}
 	return false
 }

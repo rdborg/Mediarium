@@ -77,6 +77,19 @@ func (s *Server) checkDurationOn() bool {
 	return raw != "0"
 }
 
+// lengthKept says whether a person chose to keep this release although its
+// file is shorter than expected (Keep anyway on a release turned away for
+// its length). Such a release skips the length check, nothing else.
+func (s *Server) lengthKept(releaseTitle string) bool {
+	return s.Blocklist != nil && s.Blocklist.KeptShort(releaseTitle)
+}
+
+// isLengthFailure says whether a download's failure text is the one of a file
+// turned away for being far shorter than expected.
+func isLengthFailure(msg string) bool {
+	return strings.HasPrefix(msg, "The file is only ") && strings.HasSuffix(strings.TrimSpace(msg), "a fake or broken release.")
+}
+
 // lengthMinutes is a length in whole minutes for a sentence, at least 1.
 func lengthMinutes(seconds float64) int {
 	return max(1, int(math.Round(seconds/60)))
@@ -111,11 +124,11 @@ func videoSeconds(path string) (seconds float64, ok bool) {
 
 // checkMovieLength is nil when the movie file is long enough (or nothing can
 // be said), else the failure to give the download.
-func (s *Server) checkMovieLength(ctx context.Context, tmdbID int, path string) error {
+func (s *Server) checkMovieLength(ctx context.Context, tmdbID int, releaseTitle, path string) error {
 	if err := notAVideo(path); err != nil {
 		return err
 	}
-	if !s.checkDurationOn() {
+	if !s.checkDurationOn() || s.lengthKept(releaseTitle) {
 		return nil
 	}
 	seconds, ok := videoSeconds(path)
@@ -131,11 +144,11 @@ func (s *Server) checkMovieLength(ctx context.Context, tmdbID int, path string) 
 
 // checkEpisodeLength is checkMovieLength for one episode file. The specials
 // (season 0) are judged only by the lowest limit: they are often short.
-func (s *Server) checkEpisodeLength(ctx context.Context, tmdbID, season int, path string) error {
+func (s *Server) checkEpisodeLength(ctx context.Context, tmdbID, season int, releaseTitle, path string) error {
 	if err := notAVideo(path); err != nil {
 		return err
 	}
-	if !s.checkDurationOn() {
+	if !s.checkDurationOn() || s.lengthKept(releaseTitle) {
 		return nil
 	}
 	seconds, ok := videoSeconds(path)

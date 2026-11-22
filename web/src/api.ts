@@ -797,6 +797,7 @@ export interface Settings {
   speedSchedule?: SpeedRule[] // lines of the speed schedule; the first that fits the moment sets the limit
   downloadHours?: string // when new downloads may start, "1-7"; "" = any time
   minFreeGB?: number
+  maxReleaseGB?: number // the largest release taken, in GB; 0 = no limit
   moviesExtraPaths?: string[] // more movie folders next to the main one
   tvExtraPaths?: string[] // more TV folders next to the main one
   // Where a title added without a folder choice goes: "" the main folder, an
@@ -826,6 +827,8 @@ export interface Settings {
   // folders are only remembered (and shown greyed in Settings).
   ebooksPath?: string
   audiobooksPath?: string
+  // The Other library folder (items that are not movies, shows, music or books).
+  otherPath?: string
   // What the container itself maps (MOVIES_DIR, TV_DIR, DOWNLOADS_DIR, MUSIC_DIR,
   // EBOOKS_DIR, AUDIOBOOKS_DIR). Read-only; the folder boxes start from these.
   containerFolders?: {
@@ -835,6 +838,7 @@ export interface Settings {
     music: string
     ebooks: string
     audiobooks: string
+    other?: string
   }
 }
 
@@ -1771,6 +1775,7 @@ export interface QueueItem {
   albumId?: number // an album grab (music module)
   bookId?: number // a book grab (ebooks and audiobooks)
   bookFormat?: 'ebook' | 'audiobook'
+  otherId?: number // a grab for an item of the Other library
   tmdbId?: number
   title: string
   subtitle?: string
@@ -2869,7 +2874,20 @@ export interface GoogleBookSearch {
 
 // ---- Modules and music -------------------------------------------------
 
-export type ModuleKey = 'movies' | 'tv' | 'music' | 'audiobooks' | 'ebooks' | 'anime' | 'lifecycle' | 'archiver'
+// An item of the Other library.
+export interface OtherItem {
+  id: number
+  name: string
+  status: 'missing' | 'downloading' | 'downloaded'
+  path: string
+  fileCount: number
+  sizeBytes: number
+  addedAt: string
+  active: boolean // a download for it is running or waiting
+  files?: { name: string; sizeBytes: number }[]
+}
+
+export type ModuleKey = 'movies' | 'tv' | 'music' | 'audiobooks' | 'ebooks' | 'other' | 'anime' | 'lifecycle' | 'archiver'
 export interface ModuleState {
   enabled: boolean
   available: boolean // false for a module that is not built yet
@@ -3966,6 +3984,10 @@ export const api = {
   // list, the show list and the queue together. Answers 304 (the very same object) when nothing changed.
   libraryOwned: () => request<OwnedAnswer>('/library/owned', { revalidate: true }),
   retryQueueItem: (id: number) => post<{ queueId: number }>(`/queue/${id}/retry`),
+  // "Keep anyway" on a download turned away for being far shorter than expected: remembered, taken off the blocklist, downloaded again.
+  keepShortQueueItem: (id: number) => post<{ queueId: number }>(`/queue/${id}/keep-short`),
+  // The same from the blocklist: remembered and taken off, ready to be grabbed again.
+  keepBlocklistEntry: (id: number) => post<null>(`/blocklist/${id}/keep`),
   clientTorrents: (scope: 'mine' | 'all') => get<ClientTorrentsAnswer>(`/download-client/torrents?scope=${scope}`),
   usenetClientJobs: (scope: 'mine' | 'all') => get<UsenetClientJobsAnswer>(`/usenet-client/jobs?scope=${scope}`),
   usenetClientJobAction: (id: string, action: 'pause' | 'resume' | 'remove' | 'remove-files') => post<{ done: string }>(`/usenet-client/jobs/${encodeURIComponent(id)}/${action}`),
@@ -4152,6 +4174,13 @@ export const api = {
     post<Book>('/books/manual', data),
   setBookWanted: (id: number, format: BookFormat, wanted: boolean) => put<Book>(`/books/${id}/want`, { format, wanted }),
   deleteBook: (id: number, deleteFiles: boolean) => del<null>(`/books/${id}?deleteFiles=${deleteFiles}`),
+  // The Other library: items made by name, never looked up anywhere.
+  listOther: () => get<{ items: OtherItem[]; root: string }>('/other'),
+  getOther: (id: number) => get<OtherItem>(`/other/${id}`),
+  addOther: (name: string) => post<OtherItem>('/other', { name }),
+  renameOther: (id: number, name: string) => put<OtherItem>(`/other/${id}`, { name }),
+  deleteOther: (id: number, deleteFiles: boolean) => del<null>(`/other/${id}?deleteFiles=${deleteFiles}`),
+  importOther: (id: number, path: string) => post<OtherItem>(`/other/${id}/import`, { path }),
   // Change cover: upload a picture, give a link to one, pick another edition's cover, or take the choice away.
   uploadBookCover: (id: number, file: Blob, name: string) => {
     const form = new FormData()
@@ -4235,6 +4264,8 @@ export const api = {
   locateMovieFolder: (id: number, path: string) => post<RescanReport>(`/movies/${id}/locate-folder`, { path }),
   changeSeriesFolder: (id: number, path: string) => post<SeriesFolderReport>(`/series/${id}/change-folder`, { path }),
   deleteMovieFile: (id: number) => del<{ files: number; episodes: number; trashed: boolean }>(`/movies/${id}/file`),
+  unlinkMovieFile: (id: number) => post<{ file: string }>(`/movies/${id}/unlink-file`, {}),
+  unlinkEpisodeFile: (id: number) => post<{ file: string }>(`/episodes/${id}/unlink-file`, {}),
   deleteEpisodeFile: (id: number) => del<{ files: number; episodes: number; trashed: boolean }>(`/episodes/${id}/file`),
   redoIncomplete: (req: { movieIds?: number[]; seriesIds?: number[]; episodeIds?: number[] }) =>
     post<{ files: number; titles: number; searching: number; skipped: number }>('/library/incomplete/redo', req),

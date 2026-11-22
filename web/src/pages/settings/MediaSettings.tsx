@@ -60,6 +60,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
   const [musicPath, setMusicPath] = useState('')
   const [ebooksPath, setEbooksPath] = useState('')
   const [audiobooksPath, setAudiobooksPath] = useState('')
+  const [otherPath, setOtherPath] = useState('')
   const [downloadsPath, setDownloadsPath] = useState('')
   const [namingPreset, setNamingPreset] = useState('plex')
   const [customFormat, setCustomFormat] = useState('')
@@ -79,6 +80,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
   const musicOn = on('music')
   const ebooksOn = on('ebooks')
   const audiobooksOn = on('audiobooks')
+  const otherOn = on('other')
   const pathErrors = {
     moviesPath: firstError(required(moviesPath, t('Add the folder your movies live in, for example /movies.')), folderPath(moviesPath, '/movies')),
     tvPath: folderPath(tvPath, '/tv'),
@@ -87,6 +89,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
     musicPath: musicOn ? folderPath(musicPath, '/music') : null,
     ebooksPath: ebooksOn ? firstError(required(ebooksPath, t('Add the folder your ebooks go in, for example /books.')), folderPath(ebooksPath, '/books')) : null,
     audiobooksPath: audiobooksOn ? firstError(required(audiobooksPath, t('Add the folder your audiobooks go in, for example /audiobooks.')), folderPath(audiobooksPath, '/audiobooks')) : null,
+    otherPath: otherOn ? firstError(required(otherPath, t('Add the folder your other items go in, for example /other.')), folderPath(otherPath, '/other')) : null,
     downloadsPath: firstError(required(downloadsPath, t('Add the folder downloads should go to, for example /downloads.')), folderPath(downloadsPath, '/downloads')),
   }
   const namingErrors = {
@@ -124,6 +127,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
         setMusicPath(s.musicPath ?? '')
         setEbooksPath(s.ebooksPath ?? '')
         setAudiobooksPath(s.audiobooksPath ?? '')
+        setOtherPath(s.otherPath ?? '')
         setDownloadsPath(s.downloadsPath)
         setNamingPreset(s.namingPreset || 'plex')
         setCustomFormat(s.movieNameFormat)
@@ -154,6 +158,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
               musicPath: musicPath.trim(),
               ebooksPath: ebooksPath.trim() || undefined,
               audiobooksPath: audiobooksPath.trim() || undefined,
+              otherPath: otherPath.trim() || undefined,
               downloadsPath,
             }
           : {
@@ -255,6 +260,14 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
             </label>
             {audiobooksOn ? <FolderStatus path={audiobooksPath} suggest={suggestFor('audiobooks')} onUse={setAudiobooksPath} /> : <small className="path-note">{t('Turn on Audiobooks in Media types first.')}</small>}
           </div>
+          <div className={`path-col${otherOn ? '' : ' path-off'}`}>
+            <label>
+              {t('Other folder')}
+              <input value={otherPath} onChange={(e) => setOtherPath(e.target.value)} placeholder="/other" spellCheck={false} disabled={!otherOn} {...v.bind('otherPath', otherPath, setOtherPath)} />
+              <FieldError v={v} name="otherPath" />
+            </label>
+            {otherOn ? <FolderStatus path={otherPath} suggest={suggestFor('other')} onUse={setOtherPath} /> : <small className="path-note">{t('Turn on Other in Media types first.')}</small>}
+          </div>
           <div className="path-col">
             <label>
               <TipLabel text={t('Where downloads are kept until they are imported. Put it next to your libraries so imports are hardlinks, not slow copies.')}>{t('Downloads folder')}</TipLabel>
@@ -271,6 +284,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
             ...(musicOn ? [{ label: t('music'), path: musicPath }] : []),
             ...(ebooksOn ? [{ label: t('ebooks'), path: ebooksPath }] : []),
             ...(audiobooksOn ? [{ label: t('audiobooks'), path: audiobooksPath }] : []),
+            ...(otherOn ? [{ label: t('other media'), path: otherPath }] : []),
           ]}
           downloads={downloadsPath}
         />

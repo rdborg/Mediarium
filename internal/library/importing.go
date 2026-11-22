@@ -808,7 +808,7 @@ func (r *Repo) CompleteSeriesImport(item ImportItem, d SeriesDetails, episodes [
 	if newShow {
 		monitorNew = wantMissing
 	}
-	if err := upsertEpisodes(tx, item.TitleID, episodes, monitorNew); err != nil {
+	if err := upsertEpisodes(tx, item.TitleID, episodes, monitorNew, ""); err != nil {
 		return out, err
 	}
 	if newShow && watch && !wantMissing {

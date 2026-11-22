@@ -196,12 +196,14 @@ func (c *Client) enableTunnelDiscovery(tc *torrent.Client) error {
 	if err != nil {
 		return fmt.Errorf("dht through the vpn: %w", err)
 	}
-	ds, err := tc.NewAnacrolixDhtServer(pc)
+	dc := &dhtConn{PacketConn: pc}
+	ds, err := tc.NewAnacrolixDhtServer(dc)
 	if err != nil {
 		_ = pc.Close()
 		return fmt.Errorf("dht through the vpn: %w", err)
 	}
 	tc.AddDhtServer(torrent.AnacrolixDhtServerWrapper{Server: ds})
+	dc.setOnClose(ds.Close)
 	c.closeDHT = func() { ds.Close() }
 	return nil
 }

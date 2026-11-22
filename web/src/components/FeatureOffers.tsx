@@ -45,6 +45,8 @@ function useOfferState(enabled: boolean) {
         return modules.lifecycle.enabled
       case 'archiver':
         return modules.archiver.enabled
+      case 'other':
+        return modules.other.enabled
       case 'udp-dht':
         return state.udp
       case 'thetvdb':

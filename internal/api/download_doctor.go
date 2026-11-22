@@ -50,7 +50,7 @@ func (s *Server) doctor() *downloadDoctor {
 // doctorKey names what a download is for and which release, so a retry (a
 // new queue item) counts against the same tries.
 func doctorKey(item queue.Item) string {
-	return fmt.Sprintf("%d/%d/%d/%d/%d/%d|%s", item.MovieID, item.SeriesID, item.Season, item.Episode, item.AlbumID, item.BookID, item.ReleaseTitle)
+	return fmt.Sprintf("%d/%d/%d/%d/%d/%d/%d|%s", item.MovieID, item.SeriesID, item.Season, item.Episode, item.AlbumID, item.BookID, item.OtherID, item.ReleaseTitle)
 }
 
 // localFault reports whether err is trouble on this computer rather than with

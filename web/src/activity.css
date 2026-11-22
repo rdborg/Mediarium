@@ -34,6 +34,13 @@
   display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 10px;
   margin: 4px 0 26px;
 }
+/* Sort control above the lists: one line at every width. */
+.queue-sort { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: -12px 0 16px; }
+.queue-sort > .dropdown, .queue-sort > div { min-width: 0; }
+.queue-sort .icon-btn { flex: none; min-width: 36px; min-height: 36px; }
+.queue-sort .icon-btn:disabled { opacity: 0.45; cursor: default; }
+.queue-sort .icon-btn[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 640px) { .queue-sort { justify-content: stretch; } .queue-sort > :first-child { flex: 1 1 auto; } }
 .ab-slot {
   --ac: var(--text-faint);
   position: relative; overflow: hidden; display: grid; align-content: start; gap: 2px;
@@ -149,6 +156,11 @@
   .activity-page .qthumb { width: 44px; height: 66px; }
   .activity-page .qactions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
   .qmeter b { font-size: 1.35rem; }
+}
+
+/* A failed download has up to four buttons, which squeeze the message to a thin column beside them, so on anything narrower than a wide desktop they go on their own line. */
+@media (max-width: 1180px) {
+  .activity-page .qrow.failed .qactions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
 }
 
 /* ---- Waiting for a release: tiles with a marching dashed outline ------ */

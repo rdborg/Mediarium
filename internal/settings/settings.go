@@ -248,6 +248,7 @@ const (
 	KeyDownloadHours        = "downloads.hours"                // when new downloads may start, "1-7" (from 1:00 to 7:00, server time); outside it they wait in line. Unset = any time
 	KeyStallHours           = "downloads.stall_hours"          // hours a torrent may get no data before it is given up on (blocklisted and searched for again): 1 to 72, "0" = never; unset = 2 for the built-in client and 6 for a download client
 	KeyMinFreeGB            = "downloads.min_free_gb"          // no new download starts while the downloads folder has less free space than this many GB; unset = 5, "0" = off
+	KeyMaxReleaseGB         = "downloads.max_release_gb"       // the largest release, in GB, that is taken for any title (searches skip bigger ones and say so); unset or "0" = no limit
 	KeyRetentionDays        = "downloads.retention_days"       // Usenet releases posted longer ago than this many days are not taken (the provider no longer has them): 1 to 10000, "0" or unset = off
 	KeyRejectExecutables    = "downloads.reject_executables"   // "0" lets releases that hold programs or scripts (.exe, .scr, .bat...) through; anything else (including unset) rejects them
 	KeySkipDuplicates       = "downloads.skip_duplicates"      // "1" does not download a release twice (same NZB, or same name and size, for the same title); unset or "0" leaves it off
@@ -292,6 +293,7 @@ const (
 	// Folders for the ebooks and audiobooks modules.
 	KeyEbooksPath     = "ebooks.path"     // ebooks library folder; falls back to the EBOOKS_DIR env default (/ebooks) when unset
 	KeyAudiobooksPath = "audiobooks.path" // audiobooks library folder; falls back to the AUDIOBOOKS_DIR env default (/audiobooks) when unset
+	KeyOtherPath      = "other.path"      // Other library folder (items that are not movies, shows, music or books); unset = OTHER_DIR (/other)
 
 	// Modules switchboard (Settings > Basics > Media types): which kinds of media are on.
 	KeyModulesMovies     = "modules.movies"     // "0" switches movies off; anything else (including unset) leaves them on
@@ -299,6 +301,7 @@ const (
 	KeyModulesMusic      = "modules.music"      // "1" switches music on; unset or "0" leaves it off (unset falls back to music.enabled)
 	KeyModulesAudiobooks = "modules.audiobooks" // "1" switches it on; unset or "0" leaves it off
 	KeyModulesEbooks     = "modules.ebooks"     // "1" switches it on; unset or "0" leaves it off
+	KeyModulesOther      = "modules.other"      // "1" switches the Other media type on; unset or "0" leaves it off
 	KeyFeatureOffers     = "ui.feature_offers"  // what an administrator chose for each "switch this on?" offer after an update: JSON {"anime": "never" | "later:4.0.0"}
 	KeyModulesAnime      = "modules.anime"      // "1" gives anime its own library (tab, folder, quality profile and episode names) inside TV; unset or "0" keeps anime with the other shows
 

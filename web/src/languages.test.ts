@@ -12,7 +12,7 @@ test('every subtitle language has its own code', () => {
 test('the south Slavic languages and their neighbours are offered, with the OpenSubtitles codes', () => {
   const want: Record<string, string> = {
     hr: 'Croatian', sr: 'Serbian', bs: 'Bosnian', sl: 'Slovenian', sk: 'Slovak', bg: 'Bulgarian', uk: 'Ukrainian',
-    ca: 'Catalan', id: 'Indonesian', th: 'Thai', vi: 'Vietnamese', hi: 'Hindi',
+    ca: 'Catalan', id: 'Indonesian', th: 'Thai', vi: 'Vietnamese', hi: 'Hindi', fa: 'Persian',
   }
   for (const [code, name] of Object.entries(want)) assert.equal(languageName(code), name)
 })

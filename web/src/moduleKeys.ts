@@ -3,6 +3,6 @@
 // has a "switch this on?" offer (featureOffers.test.ts) can't miss one.
 import type { ModuleKey } from './api.ts'
 
-const ALL: Record<ModuleKey, true> = { movies: true, tv: true, music: true, ebooks: true, audiobooks: true, anime: true, lifecycle: true, archiver: true }
+const ALL: Record<ModuleKey, true> = { movies: true, tv: true, music: true, ebooks: true, audiobooks: true, other: true, anime: true, lifecycle: true, archiver: true }
 
 export const MODULE_KEYS = Object.keys(ALL) as ModuleKey[]

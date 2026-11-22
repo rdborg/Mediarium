@@ -62,6 +62,7 @@ func (s *Server) writableRoots() []string {
 	add(s.musicRoot())
 	add(s.ebooksRoot())
 	add(s.audiobooksRoot())
+	add(s.otherRoot())
 	return out
 }
 

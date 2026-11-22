@@ -19,6 +19,7 @@ import (
 	"github.com/rdborg/mediarium/internal/indexers"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/music"
+	"github.com/rdborg/mediarium/internal/other"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -292,8 +293,20 @@ func (s *Server) preparePipeline(item queue.Item) (func(), error) {
 				slog.Info("queue: book download ended", "queueId", item.ID, "err", err)
 			}
 		}, nil
+	case item.OtherID > 0:
+		it, err := s.OtherRepo.Get(item.OtherID)
+		if err != nil {
+			return nil, errors.New("That item isn't in your library any more.")
+		}
+		_ = s.OtherRepo.SetState(it.ID, other.StatusDownloading, "", 0, 0)
+		return func() {
+			if err := s.runOtherPipeline(item.ID, it, item.ReleaseTitle, item.NZBURL, protocol); err != nil {
+				s.stopFailedTorrent(item.ID)
+				slog.Info("queue: other download ended", "queueId", item.ID, "err", err)
+			}
+		}, nil
 	}
-	return nil, errors.New("This download isn't linked to a movie, show, album or book.")
+	return nil, errors.New("This download isn't linked to a movie, show, album, book or item.")
 }
 
 // stopFailedTorrent lets go of a built-in torrent whose download failed after
@@ -384,6 +397,15 @@ func (s *Server) releaseTitleClaims(item queue.Item) {
 			return
 		}
 		_ = s.BookRepo.SetState(b.ID, f, restoredBookStatus(b, f), "", "")
+	case item.OtherID > 0:
+		o, err := s.OtherRepo.Get(item.OtherID)
+		if err != nil || o.Status != other.StatusDownloading {
+			return
+		}
+		if busy, err := s.QueueRepo.HasActiveForOther(o.ID); err != nil || busy {
+			return
+		}
+		_ = s.OtherRepo.SetState(o.ID, restoredOtherStatus(o), "", 0, 0)
 	}
 }
 

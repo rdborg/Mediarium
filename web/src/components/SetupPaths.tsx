@@ -4,7 +4,7 @@ import FolderBox from './FolderBox'
 import HardlinkWarning from './HardlinkWarning'
 import { t } from '../i18n'
 
-const LIBRARY_WORD: Record<string, string> = { movies: t('movies'), tv: t('TV shows'), music: t('music'), ebooks: t('ebooks'), audiobooks: t('audiobooks') }
+const LIBRARY_WORD: Record<string, string> = { movies: t('movies'), tv: t('TV shows'), music: t('music'), ebooks: t('ebooks'), audiobooks: t('audiobooks'), other: t('other media') }
 
 // The library paths step: one box for each kind of media that was chosen,
 // then Downloads, then the (optional) folders for the kinds left off, in case
@@ -26,7 +26,7 @@ export default function SetupPaths({
 }) {
   const asked = foldersToAsk(chosen)
   const libraries = asked.filter((k) => k !== 'downloads')
-  const later = (['ebooks', 'audiobooks'] as const).filter((k) => !asked.includes(k))
+  const later = (['ebooks', 'audiobooks', 'other'] as const).filter((k) => !asked.includes(k))
   const laterWords = later.map((k) => LIBRARY_WORD[k])
   const laterList = laterWords.length > 1 ? t('{list} and {last}', { list: laterWords.slice(0, -1).join(', '), last: laterWords[laterWords.length - 1] }) : (laterWords[0] ?? '')
 

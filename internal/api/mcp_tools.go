@@ -348,7 +348,7 @@ func (m *memResponse) Write(p []byte) (int, error) {
 // sent as JSON; the answer is decoded into out when given. A refusal or a
 // failure comes back as an mcpToolError carrying the app's own sentence.
 func (c *mcpCtx) call(method, path string, body, out any) error {
-	var rd io.Reader
+	var rd io.Reader = http.NoBody
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {

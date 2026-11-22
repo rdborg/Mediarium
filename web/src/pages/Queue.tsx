@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, can, isAdmin, type ActivityEntry, type BlocklistEntry, type QueueItem, type TitleEvent, type WantedRow } from '../api'
 import { useAuth } from '../AuthContext'
 import Cover from '../components/Cover'
+import Dropdown from '../components/Dropdown'
 import Icon, { type IconName } from '../components/Icon'
 import Loading from '../components/Loading'
 import InfoTip from '../components/InfoTip'
@@ -30,6 +31,7 @@ import { useLive } from '../useLive'
 import { useLiveEvents } from '../useLiveEvents'
 import { anyMoving, pollEvery } from '../pollPlan'
 import { etaText, nextSample, type RateSample } from '../transferRate'
+import { DEFAULT_QUEUE_SORT, nextSamples, paceOf, readQueueSort, rememberQueueSort, sortQueueBy, transferBasis, type Pace, type QueueSort, type QueueSortKey } from '../queueSort'
 import { locale, plural, t, tx, st } from '../i18n'
 import { useUrlState } from '../useUrlState'
 import { keptDataText, keptFileLine } from '../keptFile'
@@ -146,14 +148,14 @@ const WAITING_READ = 60
 // The most downloads one bulk action may name (bulkQueueMax on the server).
 const BULK_QUEUE_MAX = 200
 
-const itemLink = (q: QueueItem) => (q.bookId ? `/book/${q.bookId}` : q.albumId ? `/music/album/${q.albumId}` : q.seriesId ? `/series/${q.seriesId}` : q.tmdbId ? `/title/${q.tmdbId}` : undefined)
+const itemLink = (q: QueueItem) => (q.otherId ? '/library?kind=other' : q.bookId ? `/book/${q.bookId}` : q.albumId ? `/music/album/${q.albumId}` : q.seriesId ? `/series/${q.seriesId}` : q.tmdbId ? `/title/${q.tmdbId}` : undefined)
 
 // What a button press is doing right now, so only that button says so.
 type Doing = 'pause' | 'resume' | 'stop' | 'other'
 
 // Whether a download is for a title (a movie, series, album or book) a blocklist
 // entry can be limited to.
-const hasTitle = (q: QueueItem) => !!(q.movieId || q.seriesId || q.albumId || q.bookId)
+const hasTitle = (q: QueueItem) => !!(q.movieId || q.seriesId || q.albumId || q.bookId || q.otherId)
 
 // The choice in the blocklist question: on means only for the title the
 // download is for.
@@ -175,7 +177,7 @@ interface RowProps {
   // Picking several downloads at once (administrators): whether this one is
   // picked, and the way to change that. Left out where picking isn't offered.
   picked?: boolean
-  onPick?: (id: number, on: boolean) => void
+  onPick?: (id: number, on: boolean, shift: boolean) => void
 }
 
 // One download. A separate component (not one made inside the page) so a
@@ -208,12 +210,7 @@ function FailureTips({ q, link }: { q: QueueItem; link?: string | null }) {
 function useTransferRate(q: QueueItem): { rate: number; etaSec: number } | null {
   const [sample, setSample] = useState<RateSample | null>(null)
   const last = useRef<RateSample | null>(null)
-  // Unpacking is timed from the bytes of the archive read so far (one archive;
-  // with several the figures start over for each).
-  const unpacking = q.status === 'importing' && !!q.unpack && q.unpack.totalBytes > 0 && q.unpack.count === 1
-  const running = (q.status === 'downloading' && q.sizeBytes > 0) || unpacking
-  const size = unpacking ? q.unpack!.totalBytes : q.sizeBytes
-  const done = unpacking ? q.unpack!.doneBytes : (q.sizeBytes * q.progressPct) / 100
+  const { running, size, done } = transferBasis(q)
   useEffect(() => {
     if (!running) {
       last.current = null
@@ -321,6 +318,45 @@ function QueueDetails({ q, admin }: { q: QueueItem; admin: boolean }) {
   )
 }
 
+// Each choice names the way it arranges the rows; the button turns it round.
+const SORT_OPTIONS: { key: QueueSortKey; label: () => string }[] = [
+  { key: 'default', label: () => t('Default order') },
+  { key: 'speed', label: () => t('Fastest first') },
+  { key: 'progress', label: () => t('Most done first') },
+  { key: 'name', label: () => t('Name A–Z') },
+  { key: 'size', label: () => t('Largest first') },
+  { key: 'eta', label: () => t('Finishing soonest') },
+  { key: 'added', label: () => t('Newest first') },
+]
+
+function QueueSortBar({ sort, onChange }: { sort: QueueSort; onChange: (s: QueueSort) => void }) {
+  return (
+    <div className="queue-sort">
+      <Dropdown
+        icon="sort"
+        label={t('Sort')}
+        value={sort.key}
+        onChange={(key) => onChange({ key: key as QueueSortKey, reverse: false })}
+        options={SORT_OPTIONS.map((o) => ({ value: o.key, label: o.label() }))}
+      />
+      <button
+        type="button"
+        className="icon-btn"
+        disabled={sort.key === DEFAULT_QUEUE_SORT.key}
+        onClick={() => onChange({ ...sort, reverse: !sort.reverse })}
+        aria-pressed={sort.reverse}
+        title={sort.reverse ? t('Reversed order. Click for the normal order.') : t('Reverse the order')}
+        aria-label={t('Reverse the order')}
+      >
+        <Icon name="sort" size={16} />
+      </button>
+    </div>
+  )
+}
+// A download that failed because its file was far shorter than the movie or
+// episode (the server's own sentence, before it is translated).
+const isShortFailure = (error?: string) => !!error && error.startsWith('The file is only ') && error.trimEnd().endsWith('This looks like a fake or broken release.')
+
 function QueueRow({ q, admin, busy, act, stop, remove, blocklistIt, picked, onPick }: RowProps) {
   const me = useAuth().user
   const transfer = useTransferRate(q)
@@ -332,12 +368,12 @@ function QueueRow({ q, admin, busy, act, stop, remove, blocklistIt, picked, onPi
   const barTone = q.status === 'failed' ? 'bad' : q.status === 'conflict' ? 'warn' : q.status === 'paused' ? 'paused' : ''
   const note = stateNote(q)
   return (
-    <div className={`qrow st-${q.status}${q.status === 'failed' ? ' failed' : ''} kind-${q.bookId ? 'book' : q.albumId ? 'music' : q.seriesId ? 'tv' : 'movie'}`}>
+    <div className={`qrow st-${q.status}${q.status === 'failed' ? ' failed' : ''} kind-${q.otherId ? 'other' : q.bookId ? 'book' : q.albumId ? 'music' : q.seriesId ? 'tv' : 'movie'}`}>
       <div className="qthumb">
         {q.albumId ? <Cover src={q.posterUrl} thumb /> : q.posterUrl ? <img src={q.posterUrl} alt="" loading="lazy" /> : <PosterFallback />}
         {admin && onPick && (
           <label className="qpick" title={t('Pick this download')}>
-            <input type="checkbox" checked={!!picked} onChange={(e) => onPick(q.id, e.target.checked)} aria-label={t('Pick {title}', { title: q.title })} />
+            <input type="checkbox" checked={!!picked} onChange={() => undefined} onClick={(e) => onPick(q.id, e.currentTarget.checked, e.shiftKey)} aria-label={t('Pick {title}', { title: q.title })} />
           </label>
         )}
       </div>
@@ -473,6 +509,11 @@ function QueueRow({ q, admin, busy, act, stop, remove, blocklistIt, picked, onPi
             <Icon name="refresh" size={15} /> {t('Retry')}
           </button>
         )}
+        {q.status === 'failed' && admin && isShortFailure(q.error) && (
+          <button className="btn-sm btn-with-icon" disabled={working} title={t('Download it again and import it even though it is shorter than expected. It will not be turned away for its length again.')} onClick={() => void act(q, () => api.keepShortQueueItem(q.id), t('Downloading it again, and it will be kept.'))}>
+            <Icon name="check" size={15} /> {t('Keep anyway')}
+          </button>
+        )}
         {q.status === 'failed' && admin && (
           <button className="btn-sm btn-with-icon" disabled={working} title={t('Never use this release again and look for another one')} onClick={() => void blocklistIt(q)}>
             <Icon name="ban" size={15} /> {t('Blocklist & search again')}
@@ -514,6 +555,12 @@ export default function Queue() {
   const [openReports, setOpenReports] = useState(0)
   const [reportsOn, setReportsOn] = useState(false)
   const [queue, setQueue] = useState<QueueItem[]>([])
+  // How the downloads are arranged inside each section, kept in this browser.
+  const [sort, setSortState] = useState<QueueSort>(() => readQueueSort())
+  const setSort = (next: QueueSort) => {
+    setSortState(next)
+    rememberQueueSort(next)
+  }
   const [activity, setActivity] = useState<ActivityEntry[]>([])
   // History: how many lines to show, and the words to look for.
   const [actLimit, setActLimit] = useState(100)
@@ -750,7 +797,24 @@ export default function Queue() {
     }
   }
 
-  const sections = useMemo(() => groupQueue(queue), [queue])
+  // Speed and time left per running download, from the progress seen between
+  // two refreshes: the sorts by speed and by time left need them for every row.
+  const samples = useRef<Map<number, RateSample>>(new Map())
+  const pace = useMemo(() => {
+    samples.current = nextSamples(samples.current, queue, Date.now())
+    const out = new Map<number, Pace>()
+    for (const q of queue) {
+      const p = paceOf(transferBasis(q), samples.current.get(q.id) ?? null)
+      if (p) out.set(q.id, p)
+    }
+    return out
+  }, [queue])
+  const sections = useMemo(() => {
+    const g = groupQueue(queue)
+    if (sort.key === 'default') return g
+    const by = (list: QueueItem[]) => sortQueueBy(list, sort, pace)
+    return { ...g, inProgress: by(g.inProgress), failed: by(g.failed), decision: by(g.decision), stopped: by(g.stopped) }
+  }, [queue, sort, pace])
   const waiting = useMemo(() => stillWaiting(allWaiting, queue), [allWaiting, queue])
   const waitingCount = waiting.length + waitingMore
   const bulk = useMemo(() => bulkState(queue), [queue])
@@ -773,11 +837,20 @@ export default function Queue() {
     return new Set([...picked].filter((id) => live.has(id)))
   }, [picked, pickable])
 
-  const pick = useCallback((id: number, on: boolean) => {
+  // The row ticked last and the rows of its list, so Shift + a tick picks everything between the two.
+  const lastPick = useRef<{ id: number; ids: number[] } | null>(null)
+  const pick = useCallback((id: number, on: boolean, shift: boolean, ids: number[]) => {
+    const last = lastPick.current
+    const from = shift && last ? ids.indexOf(last.id) : -1
+    const to = ids.indexOf(id)
+    lastPick.current = { id, ids }
     setPicked((cur) => {
       const next = new Set(cur)
-      if (on) next.add(id)
-      else next.delete(id)
+      const span = from >= 0 && to >= 0 ? ids.slice(Math.min(from, to), Math.max(from, to) + 1) : [id]
+      for (const n of span) {
+        if (on) next.add(n)
+        else next.delete(n)
+      }
       return next
     })
   }, [])
@@ -842,8 +915,9 @@ export default function Queue() {
     }
   }
 
-  const rows = (list: QueueItem[], pickable = false) =>
-    list.map((q) => (
+  const rows = (list: QueueItem[], pickable = false) => {
+    const ids = list.map((q) => q.id)
+    return list.map((q) => (
       <QueueRow
         key={q.id}
         q={q}
@@ -854,9 +928,10 @@ export default function Queue() {
         remove={remove}
         blocklistIt={blocklistIt}
         picked={pickable ? livePicked.has(q.id) : undefined}
-        onPick={pickable ? pick : undefined}
+        onPick={pickable ? (id, on, shift) => pick(id, on, shift, ids) : undefined}
       />
     ))
+  }
 
   return (
     <div className="activity-page">
@@ -972,6 +1047,8 @@ export default function Queue() {
               </p>
             </div>
           )}
+
+          {loaded && !error && needsAttention > 1 && <QueueSortBar sort={sort} onChange={setSort} />}
 
           {admin && livePicked.size > 0 && (
             <div className="pick-bar" role="region" aria-label={t('Picked downloads')}>
@@ -1252,6 +1329,27 @@ export default function Queue() {
                                   }}
                                 >
                                   {b.scope === 'item' ? t('Block everywhere') : t('Only this title')}
+                                </button>
+                              )}
+                              {b.reason === 'incomplete file' && (
+                                <button
+                                  className="btn-sm"
+                                  disabled={tidying}
+                                  title={t('Stop blocking this release and do not turn it away for its length again. Grab it again from the title or from search.')}
+                                  onClick={async () => {
+                                    setTidying(true)
+                                    try {
+                                      await api.keepBlocklistEntry(b.id)
+                                      toast.success(t('Kept. This release will not be turned away for its length again.'))
+                                      void load()
+                                    } catch (e) {
+                                      toast.error(e instanceof Error ? e.message : String(e))
+                                    } finally {
+                                      setTidying(false)
+                                    }
+                                  }}
+                                >
+                                  {t('Keep anyway')}
                                 </button>
                               )}
                               <button

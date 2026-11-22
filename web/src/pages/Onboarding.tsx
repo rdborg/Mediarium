@@ -60,6 +60,7 @@ const SETTING_FIELD = {
   music: 'musicPath',
   ebooks: 'ebooksPath',
   audiobooks: 'audiobooksPath',
+  other: 'otherPath',
   downloads: 'downloadsPath',
 } as const
 
@@ -69,6 +70,7 @@ const FOLDER_REQUIRED: Record<FolderKind, string> = {
   music: t('Add the folder your music goes in, for example /music.'),
   ebooks: t('Add the folder your ebooks go in, for example /books.'),
   audiobooks: t('Add the folder your audiobooks go in, for example /audiobooks.'),
+  other: t('Add the folder your other items go in, for example /other.'),
   downloads: t('Add the folder downloads are saved in, for example /downloads.'),
 }
 
@@ -87,6 +89,7 @@ function foldersInUse(s: SettingsData): FolderValues {
     music: s.musicPath,
     ebooks: s.ebooksPath,
     audiobooks: s.audiobooksPath,
+    other: s.otherPath,
     downloads: s.downloadsPath,
   }
 }
@@ -137,7 +140,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
   }, [])
 
   // Which kinds of media to manage (saved to Settings > Basics > Media types).
-  const [chosen, setChosen] = useState<Chosen>({ movies: true, tv: true, music: false, ebooks: false, audiobooks: false })
+  const [chosen, setChosen] = useState<Chosen>({ movies: true, tv: true, music: false, ebooks: false, audiobooks: false, other: false })
   const [lastOneHint, setLastOneHint] = useState(false)
   const typesLoaded = useRef(false)
   useEffect(() => {
@@ -145,7 +148,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
     typesLoaded.current = true
     api
       .modules()
-      .then((m) => setChosen({ movies: m.movies?.enabled !== false, tv: m.tv?.enabled !== false, music: m.music?.enabled === true, ebooks: m.ebooks?.enabled === true, audiobooks: m.audiobooks?.enabled === true, anime: m.anime?.enabled === true, lifecycle: m.lifecycle?.enabled === true }))
+      .then((m) => setChosen({ movies: m.movies?.enabled !== false, tv: m.tv?.enabled !== false, music: m.music?.enabled === true, ebooks: m.ebooks?.enabled === true, audiobooks: m.audiobooks?.enabled === true, other: m.other?.enabled === true, anime: m.anime?.enabled === true, lifecycle: m.lifecycle?.enabled === true }))
       .catch(() => undefined)
   }, [step])
   function toggleType(key: keyof Chosen) {
@@ -177,7 +180,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
           // folder, put those inside it instead of an unmapped /music.
           const { parent, sample } = coreParent(mapped)
           if (parent) {
-            for (const k of ['music', 'ebooks', 'audiobooks'] as const) {
+            for (const k of ['music', 'ebooks', 'audiobooks', 'other'] as const) {
               if (mapped[k] !== FOLDER_INFO[k].fallback) continue
               api
                 .folderCheck(mapped[k] ?? '')
@@ -356,7 +359,7 @@ export default function Onboarding({ startStep = 0 }: { startStep?: number }) {
         await api.putSettings({ legalAcknowledged: true })
         legalSaved.current = true
       }
-      await api.setModules({ movies: chosen.movies, tv: chosen.tv, music: chosen.music, ebooks: !!chosen.ebooks, audiobooks: !!chosen.audiobooks, anime: !!chosen.anime && chosen.tv, lifecycle: !!chosen.lifecycle })
+      await api.setModules({ movies: chosen.movies, tv: chosen.tv, music: chosen.music, ebooks: !!chosen.ebooks, audiobooks: !!chosen.audiobooks, other: !!chosen.other, anime: !!chosen.anime && chosen.tv, lifecycle: !!chosen.lifecycle })
       loadSvc()
       setStep(S.paths)
     })

@@ -211,6 +211,7 @@ var memberRoutes = []string{
 	"POST /api/episodes/{id}/subtitles/download",
 	"GET /api/episodes/{id}/subtitles/status",
 	"GET /api/scores/{kind}/{tmdbId}",
+	"GET /api/other", "GET /api/other/{id}",
 }
 
 // mustBeAdmin are routes that must never be opened to members, whatever
@@ -221,7 +222,7 @@ var mustBeAdmin = []string{
 	"GET /api/auth/ldap", "PUT /api/auth/ldap", "POST /api/auth/ldap/test", "GET /api/auth/proxy-signin", "PUT /api/auth/proxy-signin", "GET /api/auth/idle-signout", "PUT /api/auth/idle-signout",
 	"GET /api/settings", "PUT /api/settings", "POST /api/settings/folder-create", "GET /api/settings/file-permissions", "PUT /api/settings/file-permissions",
 	"POST /api/collections/{id}/add", "PUT /api/collections/{id}/follow",
-	"GET /api/library/browse", "POST /api/movies/{id}/locate-file", "POST /api/movies/{id}/locate-folder", "POST /api/episodes/{id}/locate-file", "POST /api/series/{id}/change-folder",
+	"GET /api/library/browse", "POST /api/movies/{id}/locate-file", "POST /api/movies/{id}/locate-folder", "POST /api/episodes/{id}/locate-file", "POST /api/movies/{id}/unlink-file", "POST /api/episodes/{id}/unlink-file", "POST /api/series/{id}/change-folder",
 	"POST /api/library/bulk/folder", "POST /api/library/move-files/preview", "POST /api/library/move-files", "GET /api/settings/metadata-files", "PUT /api/settings/metadata-files", "POST /api/library/metadata-files/run",
 	"GET /api/indexers", "GET /api/usenet-servers", "GET /api/vpn/configs", "GET /api/notifications", "GET /api/media-servers",
 	"GET /api/system/backup", "POST /api/system/restore",
@@ -242,7 +243,7 @@ var mustBeAdmin = []string{
 	"GET /api/trash-guides/{app}", "POST /api/trash-guides/{app}/formats", "POST /api/trash-guides/{app}/profiles",
 	"GET /api/proxy", "PUT /api/proxy", "POST /api/proxy/test", "GET /api/download-client/torrents", "GET /api/debrid/torrents", "POST /api/debrid/torrents/{id}/remove", "POST /api/download-client/torrents/{hash}/{action}", "GET /api/notifications/push-key",
 	"GET /api/usenet-client", "PUT /api/usenet-client", "POST /api/usenet-client/test", "GET /api/usenet-client/jobs", "POST /api/usenet-client/jobs/{id}/{action}",
-	"DELETE /api/queue/{id}", "DELETE /api/queue", "POST /api/queue/{id}/blocklist",
+	"DELETE /api/queue/{id}", "DELETE /api/queue", "POST /api/queue/{id}/blocklist", "POST /api/queue/{id}/keep-short", "POST /api/blocklist/{id}/keep",
 	"POST /api/queue/{id}/pause", "POST /api/queue/{id}/resume", "POST /api/queue/{id}/stop", "POST /api/queue/pause-all", "POST /api/queue/resume-all",
 	"GET /api/queue/{id}/torrent", "PUT /api/queue/{id}/torrent", "PUT /api/queue/{id}/torrent/files",
 	"GET /api/downloads/torrent-options", "PUT /api/downloads/torrent-options", "GET /api/indexers/seed-rules", "PUT /api/indexers/{id}/seed-rules",

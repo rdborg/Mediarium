@@ -80,3 +80,42 @@ func TestSizeAllowed(t *testing.T) {
 		}
 	}
 }
+
+func TestSizeAllowedByCapAndRoom(t *testing.T) {
+	gb := int64(1) << 30
+	cases := []struct {
+		name string
+		p    Profile
+		size int64
+		ok   bool
+	}{
+		{"no limits at all", Profile{}, 90 * gb, true},
+		{"under the install's cap", Profile{CapGB: 20}, 19 * gb, true},
+		{"over the install's cap", Profile{CapGB: 20}, 21 * gb, false},
+		{"the cap beats a looser profile", Profile{MaxSizeGB: 50, CapGB: 20}, 30 * gb, false},
+		{"the profile beats a looser cap", Profile{MaxSizeGB: 10, CapGB: 50}, 30 * gb, false},
+		{"fits the room", Profile{RoomBytes: 30 * gb}, 29 * gb, true},
+		{"too big for the room", Profile{RoomBytes: 30 * gb}, 31 * gb, false},
+		{"a full disk takes nothing", Profile{RoomBytes: 1}, gb, false},
+		{"an unknown size always passes", Profile{CapGB: 1, RoomBytes: 1}, 0, true},
+	}
+	for _, tc := range cases {
+		if got := tc.p.SizeAllowed(tc.size); got != tc.ok {
+			t.Errorf("%s: SizeAllowed = %v, want %v", tc.name, got, tc.ok)
+		}
+	}
+}
+
+func TestPackSizeAllowed(t *testing.T) {
+	gb := int64(1) << 30
+	p := Profile{MaxSizeGB: 10, CapGB: 50, RoomBytes: 60 * gb}
+	if !p.PackSizeAllowed(40*gb, 8*gb) {
+		t.Error("a pack under every limit should pass")
+	}
+	if p.PackSizeAllowed(80*gb, 8*gb) {
+		t.Error("the whole pack counts against the cap and the room, not one season")
+	}
+	if p.PackSizeAllowed(40*gb, 11*gb) {
+		t.Error("a season over the profile limit should fail")
+	}
+}

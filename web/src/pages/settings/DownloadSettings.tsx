@@ -450,6 +450,7 @@ function TempFolderCard({ saved, ready, onSaved }: { saved: string; ready: boole
 
 const SPEEDS = [0, 1, 2, 5, 10, 20, 50, 100]
 const FREE = [0, 2, 5, 10, 20, 50]
+const RELEASE_MAX = [0, 5, 10, 20, 30, 50, 100, 200]
 const STALL_HOURS = [1, 2, 3, 6, 12, 24, 48, 72, 0]
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
@@ -474,6 +475,12 @@ function SpeedAndSpaceCard() {
     (v) => (v === 0 ? t('Saved: downloads start whatever the free space.') : t('Saved: no new download starts with less than {n} GB free.', { n: v })),
     5,
   )
+  const maxRelease = useAutosaveSetting<number>(
+    (s) => s.maxReleaseGB ?? 0,
+    (v) => ({ maxReleaseGB: v }),
+    (v) => (v === 0 ? t('Saved: no limit on the size of a release.') : t('Saved: releases bigger than {n} GB are skipped.', { n: v })),
+    0,
+  )
   const dlWindow = useAutosaveSetting<string>(
     (s) => s.downloadHours ?? '',
     (v) => ({ downloadHours: v }),
@@ -482,7 +489,7 @@ function SpeedAndSpaceCard() {
   )
   const [from, to] = hours.value ? hours.value.split('-').map(Number) : [8, 23]
   const [wFrom, wTo] = dlWindow.value ? dlWindow.value.split('-').map(Number) : [1, 7]
-  const busy = !limit.loaded || limit.saving || hours.saving || free.saving || dlWindow.saving
+  const busy = !limit.loaded || limit.saving || hours.saving || free.saving || maxRelease.saving || dlWindow.saving
   return (
     <div>
       <label className="inline-field">
@@ -569,6 +576,21 @@ function SpeedAndSpaceCard() {
         })}
       </label>
       <p className="field-hint">{t('With less free space than this, no new download starts. They wait and start by themselves once there is room.')}</p>
+      <p className="field-hint">{t('A release that would take the disk below this is skipped as well, and the list of an interactive search says so.')}</p>
+      <label className="inline-field" style={{ marginTop: 14 }}>
+        {tx('Skip releases bigger than {size}', {
+          size: (
+            <select value={maxRelease.value} disabled={busy} onChange={(e) => void maxRelease.change(Number(e.target.value))}>
+              {RELEASE_MAX.map((n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? t('no limit') : `${n} GB`}
+                </option>
+              ))}
+            </select>
+          ),
+        })}
+      </label>
+      <p className="field-hint">{t('Searches leave out a release bigger than this, whatever its quality profile says. In an interactive search it is still listed, with the reason, and you can grab it by hand.')}</p>
     </div>
   )
 }

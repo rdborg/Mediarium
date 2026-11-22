@@ -78,6 +78,14 @@ const MODULES: ModuleInfo[] = [
     points: [t('EPUB first, then AZW3, MOBI or PDF'), t('Trending books and the classics on Discover'), t('Follow authors for their new books'), t('Read them in Mediarium Books')],
   },
   {
+    key: 'other',
+    name: t('Other'),
+    glyph: 'other',
+    color: 'var(--c-other)',
+    blurb: t('Anything that is not a movie, show, song or book.'),
+    points: [t('Made by name, never looked up anywhere'), t('Add an NZB or torrent, or import files you have'), t('Its own folder, named after the item'), t('Original file names kept')],
+  },
+  {
     key: 'audiobooks',
     name: t('Audiobooks'),
     glyph: 'audiobook',

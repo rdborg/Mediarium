@@ -130,6 +130,17 @@ func (s *Server) loadProfiles() (profileSet, error) {
 	if p, ok := ps.byID[s.defaultTVProfileID()]; ok {
 		ps.defTV = &p
 	}
+	// What the install allows on top of each profile: the largest release and the
+	// room the download disk has left.
+	capGB, room := float64(s.maxReleaseGB()), s.downloadRoomBytes()
+	for id, p := range ps.byID {
+		p.CapGB, p.RoomBytes = capGB, room
+		ps.byID[id] = p
+	}
+	ps.def.CapGB, ps.def.RoomBytes = capGB, room
+	if ps.defTV != nil {
+		ps.defTV.CapGB, ps.defTV.RoomBytes = capGB, room
+	}
 	return ps, nil
 }
 

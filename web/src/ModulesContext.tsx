@@ -14,6 +14,7 @@ const FALLBACK: Modules = {
   music: { enabled: false, available: true },
   audiobooks: { enabled: false, available: false },
   ebooks: { enabled: false, available: false },
+  other: { enabled: false, available: false },
   anime: { enabled: false, available: false },
   lifecycle: { enabled: false, available: false },
   archiver: { enabled: false, available: false },

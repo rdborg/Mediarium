@@ -184,7 +184,7 @@ func (r *Repo) AddSeries(s Series, episodes []Episode) (Series, error) {
 	if err != nil {
 		return Series{}, fmt.Errorf("get inserted series id: %w", err)
 	}
-	if err := upsertEpisodes(tx, id, episodes, s.Monitored); err != nil {
+	if err := upsertEpisodes(tx, id, episodes, s.Monitored, ""); err != nil {
 		return Series{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -197,13 +197,40 @@ func (r *Repo) AddSeries(s Series, episodes []Episode) (Series, error) {
 // title/overview/air date of ones that do (new seasons appear and air
 // dates get announced/moved over a show's life) — never touching an
 // existing episode's status, quality, or file, which are download state.
+//
+// monitorNew says whether new episodes start monitored. A show that is
+// following only what is still to come (some of its aired episodes are not
+// monitored) is not given its back catalogue as monitored when TMDB adds or
+// renumbers old episodes: a new episode that aired more than
+// newEpisodeGraceDays ago starts unmonitored there, or the whole show would be
+// downloaded again from season one.
 func (r *Repo) UpsertEpisodes(seriesID int64, episodes []Episode, monitorNew bool) error {
+	return r.upsertEpisodesOn(seriesID, episodes, monitorNew, time.Now().UTC())
+}
+
+// newEpisodeGraceDays is how long after airing a brand new episode row of a
+// show that follows only future episodes is still monitored (TMDB can list an
+// episode a few days late).
+const newEpisodeGraceDays = 7
+
+func (r *Repo) upsertEpisodesOn(seriesID int64, episodes []Episode, monitorNew bool, now time.Time) error {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin upsert episodes: %w", err)
 	}
 	defer tx.Rollback()
-	if err := upsertEpisodes(tx, seriesID, episodes, monitorNew); err != nil {
+	notBefore := ""
+	if monitorNew {
+		var n int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM episodes WHERE series_id = ? AND season > 0 AND monitored = 0 AND COALESCE(air_date, '') <> '' AND air_date < ?`,
+			seriesID, now.Format("2006-01-02")).Scan(&n); err != nil {
+			return fmt.Errorf("read series %d monitoring: %w", seriesID, err)
+		}
+		if n > 0 {
+			notBefore = now.AddDate(0, 0, -newEpisodeGraceDays).Format("2006-01-02")
+		}
+	}
+	if err := upsertEpisodes(tx, seriesID, episodes, monitorNew, notBefore); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -265,7 +292,9 @@ func (r *Repo) PruneEpisodes(seriesID int64, keep []Episode) (int, error) {
 	return len(stale), nil
 }
 
-func upsertEpisodes(tx *sql.Tx, seriesID int64, episodes []Episode, monitorNew bool) error {
+// notBefore (YYYY-MM-DD, "" for no limit) keeps a new episode that aired before
+// that date from starting monitored.
+func upsertEpisodes(tx *sql.Tx, seriesID int64, episodes []Episode, monitorNew bool, notBefore string) error {
 	stmt, err := tx.Prepare(`
 		INSERT INTO episodes (series_id, season, episode, title, overview, air_date, monitored)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -279,7 +308,8 @@ func upsertEpisodes(tx *sql.Tx, seriesID int64, episodes []Episode, monitorNew b
 	for _, e := range episodes {
 		// Specials (season 0) start unmonitored: they are rarely posted in a
 		// searchable form, so they would only ever show as missing.
-		if _, err := stmt.Exec(seriesID, e.Season, e.Episode, e.Title, e.Overview, e.AirDate, monitorNew && e.Season > 0); err != nil {
+		monitored := monitorNew && e.Season > 0 && (notBefore == "" || e.AirDate == "" || e.AirDate >= notBefore)
+		if _, err := stmt.Exec(seriesID, e.Season, e.Episode, e.Title, e.Overview, e.AirDate, monitored); err != nil {
 			return fmt.Errorf("upsert episode S%02dE%02d: %w", e.Season, e.Episode, err)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/library"
+	"github.com/rdborg/mediarium/internal/other"
 	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/queue"
 )
@@ -21,6 +22,7 @@ type queueNamer struct {
 	series  map[int64]library.TitleBrief
 	albums  map[int64]albumName
 	books   map[int64]books.Book
+	others  map[int64]other.Item
 	missing map[string]bool // lookups that found nothing, so they are not repeated
 }
 
@@ -34,6 +36,7 @@ func (s *Server) newQueueNamer(lists ...[]queue.Item) *queueNamer {
 		series:  map[int64]library.TitleBrief{},
 		albums:  map[int64]albumName{},
 		books:   map[int64]books.Book{},
+		others:  map[int64]other.Item{},
 		missing: map[string]bool{},
 	}
 	var movieIDs, seriesIDs []int64
@@ -41,7 +44,7 @@ func (s *Server) newQueueNamer(lists ...[]queue.Item) *queueNamer {
 	for _, items := range lists {
 		for _, it := range items {
 			switch {
-			case it.AlbumID > 0 || it.BookID > 0:
+			case it.AlbumID > 0 || it.BookID > 0 || it.OtherID > 0:
 			case it.SeriesID > 0:
 				if !seenSeries[it.SeriesID] {
 					seenSeries[it.SeriesID] = true
@@ -129,6 +132,21 @@ func (n *queueNamer) book(id int64) (books.Book, bool) {
 	return books.Book{}, false
 }
 
+func (n *queueNamer) other(id int64) (other.Item, bool) {
+	if o, ok := n.others[id]; ok {
+		return o, true
+	}
+	if n.missing[fmt.Sprintf("other:%d", id)] {
+		return other.Item{}, false
+	}
+	if o, err := n.s.OtherRepo.Get(id); err == nil {
+		n.others[id] = o
+		return o, true
+	}
+	n.missing[fmt.Sprintf("other:%d", id)] = true
+	return other.Item{}, false
+}
+
 // describe is describeQueueItem for a namer: the same words, from the
 // remembered lookups.
 func (n *queueNamer) describe(it queue.Item) (title, subtitle, poster string) {
@@ -137,6 +155,10 @@ func (n *queueNamer) describe(it queue.Item) (title, subtitle, poster string) {
 	case it.AlbumID > 0:
 		if a, ok := n.album(it.AlbumID); ok {
 			title, subtitle, poster = a.title, a.subtitle, a.cover
+		}
+	case it.OtherID > 0:
+		if o, ok := n.other(it.OtherID); ok {
+			title, subtitle = o.Name, "Other"
 		}
 	case it.BookID > 0:
 		if b, ok := n.book(it.BookID); ok {

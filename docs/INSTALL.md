@@ -220,6 +220,7 @@ Each kind of media has its own folder setting. You only need the ones you use.
 | Music | `MUSIC_DIR` | `/music` | Works today. Switch it on under Settings > Basics > Media types ([music.md](./music.md)). |
 | Ebooks | `EBOOKS_DIR` | `/ebooks` | Works today. Switch it on under Settings > Basics > Media types ([books.md](./books.md)). |
 | Audiobooks | `AUDIOBOOKS_DIR` | `/audiobooks` | Works today. Switch it on under Settings > Basics > Media types ([books.md](./books.md)). |
+| Other | `OTHER_DIR` | `/other` | For things that are not movies, shows, music or books. Switch it on under Settings > Basics > Media types ([other.md](./other.md)). |
 
 There are two ways to give one of them a folder:
 

@@ -135,7 +135,7 @@ func TestUniqueAlbumPathTellsSameNamedFoldersApart(t *testing.T) {
 		{"a third band with nothing to tell it by", band3, third, []music.Album{selfTitled}, filepath.Join(root, "Blue Ruin [cccccccc]", "Blue Ruin (2013)")},
 		{"an album of the same name, type and year", band1, music.Album{ID: 13, ArtistID: 1, MBID: "ffffffff-6666", Title: "Blue Ruin", Type: "album", ReleaseDate: "2013-12-12"}, []music.Album{selfTitled}, filepath.Join(root, "Blue Ruin", "Blue Ruin [ffffffff] (2013)")},
 		{"the folder is held in other letters", band1, single, []music.Album{{ID: 10, ArtistID: 1, Path: strings.ToUpper(selfTitled.Path)}}, filepath.Join(root, "Blue Ruin", "Blue Ruin [Single] (2013)")},
-		{"an album with no files holds nothing", band1, single, []music.Album{{ID: 10, ArtistID: 1}}, filepath.Join(root, "Blue Ruin", "Blue Ruin (2013)")},
+		{"an album with no files holds nothing", band1, single, []music.Album{{ID: 10, ArtistID: 1}}, filepath.Join(root, "Blue Ruin", "Blue Ruin [Single] (2013)")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,5 +143,61 @@ func TestUniqueAlbumPathTellsSameNamedFoldersApart(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// A new single or EP always carries its type in the folder name, an album never
+// does, and a release that already has a folder keeps it.
+func TestUniqueAlbumPathNamesSinglesAndEPsByType(t *testing.T) {
+	clean := cleaner(organizer.SanitizeStrip)
+	root := filepath.Join("music")
+	artist := music.Artist{ID: 1, MBID: "aaaaaaaa-1111", Name: "Nina Simone"}
+	rel := func(typ, title, date, path string) music.Album {
+		return music.Album{ID: 5, ArtistID: 1, MBID: "11111111-2222", Title: title, Type: typ, ReleaseDate: date, Path: path}
+	}
+	oldSingle := filepath.Join(root, "Nina Simone", "Sinnerman (1965)")
+	tests := []struct {
+		name  string
+		album music.Album
+		taken []music.Album
+		want  string
+	}{
+		{"a single", rel("single", "Sinnerman", "1965-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")},
+		{"an EP", rel("EP", "Four Women", "1966-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Four Women [EP] (1966)")},
+		{"the type in capitals or spaces", rel(" Single ", "Sinnerman", "1965-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")},
+		{"an album", rel("album", "Pastel Blues", "1965-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Pastel Blues (1965)")},
+		{"no type", rel("", "Pastel Blues", "1965-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Pastel Blues (1965)")},
+		{"another kind of release", rel("live", "Live at Newport", "1960-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Live at Newport (1960)")},
+		{"a single without a year", rel("single", "Sinnerman", "", ""), nil, filepath.Join(root, "Nina Simone", "Sinnerman [Single]")},
+		{"a title that already says it", rel("single", "Sinnerman [Single]", "1965-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")},
+		{"a title that says it in round brackets", rel("ep", "Four Women (EP)", "1966-01-01", ""), nil, filepath.Join(root, "Nina Simone", "Four Women (EP) (1966)")},
+		{"a newer single keeps its typed folder", rel("single", "Sinnerman", "1965-01-01", filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")), nil, filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")},
+		{"an older single keeps its folder", rel("single", "Sinnerman", "1965-01-01", oldSingle), nil, oldSingle},
+		{"an older single moves aside when another release holds its name", rel("single", "Sinnerman", "1965-01-01", oldSingle),
+			[]music.Album{{ID: 9, ArtistID: 1, Path: oldSingle}}, filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")},
+		{"two singles of one name and year", rel("single", "Sinnerman", "1965-01-01", ""),
+			[]music.Album{{ID: 9, ArtistID: 1, Path: filepath.Join(root, "Nina Simone", "Sinnerman [Single] (1965)")}}, filepath.Join(root, "Nina Simone", "Sinnerman [Single] [11111111] (1965)")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := music.UniqueAlbumPath(root, artist, tt.album, tt.taken, clean); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// The scan reads "Title [Single] (2020)" back as the title, so a library scan
+// and a rescan find the folders that are made now.
+func TestTypedAlbumFolderReadsBack(t *testing.T) {
+	for _, tt := range []struct{ folder, title string; year int }{
+		{"Sinnerman [Single] (1965)", "Sinnerman", 1965},
+		{"Four Women [EP] (1966)", "Four Women", 1966},
+		{"Sinnerman [Single]", "Sinnerman", 0},
+	} {
+		title, year := music.ParseAlbumFolder(tt.folder, "Nina Simone")
+		if music.NormalizeName(title) != music.NormalizeName(tt.title) || year != tt.year {
+			t.Errorf("%q read as %q, %d; want %q, %d", tt.folder, title, year, tt.title, tt.year)
+		}
 	}
 }

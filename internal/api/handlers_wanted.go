@@ -239,6 +239,12 @@ func searchNowScope(seriesID int64, req seriesSearchNowRequest) tvScope {
 	if req.Season != nil {
 		sc.season = *req.Season
 		sc.specials = *req.Season == 0
+	} else if req.Episode == 0 {
+		// The whole show: only the episodes marked as monitored. A show that
+		// follows only new episodes has all its old ones unmonitored, and
+		// searching it must not fetch them. A season or an episode asked for by
+		// name is searched even when it is unmonitored.
+		sc.asMarked = true
 	}
 	return sc
 }
@@ -276,10 +282,26 @@ func (s *Server) handleSeriesSearchNow(w http.ResponseWriter, r *http.Request) {
 	msg := "Nothing suitable was found right now."
 	if n > 0 {
 		msg = fmt.Sprintf("Started %s. You can follow the progress in Activity.", plural(n, "download"))
+	} else if scope.asMarked && !s.hasMonitoredEpisodes(id) {
+		msg = "None of this show's episodes are monitored, so there is nothing to look for. Monitor the episodes you want, or use Find missing on a season to fetch one anyway."
 	} else if hint := foreignShowHint(sr); hint != "" {
 		msg += " " + hint
 	}
 	writeJSON(w, http.StatusOK, searchNowResponse{Grabbed: n, Message: msg})
+}
+
+// hasMonitoredEpisodes reports whether any regular episode of a show is monitored.
+func (s *Server) hasMonitoredEpisodes(seriesID int64) bool {
+	eps, err := s.MovieRepo.ListEpisodes(seriesID)
+	if err != nil {
+		return true // say nothing rather than something wrong
+	}
+	for _, ep := range eps {
+		if ep.Season > 0 && ep.Monitored {
+			return true
+		}
+	}
+	return false
 }
 
 type wantedItemPayload struct {

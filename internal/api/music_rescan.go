@@ -60,6 +60,9 @@ func (s *Server) albumFolderOnDisk(artist music.Artist, album music.Album) (path
 	} else {
 		clean := music.Sanitizer(s.musicSanitizer())
 		made := music.AlbumPath(root, artist.Name, album.Title, album.Year(), clean)
+		if typed := music.AlbumPath(root, artist.Name, music.FolderTitle(album.Title, album.Type), album.Year(), clean); typed != made {
+			candidates = append(candidates, typed)
+		}
 		candidates = append(candidates, made)
 		if entries, e := os.ReadDir(filepath.Dir(made)); e == nil {
 			want := music.NormalizeName(album.Title)

@@ -165,9 +165,10 @@ After the download is repaired and unpacked (as for movies), Mediarium finds the
 ```
 <music folder>/<Artist>/<Album> (<Year>)/01 - Title.flac        one disc
 <music folder>/<Artist>/<Album> (<Year>)/2-01 - Title.flac      albums with several discs
+<music folder>/<Artist>/<Single> [Single] (<Year>)/01 - Title.flac   singles (and `[EP]` for EPs)
 ```
 
-Plex, Jellyfin and Navidrome all read this layout. A name too long for a folder is shortened and the year kept. Two artists with the same name get the second one's disambiguation or the start of its id after the name (`Blue Ruin (US punk)`), and an EP or single that has the same name and year as another release of the artist gets `[EP]` or `[Single]` after the title, so their files never meet in one folder. Folders that already exist keep their names. Files are hardlinked from the downloads folder when both are on the same disk (no extra space), otherwise copied. `cover.jpg` and `folder.jpg` (or `.png`, or `.webp`) are kept beside the tracks. Other files (`.nfo`, `.log`, `.cue`) aren't copied.
+Plex, Jellyfin and Navidrome all read this layout. A name too long for a folder is shortened and the year kept. Two artists with the same name get the second one's disambiguation or the start of its id after the name (`Blue Ruin (US punk)`), and a new single or EP always gets `[Single]` or `[EP]` after the title (`Sinnerman [Single] (1965)`), so it is easy to tell from the album of the same name and their files never meet in one folder. Albums have no tag. Only imports from now on are named this way: folders that already exist keep their names, and a single imported earlier stays where it is. Files are hardlinked from the downloads folder when both are on the same disk (no extra space), otherwise copied. `cover.jpg` and `folder.jpg` (or `.png`, or `.webp`) are kept beside the tracks. Other files (`.nfo`, `.log`, `.cue`) aren't copied.
 
 Files are matched by disc and track number first (from the file name, or a `CD1`/`Disc 2` folder), then by title, then by number alone. If none of a release's files can be matched, the release is blocklisted as bad and the next-best one is tried, as for movies. Tracks the release doesn't have, and extra files it has, are listed in the album's activity. When an album is upgraded (MP3 to FLAC), the old files are removed once the new ones are in place.
 

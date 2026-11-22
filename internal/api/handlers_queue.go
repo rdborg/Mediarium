@@ -27,6 +27,7 @@ type queueItemPayload struct {
 	SeriesID     int64   `json:"seriesId,omitempty"`
 	AlbumID      int64   `json:"albumId,omitempty"` // an album grab (music module)
 	BookID       int64   `json:"bookId,omitempty"`  // a book grab (ebooks and audiobooks)
+	OtherID      int64   `json:"otherId,omitempty"` // a grab for an Other item
 	BookFormat   string  `json:"bookFormat,omitempty"`
 	TMDBID       int     `json:"tmdbId,omitempty"`
 	Title        string  `json:"title"`
@@ -206,7 +207,7 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 	for i, it := range items {
 		title, subtitle, poster := namer.describe(it)
 		p := queueItemPayload{
-			ID: it.ID, MovieID: it.MovieID, SeriesID: it.SeriesID, AlbumID: it.AlbumID, BookID: it.BookID, BookFormat: it.BookFormat, Title: title, Subtitle: subtitle, PosterURL: poster,
+			ID: it.ID, MovieID: it.MovieID, SeriesID: it.SeriesID, AlbumID: it.AlbumID, BookID: it.BookID, OtherID: it.OtherID, BookFormat: it.BookFormat, Title: title, Subtitle: subtitle, PosterURL: poster,
 			ReleaseTitle: it.ReleaseTitle, Protocol: string(it.Protocol), SizeBytes: it.SizeBytes, Status: string(it.Status),
 			ProgressPct: it.ProgressPct, Error: memberText(r, plainerror.Text(it.Error)), AddedAt: it.AddedAt, CompletedAt: it.CompletedAt, DestPath: fileLabel(r, it.DestPath), KeptFile: fileLabel(r, it.KeptFile), KeptData: it.KeptData,
 			Interrupted: it.Interrupted, Pending: s.pipelines.pending(it.ID), QueuePosition: positions[it.ID],
@@ -241,7 +242,7 @@ func (s *Server) handleListQueue(w http.ResponseWriter, r *http.Request) {
 				p.TMDBID = m.TMDBID
 			}
 		}
-		if it.AlbumID == 0 && it.BookID == 0 {
+		if it.AlbumID == 0 && it.BookID == 0 && it.OtherID == 0 {
 			rel := parser.Parse(it.ReleaseTitle)
 			p.Resolution, p.Source, p.Codec = rel.Resolution, rel.Source, rel.Codec
 			p.Language = quality.FitLanguage(rel, preferred).Label
@@ -367,6 +368,38 @@ func (s *Server) handleRetryQueueItem(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]int64{"queueId": newID})
 }
 
+// handleKeepShortQueueItem is "Keep anyway" on a download that failed because
+// its file was far shorter than the movie or episode (a dub that is half as
+// long, say). The release is remembered as kept, taken off the blocklist and
+// downloaded again; this time the length check lets it through.
+func (s *Server) handleKeepShortQueueItem(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "That isn't a valid download ID.")
+		return
+	}
+	item, err := s.QueueRepo.Get(id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "That download is no longer in the queue.")
+		return
+	}
+	if item.Status != queue.StatusFailed || !isLengthFailure(item.Error) {
+		writeError(w, http.StatusConflict, "Only a download that failed for being too short can be kept this way.")
+		return
+	}
+	if _, err := s.Blocklist.KeepShort(item.ReleaseTitle, incompleteReason); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	newID, err := s.retryQueueItem(item)
+	if err != nil {
+		writeGrabError(w, err, http.StatusBadRequest)
+		return
+	}
+	s.queueItemEvent(item, "retried", queue.LevelInfo, fmt.Sprintf("Kept anyway, downloading again: %s", item.ReleaseTitle))
+	writeJSON(w, http.StatusAccepted, map[string]int64{"queueId": newID})
+}
+
 // errNotRetryable answers a retry of a download that is not failed or stopped.
 var errNotRetryable = errors.New("Only a failed or stopped download can be retried.")
 
@@ -437,8 +470,14 @@ func (s *Server) regrab(item queue.Item) (int64, error) {
 			return 0, fmt.Errorf("That book isn't in your library any more.")
 		}
 		return s.grabBook(book, books.Format(item.BookFormat), item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, queue.PriorityManual, item.Origin)
+	case item.OtherID > 0:
+		it, err := s.OtherRepo.Get(item.OtherID)
+		if err != nil {
+			return 0, fmt.Errorf("That item isn't in your library any more.")
+		}
+		return s.grabOther(it, item.ReleaseTitle, item.NZBURL, item.SizeBytes, protocol, item.Origin)
 	}
-	return 0, fmt.Errorf("This download isn't linked to a movie, show, album or book.")
+	return 0, fmt.Errorf("This download isn't linked to a movie, show, album, book or item.")
 }
 
 // queueItemEvent is itemEvent for the movie, show or album a queue item

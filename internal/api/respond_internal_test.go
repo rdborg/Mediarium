@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -43,5 +44,23 @@ func TestWriteErrorSpeaksPlainlyOnServerErrors(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDecodeJSONToleratesARequestWithoutBody(t *testing.T) {
+	for name, body := range map[string]io.ReadCloser{"nil": nil, "no body": http.NoBody, "empty": io.NopCloser(strings.NewReader(""))} {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/x", nil)
+			req.Body = body
+			var v struct{ A int }
+			if err := decodeJSON(req, &v); err != io.EOF {
+				t.Fatalf("got %v, want io.EOF", err)
+			}
+		})
+	}
+	req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"A":3}`))
+	var v struct{ A int }
+	if err := decodeJSON(req, &v); err != nil || v.A != 3 {
+		t.Fatalf("normal body: %v %+v", err, v)
 	}
 }

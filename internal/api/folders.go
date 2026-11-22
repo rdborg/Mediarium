@@ -224,6 +224,18 @@ func (s *Server) audiobooksRoot() string {
 	return s.cfg.AudiobooksDir
 }
 
+// otherRoot is the Other library: the Settings value, falling back to
+// OTHER_DIR (/other by default).
+func (s *Server) otherRoot() string {
+	if v, _ := s.Settings.Get(settings.KeyOtherPath); v != "" {
+		return v
+	}
+	if s.cfg.OtherDir != "" {
+		return s.cfg.OtherDir
+	}
+	return "/other"
+}
+
 type folderPayload struct {
 	Path       string `json:"path"`
 	Exists     bool   `json:"exists"`

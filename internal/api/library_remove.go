@@ -13,6 +13,7 @@ import (
 	"github.com/rdborg/mediarium/internal/cleanup"
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/organizer"
+	"github.com/rdborg/mediarium/internal/queue"
 )
 
 // Removing a title from the library leaves nothing behind: its downloads
@@ -29,13 +30,20 @@ const cancelWait = 30 * time.Second
 // downloads area is deleted (failed downloads' leftovers too) and its
 // queue entry is removed. It returns how many downloads it cancelled.
 func (s *Server) removeDownloadsFor(movieID, seriesID int64, title string) (int, error) {
+	return s.removeDownloadsWhere(func(it queue.Item) bool {
+		return (movieID != 0 && it.MovieID == movieID) || (seriesID != 0 && it.SeriesID == seriesID)
+	}, title)
+}
+
+// removeDownloadsWhere is removeDownloadsFor for the downloads match picks.
+func (s *Server) removeDownloadsWhere(match func(queue.Item) bool, title string) (int, error) {
 	items, err := s.QueueRepo.List()
 	if err != nil {
 		return 0, err
 	}
 	cancelled := 0
 	for _, it := range items {
-		if (movieID == 0 || it.MovieID != movieID) && (seriesID == 0 || it.SeriesID != seriesID) {
+		if !match(it) {
 			continue
 		}
 		running := s.pipelines.cancel(it.ID, cancelWait)

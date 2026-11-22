@@ -163,6 +163,31 @@ func packCovers(from, to int, seasons []int) bool {
 	return from <= seasons[0] && (to == 0 || to >= seasons[len(seasons)-1])
 }
 
+// unwantedBySeason counts, for each season, the episodes a pack would bring in
+// that the person did not ask for: not downloaded, and not monitored.
+// Specials are left out.
+func unwantedBySeason(eps []library.Episode) map[int]int {
+	out := map[int]int{}
+	for _, ep := range eps {
+		if ep.Season > 0 && !ep.Monitored && ep.Status != library.StatusDownloaded {
+			out[ep.Season]++
+		}
+	}
+	return out
+}
+
+// packFree reports whether a pack of seasons from to to (0 for "complete")
+// holds only episodes that are wanted or already in: none of its seasons has an
+// episode that is not monitored.
+func packFree(from, to int, unwanted map[int]int) bool {
+	for season, n := range unwanted {
+		if n > 0 && season >= from && (to == 0 || season <= to) {
+			return false
+		}
+	}
+	return true
+}
+
 // packSeasonCount is how many seasons a pack holds, for judging its size
 // against limits that are meant for one season. A pack that says "complete"
 // holds the show's seasons from its first on.
@@ -177,7 +202,9 @@ func packSeasonCount(from, to, showSeasons int) int {
 // to take: one that is for this show, holds all the seasons wanted, and that a
 // profile of the chain accepts. Sizes are judged per season: sizeOK says
 // whether the size table allows a release (it is given the number of seasons).
-func pickCompletePack(results []indexers.Result, series library.Series, seasons []int, showSeasons int, profile quality.Profile, sizeOK func(res indexers.Result, seasonCount int) bool) *indexers.Result {
+// packOK, when set, says whether a pack of seasons from to to may be taken at
+// all (see packFree).
+func pickCompletePack(results []indexers.Result, series library.Series, seasons []int, showSeasons int, profile quality.Profile, sizeOK func(res indexers.Result, seasonCount int) bool, packOK func(from, to int) bool) *indexers.Result {
 	for _, p := range profile.Chain() {
 		if p.NoSeasonPacks {
 			continue
@@ -187,7 +214,7 @@ func pickCompletePack(results []indexers.Result, series library.Series, seasons 
 			res := &results[i]
 			parsed := res.Parsed()
 			from, to, ok := parsed.SeasonSpan()
-			if !ok || !packCovers(from, to, seasons) {
+			if !ok || !packCovers(from, to, seasons) || (packOK != nil && !packOK(from, to)) {
 				continue
 			}
 			if ok, _ := p.TitleAllowedRel(res.Title, parsed); !ok {
@@ -198,7 +225,7 @@ func pickCompletePack(results []indexers.Result, series library.Series, seasons 
 			}
 			count := packSeasonCount(from, to, showSeasons)
 			per := res.SizeBytes / int64(count)
-			if !builtinSizeOK(quality.Classify(parsed), res.SizeBytes, quality.SeasonPack, knownEpisodeMinutes(series)) || !p.SizeAllowed(per) || (sizeOK != nil && !sizeOK(*res, count)) {
+			if !builtinSizeOK(quality.Classify(parsed), res.SizeBytes, quality.SeasonPack, knownEpisodeMinutes(series)) || !p.PackSizeAllowed(res.SizeBytes, per) || (sizeOK != nil && !sizeOK(*res, count)) {
 				continue
 			}
 			pk.add(i, keyFor(p, parsed, res), res)
@@ -274,6 +301,25 @@ func (s *Server) searchCompleteSeries(ctx context.Context, sr library.Series, in
 		return completeSearchResult{}, fmt.Errorf("list episodes: %w", err)
 	}
 	needs, busy := completeNeeds(profile, eps, time.Now())
+	// A pack brings in every episode of its seasons. A season with episodes
+	// that are not monitored (a show that follows only new episodes has all its
+	// old ones off) is left to the episode by episode search.
+	unwanted := unwantedBySeason(eps)
+	held := 0
+	kept := needs[:0:0]
+	for _, n := range needs {
+		if unwanted[n.season] > 0 {
+			held++
+			continue
+		}
+		kept = append(kept, n)
+	}
+	needs = kept
+	if len(needs) == 0 && held > 0 {
+		msg := "The seasons with missing episodes also hold episodes you don't monitor, and a pack would bring those in too. Monitor them, or use Find missing episodes to get the monitored ones one by one."
+		say(queue.LevelInfo, "Searched for the complete series: not done, a pack would bring in episodes that are not monitored")
+		return completeSearchResult{Message: msg}, nil
+	}
 	if len(needs) == 0 {
 		msg := "Nothing is missing from the seasons you monitor, so there was nothing to look for."
 		if busy > 0 {
@@ -305,7 +351,7 @@ func (s *Server) searchCompleteSeries(ctx context.Context, sr library.Series, in
 			continue // out of searches, or the app is shutting down
 		}
 		found := filterSources(dropBlocked(raw, blocked, blocklist.Scope{SeriesID: sr.ID}), sources)
-		found = s.limitTVResults(sr, n.season, 0, profile, nil, false, found)
+		found = dropPostedBeforeAiring(s.limitTVResults(sr, n.season, 0, profile, nil, false, found), seasonFirstAir(eps, n.season, n.season))
 		if best := pickSeasonPack(found, sr, n.season, profile, packPlan{floor: n.floor}, mapper); best != nil {
 			picks[n.season] = best
 		}
@@ -314,7 +360,7 @@ func (s *Server) searchCompleteSeries(ctx context.Context, sr library.Series, in
 	// Step two: a pack of the whole series, when some season has no pack.
 	var whole *indexers.Result
 	if len(picks) < len(needs) && ctx.Err() == nil {
-		whole = s.findWholeSeriesPack(ctx, sr, instances, profile, seasons, showSeasons, blocked, sources)
+		whole = s.findWholeSeriesPack(ctx, sr, instances, profile, eps, seasons, showSeasons, blocked, sources, unwanted)
 	}
 
 	var res completeSearchResult
@@ -380,6 +426,17 @@ func (s *Server) searchCompleteSeries(ctx context.Context, sr library.Series, in
 	return res, nil
 }
 
+// seasonFirstAir is the day the first episode of seasons lo to hi aired.
+func seasonFirstAir(eps []library.Episode, lo, hi int) string {
+	var in []library.Episode
+	for _, ep := range eps {
+		if ep.Season >= lo && ep.Season <= hi && ep.Season > 0 {
+			in = append(in, ep)
+		}
+	}
+	return firstAirDate(in)
+}
+
 // lackingOf lists the seasons that have no pick.
 func lackingOf(seasons []int, picks map[int]*indexers.Result) []int {
 	var out []int
@@ -394,7 +451,7 @@ func lackingOf(seasons []int, picks map[int]*indexers.Result) []int {
 // findWholeSeriesPack searches for a pack of the whole series and returns the
 // one to take, if any. What was found, and why none was good enough, goes into
 // the show's history.
-func (s *Server) findWholeSeriesPack(ctx context.Context, sr library.Series, instances []indexers.Instance, profile quality.Profile, seasons []int, showSeasons int, blocked map[string]bool, sources string) *indexers.Result {
+func (s *Server) findWholeSeriesPack(ctx context.Context, sr library.Series, instances []indexers.Instance, profile quality.Profile, eps []library.Episode, seasons []int, showSeasons int, blocked map[string]bool, sources string, unwanted map[int]int) *indexers.Result {
 	sr = s.seriesWithAltTitles(ctx, sr)
 	var outcomes []indexers.Outcome
 	for _, q := range wholeSeriesQueries(sr.Title, showSeasons) {
@@ -420,13 +477,15 @@ func (s *Server) findWholeSeriesPack(ctx context.Context, sr library.Series, ins
 			return false, "not a pack of several seasons"
 		case !packCovers(from, to, seasons):
 			return false, "missing some of the seasons wanted"
+		case !packFree(from, to, unwanted):
+			return false, "holds episodes you don't monitor"
 		}
 		return true, ""
 	}
 	limit := func(res indexers.Result) string {
 		from, to, _ := res.Parsed().SeasonSpan()
 		count := packSeasonCount(from, to, showSeasons)
-		if !profile.SizeAllowed(res.SizeBytes/int64(count)) || !sizeOK(res, count) {
+		if !profile.PackSizeAllowed(res.SizeBytes, res.SizeBytes/int64(count)) || !sizeOK(res, count) {
 			return reasonSize
 		}
 		return ""
@@ -436,8 +495,8 @@ func (s *Server) findWholeSeriesPack(ctx context.Context, sr library.Series, ins
 	v.addThin(thin)
 	v.failedIndexers = failedIndexers(outcomes)
 
-	candidates := filterSources(dropBlocked(s.autoCandidates(ctx, merged), blocked, blocklist.Scope{SeriesID: sr.ID}), sources)
-	best := pickCompletePack(candidates, sr, seasons, showSeasons, profile, sizeOK)
+	candidates := dropPostedBeforeAiring(filterSources(dropBlocked(s.autoCandidates(ctx, merged), blocked, blocklist.Scope{SeriesID: sr.ID}), sources), seasonFirstAir(eps, seasons[0], showSeasons))
+	best := pickCompletePack(candidates, sr, seasons, showSeasons, profile, sizeOK, func(from, to int) bool { return packFree(from, to, unwanted) })
 	msg, level := v.message("Searched for a pack of the whole series", pickedText(profile, best))
 	if hint := foreignShowHint(sr); best == nil && hint != "" && (strings.Contains(msg, "none acceptable") || strings.Contains(msg, "no releases found")) {
 		msg += ". " + hint

@@ -35,6 +35,7 @@ export const SUBTITLE_LANGUAGES: { code: string; name: string }[] = [
   { code: 'zh-CN', name: t('Chinese (Simplified)') },
   { code: 'zh-TW', name: t('Chinese (Traditional)') },
   { code: 'hi', name: t('Hindi') },
+  { code: 'fa', name: t('Persian') },
   { code: 'id', name: t('Indonesian') },
   { code: 'th', name: t('Thai') },
   { code: 'vi', name: t('Vietnamese') },

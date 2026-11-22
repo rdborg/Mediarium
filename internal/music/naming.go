@@ -81,15 +81,52 @@ func AlbumPath(root, artist, album string, year int, clean Sanitizer) string {
 	return filepath.Join(root, ArtistFolder(artist, clean), AlbumFolder(album, year, clean))
 }
 
-// UniqueAlbumPath is AlbumPath, unless another album of the library already
-// has that folder: two bands with the same name (they share an artist folder),
-// or an album and a single of the same name and year. Their files would land
-// in one folder, the second import would find every file "already there" and
-// fail. The one that comes second is told apart by the other band's
-// disambiguation (or the start of its id), and a single or EP by its type
-// ("Title (2020) [Single]"). Names already in use stay as they are: an album is
-// only moved aside from a folder that is taken, never the one holding it.
-// taken is every album of the library (the album itself is skipped).
+// TypeLabel is the word a single or an EP carries in its folder name
+// ("Single", "EP"), and "" for an album or anything else.
+func TypeLabel(albumType string) string {
+	switch strings.ToLower(strings.TrimSpace(albumType)) {
+	case "ep":
+		return "EP"
+	case "single":
+		return "Single"
+	}
+	return ""
+}
+
+// FolderTitle is the title an album's folder is named after. A single or an EP
+// gets its type after the title ("Title [Single]") so it is told from an album
+// of the same name at a glance, and never clashes with one. An album keeps its
+// title as it is, and so does a title that already ends in its type.
+func FolderTitle(title, albumType string) string {
+	label := TypeLabel(albumType)
+	if label == "" {
+		return title
+	}
+	t := strings.ToLower(strings.TrimSpace(title))
+	l := strings.ToLower(label)
+	for _, suffix := range []string{" [" + l + "]", " (" + l + ")", " - " + l} {
+		if strings.HasSuffix(t, suffix) {
+			return title
+		}
+	}
+	return title + " [" + label + "]"
+}
+
+// UniqueAlbumPath is AlbumPath for a new import: a single or an EP is named
+// "Title [Single] (2020)" or "Title [EP] (2020)", an album "Title (2020)". On
+// top of that it keeps two albums out of one folder: two bands with the same
+// name (they share an artist folder), or two releases of one name, type and
+// year. Their files would land in one folder, the second import would find
+// every file "already there" and fail. The one that comes second is told apart
+// by the other band's disambiguation (or the start of its id), and the second
+// of two same-named albums by the start of its id.
+//
+// An album that already has a folder (its Path) keeps the naming it was
+// imported with: a single imported before the type was always added stays in
+// its folder, and is only given the type when another release is in the way.
+// Names already in use stay as they are: an album is only moved aside from a
+// folder that is taken, never the one holding it. taken is every album of the
+// library (the album itself is skipped).
 func UniqueAlbumPath(root string, artist Artist, album Album, taken []Album, clean Sanitizer) string {
 	year := album.Year()
 	holder := func(p string) (Album, bool) {
@@ -101,6 +138,12 @@ func UniqueAlbumPath(root string, artist Artist, album Album, taken []Album, cle
 		return Album{}, false
 	}
 	artistName, albumTitle := artist.Name, album.Title
+	if typed := FolderTitle(albumTitle, album.Type); album.Path == "" {
+		albumTitle = typed
+	} else if typed != albumTitle && strings.EqualFold(filepath.Clean(album.Path), filepath.Clean(AlbumPath(root, artistName, typed, year, clean))) {
+		// Imported with its type in the name: more files go to the same folder.
+		albumTitle = typed
+	}
 	other, ok := holder(AlbumPath(root, artistName, albumTitle, year, clean))
 	if !ok {
 		return AlbumPath(root, artistName, albumTitle, year, clean)
@@ -120,12 +163,13 @@ func UniqueAlbumPath(root string, artist Artist, album Album, taken []Album, cle
 			return AlbumPath(root, artistName, albumTitle, year, clean)
 		}
 	}
-	// Another album of this artist: its type, then its id.
-	if kind := strings.ToLower(album.Type); kind == "ep" || kind == "single" {
-		label := map[string]string{"ep": "EP", "single": "Single"}[kind]
-		if _, ok := holder(AlbumPath(root, artistName, albumTitle+" ["+label+"]", year, clean)); !ok {
-			return AlbumPath(root, artistName, albumTitle+" ["+label+"]", year, clean)
+	// Another release of this artist: its type (for a single or EP that has a
+	// folder named without it), then its id.
+	if typed := FolderTitle(albumTitle, album.Type); typed != albumTitle {
+		if _, ok := holder(AlbumPath(root, artistName, typed, year, clean)); !ok {
+			return AlbumPath(root, artistName, typed, year, clean)
 		}
+		albumTitle = typed
 	}
 	return AlbumPath(root, artistName, albumTitle+" ["+short(album.MBID)+"]", year, clean)
 }

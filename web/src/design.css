@@ -2759,6 +2759,9 @@ tr.is-default > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .backup-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .inline-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .inline-field select { width: auto; min-width: 70px; }
+/* A checkbox with a long label stays beside the first line of it instead of sitting alone above it. */
+.inline-field:has(> input[type='checkbox']):not(:has(select)) { flex-wrap: nowrap; align-items: flex-start; }
+.inline-field:has(> input[type='checkbox']):not(:has(select)) > input { flex: none; margin-top: 3px; }
 .field-hint { color: var(--text-dim); font-size: 0.88rem; }
 .file-list li > .btn-sm { margin-left: auto; flex: none; }
 
@@ -3345,6 +3348,7 @@ img[data-broken] { visibility: hidden; }
 .rel-scroll table.rel-table { display: table; width: 100%; overflow: visible; }
 .rel-table th { white-space: nowrap; }
 .rel-table td.rel-fit { white-space: nowrap; }
+.rel-table td.rel-fit button { white-space: nowrap; }
 .rel-table td.rel-dim { opacity: 0.5; }
 .rel-table th, .rel-table td { padding-left: 8px; padding-right: 8px; }
 .rel-table td.rel-name { min-width: 11rem; overflow-wrap: anywhere; }
@@ -3534,3 +3538,32 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
 .load-failed { display: grid; gap: 14px; justify-items: start; margin-top: 8px; }
 .load-failed .error-text { margin: 0; }
 .load-failed-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* The Other library: items made by name, each with its own folder of files. */
+.other-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.other-item { border: 1px solid var(--border); border-left: 3px solid var(--c-other); border-radius: 12px; background: var(--surface); padding: 10px 14px; min-width: 0; }
+.other-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px 14px; }
+.other-name { display: flex; align-items: center; gap: 8px; min-width: 0; background: none; border: 0; padding: 4px 0; color: var(--text); text-align: left; cursor: pointer; }
+.other-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.other-state { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 0.9em; color: var(--text-dim); }
+.other-state.st-downloaded { color: var(--c-other); }
+.other-state.st-downloading { color: var(--accent); }
+.other-meta { color: var(--text-dim); white-space: nowrap; font-size: 0.9em; }
+.other-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.other-actions .btn-with-icon { white-space: nowrap; }
+.other-panel, .other-add { display: grid; gap: 10px; margin: 10px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); max-width: 640px; }
+.other-add { margin: 0 0 16px; }
+.other-panel label, .other-add label { display: grid; gap: 4px; }
+.other-panel .form-actions, .other-add .form-actions { display: flex; }
+.other-panel .field-hint { margin: 0; text-wrap: balance; }
+.other-files { margin: 8px 0 2px; display: grid; gap: 6px; }
+.other-files ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.other-files li { display: flex; justify-content: space-between; gap: 12px; min-width: 0; }
+.other-files li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.other-files li small { white-space: nowrap; color: var(--text-dim); }
+.other-path { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+.other-root { margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 1100px) {
+  .other-head { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+  .other-actions { grid-column: auto; flex-wrap: nowrap; }
+}

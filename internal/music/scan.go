@@ -111,12 +111,25 @@ func ParseAlbumFolder(name, artist string) (title string, year int) {
 	if m := reYearFirst.FindStringSubmatch(name); m != nil {
 		if rest := cutAlbum(m[3]); rest != "" {
 			year, _ = strconv.Atoi(m[1] + m[2]) // one of the two is empty
-			return rest, year
+			return withoutTypeTag(rest), year
 		}
 	}
 	title = cutAlbum(name)
 	if title == "" {
 		title = name
 	}
-	return title, yearFrom(name, title)
+	return withoutTypeTag(title), yearFrom(name, title)
+}
+
+// reTypeTag is the "[Single]" or "[EP]" that follows a title in a folder
+// Mediarium named: it tells the release type, it is not part of the title.
+var reTypeTag = regexp.MustCompile(`(?i)\s*\[(?:single|ep)\]\s*$`)
+
+// withoutTypeTag drops a trailing "[Single]" or "[EP]" from a folder's title,
+// unless that is all the title is.
+func withoutTypeTag(title string) string {
+	if t := strings.TrimSpace(reTypeTag.ReplaceAllString(title, "")); t != "" {
+		return t
+	}
+	return title
 }

@@ -22,6 +22,7 @@ const (
 	moduleEbooks     = "ebooks"
 	moduleAudiobooks = "audiobooks"
 	moduleAnime      = "anime"
+	moduleOther      = "other"
 	moduleLifecycle  = "lifecycle"
 	moduleArchiver   = "archiver"
 )
@@ -64,6 +65,12 @@ func (s *Server) audiobooksEnabled() bool {
 	return v == "1"
 }
 
+// otherEnabled reports whether the Other media type is on (other.go).
+func (s *Server) otherEnabled() bool {
+	v, _ := s.Settings.Get(settings.KeyModulesOther)
+	return v == "1"
+}
+
 // animeEnabled reports whether anime has its own library (anime.go). It is
 // part of TV, so it is off while TV is.
 func (s *Server) animeEnabled() bool {
@@ -94,6 +101,9 @@ type modulesPayload struct {
 	Music      moduleState `json:"music"`
 	Audiobooks moduleState `json:"audiobooks"`
 	Ebooks     moduleState `json:"ebooks"`
+	// Other is the library for things that are not movies, shows, music or
+	// books. Its items are made by name and never looked up anywhere.
+	Other moduleState `json:"other"`
 	// Anime is the anime library inside TV (its own tab, folder, profile and names).
 	Anime moduleState `json:"anime"`
 	// Lifecycle is the library lifecycle rules and the Leaving soon shelf. It is
@@ -133,6 +143,7 @@ func (s *Server) modulesPayload() modulesPayload {
 		Music:      moduleState{Enabled: s.musicEnabled(), Available: true},
 		Audiobooks: moduleState{Enabled: s.audiobooksEnabled(), Available: true},
 		Ebooks:     moduleState{Enabled: s.ebooksEnabled(), Available: true},
+		Other:      moduleState{Enabled: s.otherEnabled(), Available: true},
 		Anime:      moduleState{Enabled: s.animeEnabled(), Available: true},
 		Lifecycle:  moduleState{Enabled: s.lifecycleEnabled(), Available: true},
 		Archiver:   moduleState{Enabled: s.archiverEnabled(), Available: true},
@@ -162,6 +173,7 @@ type moduleChanges struct {
 	Music      *bool `json:"music"`
 	Audiobooks *bool `json:"audiobooks"`
 	Ebooks     *bool `json:"ebooks"`
+	Other      *bool `json:"other"`
 	Anime      *bool `json:"anime"`
 	Lifecycle  *bool `json:"lifecycle"`
 	Archiver   *bool `json:"archiver"`
@@ -211,7 +223,8 @@ func (s *Server) setModulesIn(st settingSetter, c moduleChanges) error {
 	}
 	movies, tv, music := pick(c.Movies, s.moviesEnabled()), pick(c.TV, s.tvEnabled()), pick(c.Music, s.musicEnabled())
 	ebooks, audiobooks := pick(c.Ebooks, s.ebooksEnabled()), pick(c.Audiobooks, s.audiobooksEnabled())
-	if !movies && !tv && !music && !ebooks && !audiobooks {
+	other := pick(c.Other, s.otherEnabled())
+	if !movies && !tv && !music && !ebooks && !audiobooks && !other {
 		return errNoModules
 	}
 	stored, _ := s.Settings.Get(settings.KeyModulesAnime)
@@ -242,6 +255,7 @@ func (s *Server) setModulesIn(st settingSetter, c moduleChanges) error {
 		{c.Music, settings.KeyMusicEnabled, music}, // the older name, kept in step
 		{c.Ebooks, settings.KeyModulesEbooks, ebooks},
 		{c.Audiobooks, settings.KeyModulesAudiobooks, audiobooks},
+		{c.Other, settings.KeyModulesOther, other},
 		{c.Anime, settings.KeyModulesAnime, anime},
 		{c.Lifecycle, settings.KeyModulesLifecycle, pick(c.Lifecycle, false)},
 		{c.Archiver, settings.KeyModulesArchiver, pick(c.Archiver, false)},
@@ -273,6 +287,11 @@ func (s *Server) requireModule(w http.ResponseWriter, module string) bool {
 	case moduleEbooks:
 		if !s.ebooksEnabled() {
 			writeError(w, http.StatusConflict, "Ebooks are switched off. Switch them on in Settings > Basics > Media types.")
+			return false
+		}
+	case moduleOther:
+		if !s.otherEnabled() {
+			writeError(w, http.StatusConflict, "Other is switched off. Switch it on in Settings > Basics > Media types.")
 			return false
 		}
 	case moduleAudiobooks:

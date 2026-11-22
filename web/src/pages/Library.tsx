@@ -7,6 +7,7 @@ import { useAuth } from '../AuthContext'
 import { defaultProfileFor } from '../profileDefaults'
 import { useModules, type MediaKind } from '../ModulesContext'
 import { activeLibraryTab, libraryTabs } from '../libraryTabs'
+import OtherLibrary from '../components/OtherLibrary'
 import MusicLibrary from './MusicLibrary'
 import BookLibrary from './BookLibrary'
 import ActionMenu from '../components/ActionMenu'
@@ -157,11 +158,11 @@ const FILTERS: Record<Kind, { id: string; label: string; test: (i: Item) => bool
 // most a click away on every item (search for a release, monitor, open,
 // remove) and a select mode for doing them to many at once.
 // A Library tab: a kind of media, or one of the two book formats.
-type Tab = MediaKind | 'anime' | BookFormat
+type Tab = MediaKind | 'anime' | BookFormat | 'other'
 // Each tab wears its kind's colour, as everywhere else.
-const TAB_COLOR: Record<Tab, string> = { movie: 'var(--c-movie)', tv: 'var(--c-tv)', anime: 'var(--c-anime)', music: 'var(--c-music)', ebook: 'var(--c-book)', audiobook: 'var(--c-audiobook)' }
+const TAB_COLOR: Record<Tab, string> = { movie: 'var(--c-movie)', tv: 'var(--c-tv)', anime: 'var(--c-anime)', music: 'var(--c-music)', ebook: 'var(--c-book)', audiobook: 'var(--c-audiobook)', other: 'var(--c-other)' }
 
-const TAB_LABEL: Record<Tab, string> = { movie: t('Movies'), tv: t('TV'), anime: t('Anime'), music: t('Music'), ebook: t('Ebooks'), audiobook: t('Audiobooks') }
+const TAB_LABEL: Record<Tab, string> = { movie: t('Movies'), tv: t('TV'), anime: t('Anime'), music: t('Music'), ebook: t('Ebooks'), audiobook: t('Audiobooks'), other: t('Other') }
 
 // `pane` is true while the Library is the left side of the tablet layout (see TwoPane): the posters
 // come as a narrow column and the page keeps its tab from the title that is open beside it.
@@ -666,6 +667,7 @@ export default function Library({ pane = false }: { pane?: boolean }) {
     music: artists?.length,
     ebook: bookCount('ebook'),
     audiobook: bookCount('audiobook'),
+    other: undefined,
   }
   const kindSwitch = (
     <div className="seg kind-tabs">
@@ -678,6 +680,7 @@ export default function Library({ pane = false }: { pane?: boolean }) {
     </div>
   )
 
+  if (active === 'other') return <OtherLibrary switcher={kindSwitch} admin={admin} />
   if (active === 'music') return <MusicLibrary artists={artists} error={error} switcher={kindSwitch} admin={admin} reload={load} />
   if (active === 'ebook' || active === 'audiobook') return <BookLibrary format={active} books={bookList} queue={queueNow} error={error} switcher={kindSwitch} reload={load} admin={admin} />
 

@@ -63,6 +63,7 @@ Each kind of media has its own folder, set with a container variable (or the box
 | Music | `MUSIC_DIR` | `/music` | `music.path` |
 | Ebooks | `EBOOKS_DIR` | `/ebooks` | `ebooks.path` |
 | Audiobooks | `AUDIOBOOKS_DIR` | `/audiobooks` | `audiobooks.path` |
+| Other | `OTHER_DIR` | `/other` | `other.path` |
 
 Downloads use `DOWNLOADS_DIR` (`/downloads`, setting `library.downloads_path`). `GET /api/settings` returns the folder in use for each (`moviesPath`, `tvPath`, `downloadsPath`, `musicPath`, `ebooksPath`, `audiobooksPath`) and a read-only `containerFolders` object with the values from the environment, so a screen can tell when a saved folder differs from the mapped one.
 

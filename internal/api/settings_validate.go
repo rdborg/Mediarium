@@ -81,6 +81,7 @@ func (s *Server) validateSettings(req *settingsPayload) string {
 	req.MusicPath = strings.TrimSpace(req.MusicPath)
 	req.EbooksPath = strings.TrimSpace(req.EbooksPath)
 	req.AudiobooksPath = strings.TrimSpace(req.AudiobooksPath)
+	req.OtherPath = strings.TrimSpace(req.OtherPath)
 	for _, f := range []struct {
 		key, value, label, example string
 	}{
@@ -90,6 +91,7 @@ func (s *Server) validateSettings(req *settingsPayload) string {
 		{settings.KeyMusicPath, req.MusicPath, "The music folder", "/media/music"},
 		{settings.KeyEbooksPath, req.EbooksPath, "The ebooks folder", "/media/ebooks"},
 		{settings.KeyAudiobooksPath, req.AudiobooksPath, "The audiobooks folder", "/media/audiobooks"},
+		{settings.KeyOtherPath, req.OtherPath, "The Other folder", "/media/other"},
 	} {
 		if f.value == "" || !s.changed(f.key, f.value) {
 			continue
@@ -415,6 +417,9 @@ func (s *Server) checkSettingsLimits(req *settingsPayload) string {
 	}
 	if req.MinFreeGB != nil && (*req.MinFreeGB < 0 || *req.MinFreeGB > 10000) {
 		return "Keep 0 (off) to 10000 GB free."
+	}
+	if req.MaxReleaseGB != nil && (*req.MaxReleaseGB < 0 || *req.MaxReleaseGB > 10000) {
+		return "Give the largest release as 0 (no limit) to 10000 GB."
 	}
 	if req.BackupKeep != nil && (*req.BackupKeep < 1 || *req.BackupKeep > 60) {
 		return "Keep between 1 and 60 backups."

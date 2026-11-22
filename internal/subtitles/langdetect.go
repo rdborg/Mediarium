@@ -45,7 +45,7 @@ var languageNames = []struct {
 	{"ru", []string{"ru", "rus", "russian", "russkij", "russkiy", "русский"}},
 	{"ar", []string{"ar", "ara", "arabic", "العربية"}},
 	{"he", []string{"he", "iw", "heb", "hebrew", "עברית"}},
-	{"fa", []string{"fa", "per", "fas", "persian", "farsi"}},
+	{"fa", []string{"fa", "per", "fas", "persian", "farsi", "فارسی"}},
 	{"hi", []string{"hin", "hindi"}},
 	{"ja", []string{"ja", "jpn", "japanese", "nihongo", "日本語"}},
 	{"ko", []string{"ko", "kor", "korean", "한국어"}},

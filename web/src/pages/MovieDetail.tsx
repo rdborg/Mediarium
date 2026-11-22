@@ -125,6 +125,24 @@ function MoviePage() {
     }
   }
 
+  // Let the movie go of its file without deleting it, so the file can be linked to another movie.
+  async function unlinkFile() {
+    if (!movie?.libraryId) return
+    const answer = await confirm({
+      title: t('Unlink the file of {name}?', { name: movie.title }),
+      body: <p>{t('The file stays where it is on your disk. This movie shows as missing again, and the file can be linked to a different movie. If it is monitored, Mediarium will look for a new release.')}</p>,
+      confirmLabel: t('Unlink'),
+    })
+    if (!answer) return
+    try {
+      await api.unlinkMovieFile(movie.libraryId)
+      toast.success(t('Unlinked. The file is still on your disk.'))
+      reload()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   // A file far shorter than the movie should be: delete it and look for another release.
   async function redoShortFile() {
     if (!movie?.libraryId) return
@@ -378,6 +396,11 @@ function MoviePage() {
               {admin && ((movie.status === 'downloaded' && movie.filePath) || movie.status === 'missing') && (
                 <button className="btn-with-icon" onClick={() => void rescan()} disabled={rescanning} title={movie.filePath ? t('Looks at the file on your disk again: if it was deleted by hand the movie is wanted again, and a renamed file is found.') : t("Looks in the movie's folder for a video file you put there by hand and adds it to the movie.")}>
                   <Icon name="folder" size={16} /> {rescanning ? t('Checking…') : t('Rescan files')}
+                </button>
+              )}
+              {admin && movie.status === 'downloaded' && movie.filePath && (
+                <button className="btn-with-icon" onClick={() => void unlinkFile()} title={t('Detach this movie from its file and keep the file on your disk')}>
+                  <Icon name="folder" size={16} /> {t('Unlink file')}
                 </button>
               )}
               {admin && movie.status === 'downloaded' && movie.filePath && (

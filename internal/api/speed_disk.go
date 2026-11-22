@@ -188,6 +188,52 @@ func (s *Server) minFreeGB() int {
 	return n
 }
 
+// maxReleaseGB is the largest release in GB that is taken, 0 for no limit.
+func (s *Server) maxReleaseGB() int {
+	v, _ := s.Settings.Get(settings.KeyMaxReleaseGB)
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
+// reserveBytes is the free space kept on the download disk after a release:
+// the "keep at least" setting, and never less than the small fixed reserve.
+func (s *Server) reserveBytes() int64 {
+	return max(int64(s.minFreeGB())<<30, int64(releaseSpaceReserve))
+}
+
+// downloadDiskDir is the folder whose disk a new download fills: the temporary
+// download folder when there is one, else the downloads folder.
+func (s *Server) downloadDiskDir() string {
+	if b := s.tempBase(); b != "" {
+		return b
+	}
+	return s.downloadsRoot()
+}
+
+// downloadRoomBytes is how big a new release can be and still leave the disk
+// the free space it was asked to keep: 0 when that cannot be told (never a
+// reason to refuse), 1 when the disk is already below the reserve (nothing
+// fits). Searches use it so a release that would fill the disk is skipped
+// before it is grabbed, not when the download fails.
+func (s *Server) downloadRoomBytes() int64 {
+	dir := s.downloadDiskDir()
+	if dir == "" {
+		return 0
+	}
+	u, err := fsinfo.DiskUsage(dir)
+	if err != nil || u.TotalBytes == 0 {
+		return 0
+	}
+	room := int64(u.FreeBytes) - s.reserveBytes()
+	if room < 1 {
+		return 1
+	}
+	return room
+}
+
 // releaseSpaceReserve is kept free on top of what a release needs.
 const releaseSpaceReserve = 256 << 20
 
@@ -196,6 +242,18 @@ const releaseSpaceReserve = 256 << 20
 // small reserve against the disk's free space. When the free space cannot be
 // read nothing is refused, as a guess must never stop a download.
 func checkRoomForRelease(dir string, need int64) error {
+	return checkRoomKeeping(dir, need, releaseSpaceReserve)
+}
+
+// checkRoomForRelease on a Server is the same keeping the person's "keep at
+// least" free space instead of only the small fixed reserve.
+func (s *Server) checkRoomForRelease(dir string, need int64) error {
+	return checkRoomKeeping(dir, need, s.reserveBytes())
+}
+
+// checkRoomKeeping refuses a release that cannot fit in dir and still leave
+// reserve bytes free.
+func checkRoomKeeping(dir string, need, reserve int64) error {
 	if need <= 0 {
 		return nil
 	}
@@ -204,8 +262,11 @@ func checkRoomForRelease(dir string, need int64) error {
 		return nil
 	}
 	left := need - cleanup.Size(dir)
-	if left <= 0 || uint64(left)+releaseSpaceReserve <= u.FreeBytes {
+	if left <= 0 || uint64(left)+uint64(reserve) <= u.FreeBytes {
 		return nil
+	}
+	if reserve > releaseSpaceReserve {
+		return fmt.Errorf("there is not enough free disk space in the downloads folder for this release: it needs %s and %s is free, and you asked to keep %s free", humanBytes(left), humanBytes(int64(u.FreeBytes)), humanBytes(reserve))
 	}
 	return fmt.Errorf("there is not enough free disk space in the downloads folder for this release: it needs %s and %s is free", humanBytes(left), humanBytes(int64(u.FreeBytes)))
 }

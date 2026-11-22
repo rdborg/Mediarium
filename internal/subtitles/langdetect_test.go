@@ -32,6 +32,11 @@ func TestDetectLanguage(t *testing.T) {
 		{"native accented", "Subs/Português.srt", "pt", false, false},
 		{"native name", "Subs/Deutsch.srt", "de", false, false},
 		{"native cyrillic", "Subs/Русский.srt", "ru", false, false},
+		{"persian name", "Subs/Persian.srt", "fa", false, false},
+		{"farsi name", "Movie.2020.Farsi.srt", "fa", false, false},
+		{"persian bibliographic code", "Movie.per.srt", "fa", false, false},
+		{"persian terminologic code", "Movie.fas.srt", "fa", false, false},
+		{"persian in its own script", "Subs/فارسی.srt", "fa", false, false},
 		{"spanish name", "Spanish.srt", "es", false, false},
 		{"name at end of release name", "Movie.2020.1080p.BluRay.x264.Italian.srt", "it", false, false},
 		// regions

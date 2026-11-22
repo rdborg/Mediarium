@@ -127,7 +127,7 @@ func TestPickCompletePack(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := pickCompletePack(c.results, series, c.seasons, 9, c.profile, nil)
+			got := pickCompletePack(c.results, series, c.seasons, 9, c.profile, nil, nil)
 			switch {
 			case got == nil && c.want != "":
 				t.Fatalf("picked nothing, want %q", c.want)
@@ -147,13 +147,13 @@ func TestPickCompletePackJudgesSizePerSeason(t *testing.T) {
 	big := []indexers.Result{{Title: "The.Office.US.Complete.Series.1080p.BluRay.x264-GRP", SizeBytes: 80 << 30}}
 	huge := []indexers.Result{{Title: "The.Office.US.Complete.Series.1080p.BluRay.x264-GRP", SizeBytes: 200 << 30}}
 	seasons := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	if pickCompletePack(big, series, seasons, 9, p, nil) == nil {
+	if pickCompletePack(big, series, seasons, 9, p, nil, nil) == nil {
 		t.Error("80 GB for nine seasons is under 10 GB a season, it should be taken")
 	}
-	if pickCompletePack(huge, series, seasons, 9, p, nil) != nil {
+	if pickCompletePack(huge, series, seasons, 9, p, nil, nil) != nil {
 		t.Error("200 GB for nine seasons is over 10 GB a season, it should be left")
 	}
-	if pickCompletePack(big, series, seasons, 9, p, func(indexers.Result, int) bool { return false }) != nil {
+	if pickCompletePack(big, series, seasons, 9, p, func(indexers.Result, int) bool { return false }, nil) != nil {
 		t.Error("the size table said no")
 	}
 }
@@ -161,7 +161,7 @@ func TestPickCompletePackJudgesSizePerSeason(t *testing.T) {
 func TestPickCompletePackNeverTakesPacksWhenTheProfileForbidsThem(t *testing.T) {
 	p := hd1080Profile()
 	p.NoSeasonPacks = true
-	got := pickCompletePack(packResults("Show.Complete.Series.1080p.BluRay.x264-GRP"), library.Series{Title: "Show"}, []int{1, 2}, 2, p, nil)
+	got := pickCompletePack(packResults("Show.Complete.Series.1080p.BluRay.x264-GRP"), library.Series{Title: "Show"}, []int{1, 2}, 2, p, nil, nil)
 	if got != nil {
 		t.Fatalf("picked %q", got.Title)
 	}

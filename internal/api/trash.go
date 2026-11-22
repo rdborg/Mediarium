@@ -108,6 +108,9 @@ func (s *Server) trashRoots() map[string]string {
 	if a := s.audiobooksRoot(); a != "" {
 		roots["audiobooks"] = a
 	}
+	if o := s.otherRoot(); o != "" {
+		roots["other"] = o
+	}
 	return roots
 }
 

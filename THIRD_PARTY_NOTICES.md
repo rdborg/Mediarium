@@ -90,7 +90,7 @@ Air times from TVmaze. Only a show's TheTVDB or IMDb id, or its name and year, i
 | github.com/google/go-cmp | v0.7.0 | BSD-3-Clause |
 | github.com/google/go-tpm | v0.9.8 | Apache-2.0 |
 | github.com/google/uuid | v1.6.0 | BSD-3-Clause |
-| github.com/gorilla/websocket | v1.5.3 | BSD-2-Clause |
+| github.com/gorilla/websocket | v1.5.4-0.20240701034025-d67f41855da4 | BSD-2-Clause |
 | github.com/huandu/xstrings | v1.3.2 | MIT |
 | github.com/klauspost/cpuid/v2 | v2.2.3 | MIT |
 | github.com/kr/smartypants | v0.1.0 | BSD-2-Clause |
@@ -6191,7 +6191,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 
-### github.com/gorilla/websocket v1.5.3
+### github.com/gorilla/websocket v1.5.4-0.20240701034025-d67f41855da4
 
 ```text
 Copyright (c) 2013 The Gorilla WebSocket Authors. All rights reserved.

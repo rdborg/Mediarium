@@ -26,6 +26,14 @@ func TestNamingFormatsFromRadarrAndSonarr(t *testing.T) {
 		t.Fatalf("saved = %v", saved)
 	}
 
+	// The TRaSH format writes the codec and the channels as two groups sharing one
+	// bracket; the sample has both, so the preview closes it.
+	trash := "{Movie CleanTitle} ({Release Year}) {[Quality Full]}{[Mediainfo AudioCodec}{ Mediainfo AudioChannels]}{[MediaInfo VideoCodec]}{-Release Group}"
+	p = getJSON[map[string]any](t, client, base+"/api/settings/naming-preview?format="+url.QueryEscape(trash))
+	if p["filename"] != "Example Movie (2024) [Bluray-1080p][DTS 5.1][x265]-GROUP.mkv" {
+		t.Fatalf("TRaSH movie preview = %v", p["filename"])
+	}
+
 	// An episode format that would give two episodes the same name is refused.
 	bad := putJSONStatus(t, client, base+"/api/settings", map[string]any{"namingPreset": "custom", "episodeNameFormat": "{Series Title} - {Episode Title}"}, http.StatusBadRequest)
 	if msg, _ := bad["error"].(string); !strings.Contains(msg, "{Season} and {Episode}") {

@@ -243,11 +243,15 @@ export default function About() {
             {helpers().map((h) => (
               <li key={h.name} className="helper-card">
                 <div className="credit-top">
-                  <a href={h.href} target="_blank" rel="noreferrer">
-                    {h.where === 'Reddit' ? 'u/' : '@'}
-                    {h.name}
-                  </a>
-                  <span className="badge">{h.where}</span>
+                  {h.href ? (
+                    <a href={h.href} target="_blank" rel="noreferrer">
+                      {h.where === 'Reddit' ? 'u/' : '@'}
+                      {h.name}
+                    </a>
+                  ) : (
+                    <span>{h.name}</span>
+                  )}
+                  <span className="badge">{h.where === 'In-app report' ? t('In-app report') : h.where}</span>
                 </div>
                 <ul>
                   {h.ideas.map((idea) => (

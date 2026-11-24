@@ -251,7 +251,7 @@ var (
 	airDateYearLastRe = regexp.MustCompile(`\b(\d{2})[.-](\d{2})[.-]((?:19|20)\d{2})\b`)
 	// batchBracketRe is the range an anime batch puts in brackets: "(01-12)".
 	batchBracketRe = regexp.MustCompile(`\.?[(\[](\d{1,4})-(\d{1,4})[)\]]`)
-	seasonPackRe   = regexp.MustCompile(`(?i)\bS(\d{1,2})(?:-S?(\d{1,2}))?\b`)
+	seasonPackRe   = regexp.MustCompile(`(?i)\bS(\d{1,2})(?:-S?(\d{1,2})|[\s.]+S(\d{1,2}))?\b`)
 
 	// junkSuffixRe is what posting tools add after the group ("-GRP-postbot",
 	// "-GRP-Obfuscated"); trailingTagRe a site's tag after it ("-GRP[rarbg]").
@@ -369,15 +369,18 @@ func endsWithTags(rest string) bool {
 }
 
 // assignSeasonPack reads a season pack marker: m[1] is the season, m[2] the
-// last season of a range, if any.
+// last season of a range, if any (written in one of three ways, so m has more groups).
 func assignSeasonPack(r *Release, m []string) {
 	if len(r.Episodes) > 0 {
 		return
 	}
 	r.Season = atoi(m[1])
 	r.Special = r.Special || r.Season == 0
-	if to := atoi(m[2]); to > r.Season {
-		r.SeasonTo = to
+	for _, g := range m[2:] { // "S01-S03", "S01 S03" and "S01.S03" all name a span
+		if to := atoi(g); to > r.Season {
+			r.SeasonTo = to
+			break
+		}
 	}
 }
 

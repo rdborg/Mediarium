@@ -58,6 +58,8 @@ func TestParseEdgeCases(t *testing.T) {
 
 		// Packs of several seasons
 		{"multi-season pack", "Show.S01-S03.1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 3, Resolution: "1080p"}},
+		{"multi-season pack with a space between", "Show S01 S05 1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 5, Resolution: "1080p"}},
+		{"multi-season pack with a dot between", "Show.S01.S05.1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 5, Resolution: "1080p"}},
 		{"multi-season pack without the second S", "Show.S01-03.1080p", parser.Release{Title: "Show", Season: 1, SeasonTo: 3, Resolution: "1080p"}},
 		{"multi-season pack in words", "Show.Season.1-4.1080p.BluRay-GRP", parser.Release{Title: "Show", Season: 1, SeasonTo: 4, Resolution: "1080p", Source: "BluRay", Group: "GRP"}},
 		{"multi-season pack with Seasons", "The.Mentalist.Seasons.1-7.1080p.BluRay-GRP", parser.Release{Title: "The Mentalist", Season: 1, SeasonTo: 7, Resolution: "1080p", Source: "BluRay", Group: "GRP"}},

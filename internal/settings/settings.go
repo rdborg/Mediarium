@@ -295,6 +295,9 @@ const (
 	KeyAudiobooksPath = "audiobooks.path" // audiobooks library folder; falls back to the AUDIOBOOKS_DIR env default (/audiobooks) when unset
 	KeyOtherPath      = "other.path"      // Other library folder (items that are not movies, shows, music or books); unset = OTHER_DIR (/other)
 
+	// How new ebooks and audiobooks are filed. Files already in the library are never moved.
+	KeyBooksFolderLayout = "books.folder_layout" // "author_series" files new books under Author/Series (an ebook as "01. Title (Year).epub", a book with no series straight under the author); anything else (including unset) is Author/Title (Year)
+
 	// Modules switchboard (Settings > Basics > Media types): which kinds of media are on.
 	KeyModulesMovies     = "modules.movies"     // "0" switches movies off; anything else (including unset) leaves them on
 	KeyModulesTV         = "modules.tv"         // "0" switches TV off; anything else (including unset) leaves it on

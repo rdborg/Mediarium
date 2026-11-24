@@ -17,6 +17,7 @@ import (
 	"github.com/rdborg/mediarium/internal/origin"
 	"github.com/rdborg/mediarium/internal/plainerror"
 	"github.com/rdborg/mediarium/internal/queue"
+	"github.com/rdborg/mediarium/internal/settings"
 )
 
 // A book download: the same download, repair and unpack as everything else,
@@ -68,22 +69,38 @@ func (s *Server) bookRoot(f books.Format) string {
 	return s.ebooksRoot()
 }
 
-// bookFolder is where a book's files go: "<root>/<Author>/<Title (Year)>".
-func (s *Server) bookFolder(b books.Book, f books.Format) (string, error) {
+// booksLayout is how new books are filed (see books.Layout*).
+func (s *Server) booksLayout() string {
+	v, _ := s.Settings.Get(settings.KeyBooksFolderLayout)
+	return books.NormalizeLayout(v)
+}
+
+// bookFolder is where a book's files go. With the default layout that is
+// "<root>/<Author>/<Title (Year)>" (an ebook is "<Title>.<ext>" in it). With
+// the series layout it is "<root>/<Author>/<Series>" for an ebook, which is a
+// file there named "01. Title (Year)", and "<root>/<Author>/<Series>/<Title
+// (Year)>" for an audiobook; a book with no series goes straight under its
+// author. stem is the ebook's file name without its extension.
+func (s *Server) bookFolder(b books.Book, f books.Format) (folder, stem string, err error) {
 	root := s.bookRoot(f)
 	if root == "" {
-		return "", fmt.Errorf("the %s folder isn't set. Choose one in Settings > Library and files > Folders", formatWord(f))
+		return "", "", fmt.Errorf("the %s folder isn't set. Choose one in Settings > Library and files > Folders", formatWord(f))
 	}
 	mode, repl := s.illegalCharSettings()
-	author := strings.TrimSpace(b.Author)
-	if author == "" {
-		author = "Unknown author"
-	}
-	folder := filepath.Join(root, organizer.Sanitize(author, mode, repl), organizer.Sanitize(books.FolderName(b), mode, repl))
-	if all, err := s.BookRepo.List(); err == nil {
+	clean := func(name string) string { return organizer.Sanitize(name, mode, repl) }
+	layout := s.booksLayout()
+	folder, stem = books.Place(root, b.Author, b, f, layout, clean)
+	all, listErr := s.BookRepo.List()
+	switch {
+	case listErr != nil:
+	case layout == books.LayoutAuthorSeries && f == books.Ebook:
+		// The file is its own place: two books of one name share no file.
+		taken := books.UniqueStem(filepath.Join(folder, stem), b, f, all)
+		folder, stem = filepath.Dir(taken), filepath.Base(taken)
+	default:
 		folder = books.UniqueFolder(folder, b, f, all)
 	}
-	return folder, nil
+	return folder, stem, nil
 }
 
 func formatWord(f books.Format) string {
@@ -209,7 +226,7 @@ func (s *Server) runBookPipeline(queueID int64, b books.Book, f books.Format, re
 	if ctx.Err() != nil {
 		return fail(ctx.Err())
 	}
-	folder, err := s.bookFolder(b, f)
+	folder, stem, err := s.bookFolder(b, f)
 	if err != nil {
 		return fail(err)
 	}
@@ -220,8 +237,7 @@ func (s *Server) runBookPipeline(queueID int64, b books.Book, f books.Format, re
 		if src == "" {
 			return fail(badRelease(errors.New("the download has no ebook file (epub, azw3, mobi or pdf)")))
 		}
-		mode, repl := s.illegalCharSettings()
-		dest := filepath.Join(folder, organizer.Sanitize(b.Title, mode, repl)+"."+format)
+		dest := filepath.Join(folder, stem+"."+format)
 		res, err := s.importDownloaded(src, dest, organizer.ConflictOverwriteIfBetter, func() bool {
 			return books.EbookRank(format) >= books.EbookRank(b.EbookFormat)
 		})

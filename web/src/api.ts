@@ -829,6 +829,8 @@ export interface Settings {
   audiobooksPath?: string
   // The Other library folder (items that are not movies, shows, music or books).
   otherPath?: string
+  // How new ebooks and audiobooks are filed: 'author_title' (the default) or 'author_series'.
+  booksFolderLayout?: string
   // What the container itself maps (MOVIES_DIR, TV_DIR, DOWNLOADS_DIR, MUSIC_DIR,
   // EBOOKS_DIR, AUDIOBOOKS_DIR). Read-only; the folder boxes start from these.
   containerFolders?: {
@@ -1662,6 +1664,7 @@ export interface Episode {
   sizeBytes?: number // the file on disk (downloaded episodes)
   fileInfo?: FileInfo // what the file holds, once it has been read
   shortFile?: ShortFileNote // the file is far shorter than the episode should be
+  releaseGroup?: string // the group in its release name; only sent to people who may change it
 }
 
 // A second copy of a movie or show, kept in another quality in the copies folder.
@@ -2301,6 +2304,7 @@ export interface MovieDetail extends TitleDetails {
   folderPath?: string // the full folder of its files, as Mediarium sees it
   fileInfo?: FileInfo // what the file holds, once it has been read
   shortFile?: ShortFileNote // the file is far shorter than the movie should be
+  releaseGroup?: string // the group in its release name; only sent to people who may change it
   // The series of films this one is part of, when it is.
   collection?: CollectionRef
   releaseDates?: MovieReleaseDates
@@ -4264,6 +4268,8 @@ export const api = {
   locateMovieFolder: (id: number, path: string) => post<RescanReport>(`/movies/${id}/locate-folder`, { path }),
   changeSeriesFolder: (id: number, path: string) => post<SeriesFolderReport>(`/series/${id}/change-folder`, { path }),
   deleteMovieFile: (id: number) => del<{ files: number; episodes: number; trashed: boolean }>(`/movies/${id}/file`),
+  setMovieReleaseGroup: (id: number, group: string) => put<{ group: string; renamed: boolean; file: string }>(`/movies/${id}/release-group`, { group }),
+  setEpisodeReleaseGroup: (id: number, group: string) => put<{ group: string; renamed: boolean; file: string }>(`/episodes/${id}/release-group`, { group }),
   unlinkMovieFile: (id: number) => post<{ file: string }>(`/movies/${id}/unlink-file`, {}),
   unlinkEpisodeFile: (id: number) => post<{ file: string }>(`/episodes/${id}/unlink-file`, {}),
   deleteEpisodeFile: (id: number) => del<{ files: number; episodes: number; trashed: boolean }>(`/episodes/${id}/file`),

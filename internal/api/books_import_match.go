@@ -134,7 +134,7 @@ func (s *Server) renameLocalBook(b books.Book, res bookImportResult) (path strin
 	if root == "" || !isWithin(root, res.Path) {
 		return stay("Added, but the file is outside your books folder, so it was not renamed.")
 	}
-	folder, err := s.bookFolder(b, res.Kind)
+	folder, stem, err := s.bookFolder(b, res.Kind)
 	if err != nil {
 		return stay(fmt.Sprintf("Added, but it was not renamed: %s", plainerror.Message(err)))
 	}
@@ -148,8 +148,7 @@ func (s *Server) renameLocalBook(b books.Book, res bookImportResult) (path strin
 		dir = false
 		name := filepath.Base(res.Path) // an audiobook keeps its file's own name
 		if res.Kind == books.Ebook {
-			mode, repl := s.illegalCharSettings()
-			name = organizer.Sanitize(b.Title, mode, repl) + filepath.Ext(res.Path)
+			name = stem + filepath.Ext(res.Path)
 		}
 		dest = filepath.Join(folder, name)
 	}

@@ -402,6 +402,10 @@ func (s *Server) handleDeleteBook(w http.ResponseWriter, r *http.Request) {
 // indexers found by then is shown. (The page gives up after 30 seconds.)
 const bookSearchWait = 25 * time.Second
 
+// manualSearchWait is the same limit for the lists of releases of a movie or a
+// show: all the passes of one search share it.
+const manualSearchWait = 25 * time.Second
+
 // bookWaitFor is the longest a book release search a person waits for may take.
 func (s *Server) bookWaitFor() time.Duration {
 	if s.bookWait > 0 {

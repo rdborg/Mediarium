@@ -70,6 +70,7 @@ interface Item {
   live?: QueueItem
   genres: string[]
   tags: string[]
+  rootPath?: string // the library folder chosen for it (left out = the main one)
   gettingDetails: boolean // an import is still filling in this title's details
   copies: number // second copies kept in another quality
   released: string // "2024-03-01", or the year alone when that is all there is
@@ -107,7 +108,7 @@ function fromMovie(m: Movie, queue: QueueItem[]): Item {
   return {
     key: `movie-${m.id}`, kind: 'movie', id: m.id, tmdbId: m.tmdbId, title: m.title, year: m.year, posterUrl: m.posterUrl,
     monitored: m.monitored !== false, profileId: m.profileId ?? 0, status: m.status, quality: m.quality, have: m.status === 'downloaded' ? 1 : 0, total: 1, filePath: m.filePath,
-    state: detailsState(m) ?? movieState(m, queue), live: progressFor(queue, (q) => q.movieId === m.id && !q.seriesId), genres: m.genres ?? [], tags: m.tags ?? [],
+    state: detailsState(m) ?? movieState(m, queue), live: progressFor(queue, (q) => q.movieId === m.id && !q.seriesId), genres: m.genres ?? [], tags: m.tags ?? [], rootPath: m.rootPath,
     gettingDetails: !!m.detailsState,
     copies: m.copies ?? 0,
     released: m.releaseDate || (m.year ? String(m.year) : ''),
@@ -123,7 +124,7 @@ function fromSeries(s: Series, queue: QueueItem[]): Item {
   return {
     key: `tv-${s.id}`, kind: 'tv', anime: s.seriesType === 'anime', id: s.id, tmdbId: s.tmdbId, title: s.title, tag: s.nameTag, year: s.year, posterUrl: s.posterUrl,
     monitored: s.monitored, profileId: s.profileId ?? 0, status, have: s.downloadedCount, total: s.episodeCount,
-    state: detailsState(s) ?? seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id), genres: s.genres ?? [], tags: s.tags ?? [],
+    state: detailsState(s) ?? seriesState(s, queue), live: progressFor(queue, (q) => q.seriesId === s.id), genres: s.genres ?? [], tags: s.tags ?? [], rootPath: s.rootPath,
     gettingDetails: !!s.detailsState,
     copies: s.copies ?? 0,
     released: s.firstAirDate || (s.year ? String(s.year) : ''),
@@ -180,7 +181,7 @@ export default function Library({ pane = false }: { pane?: boolean }) {
   // Searching and monitoring need the "manage" permission; a viewer only looks.
   const canManage = can(me, 'manage')
   // The tab and the filters live in the address, so Back from a title brings the list back as it was.
-  const [ui, patchUi] = useUrlState({ kind: pane ? paneDefaultTab(loc.pathname) : 'movie', st: 'all', q: '', genre: '', tag: '', decade: '', collection: '', profile: '', ...NO_FILE_FILTERS })
+  const [ui, patchUi] = useUrlState({ kind: pane ? paneDefaultTab(loc.pathname) : 'movie', st: 'all', q: '', genre: '', tag: '', decade: '', collection: '', profile: '', folder: '', ...NO_FILE_FILTERS })
   const { on } = useModules()
   const musicOn = on('music')
   const booksOn = on('ebooks') || on('audiobooks')
@@ -243,6 +244,8 @@ export default function Library({ pane = false }: { pane?: boolean }) {
   const decade = ui.decade
   const setDecade = (v: string) => patchUi({ decade: v })
   const profileFilter = ui.profile
+  const folderFilter = ui.folder
+  const setFolderFilter = (v: string) => patchUi({ folder: v })
   const setProfileFilter = (v: string) => patchUi({ profile: v })
   const collection = ui.collection
   // What the files hold: video codec, HDR, resolution, audio and subtitle languages (read from the files' headers).
@@ -323,6 +326,8 @@ export default function Library({ pane = false }: { pane?: boolean }) {
     if (admin) api.libraryFolders().then(setLibraryFolders).catch(() => undefined)
   }, [admin])
   const folderChoices = kind === 'movie' ? libraryFolders.movies : libraryFolders.tv
+  // The filter only exists with more than one folder; a folder in the address that nothing can match is ignored.
+  const folderOn = folderChoices.length > 1
 
   // With the anime library on, anime shows have their own tab and the TV tab the others.
   const tabShows = useMemo(() => (shows && animeOn ? shows.filter((s) => !!s.anime === onAnime) : shows), [shows, animeOn, onAnime])
@@ -340,6 +345,7 @@ export default function Library({ pane = false }: { pane?: boolean }) {
         (!tag || i.tags.some((t) => t.toLowerCase() === tag.toLowerCase())) &&
         (!decade || (i.year >= Number(decade) && i.year < Number(decade) + 10)) &&
         matchesProfile(i, profileFilter, defaultProfile, defaultTvProfile) &&
+        (!folderOn || !folderFilter || (i.rootPath || folderChoices[0] || '') === folderFilter) &&
         (!inCollection || inCollection.has(i.id)) &&
         matchesFileFilters(i.media, fileFilters),
     )
@@ -350,13 +356,13 @@ export default function Library({ pane = false }: { pane?: boolean }) {
     else if (sort === 'profile') list.sort((a, b) => compareByProfile(a, b, profiles, defaultProfile, defaultTvProfile, (x, y) => compareTitles(x.title, y.title)))
     if (reverse) list.reverse()
     return list
-  }, [items, kind, filter, text, sort, reverse, genre, tag, decade, profileFilter, profiles, defaultProfile, defaultTvProfile, collection, collections, fileFilters])
+  }, [items, kind, filter, text, sort, reverse, genre, tag, decade, profileFilter, folderFilter, folderOn, folderChoices, profiles, defaultProfile, defaultTvProfile, collection, collections, fileFilters])
   // Everything that narrows the list (sorting does not), and the way back.
-  const filtersActive =text.trim() !== '' || filter !== 'all' || genre !== '' || tag !== '' || decade !== '' || profileFilter !== '' || (kind === 'movie' && collection !== '') || fileFiltersActive(fileFilters)
+  const filtersActive =text.trim() !== '' || filter !== 'all' || genre !== '' || tag !== '' || decade !== '' || profileFilter !== '' || (folderOn && folderFilter !== '') || (kind === 'movie' && collection !== '') || fileFiltersActive(fileFilters)
   // What the files of this tab take on disk, for the line at the end of the chips.
   const totalText = useMemo(() => libraryTotalText(sumBytes(items ?? []), sumBytes(shown ?? []), filtersActive, kind), [items, shown, filtersActive, kind])
   function clearFilters() {
-    patchUi({ q: '', st: 'all', genre: '', tag: '', decade: '', collection: '', profile: '', ...NO_FILE_FILTERS })
+    patchUi({ q: '', st: 'all', genre: '', tag: '', decade: '', collection: '', profile: '', folder: '', ...NO_FILE_FILTERS })
   }
   const fileOptions = useMemo(() => fileFilterOptions(items ?? []), [items])
   const langOption = (code: string) => ({ value: code, label: `${langName(code)} (${code.toUpperCase()})` })
@@ -380,10 +386,19 @@ export default function Library({ pane = false }: { pane?: boolean }) {
   const genreOptions = useMemo(() => [...new Set((items ?? []).flatMap((i) => i.genres))].sort(), [items])
   const tagOptions = useMemo(() => [...new Set((items ?? []).flatMap((i) => i.tags))].sort((a, b) => a.localeCompare(b)), [items])
   const profileOptions = useMemo(() => profileFilterOptions(items ?? [], sortProfiles(profiles), defaultProfile, defaultTvProfile), [items, profiles, defaultProfile, defaultTvProfile])
+  // How many titles are in each library folder (the main one holds every title with no folder of its own).
+  const folderCounts = useMemo(() => {
+    const out = new Map<string, number>()
+    for (const i of items ?? []) {
+      const f = i.rootPath || folderChoices[0] || ''
+      out.set(f, (out.get(f) ?? 0) + 1)
+    }
+    return out
+  }, [items, folderChoices])
   const decadeOptions = useMemo(() => [...new Set((items ?? []).filter((i) => i.year).map((i) => Math.floor(i.year / 10) * 10))].sort((a, b) => b - a), [items])
 
   function chooseKind(k: Tab) {
-    patchUi({ kind: k, st: 'all' })
+    patchUi({ kind: k, st: 'all', folder: '' })
     setSelected(new Set())
   }
   function chooseView(v: View) {
@@ -703,6 +718,9 @@ export default function Library({ pane = false }: { pane?: boolean }) {
         <Dropdown icon="calendar" label={t('Year')} value={decade} onChange={setDecade} options={[{ value: '', label: t('Any year') }, ...decadeOptions.map((d) => ({ value: String(d), label: t('{decade}s', { decade: String(d) }) }))]} />
         {profileOptions.length > 0 && (
           <Dropdown icon="sliders" label={t('Quality profile')} value={profileFilter} onChange={setProfileFilter} options={[{ value: '', label: t('All profiles') }, ...profileOptions.map((p) => ({ value: String(p.id), label: `${p.name} (${p.count})` }))]} />
+        )}
+        {folderOn && (
+          <Dropdown icon="folder" label={t('In folder')} value={folderFilter} onChange={setFolderFilter} options={[{ value: '', label: t('All folders') }, ...folderChoices.map((f) => ({ value: f, label: `${f} (${folderCounts.get(f) ?? 0})` }))]} />
         )}
         {fileOptions.videoCodecs.length > 0 && (
           <>

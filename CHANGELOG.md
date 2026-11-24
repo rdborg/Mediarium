@@ -8,6 +8,25 @@ under [Unreleased]. How releases are cut: [docs/RELEASING.md](docs/RELEASING.md)
 
 ## [Unreleased]
 
+## [4.1.2] - 2026-11-24
+
+### Added
+- **A green box of what finished since you last looked (#216, thanks to Speedymr01 on GitHub).** At the top of the **Activity** page, downloads that finished after you last had the page open are listed once in a green box. With more than one, it shows the newest and **Show all** opens the rest. **Got it**, or leaving the page, marks them as seen. It remembers per browser.
+- **An In folder filter in the Library (#214, thanks to nexus4004 on GitHub).** With more than one movie or TV library folder, the Library filters have an **In folder** choice that lists each folder with how many titles are in it and shows only those. Titles with no folder of their own count under the main folder.
+- **Sort the downloads by the number of peers (#199, thanks to Speedymr01 on GitHub).** The **Sort** menu on the Activity page has a new **Most peers first** choice. Only torrents in the built-in client have a peer count, so other downloads go last.
+- **Change the release group of a file by hand (in-app report).** On a movie's page, and under each downloaded episode, a small **Release group** line shows the group Mediarium found with an **Edit** button. Type the right group (or leave it empty to remove it) and save: the stored release name changes and, unless **Keep the original file names** is on, the file and its subtitles are renamed to match your naming setting. If the rename can't be done nothing is changed. Needs the manage permission.
+- **File new books by series (idea from Marco, in-app report).** Under **Settings > Library and files**, **How new books are filed** has a second choice, **Author, then series, then book**. New ebooks then go in `Author/Series/01. Title (Year).epub`, new audiobooks in `Author/Series/Title (Year)/`, and a book with no series straight under its author. The number is the book's place in its series, with two digits; a novella such as 2.5 or a book with no number gets none. The default stays `Author/Title (Year)/`, books you already have are never moved, and importing an existing library reads both layouts, including `Author/Series/01. Title.epub` (the series and number are added to the book)
+
+### Changed
+- **"Watch in Plex / Jellyfin / Emby" is now the main button on a title's page (#217, thanks to JCQuintas on GitHub).** It was plain text at the end of the row and easy to miss. It is now a filled button at the start of the row, with a screen reader note that it opens in a new tab. When the title is already downloaded, **Look for a better copy** and **Find missing episodes** are outlined so there is one main action.
+
+### Fixed
+- **Choose a release no longer fails when one indexer is slow (#218, thanks to JCQuintas on GitHub).** The list of releases for a movie or a show now has one shared time limit of 25 seconds for all its searches, like the one for books. When it runs out, the releases the quick indexers already found are shown and the slow indexer is listed as not answering, instead of the whole page failing after 30 seconds. The message for a read that takes too long also no longer blames the indexers or has the typo "Your indexers is".
+- **A pack written `S01 S05` is now read as five seasons (#219, thanks to Salih800 on GitHub).** A release title with a space or a dot between the seasons (`Show S01 S05`, `Show.S01.S05`) counted only the first season, so only its episodes were claimed and the others stayed missing during the download. It now claims every season it covers, as `S01-S05` does. Adding a whole-series pack by hand without picking a season is still to come.
+- **A file name showed the audio channels twice, like `[DD5.1 5.1]` (in-app report).** A release named `DDP5.1` is read as `DD5.1`, and with a format that also writes `{Mediainfo AudioChannels}` the layout appeared twice. When the format writes the layout apart and the file's own details are known, the codec is now written as the file's name for it (`EAC3`, `AC3`), the way Radarr does, so the TRaSH format gives `[EAC3 5.1]`. A format without `{Mediainfo AudioChannels}` keeps `DD5.1` as before.
+- **The naming preview lost a closing bracket with the TRaSH format (in-app report).** The sample release had no channel layout, so the second optional group of `[{Mediainfo AudioCodec}{ Mediainfo AudioChannels]}` vanished and took the `]` with it. The movie sample now has 5.1 and the episode sample 2.0, so the preview matches what a real import writes.
+- **Arrmatey and other Sonarr v4 apps could not open the show list (#215, thanks to balkie31 on GitHub).** Shows in the Sonarr-style API were missing the `originalLanguage` field those apps require, so browsing failed with a missing field error. Shows now carry it, in the library and in a lookup.
+
 ## [4.1.1] - 2026-11-22
 
 ### Added

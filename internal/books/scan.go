@@ -15,6 +15,7 @@ import (
 //
 //	<root>/<Author>/<Title>/<file or audio files>   (Mediarium, Calibre, Audiobookshelf)
 //	<root>/<Author>/<Title>.epub
+//	<root>/<Author>/<Series>/<NN. Title>.epub       (Mediarium's series layout)
 //	<root>/<Author> - <Title>.epub
 //	<root>/<Author>/<Series>/<Title>/<audio files>
 
@@ -38,6 +39,7 @@ var (
 	bracketed    = regexp.MustCompile(`\s*[\[\(][^\]\)]*[\]\)]`)
 	discFolder   = regexp.MustCompile(`(?i)^(cd|disc|disk|part|pt)[\s._-]*\d+$`)
 	spaces       = regexp.MustCompile(`\s+`)
+	seriesNumber = regexp.MustCompile(`^(?i:book\s*)?(\d{1,3}(?:\.\d)?)\s*[-–.]\s+`)
 	seriesIndex  = regexp.MustCompile(`^(?i:book\s*)?\d{1,3}(?:\.\d)?\s*[-–.]\s+`)
 )
 
@@ -67,6 +69,35 @@ func splitAuthorTitle(s string) (author, title string) {
 	return "", s
 }
 
+// inSeriesFolder reports whether an ebook at parts (folders, then the file name
+// without its extension) is filed the way Mediarium's series layout does:
+// <Author>/<Series>/<NN. Title (Year)>. The book is the file then, not the
+// folder above it, which is what <Author>/<Title>/<file> would say. The file
+// is taken for a series book when its name starts with its place in the series
+// ("02. ") or has a year in brackets while the folder has none (the old layout
+// is the other way round). A book with neither is read the old way. position
+// is "" when the place isn't a whole number.
+func inSeriesFolder(parts []string) (series, position string, ok bool) {
+	n := len(parts)
+	if n < 3 {
+		return "", "", false
+	}
+	folder, folderYear := cleanName(parts[n-2])
+	if folder == "" {
+		return "", "", false
+	}
+	if m := seriesNumber.FindStringSubmatch(parts[n-1]); m != nil {
+		if num, err := strconv.ParseFloat(m[1], 64); err == nil && num == float64(int(num)) {
+			position = strconv.Itoa(int(num))
+		}
+		return folder, position, true
+	}
+	if _, fileYear := cleanName(parts[n-1]); fileYear > 0 && folderYear == 0 {
+		return folder, "", true
+	}
+	return "", "", false
+}
+
 // Guess works out author, title and year from where a book is: parts are the
 // folders (and, when file is true, the file name without its extension) under
 // the library root.
@@ -81,7 +112,7 @@ func Guess(parts []string, file bool) (author, title string, year int) {
 	}
 	author, _ = cleanName(parts[0])
 	title, year = cleanName(parts[len(parts)-1])
-	if file && len(parts) >= 3 {
+	if _, _, inSeries := inSeriesFolder(parts); file && len(parts) >= 3 && !inSeries {
 		// <Author>/<Title>/<file>: the folder names the book; the file may
 		// be "Title - Author" (Calibre) or anything else.
 		if t, y := cleanName(parts[len(parts)-2]); t != "" {
@@ -200,6 +231,9 @@ func ScanEbooks(root string) ([]LocalBook, error) {
 					year = y
 				}
 			}
+		}
+		if s, p, ok := inSeriesFolder(parts); ok && series == "" && !ComicFormat(ext) {
+			series, position = s, p
 		}
 		if ext == "cbz" {
 			// A comic says what it is: the series, the number, who wrote it.

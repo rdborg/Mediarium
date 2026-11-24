@@ -265,6 +265,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | DELETE | `/api/episodes/{id}/file` | admin | deletes one episode's file. |
 | POST | `/api/episodes/{id}/locate-file` | admin | points one episode at a video file a person picked in the library folders (in the show's own folder or elsewhere). |
 | PUT | `/api/episodes/{id}/monitored` | any account |  |
+| PUT | `/api/episodes/{id}/release-group` | any account | is PUT /api/episodes/{id}/release-group. |
 | GET | `/api/episodes/{id}/subtitles` | any account |  |
 | POST | `/api/episodes/{id}/subtitles/download` | any account |  |
 | GET | `/api/episodes/{id}/subtitles/status` | any account |  |
@@ -506,6 +507,7 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/movies/{id}/monitored` | any account |  |
 | PUT | `/api/movies/{id}/no-upgrade` | admin | and handleSetSeriesNoUpgrade switch the search for better versions off for one title (or back on). |
 | PUT | `/api/movies/{id}/profile` | admin |  |
+| PUT | `/api/movies/{id}/release-group` | any account | is PUT /api/movies/{id}/release-group. |
 | POST | `/api/movies/{id}/replace-smaller` | any account | starts the replacement for one movie. |
 | POST | `/api/movies/{id}/rescan` | admin | looks at a movie's file again, for the Rescan files button. |
 | GET | `/api/movies/{id}/search` | any account | is the interactive search for one library movie: every matching release across the indexers, with the reasons automation would skip it. |
@@ -1005,4 +1007,4 @@ Every route the server exposes. Routes marked **public** need no sign-in; all ot
 | PUT | `/api/watched/settings` | admin | PUT /api/watched/settings {"sync": true, "cleanup": {...}} |
 | POST | `/api/watched/sync` | admin | POST /api/watched/sync: read what's been watched now. |
 
-620 routes.
+622 routes.

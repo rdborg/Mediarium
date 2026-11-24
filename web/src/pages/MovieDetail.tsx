@@ -32,6 +32,7 @@ import TitleEvents from '../components/TitleEvents'
 import SearchStatus from '../components/SearchStatus'
 import { describeState } from '../components/state'
 import { useToast } from '../components/Toast'
+import ReleaseGroupEdit from '../components/ReleaseGroupEdit'
 import { useTorrentsSwitch } from '../useTorrentsSwitch'
 import { useAuth } from '../AuthContext'
 import { useModules } from '../ModulesContext'
@@ -364,8 +365,9 @@ function MoviePage() {
         actions={
           inLibrary ? (
             <>
+              {movie.status === 'downloaded' && <WatchLinks tmdbId={movie.tmdbId} kind="movie" />}
               {can(me, 'manage') && (
-                <button className="primary btn-with-icon" onClick={searchNow} disabled={searchingNow || movie.status === 'downloading'}>
+                <button className={movie.status === 'downloaded' ? 'btn-with-icon' : 'primary btn-with-icon'} onClick={searchNow} disabled={searchingNow || movie.status === 'downloading'}>
                   <Icon name="search" size={16} /> {searchingNow ? t('Searching…') : movie.status === 'downloaded' ? t('Look for a better copy') : t('Find and download now')}
                 </button>
               )}
@@ -392,7 +394,6 @@ function MoviePage() {
                 </button>
               )}
               {can(me, 'releases') && <InfoTip text={t('Lists every release your indexers found for this movie, so you can pick one yourself instead of letting Mediarium choose.')} />}
-              {movie.status === 'downloaded' && <WatchLinks tmdbId={movie.tmdbId} kind="movie" />}
               {admin && ((movie.status === 'downloaded' && movie.filePath) || movie.status === 'missing') && (
                 <button className="btn-with-icon" onClick={() => void rescan()} disabled={rescanning} title={movie.filePath ? t('Looks at the file on your disk again: if it was deleted by hand the movie is wanted again, and a renamed file is found.') : t("Looks in the movie's folder for a video file you put there by hand and adds it to the movie.")}>
                   <Icon name="folder" size={16} /> {rescanning ? t('Checking…') : t('Rescan files')}
@@ -432,6 +433,16 @@ function MoviePage() {
           </div>
         )}
         {inLibrary && movie.status === 'downloaded' && <FileChips info={movie.fileInfo} />}
+        {inLibrary && movie.status === 'downloaded' && movie.filePath && movie.libraryId && can(me, 'manage') && (
+          <ReleaseGroupEdit
+            group={movie.releaseGroup ?? ''}
+            save={async (g) => {
+              const r = await api.setMovieReleaseGroup(movie.libraryId!, g)
+              toast.success(r.renamed ? t('Saved. The file was renamed.') : t('Saved.'))
+              reload()
+            }}
+          />
+        )}
         {inLibrary && movie.status === 'downloaded' && <ShortFile note={movie.shortFile} onRedo={admin ? () => void redoShortFile() : undefined} />}
         {inLibrary && admin && movie.folderPath && (
           <FolderLine path={movie.folderPath} kind="movie">

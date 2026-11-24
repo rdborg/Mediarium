@@ -211,6 +211,10 @@ func TestArrAPIForOverseerr(t *testing.T) {
 	if got := list(arrCall(t, "GET", sonarr+"/series?tvdbId=777001", key, nil, http.StatusOK)); len(got) != 1 {
 		t.Fatalf("series by tvdb id: %v", got)
 	}
+	// Sonarr v4 apps such as Arrmatey refuse a show without originalLanguage.
+	if obj(sr["originalLanguage"])["name"] != "English" || obj(obj(sl[0])["originalLanguage"])["name"] != "English" {
+		t.Fatalf("a series needs an originalLanguage: %v / %v", sr["originalLanguage"], obj(sl[0])["originalLanguage"])
+	}
 	arrCall(t, "POST", sonarr+"/series", key, map[string]any{"tvdbId": 777001}, http.StatusBadRequest)
 
 	// A later request for season 2: Overseerr PUTs the whole show back.

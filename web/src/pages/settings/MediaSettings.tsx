@@ -61,6 +61,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
   const [ebooksPath, setEbooksPath] = useState('')
   const [audiobooksPath, setAudiobooksPath] = useState('')
   const [otherPath, setOtherPath] = useState('')
+  const [booksLayout, setBooksLayout] = useState('author_title')
   const [downloadsPath, setDownloadsPath] = useState('')
   const [namingPreset, setNamingPreset] = useState('plex')
   const [customFormat, setCustomFormat] = useState('')
@@ -128,6 +129,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
         setEbooksPath(s.ebooksPath ?? '')
         setAudiobooksPath(s.audiobooksPath ?? '')
         setOtherPath(s.otherPath ?? '')
+        setBooksLayout(s.booksFolderLayout === 'author_series' ? 'author_series' : 'author_title')
         setDownloadsPath(s.downloadsPath)
         setNamingPreset(s.namingPreset || 'plex')
         setCustomFormat(s.movieNameFormat)
@@ -159,6 +161,7 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
               ebooksPath: ebooksPath.trim() || undefined,
               audiobooksPath: audiobooksPath.trim() || undefined,
               otherPath: otherPath.trim() || undefined,
+              booksFolderLayout: ebooksOn || audiobooksOn ? booksLayout : undefined,
               downloadsPath,
             }
           : {
@@ -277,6 +280,22 @@ function LibrarySection({ part, onSettings }: { part: 'folders' | 'naming'; onSe
             <FolderStatus path={downloadsPath} />
           </div>
         </div>
+        {(ebooksOn || audiobooksOn) && (
+          <div className="grid-form">
+            <label>
+              {t('How new books are filed')}
+              <select value={booksLayout} onChange={(e) => setBooksLayout(e.target.value)}>
+                <option value="author_title">{t('Author, then book')}</option>
+                <option value="author_series">{t('Author, then series, then book')}</option>
+              </select>
+            </label>
+            <small style={{ color: 'var(--text-dim)', textWrap: 'balance' }}>
+              {booksLayout === 'author_series'
+                ? t('New ebooks go in Author/Series/01. Title (Year).epub, new audiobooks in Author/Series/Title (Year)/, and a book with no series straight under its author. Books you already have stay where they are.')
+                : t('New books go in Author/Title (Year)/. Choose Author, then series, then book to group them by series. Books you already have stay where they are.')}
+            </small>
+          </div>
+        )}
         <HardlinkWarning
           libraries={[
             { label: t('movies'), path: moviesPath },

@@ -148,6 +148,77 @@ const WAITING_READ = 60
 // The most downloads one bulk action may name (bulkQueueMax on the server).
 const BULK_QUEUE_MAX = 200
 
+// When this browser last had the downloads open. Downloads that finished after
+// that are shown once, in a green box at the top, and are "seen" when you leave.
+const SEEN_KEY = 'mediarium.downloads.finishedSeen'
+
+function JustFinished({ items }: { items: QueueItem[] }) {
+  const [since] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(SEEN_KEY))
+      return v > 0 ? v : Date.now()
+    } catch {
+      return Date.now()
+    }
+  })
+  const [open, setOpen] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const stamp = useCallback(() => {
+    try {
+      localStorage.setItem(SEEN_KEY, String(Date.now()))
+    } catch {
+      /* private window: the box simply shows again next time */
+    }
+  }, [])
+  // The ones shown now count as seen from here on, also when the tab is closed instead of left.
+  useEffect(() => {
+    stamp()
+    window.addEventListener('pagehide', stamp)
+    return () => {
+      window.removeEventListener('pagehide', stamp)
+      stamp()
+    }
+  }, [stamp])
+  const fresh = items.filter((q) => q.completedAt && Date.parse(q.completedAt) > since)
+  if (dismissed || fresh.length === 0) return null
+  const shown = open ? fresh : fresh.slice(0, 1)
+  return (
+    <section className="just-done" aria-label={t('Finished since you last looked')}>
+      <div className="jd-head">
+        <Icon name="check" size={16} />
+        <strong>{plural(fresh.length, '{n} download finished since you last looked', '{n} downloads finished since you last looked')}</strong>
+        {fresh.length > 1 && (
+          <button type="button" className="link-btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            {open ? t('Show less') : t('Show all')}
+          </button>
+        )}
+        <button
+          type="button"
+          className="link-btn jd-ok"
+          onClick={() => {
+            stamp()
+            setDismissed(true)
+          }}
+        >
+          {t('Got it')}
+        </button>
+      </div>
+      <ul>
+        {shown.map((q) => {
+          const to = itemLink(q)
+          return (
+            <li key={q.id}>
+              {to ? <Link to={to}>{q.title}</Link> : <span>{q.title}</span>}
+              {q.subtitle && <span className="jd-sub"> {q.subtitle}</span>}
+              {q.completedAt && <span className="jd-when"> {timeAgo(q.completedAt)}</span>}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 const itemLink = (q: QueueItem) => (q.otherId ? '/library?kind=other' : q.bookId ? `/book/${q.bookId}` : q.albumId ? `/music/album/${q.albumId}` : q.seriesId ? `/series/${q.seriesId}` : q.tmdbId ? `/title/${q.tmdbId}` : undefined)
 
 // What a button press is doing right now, so only that button says so.
@@ -327,6 +398,7 @@ const SORT_OPTIONS: { key: QueueSortKey; label: () => string }[] = [
   { key: 'size', label: () => t('Largest first') },
   { key: 'eta', label: () => t('Finishing soonest') },
   { key: 'added', label: () => t('Newest first') },
+  { key: 'peers', label: () => t('Most peers first') },
 ]
 
 function QueueSortBar({ sort, onChange }: { sort: QueueSort; onChange: (s: QueueSort) => void }) {
@@ -1047,6 +1119,8 @@ export default function Queue() {
               </p>
             </div>
           )}
+
+          {loaded && !error && <JustFinished items={completed} />}
 
           {loaded && !error && needsAttention > 1 && <QueueSortBar sort={sort} onChange={setSort} />}
 

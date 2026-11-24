@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -228,9 +229,13 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 	// Words typed by hand are searched as they are and every answer is shown; the
 	// download still goes to the season or episode that was chosen.
 	custom := customSearchQuery(r)
+	// The page gives up after 30 seconds, so every pass shares one limit and what
+	// the quick indexers found by then is shown (a slow one is listed as not answering).
+	sctx, cancelSearch := context.WithTimeout(r.Context(), manualSearchWait)
+	defer cancelSearch()
 	var outcomes []indexers.Outcome
 	if custom != "" {
-		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, custom, tvCategory)
+		outcomes = indexers.SearchAll(indexers.AsManual(sctx), asked, custom, tvCategory)
 	} else if complete {
 		last := 0
 		if eps, err := s.MovieRepo.ListEpisodes(series.ID); err == nil {
@@ -239,12 +244,12 @@ func (s *Server) handleSeriesSearch(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		for _, q := range wholeSeriesQueries(series.Title, last) {
-			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
+			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(sctx), asked, q, tvCategory)...)
 		}
 	} else {
-		outcomes = indexers.SearchAll(withSeriesIDs(indexers.AsManual(r.Context()), series, season, episode), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
+		outcomes = indexers.SearchAll(withSeriesIDs(indexers.AsManual(sctx), series, season, episode), asked, tvSearchQuery(series.Title, season, episode), tvCategory)
 		for _, q := range s.extraTVQueries(series, season, episode) {
-			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(r.Context()), asked, q, tvCategory)...)
+			outcomes = append(outcomes, indexers.SearchAll(indexers.AsManual(sctx), asked, q, tvCategory)...)
 		}
 	}
 	merged := indexers.MergeResults(outcomes)

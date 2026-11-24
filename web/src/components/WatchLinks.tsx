@@ -17,8 +17,9 @@ export default function WatchLinks({ tmdbId, kind }: { tmdbId: number; kind: 'mo
   return (
     <>
       {links.map((l) => (
-        <a key={l.serverId} className="btn btn-with-icon watch-link" href={l.url} target="_blank" rel="noreferrer" title={t('Open in {name}', { name: l.name })}>
+        <a key={l.serverId} className="btn-link primary-look watch-link" href={l.url} target="_blank" rel="noreferrer" title={t('Open in {name}', { name: l.name })}>
           <MediaServerMark kind={l.kind} size={18} /> {t('Watch in {name}', { name: l.name })}
+          <span className="sr-only"> {t('(opens in a new tab)')}</span>
         </a>
       ))}
     </>

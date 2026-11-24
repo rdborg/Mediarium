@@ -3567,3 +3567,11 @@ body.has-player .to-top { bottom: calc(124px + env(safe-area-inset-bottom)); }
   .other-head { grid-template-columns: minmax(0, 1fr) auto auto auto; }
   .other-actions { grid-column: auto; flex-wrap: nowrap; }
 }
+
+/* The release group of a file, with a small editor. */
+.release-group { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; font-size: 0.85rem; white-space: nowrap; flex-wrap: wrap; }
+.release-group.compact { margin: 4px 0 0; font-size: 0.75rem; }
+.release-group .rg-label { color: var(--text-dim); }
+.release-group .rg-value { font-family: var(--font-mono, ui-monospace, monospace); }
+.release-group input { width: 11rem; max-width: 100%; }
+.release-group .rg-error { color: var(--danger, #ff6b6b); white-space: normal; text-wrap: balance; }

@@ -46,19 +46,12 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 			return nil, err
 		}
 		for _, m := range movies {
-			// The file is renamed where it is: a folder chosen for the movie
-			// after it arrived is only for its next file.
-			root := s.fileRoot(s.movieRootFor(m), m.FilePath)
-			if m.FilePath == "" || root == "" {
-				continue
-			}
-			to, err := s.buildDestPath(root, m.Title, m.Year, m.TMDBID, renameRelease(m.ReleaseTitle, m.FilePath), m.FilePath)
+			it, ok, err := s.moviePlanItem(m)
 			if err != nil {
 				return nil, err
 			}
-			to = s.keepMovieFolder(m, root, to) // the folder format is for new movies
-			if to != m.FilePath {
-				out = append(out, renameItem{Kind: "movie", ID: m.ID, Title: movieLabel(m), From: m.FilePath, To: to, root: root})
+			if ok {
+				out = append(out, it)
 			}
 		}
 	}
@@ -68,55 +61,85 @@ func (s *Server) renamePlan(kind string) ([]renameItem, error) {
 			return nil, err
 		}
 		for _, sr := range shows {
-			title := s.seriesRootFor(sr)
-			if title == "" {
-				continue
-			}
-			eps, err := s.MovieRepo.ListEpisodes(sr.ID)
+			items, err := s.seriesPlanItems(sr)
 			if err != nil {
 				return nil, err
 			}
-			// A multi-episode file is renamed once, named for all its episodes.
-			inFile := map[string][]library.Episode{}
-			for _, ep := range eps {
-				if ep.FilePath != "" {
-					inFile[ep.FilePath] = append(inFile[ep.FilePath], ep)
-				}
-			}
-			done := map[string]bool{}
-			for _, ep := range eps {
-				if ep.FilePath == "" || done[ep.FilePath] {
-					continue
-				}
-				done[ep.FilePath] = true
-				// A file holding several episodes has one release: take the first stored.
-				stored := ""
-				for _, e := range inFile[ep.FilePath] {
-					if e.ReleaseTitle != "" {
-						stored = e.ReleaseTitle
-						break
-					}
-				}
-				stem := renameRelease(stored, ep.FilePath)
-				to, _, err := s.buildTVDestPathFor(sr, inFile[ep.FilePath], parser.Parse(stem), stem, ep.FilePath, false)
-				if err != nil {
-					return nil, err
-				}
-				// As for movies, the file stays in the library folder it is in.
-				root := s.fileRoot(title, ep.FilePath)
-				if root != title {
-					if rel, err := filepath.Rel(title, to); err == nil {
-						to = filepath.Join(root, rel)
-					}
-				}
-				if to != ep.FilePath {
-					out = append(out, renameItem{Kind: "episode", ID: ep.ID, Title: fmt.Sprintf("%s S%02dE%02d", sr.Title, ep.Season, ep.Episode), From: ep.FilePath, To: to, root: root})
-				}
-			}
+			out = append(out, items...)
 		}
 	}
 	if len(out) > maxRenamePreview {
 		out = out[:maxRenamePreview]
+	}
+	return out, nil
+}
+
+// moviePlanItem is the rename a movie's file needs, if any.
+func (s *Server) moviePlanItem(m library.Movie) (renameItem, bool, error) {
+	// The file is renamed where it is: a folder chosen for the movie
+	// after it arrived is only for its next file.
+	root := s.fileRoot(s.movieRootFor(m), m.FilePath)
+	if m.FilePath == "" || root == "" {
+		return renameItem{}, false, nil
+	}
+	to, err := s.buildDestPath(root, m.Title, m.Year, m.TMDBID, renameRelease(m.ReleaseTitle, m.FilePath), m.FilePath)
+	if err != nil {
+		return renameItem{}, false, err
+	}
+	to = s.keepMovieFolder(m, root, to) // the folder format is for new movies
+	if to == m.FilePath {
+		return renameItem{}, false, nil
+	}
+	return renameItem{Kind: "movie", ID: m.ID, Title: movieLabel(m), From: m.FilePath, To: to, root: root}, true, nil
+}
+
+// seriesPlanItems are the renames a show's episode files need.
+func (s *Server) seriesPlanItems(sr library.Series) ([]renameItem, error) {
+	title := s.seriesRootFor(sr)
+	if title == "" {
+		return nil, nil
+	}
+	eps, err := s.MovieRepo.ListEpisodes(sr.ID)
+	if err != nil {
+		return nil, err
+	}
+	var out []renameItem
+	// A multi-episode file is renamed once, named for all its episodes.
+	inFile := map[string][]library.Episode{}
+	for _, ep := range eps {
+		if ep.FilePath != "" {
+			inFile[ep.FilePath] = append(inFile[ep.FilePath], ep)
+		}
+	}
+	done := map[string]bool{}
+	for _, ep := range eps {
+		if ep.FilePath == "" || done[ep.FilePath] {
+			continue
+		}
+		done[ep.FilePath] = true
+		// A file holding several episodes has one release: take the first stored.
+		stored := ""
+		for _, e := range inFile[ep.FilePath] {
+			if e.ReleaseTitle != "" {
+				stored = e.ReleaseTitle
+				break
+			}
+		}
+		stem := renameRelease(stored, ep.FilePath)
+		to, _, err := s.buildTVDestPathFor(sr, inFile[ep.FilePath], parser.Parse(stem), stem, ep.FilePath, false)
+		if err != nil {
+			return nil, err
+		}
+		// As for movies, the file stays in the library folder it is in.
+		root := s.fileRoot(title, ep.FilePath)
+		if root != title {
+			if rel, err := filepath.Rel(title, to); err == nil {
+				to = filepath.Join(root, rel)
+			}
+		}
+		if to != ep.FilePath {
+			out = append(out, renameItem{Kind: "episode", ID: ep.ID, Title: fmt.Sprintf("%s S%02dE%02d", sr.Title, ep.Season, ep.Episode), From: ep.FilePath, To: to, root: root})
+		}
 	}
 	return out, nil
 }

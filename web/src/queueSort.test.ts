@@ -33,6 +33,12 @@ test('sortQueueBy: each key in its own order, and turned round', () => {
   }
 })
 
+test('sortQueueBy: peers puts the most connected first, and a download that says nothing last', () => {
+  const p = [item(1, { peers: 5 }), item(2, { peers: 12 }), item(3, { peers: 0 }), item(4)]
+  assert.deepEqual(sortQueueBy(p, { key: 'peers', reverse: false }).map((q) => q.id), [2, 1, 3, 4])
+  assert.deepEqual(sortQueueBy(p, { key: 'peers', reverse: true }).map((q) => q.id), [3, 1, 2, 4])
+})
+
 test('sortQueueBy: the default keeps the order it was given, and the input is never changed', () => {
   const input = [c, a, b]
   assert.deepEqual(sortQueueBy(input, DEFAULT_QUEUE_SORT).map((q) => q.id), [3, 1, 2])

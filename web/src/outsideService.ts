@@ -29,5 +29,6 @@ export function outsideService(path: string): string {
 }
 
 export function slowServiceMessage(service: string): string {
+  if (service === t('Your indexers')) return t('The search is taking longer than usual because some of your indexers are slow. Try again in a moment.')
   return t("{service} is slow to answer right now. This is on their side, not Mediarium's. Try again in a moment.", { service })
 }

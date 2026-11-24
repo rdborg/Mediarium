@@ -286,3 +286,11 @@
 @media (prefers-reduced-motion: reduce) { .activity-page .qrow .qpick { transition: none; } }
 .activity-page .qspecs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
 .activity-page .qspec { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; }
+
+/* Downloads that finished since this browser last had the page open: shown once, green like "done". */
+.just-done { margin: 0 0 20px; padding: 12px 16px; border-radius: 6px 14px 14px 14px; color: var(--text); background: color-mix(in srgb, var(--success) 10%, transparent); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); }
+.jd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.jd-head svg { color: var(--success); flex: none; }
+.jd-head strong { color: var(--success); margin-right: auto; }
+.just-done ul { margin: 8px 0 0; padding: 0 0 0 28px; display: grid; gap: 4px; }
+.jd-sub, .jd-when { color: var(--text-dim); font-size: 0.9rem; }

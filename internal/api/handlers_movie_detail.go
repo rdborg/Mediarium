@@ -6,6 +6,7 @@ import (
 
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
+	"github.com/rdborg/mediarium/internal/parser"
 	"github.com/rdborg/mediarium/internal/queue"
 )
 
@@ -70,6 +71,9 @@ type movieDetailPayload struct {
 	FileInfo *fileInfoPayload `json:"fileInfo,omitempty"`
 	// ShortFile is set when the file is far shorter than the movie should be.
 	ShortFile *shortFileNote `json:"shortFile,omitempty"`
+	// ReleaseGroup is the group named in the release the file came from (or in
+	// the file's own name); only given to people who can change it.
+	ReleaseGroup string `json:"releaseGroup,omitempty"`
 
 	// From TMDB. ReleaseStatus is TMDB's own status ("Released", "In
 	// Production"...), kept apart from Status above, the library state.
@@ -140,6 +144,9 @@ func (s *Server) handleTMDBMovieDetail(w http.ResponseWriter, r *http.Request) {
 		if libMovie.Status == library.StatusDownloaded {
 			payload.FileInfo = s.movieFileInfo(libMovie.FilePath)
 			payload.ShortFile = s.shortFileOf(libMovie.FilePath)
+			if s.mayManage(r) {
+				payload.ReleaseGroup = parser.Parse(renameRelease(libMovie.ReleaseTitle, libMovie.FilePath)).Group
+			}
 		}
 		if isAdminRequest(r) { // only administrators see where the files lie
 			payload.FolderPath = s.movieFolderFor(libMovie)

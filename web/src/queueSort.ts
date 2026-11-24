@@ -8,13 +8,13 @@ import type { QueueItem } from './api'
 import { compareTitles } from './titleSort.ts'
 import { nextSample, type RateSample } from './transferRate.ts'
 
-export type QueueSortKey = 'default' | 'speed' | 'progress' | 'name' | 'size' | 'eta' | 'added'
+export type QueueSortKey = 'default' | 'speed' | 'progress' | 'name' | 'size' | 'eta' | 'added' | 'peers'
 export interface QueueSort {
   key: QueueSortKey
   reverse: boolean // the opposite of the key's own order
 }
 
-export const QUEUE_SORT_KEYS: readonly QueueSortKey[] = ['default', 'speed', 'progress', 'name', 'size', 'eta', 'added']
+export const QUEUE_SORT_KEYS: readonly QueueSortKey[] = ['default', 'speed', 'progress', 'name', 'size', 'eta', 'added', 'peers']
 export const DEFAULT_QUEUE_SORT: QueueSort = { key: 'default', reverse: false }
 
 export interface Pace {
@@ -73,6 +73,8 @@ function value(key: QueueSortKey, q: QueueItem, pace: ReadonlyMap<number, Pace>)
       return q.sizeBytes > 0 ? q.sizeBytes : undefined
     case 'added':
       return time(q.addedAt) || undefined
+    case 'peers':
+      return q.peers // only the built-in torrent client says; the rest go last
     default:
       return undefined
   }
@@ -80,7 +82,7 @@ function value(key: QueueSortKey, q: QueueItem, pace: ReadonlyMap<number, Pace>)
 
 // sortQueueBy arranges a list. 'default' leaves it as it came. Otherwise the
 // key's own order is: fastest, most done, A to Z, largest, finishing soonest,
-// newest; reverse turns it round. Ties keep the order the list had, and
+// newest, most peers; reverse turns it round. Ties keep the order the list had, and
 // downloads with nothing to compare (not running, for speed) come last.
 export function sortQueueBy(items: readonly QueueItem[], sort: QueueSort, pace: ReadonlyMap<number, Pace> = new Map()): QueueItem[] {
   if (sort.key === 'default') return [...items]

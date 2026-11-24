@@ -28,14 +28,14 @@ A book added by hand is never looked up again. Mediarium does not compare it wit
 
 Administrators see an **Import** button on the Ebooks and Audiobooks tabs. Press **Start import** and Mediarium reads that folder, looks each book up on Open Library, and adds what it recognises to your library as downloaded, **where it is**. Nothing is moved, renamed or changed. For an audiobook that Open Library does not have, Mediarium asks Audible (through Audnexus) before giving up, and adds the book with the narrator, length, series and release date Audible has. Such a book has no "More about this book" link, because there is no Open Library page for it.
 
-- It understands the usual layouts: `Author/Title/book.epub` (Mediarium, Calibre), `Author/Title.epub`, `Author - Title.epub`, and for audiobooks `Author/Title/` or `Author/Series/Title/` with the audio files inside. `CD 1` or `Disc 2` folders count as part of the book above them. A year like `(2021)`, Calibre's `(123)` and notes like `[Unabridged]` are ignored, and so are series numbers like `1 - `.
+- It understands the usual layouts: `Author/Title/book.epub` (Mediarium, Calibre), `Author/Title.epub`, `Author - Title.epub`, `Author/Series/01. Title (Year).epub` (the series layout below), and for audiobooks `Author/Title/` or `Author/Series/Title/` with the audio files inside. An ebook in a series folder is read as that series' book when its name starts with its number (`01. `) or has a year in brackets while the folder has none; the series and the number are added to the book. `CD 1` or `Disc 2` folders count as part of the book above them. A year like `(2021)`, Calibre's `(123)` and notes like `[Unabridged]` are ignored, and so are series numbers like `1 - `.
 - Titles are compared the forgiving way: accents and apostrophes don't matter (`L'Etranger` finds *L’étranger*), a number counts the same as the number written out (`George Orwell - 1984.epub` finds *Nineteen Eighty-Four*), and a name with the title first (`1984 - George Orwell.epub`) is tried that way round too. The author always has to match.
 - An ebook folder with the same book in several formats counts once, with the best format.
 - When it's done you see how many were added, already there and not found. The list shows the ones not found, with the path on disk and how the name was read, so you can rename the folder and run it again. **Show all** lists everything.
 - Running it again is safe: books already in the library are skipped.
 - The ebook and audiobook imports keep their own results. Importing audiobooks doesn't clear the list of ebooks that weren't found, so **Find it myself** is still there for them. Only one import runs at a time.
 - **Run the ... not found again** looks only at the books the last import did not find (or could not save), without reading the folders again. It is for when Open Library or Audible did not answer the first time (the message says so). If you renamed a folder to fix a name, use **Import again** instead, so the folders are read again. Scripts: `POST /api/books/import/retry`.
-- **Find it myself** (next to each book that was not found) opens a small search with a **Title** box and an **Author** box, filled in with what was read from the name on disk. Books by that author are listed first. Change either box, pick the right book from the results (cover, title, author, year) and it is attached to that file, the same as an automatic match. Tick **Rename the file to match** to also move the file (or the audiobook's folder) to where Mediarium puts a book it downloads, `Author/Title (Year)`. It is off by default, nothing is overwritten, and if the new place is taken the book is added and the file stays where it is. Only administrators can do this. Scripts: `POST /api/books/import/match`.
+- **Find it myself** (next to each book that was not found) opens a small search with a **Title** box and an **Author** box, filled in with what was read from the name on disk. Books by that author are listed first. Change either box, pick the right book from the results (cover, title, author, year) and it is attached to that file, the same as an automatic match. Tick **Rename the file to match** to also move the file (or the audiobook's folder) to where Mediarium puts a book it downloads, `Author/Title (Year)`, or the series layout if you chose it. It is off by default, nothing is overwritten, and if the new place is taken the book is added and the file stays where it is. Only administrators can do this. Scripts: `POST /api/books/import/match`.
 - It pauses briefly between lookups to go easy on Open Library, so a big folder takes a few minutes. You can leave the page; it carries on.
 
 ## Finding books on Discover
@@ -144,6 +144,19 @@ Books are filed by author:
 ```
 
 Two different works of the same title, author and year (two catalogue entries for one name) don't share a folder: the second one gets its Open Library key after the name, `Title (Year) [OL123W]`. An ebook download keeps only the best ebook file in it. An audiobook keeps all of its audio files with their own names, so the chapters stay in order. When a book comes in several folders with the same file names (`CD1/Track 01.mp3` and `CD2/Track 01.mp3`), the folder name goes in front of the file name (`CD1 - Track 01.mp3`), so no part replaces another. A download with no ebook (or no audio) in it is marked as a bad release, blocklisted, and the next best one is tried.
+
+### Filing books by series
+
+If you keep series together, switch the layout under **Settings > Library and files**, in **How new books are filed**: **Author, then series, then book**. New books then go here:
+
+```
+<Ebooks folder>/<Author>/<Series>/01. Title (Year).epub
+<Ebooks folder>/<Author>/Title (Year).epub                   (a book that is not in a series)
+<Audiobooks folder>/<Author>/<Series>/<Title (Year)>/<the audiobook's own files>
+<Audiobooks folder>/<Author>/<Title (Year)>/<the audiobook's own files>   (no series)
+```
+
+The series and the number come from the book's series (see [Series](#series)). The number has two digits. A place that isn't a whole book (a novella at 2.5) or a book with no number gets no number in front. The default stays **Author, then book**, the layout above, so nothing changes until you choose. Books you already have are never moved when you change it; only books added or downloaded afterwards use the new layout, and the library import reads both. The same name rule applies: two different works that end up on the same file get their Open Library key after the name. Setting key: `books.folder_layout` (`author_title` or `author_series`).
 
 Downloading a better ebook later (an EPUB after a PDF) replaces the file. A worse one doesn't.
 

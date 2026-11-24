@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rdborg/mediarium/internal/books"
 	"github.com/rdborg/mediarium/internal/download"
 	"github.com/rdborg/mediarium/internal/metadata"
 	"github.com/rdborg/mediarium/internal/organizer"
@@ -355,6 +356,9 @@ type settingsPayload struct {
 	AudiobooksPath string `json:"audiobooksPath,omitempty"`
 	// OtherPath is the Other library folder.
 	OtherPath string `json:"otherPath,omitempty"`
+	// BooksFolderLayout is how new books are filed: "author_title" (the
+	// default) or "author_series". A pointer so an omitted field leaves it alone.
+	BooksFolderLayout *string `json:"booksFolderLayout,omitempty"`
 
 	// ContainerFolders is what the container itself maps: the folders named
 	// by MOVIES_DIR, TV_DIR, DOWNLOADS_DIR, MUSIC_DIR, EBOOKS_DIR,
@@ -471,6 +475,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	defaultTVProfile := s.defaultTVProfileID()
 	musicEnabled := s.musicEnabled()
+	bookLayout := s.booksLayout()
 	downloadsAtOnce := s.downloadsAtOnce()
 	newestFirst := s.newestFirstOn()
 	resumeInterrupted := s.resumeInterruptedOn()
@@ -599,6 +604,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		EbooksPath:                 s.ebooksRoot(),
 		AudiobooksPath:             s.audiobooksRoot(),
 		OtherPath:                  s.otherRoot(),
+		BooksFolderLayout:          &bookLayout,
 		ContainerFolders:           s.containerFolders(),
 	})
 }
@@ -1393,6 +1399,17 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if req.BooksFolderLayout != nil {
+		layout := strings.TrimSpace(*req.BooksFolderLayout)
+		if layout != books.LayoutAuthorTitle && layout != books.LayoutAuthorSeries {
+			writeError(w, http.StatusBadRequest, "The book folder layout must be author_title or author_series.")
+			return
+		}
+		if err := tx.Set(settings.KeyBooksFolderLayout, layout, false); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
 	if req.NewestFirst != nil {
 		val := ""
 		if *req.NewestFirst {
@@ -1478,12 +1495,12 @@ type namingPreviewPayload struct {
 var (
 	namingMovieSample = organizer.NamingContext{
 		MovieTitle: "Example Movie", Year: 2024, Quality: "1080p", Source: "BluRay",
-		Codec: "x265", AudioCodec: "DTS", HDR: "HDR10", Edition: "Extended", ReleaseGroup: "GROUP", TMDBID: 12345,
+		Codec: "x265", AudioCodec: "DTS", AudioChannels: "5.1", HDR: "HDR10", Edition: "Extended", ReleaseGroup: "GROUP", TMDBID: 12345,
 		OriginalTitle: "Example.Movie.2024.Extended.1080p.BluRay.DTS.x265-GROUP", OriginalFilename: "Example.Movie.2024.Extended.1080p.BluRay.DTS.x265-GROUP",
 	}
 	namingEpisodeSample = organizer.NamingContext{
 		SeriesTitle: "Example Show", Year: 2023, Season: 1, Episode: 2, EpisodeTitle: "The Second One", AirDate: "2023-03-14",
-		Quality: "1080p", Source: "WEB-DL", Codec: "x264", AudioCodec: "AAC", ReleaseGroup: "GROUP", TMDBID: 67890,
+		Quality: "1080p", Source: "WEB-DL", Codec: "x264", AudioCodec: "AAC", AudioChannels: "2.0", ReleaseGroup: "GROUP", TMDBID: 67890,
 		OriginalTitle: "Example.Show.S01.1080p.WEB-DL.AAC.x264-GROUP", OriginalFilename: "Example.Show.S01E02.1080p.WEB-DL.AAC.x264-GROUP",
 	}
 )

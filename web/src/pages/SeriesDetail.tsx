@@ -10,6 +10,7 @@ import NumberingCard from '../components/NumberingCard'
 import SeriesTypePicker from '../components/SeriesTypePicker'
 import EpisodeOrderPicker from '../components/EpisodeOrderPicker'
 import FileChips from '../components/FileChips'
+import ReleaseGroupEdit from '../components/ReleaseGroupEdit'
 import ShortFile from '../components/ShortFile'
 import { redoAnswerText } from '../shortFile'
 import Switch from '../components/Switch'
@@ -472,8 +473,9 @@ function SeriesPage() {
         }
         actions={
           <>
+            {series.downloadedCount > 0 && <WatchLinks tmdbId={series.tmdbId} kind="tv" />}
             {canManage && (
-              <button className="primary btn-with-icon" onClick={() => searchNow()} disabled={searchingNow}>
+              <button className={series.downloadedCount > 0 ? 'btn-with-icon' : 'primary btn-with-icon'} onClick={() => searchNow()} disabled={searchingNow}>
                 <Icon name="search" size={16} /> {searchingNow ? t('Searching…') : t('Find missing episodes')}
               </button>
             )}
@@ -501,7 +503,6 @@ function SeriesPage() {
                 <Icon name="folder" size={16} /> {rescanning ? t('Checking…') : t('Rescan files')}
               </button>
             )}
-            {series.downloadedCount > 0 && <WatchLinks tmdbId={series.tmdbId} kind="tv" />}
             {admin && (
               <button className="btn-with-icon danger-ghost" onClick={remove}>
                 <Icon name="trash" size={16} /> {t('Remove')}
@@ -698,6 +699,17 @@ function SeriesPage() {
                         {e.title || <span style={{ color: 'var(--text-dim)' }}>{t('TBA')}</span>}
                         {e.status === 'downloaded' && <FileChips info={e.fileInfo} className="compact" />}
                         {e.status === 'downloaded' && <ShortFile compact note={e.shortFile} onRedo={admin ? () => void redoShortFile(e) : undefined} />}
+                        {e.status === 'downloaded' && e.filePath && canManage && (
+                          <ReleaseGroupEdit
+                            compact
+                            group={e.releaseGroup ?? ''}
+                            save={async (g) => {
+                              const r = await api.setEpisodeReleaseGroup(e.id, g)
+                              toast.success(r.renamed ? t('Saved. The file was renamed.') : t('Saved.'))
+                              load()
+                            }}
+                          />
+                        )}
                       </td>
                       <td style={{ color: 'var(--text-dim)' }}>{e.airDate || '—'}</td>
                       <td>

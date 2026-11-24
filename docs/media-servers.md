@@ -4,7 +4,7 @@ Mediarium downloads and organises your movies and shows; you watch them in Plex,
 
 - **New downloads show up straight away.** After each import, Mediarium asks the media server to scan the folder the new file went into, so you don't wait for its next scheduled scan.
 - **Refresh now.** A button that asks the server to scan all of its libraries.
-- **Watch in Plex / Jellyfin / Emby / Silo.** A title's page links straight to the same title on your media server (found by its TMDB id).
+- **Watch in Plex / Jellyfin / Emby / Silo.** A title's page links straight to the same title on your media server (found by its TMDB id). It is the filled main button at the start of the title's button row, and opens the server in a new tab.
 - **Open Plex / Jellyfin / Emby.** The play button (at the bottom of the sidebar, or in the header on a phone) opens one menu with everything that plays: the **Ebook reader** and **Audiobook player** (Mediarium Books, in its own window), the **Music player** (it takes you to your music library, and shows what is playing), and your media servers; pick a server to open its own web app in a new tab. Only what you have switched on is listed. Each server has its own logo (Plex, Jellyfin, Emby, Audiobookshelf; Kavita, Silo and webhooks have a simple one of ours).
 
 Mediarium doesn't convert video, and its only player is the simple in-browser one on a title's Files card. Your media server is still the place to watch.

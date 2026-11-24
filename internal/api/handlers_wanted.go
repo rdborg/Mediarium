@@ -134,11 +134,14 @@ func (s *Server) handleMovieSearch(w http.ResponseWriter, r *http.Request) {
 	// the person chose to look for something else, such as a release posted under
 	// another title, and the download still belongs to this movie.
 	custom := customSearchQuery(r)
+	// One limit for every pass, below the 30 seconds the page waits (see manualSearchWait).
+	sctx, cancelSearch := context.WithTimeout(r.Context(), manualSearchWait)
+	defer cancelSearch()
 	var outcomes []indexers.Outcome
 	if custom != "" {
-		outcomes = indexers.SearchAll(indexers.AsManual(r.Context()), asked, custom, movieCategory)
+		outcomes = indexers.SearchAll(indexers.AsManual(sctx), asked, custom, movieCategory)
 	} else {
-		outcomes = s.searchMovieTitles(r.Context(), asked, m, nil)
+		outcomes = s.searchMovieTitles(sctx, asked, m, nil)
 	}
 	merged := indexers.MergeResults(outcomes)
 	out := []searchResultPayload{}

@@ -15,6 +15,7 @@ import (
 	"github.com/rdborg/mediarium/internal/library"
 	"github.com/rdborg/mediarium/internal/metadata"
 	"github.com/rdborg/mediarium/internal/origin"
+	"github.com/rdborg/mediarium/internal/parser"
 )
 
 type seriesPayload struct {
@@ -128,6 +129,9 @@ type episodePayload struct {
 	FileInfo *fileInfoPayload `json:"fileInfo,omitempty"`
 	// ShortFile is set when the file is far shorter than the episode should be.
 	ShortFile *shortFileNote `json:"shortFile,omitempty"`
+	// ReleaseGroup is the group named in the release the file came from; only
+	// given to people who can change it.
+	ReleaseGroup string `json:"releaseGroup,omitempty"`
 }
 
 func toEpisodePayload(e library.Episode) episodePayload {
@@ -260,6 +264,7 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	var files []string
 	fileInfos, _ := s.MovieRepo.EpisodeMediaInfo(id)
+	canManage := s.mayManage(r)
 	for i, e := range eps {
 		out.Episodes[i] = toEpisodePayload(e)
 		if row, ok := fileInfos[e.ID]; ok && e.Status == library.StatusDownloaded {
@@ -267,6 +272,9 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 			out.Episodes[i].ShortFile = s.shortFileOf(e.FilePath)
 		}
 		out.Episodes[i].FilePath = fileLabel(r, e.FilePath)
+		if e.Status == library.StatusDownloaded && e.FilePath != "" && canManage {
+			out.Episodes[i].ReleaseGroup = parser.Parse(renameRelease(e.ReleaseTitle, e.FilePath)).Group
+		}
 		if e.Status == library.StatusDownloaded {
 			out.Episodes[i].SizeBytes = cachedFileSize(e.FilePath, now)
 		}

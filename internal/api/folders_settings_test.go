@@ -137,3 +137,17 @@ func TestFolderCheckReportsInDocker(t *testing.T) {
 		t.Fatalf("the folder should not exist: %v", got)
 	}
 }
+
+// New books are filed the old way until someone picks the series layout.
+func TestBooksLayoutSetting(t *testing.T) {
+	base, client := newFolderTestServer(t)
+	url := base + "/api/settings"
+	if got := getJSON[map[string]any](t, client, url); got["booksFolderLayout"] != "author_title" {
+		t.Fatalf("the default must be today's layout: %v", got["booksFolderLayout"])
+	}
+	wantBad(t, client, http.MethodPut, url, map[string]any{"booksFolderLayout": "by_colour"}, "book folder layout")
+	got := postJSONMethod[map[string]any](t, client, http.MethodPut, url, map[string]any{"booksFolderLayout": "author_series"}, http.StatusOK)
+	if got["booksFolderLayout"] != "author_series" {
+		t.Fatalf("saved layout not returned: %v", got["booksFolderLayout"])
+	}
+}

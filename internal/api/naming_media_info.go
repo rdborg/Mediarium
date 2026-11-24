@@ -35,7 +35,25 @@ func (s *Server) fillFromFile(ctx *organizer.NamingContext, path string, formats
 	if !ok {
 		return
 	}
+	before := ctx.AudioCodec
 	applyFileInfo(ctx, info)
+	// A release word such as DD5.1 carries the channel layout. When the format doesn't write
+	// the layout apart, the word stays, so a name keeps its 5.1 as it always had.
+	if audioFamily(before) == "dd51" && !namingWritesChannels(formats...) {
+		if f := audioFamily(ctx.AudioCodec); f == "ac3" || f == "eac3" {
+			ctx.AudioCodec = before
+		}
+	}
+}
+
+// namingWritesChannels reports whether any of the formats writes the channel layout as its own token.
+func namingWritesChannels(formats ...string) bool {
+	for _, f := range formats {
+		if strings.Contains(strings.ToLower(f), "audiochannels") {
+			return true
+		}
+	}
+	return false
 }
 
 // fileMediaInfo returns the details of the file at path, from the saved ones
@@ -92,7 +110,9 @@ func applyFileInfo(ctx *organizer.NamingContext, info mediainfo.Info) {
 				break
 			}
 		}
-		if main.Codec != "" && !sameAudioCodec(ctx.AudioCodec, main) {
+		// A release word such as DD5.1 or DDP5.1 already holds the channel layout, which
+		// {Mediainfo AudioChannels} writes again: the file's own codec name (AC3, EAC3) goes in its place.
+		if main.Codec != "" && (!sameAudioCodec(ctx.AudioCodec, main) || audioFamily(ctx.AudioCodec) == "dd51") {
 			ctx.AudioCodec = audioCodecName(main)
 		}
 		ctx.AudioChannels = channelLayout(main.Channels)

@@ -609,6 +609,8 @@ func (s *Server) protectedRoutes() *routeTable {
 	manage.HandleFunc("PUT /api/series/{id}/tags", s.handleSetSeriesTags)
 	manage.HandleFunc("PUT /api/movies/{id}/monitored", s.handleSetMovieMonitored)
 	manage.HandleFunc("PUT /api/movies/{id}/folder", s.handleSetMovieFolder)
+	manage.HandleFunc("PUT /api/movies/{id}/release-group", s.handleSetMovieReleaseGroup)
+	manage.HandleFunc("PUT /api/episodes/{id}/release-group", s.handleSetEpisodeReleaseGroup)
 	manage.HandleFunc("PUT /api/series/{id}/folder", s.handleSetSeriesFolder)
 	member.HandleFunc("GET /api/library/folders", s.handleLibraryFolders)
 	member.HandleFunc("GET /api/library/counts", s.handleLibraryCounts)

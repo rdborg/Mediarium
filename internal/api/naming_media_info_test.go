@@ -34,10 +34,23 @@ func TestApplyFileInfo(t *testing.T) {
 		},
 		{
 			name: "the release's spelling stays when it agrees",
+			in:   organizer.NamingContext{Codec: "x265", AudioCodec: "DTS", HDR: "HDR10"},
+			info: mediainfo.Info{Audio: []mediainfo.Audio{{Codec: "DTS", Channels: 6}}},
+			want: organizer.NamingContext{Codec: "x265", AudioCodec: "DTS", HDR: "HDR10", AudioChannels: "5.1"},
+		},
+		{
+			// DDP5.1 reads DD5.1; written next to {Mediainfo AudioChannels} it gave "DD5.1 5.1".
+			name: "DD5.1 gives way to the codec name, since the layout is written apart",
 			in:   organizer.NamingContext{Codec: "x265", AudioCodec: "DD5.1", HDR: "HDR10"},
 			info: hevc10,
-			want: organizer.NamingContext{Codec: "x265", AudioCodec: "DD5.1", HDR: "HDR10", AudioChannels: "5.1", BitDepth: 10,
+			want: organizer.NamingContext{Codec: "x265", AudioCodec: "EAC3", HDR: "HDR10", AudioChannels: "5.1", BitDepth: 10,
 				Languages: []string{"English", "German"}, SubtitleLanguages: []string{"English", "German"}},
+		},
+		{
+			name: "DD5.1 on a Dolby Digital file is AC3",
+			in:   organizer.NamingContext{AudioCodec: "DD5.1"},
+			info: mediainfo.Info{Audio: []mediainfo.Audio{{Codec: "AC-3", Channels: 6}}},
+			want: organizer.NamingContext{AudioCodec: "AC3", AudioChannels: "5.1"},
 		},
 		{
 			name: "an SDR file leaves the release's HDR word",
@@ -122,6 +135,19 @@ func TestNamingUsesMediaInfo(t *testing.T) {
 	} {
 		if got := namingUsesMediaInfo(f); got != want {
 			t.Errorf("namingUsesMediaInfo(%q) = %v, want %v", f, got, want)
+		}
+	}
+}
+
+func TestNamingWritesChannels(t *testing.T) {
+	for format, want := range map[string]bool{
+		"{Movie CleanTitle} {[Mediainfo AudioCodec}{ Mediainfo AudioChannels]}": true,
+		"{Movie Title} {MediaInfo AudioCodec}":                                  false,
+		"{Movie Title} ({Year}) {Quality}":                                      false,
+		"{movie title} {mediainfo audiochannels}":                               true,
+	} {
+		if got := namingWritesChannels(format); got != want {
+			t.Errorf("namingWritesChannels(%q) = %v, want %v", format, got, want)
 		}
 	}
 }

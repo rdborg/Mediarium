@@ -310,9 +310,22 @@ func FolderName(b Book) string { return b.Name() }
 // Library key after the name. A folder is only moved aside from when another
 // book holds it, never the book that holds it.
 func UniqueFolder(folder string, b Book, f Format, all []Book) string {
+	return uniquePath(folder, b, f, all, false)
+}
+
+// uniquePath is UniqueFolder; with noExt the other books' paths are compared
+// without their file extension (an ebook file against the path it would get).
+func uniquePath(folder string, b Book, f Format, all []Book, noExt bool) string {
 	held := func(p string) bool {
 		for _, o := range all {
-			if o.ID != b.ID && o.Path(f) != "" && strings.EqualFold(filepath.Clean(o.Path(f)), filepath.Clean(p)) {
+			op := o.Path(f)
+			if o.ID == b.ID || op == "" {
+				continue
+			}
+			if noExt {
+				op = strings.TrimSuffix(op, filepath.Ext(op))
+			}
+			if strings.EqualFold(filepath.Clean(op), filepath.Clean(p)) {
 				return true
 			}
 		}
